@@ -120,9 +120,10 @@ npm run dev
 ### 后端环境变量
 
 ```bash
-JWT_SECRET=your-jwt-secret-key    # JWT 密钥
-DB_PATH=ark_server.db             # 数据库文件路径
-SERVER_PORT=8080                  # 服务器端口
+JWT_SECRET=your-jwt-secret-key              # JWT 密钥
+DB_PATH=ark_server.db                       # 数据库文件路径
+SERVER_PORT=8080                            # 服务器端口
+TRUSTED_PROXIES=127.0.0.1,::1              # 可信任的代理地址 (用逗号分隔)
 ```
 
 ### 前端环境变量

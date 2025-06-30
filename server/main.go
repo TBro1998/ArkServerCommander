@@ -21,6 +21,9 @@ func main() {
 	// 创建Gin实例
 	r := gin.Default()
 
+	// 配置可信任的代理（安全设置）
+	r.SetTrustedProxies(config.TrustedProxies)
+
 	// 配置CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},

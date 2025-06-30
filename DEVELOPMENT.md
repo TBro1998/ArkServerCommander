@@ -190,6 +190,7 @@ npm run generate
 JWT_SECRET=your-production-secret-key
 DB_PATH=/path/to/production.db
 SERVER_PORT=8080
+TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16  # 生产环境代理地址
 ```
 
 #### 前端环境变量
@@ -218,6 +219,14 @@ Token 默认24小时过期，可以在 `utils/jwt.go` 中修改过期时间。
 - 前端默认端口: 3000
 
 可以通过环境变量修改端口。
+
+### 5. 代理安全警告
+
+如果看到 "You trusted all proxies" 警告，说明需要配置可信任的代理地址：
+
+- **开发环境**: 默认只信任本地地址 (127.0.0.1, ::1)
+- **生产环境**: 通过 TRUSTED_PROXIES 环境变量配置具体的代理IP或网段
+- **禁用代理信任**: 设置 `TRUSTED_PROXIES=""` 来禁用所有代理
 
 ## 扩展开发
 
