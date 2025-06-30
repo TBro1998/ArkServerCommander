@@ -24,6 +24,16 @@ func RegisterRoutes(r *gin.Engine) {
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/profile", controllers.GetProfile)
+
+			// 服务器管理路由
+			servers := protected.Group("/servers")
+			{
+				servers.GET("/", controllers.GetServers)
+				servers.POST("/", controllers.CreateServer)
+				servers.GET("/:id", controllers.GetServer)
+				servers.PUT("/:id", controllers.UpdateServer)
+				servers.DELETE("/:id", controllers.DeleteServer)
+			}
 		}
 	}
 }

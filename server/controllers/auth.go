@@ -11,6 +11,13 @@ import (
 )
 
 // CheckInit 检查是否已初始化用户
+// @Summary 检查系统初始化状态
+// @Description 检查系统是否已经初始化过用户
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]bool "初始化状态"
+// @Router /auth/check-init [get]
 func CheckInit(c *gin.Context) {
 	var count int64
 	database.DB.Model(&models.User{}).Count(&count)
@@ -21,6 +28,16 @@ func CheckInit(c *gin.Context) {
 }
 
 // InitUser 初始化用户
+// @Summary 初始化系统用户
+// @Description 创建第一个管理员用户，只能在系统未初始化时调用
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param user body models.UserRequest true "用户信息"
+// @Success 200 {object} map[string]interface{} "初始化成功"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /auth/init [post]
 func InitUser(c *gin.Context) {
 	var req models.UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,6 +89,17 @@ func InitUser(c *gin.Context) {
 }
 
 // Login 用户登录
+// @Summary 用户登录
+// @Description 使用用户名和密码登录系统
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param credentials body models.UserRequest true "登录凭据"
+// @Success 200 {object} map[string]interface{} "登录成功"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 401 {object} map[string]string "认证失败"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /auth/login [post]
 func Login(c *gin.Context) {
 	var req models.UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -110,6 +138,15 @@ func Login(c *gin.Context) {
 }
 
 // GetProfile 获取用户信息
+// @Summary 获取当前用户信息
+// @Description 获取当前登录用户的基本信息
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]models.UserResponse "用户信息"
+// @Failure 401 {object} map[string]string "未授权"
+// @Router /profile [get]
 func GetProfile(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	username := c.GetString("username")

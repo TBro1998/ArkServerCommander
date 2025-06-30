@@ -23,9 +23,47 @@
           </div>
         </div>
         
-        <div class="mt-8">
-          <p class="text-sm text-gray-500">
-            更多功能正在开发中...
+        <div class="mt-8 space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            <!-- 服务器管理卡片 -->
+            <NuxtLink
+              to="/servers"
+              class="bg-blue-50 hover:bg-blue-100 p-6 rounded-lg border border-blue-200 transition-colors group"
+            >
+              <div class="text-center">
+                <svg class="mx-auto h-12 w-12 text-blue-600 group-hover:text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">服务器管理</h3>
+                <p class="mt-1 text-sm text-gray-600">添加、配置和管理您的ARK服务器</p>
+              </div>
+            </NuxtLink>
+
+            <!-- 占位卡片：玩家管理 -->
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 opacity-60">
+              <div class="text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-500">玩家管理</h3>
+                <p class="mt-1 text-sm text-gray-400">即将推出...</p>
+              </div>
+            </div>
+
+            <!-- 占位卡片：日志监控 -->
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 opacity-60">
+              <div class="text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-500">日志监控</h3>
+                <p class="mt-1 text-sm text-gray-400">即将推出...</p>
+              </div>
+            </div>
+          </div>
+          
+          <p class="text-sm text-gray-500 mt-6">
+            点击上方卡片开始管理您的ARK服务器
           </p>
         </div>
       </div>
