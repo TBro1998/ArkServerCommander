@@ -59,6 +59,11 @@
 <script setup>
 const authStore = useAuthStore()
 
+// 在客户端初始化时从cookie恢复登录状态
+onMounted(() => {
+  authStore.initFromStorage()
+})
+
 const logout = () => {
   authStore.logout()
   navigateTo('/login')

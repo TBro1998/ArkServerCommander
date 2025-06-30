@@ -35,10 +35,14 @@ export const useAuthStore = defineStore('auth', {
         this.token = response.token
         this.user = response.user
         
-        // 保存token到localStorage
-        if (process.client) {
-          localStorage.setItem('token', response.token)
-        }
+        // 保存token到cookie
+        const tokenCookie = useCookie('auth-token', {
+          httpOnly: false,
+          secure: false,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7 // 7天
+        })
+        tokenCookie.value = response.token
         
         return { success: true, message: response.message }
       } catch (error) {
@@ -61,10 +65,14 @@ export const useAuthStore = defineStore('auth', {
         this.token = response.token
         this.user = response.user
         
-        // 保存token到localStorage
-        if (process.client) {
-          localStorage.setItem('token', response.token)
-        }
+        // 保存token到cookie
+        const tokenCookie = useCookie('auth-token', {
+          httpOnly: false,
+          secure: false,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7 // 7天
+        })
+        tokenCookie.value = response.token
         
         return { success: true, message: response.message }
       } catch (error) {
@@ -93,18 +101,28 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = null
       this.user = null
-      if (process.client) {
-        localStorage.removeItem('token')
-      }
+      
+      // 删除cookie
+      const tokenCookie = useCookie('auth-token')
+      tokenCookie.value = null
     },
 
     initFromStorage() {
-      if (process.client) {
-        const token = localStorage.getItem('token')
-        if (token) {
-          this.token = token
-          this.getProfile()
-        }
+      // 从cookie初始化token
+      const tokenCookie = useCookie('auth-token')
+      console.log('初始化认证状态，cookie中的token:', tokenCookie.value ? '存在' : '不存在')
+      
+      if (tokenCookie.value) {
+        this.token = tokenCookie.value
+        console.log('已设置token到auth store')
+        
+        // 异步获取用户信息，不阻塞页面加载
+        this.getProfile().catch(error => {
+          console.error('获取用户信息失败，可能token已过期:', error)
+          this.logout()
+        })
+      } else {
+        console.log('未找到有效的认证token')
       }
     }
   }

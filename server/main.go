@@ -1,13 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"ark-server-manager/config"
 	"ark-server-manager/database"
 	"ark-server-manager/routes"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -48,13 +48,32 @@ func main() {
 	// 配置可信任的代理（安全设置）
 	r.SetTrustedProxies(config.TrustedProxies)
 
-	// 配置CORS
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
+	// 最简单的CORS解决方案 - 允许所有来源（仅开发环境）
+	r.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+		c.Header("Access-Control-Allow-Credentials", "true")
+
+		// 处理预检请求
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
+	// 添加请求日志中间件
+	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("[%s] %s %s %d %s Origin:%s\n",
+			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+			param.Method,
+			param.Path,
+			param.StatusCode,
+			param.Latency,
+			param.Request.Header.Get("Origin"),
+		)
 	}))
 
 	// 注册路由
@@ -64,7 +83,13 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 启动服务器
-	log.Println("服务器启动在端口 :8080")
-	log.Println("Swagger文档地址: http://localhost:8080/swagger/index.html")
+	log.Println("=========================================")
+	log.Println("🚀 ARK服务器管理器后端启动成功")
+	log.Println("📍 服务器地址: http://localhost:8080")
+	log.Println("📚 API文档: http://localhost:8080/swagger/index.html")
+	log.Println("🔗 健康检查: http://localhost:8080/health")
+	log.Println("🌐 CORS: 已启用（允许所有来源）")
+	log.Println("=========================================")
+
 	r.Run(":8080")
 }

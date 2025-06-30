@@ -8,6 +8,11 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine) {
+	// 添加健康检查端点
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "message": "服务器运行正常"})
+	})
+
 	// API路由组
 	api := r.Group("/api")
 	{
@@ -20,20 +25,20 @@ func RegisterRoutes(r *gin.Engine) {
 		}
 
 		// 需要认证的路由
-		protected := api.Group("/")
+		protected := api.Group("") // 改为空字符串，避免双斜杠
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/profile", controllers.GetProfile)
 
-			// 服务器管理路由
-			servers := protected.Group("/servers")
-			{
-				servers.GET("/", controllers.GetServers)
-				servers.POST("/", controllers.CreateServer)
-				servers.GET("/:id", controllers.GetServer)
-				servers.PUT("/:id", controllers.UpdateServer)
-				servers.DELETE("/:id", controllers.DeleteServer)
-			}
+			// 服务器管理路由 - 直接在 protected 组下定义
+			protected.GET("/servers", controllers.GetServers)
+			protected.POST("/servers", controllers.CreateServer)
+			protected.GET("/servers/:id", controllers.GetServer)
+			protected.GET("/servers/:id/rcon", controllers.GetServerRCON)
+			protected.PUT("/servers/:id", controllers.UpdateServer)
+			protected.DELETE("/servers/:id", controllers.DeleteServer)
+			protected.POST("/servers/:id/start", controllers.StartServer)
+			protected.POST("/servers/:id/stop", controllers.StopServer)
 		}
 	}
 }

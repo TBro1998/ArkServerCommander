@@ -2,9 +2,9 @@ basePath: /api
 definitions:
   models.ServerRequest:
     properties:
-      description:
+      admin_password:
         type: string
-      ip:
+      description:
         type: string
       map:
         type: string
@@ -22,31 +22,28 @@ definitions:
         maximum: 65535
         minimum: 1
         type: integer
-      rcon_password:
-        type: string
       rcon_port:
         maximum: 65535
         minimum: 1
         type: integer
     required:
-    - ip
+    - admin_password
     - max_players
     - name
     - port
     - query_port
-    - rcon_password
     - rcon_port
     type: object
   models.ServerResponse:
     properties:
+      admin_password:
+        type: string
       created_at:
         type: string
       description:
         type: string
       id:
         type: integer
-      ip:
-        type: string
       map:
         type: string
       max_players:
@@ -68,9 +65,9 @@ definitions:
     type: object
   models.ServerUpdateRequest:
     properties:
-      description:
+      admin_password:
         type: string
-      ip:
+      description:
         type: string
       map:
         type: string
@@ -461,6 +458,146 @@ paths:
       security:
       - Bearer: []
       summary: 更新服务器配置
+      tags:
+      - 服务器管理
+  /servers/{id}/rcon:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定服务器的RCON连接信息（包括密码）
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: RCON信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取服务器RCON信息
+      tags:
+      - 服务器管理
+  /servers/{id}/start:
+    post:
+      consumes:
+      - application/json
+      description: 启动指定的ARK服务器
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 启动成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 启动服务器
+      tags:
+      - 服务器管理
+  /servers/{id}/stop:
+    post:
+      consumes:
+      - application/json
+      description: 停止指定的ARK服务器
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 停止成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 停止服务器
       tags:
       - 服务器管理
 securityDefinitions:

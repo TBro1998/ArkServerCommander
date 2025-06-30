@@ -64,6 +64,15 @@
               </div>
               <div class="flex gap-2">
                 <button
+                  @click="showRCONInfo(server)"
+                  class="text-green-600 hover:text-green-800 p-1"
+                  title="RCON信息"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </button>
+                <button
                   @click="editServer(server)"
                   class="text-blue-600 hover:text-blue-800 p-1"
                   title="编辑"
@@ -91,7 +100,7 @@
                   :class="{
                     'text-green-600': server.status === 'running',
                     'text-red-600': server.status === 'stopped',
-                    'text-yellow-600': server.status === 'starting'
+                    'text-yellow-600': server.status === 'starting' || server.status === 'stopping'
                   }"
                   class="font-medium"
                 >
@@ -99,8 +108,8 @@
                 </span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-600">地址:</span>
-                <span class="font-mono">{{ server.ip }}:{{ server.port }}</span>
+                <span class="text-gray-600">游戏端口:</span>
+                <span class="font-mono">{{ server.port }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600">地图:</span>
@@ -109,6 +118,10 @@
               <div class="flex justify-between">
                 <span class="text-gray-600">最大玩家:</span>
                 <span>{{ server.max_players }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">管理员密码:</span>
+                <span class="font-mono">{{ showServerPasswords[server.id] ? server.admin_password : '***' }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600">创建时间:</span>
@@ -132,11 +145,32 @@
                 停止
               </button>
               <button
-                v-else
+                v-else-if="server.status === 'starting'"
                 class="flex-1 bg-gray-400 text-white py-2 rounded-lg text-sm cursor-not-allowed"
                 disabled
               >
                 启动中...
+              </button>
+              <button
+                v-else-if="server.status === 'stopping'"
+                class="flex-1 bg-gray-400 text-white py-2 rounded-lg text-sm cursor-not-allowed"
+                disabled
+              >
+                停止中...
+              </button>
+              <button
+                v-else
+                class="flex-1 bg-gray-400 text-white py-2 rounded-lg text-sm cursor-not-allowed"
+                disabled
+              >
+                未知状态
+              </button>
+              <button
+                @click="toggleServerPassword(server.id)"
+                class="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                :title="showServerPasswords[server.id] ? '隐藏密码' : '显示密码'"
+              >
+                {{ showServerPasswords[server.id] ? '隐藏' : '显示' }}
               </button>
             </div>
           </div>
@@ -182,16 +216,6 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">服务器IP *</label>
-              <input
-                v-model="form.ip"
-                type="text"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="127.0.0.1"
-              />
-            </div>
-            <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">游戏端口 *</label>
               <input
                 v-model.number="form.port"
@@ -201,6 +225,18 @@
                 max="65535"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="7777"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">最大玩家数 *</label>
+              <input
+                v-model.number="form.max_players"
+                type="number"
+                required
+                min="1"
+                max="200"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="70"
               />
             </div>
           </div>
@@ -252,28 +288,17 @@
                 <option value="Fjordur">Fjordur</option>
               </select>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">最大玩家数 *</label>
-              <input
-                v-model.number="form.max_players"
-                type="number"
-                required
-                min="1"
-                max="200"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="70"
-              />
-            </div>
+            <div></div>
           </div>
 
-          <div v-if="!showEditForm">
-            <label class="block text-sm font-medium text-gray-700 mb-1">RCON密码 *</label>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">管理员密码 *</label>
             <input
-              v-model="form.rcon_password"
+              v-model="form.admin_password"
               type="password"
-              :required="!showEditForm"
+              required
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="输入RCON密码"
+              placeholder="输入管理员密码（同时作为RCON密码）"
             />
           </div>
 
@@ -332,6 +357,73 @@
         </div>
       </div>
     </div>
+
+    <!-- RCON信息模态框 -->
+    <div
+      v-if="showRCONModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      @click="showRCONModal = false"
+    >
+      <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white" @click.stop>
+        <div class="mb-4">
+          <h3 class="text-lg font-bold text-gray-900">RCON连接信息</h3>
+        </div>
+        
+        <div v-if="rconInfo" class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">服务器名称</label>
+            <p class="px-3 py-2 bg-gray-50 rounded border text-sm">{{ rconInfo.server_name }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">RCON端口</label>
+            <div class="flex">
+              <p class="flex-1 px-3 py-2 bg-gray-50 rounded-l border text-sm font-mono">{{ rconInfo.rcon_port }}</p>
+              <button
+                @click="copyToClipboard(rconInfo.rcon_port)"
+                class="px-3 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600 text-sm"
+                title="复制端口"
+              >
+                复制
+              </button>
+            </div>
+          </div>
+                                <div>
+             <label class="block text-sm font-medium text-gray-700 mb-1">管理员密码（RCON密码）</label>
+             <div class="flex">
+               <input
+                 :type="showRCONPassword ? 'text' : 'password'"
+                 :value="rconInfo.admin_password"
+                 readonly
+                 class="flex-1 px-3 py-2 bg-gray-50 rounded-l border text-sm font-mono"
+               />
+               <button
+                 @click="showRCONPassword = !showRCONPassword"
+                 class="px-3 py-2 bg-gray-500 text-white hover:bg-gray-600 text-sm"
+                 :title="showRCONPassword ? '隐藏密码' : '显示密码'"
+               >
+                 {{ showRCONPassword ? '隐藏' : '显示' }}
+               </button>
+               <button
+                 @click="copyToClipboard(rconInfo.admin_password)"
+                 class="px-3 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600 text-sm"
+                 title="复制密码"
+               >
+                 复制
+               </button>
+             </div>
+           </div>
+        </div>
+        
+        <div class="flex justify-end mt-6">
+          <button
+            @click="showRCONModal = false"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -340,19 +432,21 @@ definePageMeta({
   middleware: 'auth'
 })
 
-const { $fetch } = useNuxtApp()
-const config = useRuntimeConfig()
+// 使用 servers store
+const serversStore = useServersStore()
 
 // 响应式数据
-const servers = ref([])
-const loading = ref(false)
 const submitting = ref(false)
 const deleting = ref(false)
 const showCreateForm = ref(false)
 const showEditForm = ref(false)
 const showDeleteConfirm = ref(false)
+const showRCONModal = ref(false)
 const serverToDelete = ref(null)
 const editingServer = ref(null)
+const rconInfo = ref(null)
+const showRCONPassword = ref(false)
+const showServerPasswords = ref({})
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -360,30 +454,38 @@ const successMessage = ref('')
 const form = ref({
   name: '',
   description: '',
-  ip: '127.0.0.1',
   port: 7777,
   query_port: 27015,
   rcon_port: 27020,
-  rcon_password: '',
+  admin_password: '',
   map: 'TheIsland',
   max_players: 70
 })
 
+// 使用 store 中的数据
+const servers = computed(() => serversStore.servers)
+const loading = computed(() => serversStore.isLoading)
+
 // 获取服务器列表
 const fetchServers = async () => {
-  loading.value = true
   try {
-    const response = await $fetch(`${config.public.apiBase}/servers`, {
-      headers: {
-        Authorization: `Bearer ${useCookie('auth-token').value}`
-      }
-    })
-    servers.value = response.data || []
+    console.log('开始获取服务器列表...')
+    await serversStore.fetchServers()
+    console.log('服务器列表获取成功，共', servers.value.length, '个服务器')
   } catch (error) {
     console.error('获取服务器列表失败:', error)
-    errorMessage.value = '获取服务器列表失败，请稍后重试'
-  } finally {
-    loading.value = false
+    
+    // 检查是否是认证错误
+    if (error.status === 401 || error.statusCode === 401) {
+      console.log('认证失败，可能需要重新登录')
+      errorMessage.value = '认证失败，请重新登录'
+      // 清除认证状态并重定向到登录页
+      const authStore = useAuthStore()
+      authStore.logout()
+      await navigateTo('/login')
+    } else {
+      errorMessage.value = error.data?.error || serversStore.error || '获取服务器列表失败，请稍后重试'
+    }
   }
 }
 
@@ -392,11 +494,10 @@ const resetForm = () => {
   form.value = {
     name: '',
     description: '',
-    ip: '127.0.0.1',
     port: 7777,
     query_port: 27015,
     rcon_port: 27020,
-    rcon_password: '',
+    admin_password: '',
     map: 'TheIsland',
     max_players: 70
   }
@@ -416,11 +517,10 @@ const editServer = (server) => {
   form.value = {
     name: server.name,
     description: server.description,
-    ip: server.ip,
     port: server.port,
     query_port: server.query_port,
     rcon_port: server.rcon_port,
-    rcon_password: '', // 编辑时不显示密码
+    admin_password: server.admin_password, // 显示当前密码
     map: server.map,
     max_players: server.max_players
   }
@@ -433,33 +533,17 @@ const submitForm = async () => {
   try {
     if (showEditForm.value) {
       // 更新服务器
-      const updateData = { ...form.value }
-      delete updateData.rcon_password // 编辑时不更新密码
-      
-      await $fetch(`${config.public.apiBase}/servers/${editingServer.value.id}`, {
-        method: 'PUT',
-        body: updateData,
-        headers: {
-          Authorization: `Bearer ${useCookie('auth-token').value}`
-        }
-      })
+      await serversStore.updateServer(editingServer.value.id, form.value)
     } else {
       // 创建服务器
-      await $fetch(`${config.public.apiBase}/servers`, {
-        method: 'POST',
-        body: form.value,
-        headers: {
-          Authorization: `Bearer ${useCookie('auth-token').value}`
-        }
-      })
+      await serversStore.createServer(form.value)
     }
     
     closeForm()
-    await fetchServers()
     successMessage.value = showEditForm.value ? '服务器更新成功' : '服务器创建成功'
   } catch (error) {
     console.error('操作失败:', error)
-    errorMessage.value = error.data?.error || '操作失败，请稍后重试'
+    errorMessage.value = error.data?.error || serversStore.error || '操作失败，请稍后重试'
   } finally {
     submitting.value = false
   }
@@ -479,35 +563,69 @@ const confirmDelete = (server) => {
 const deleteServer = async () => {
   deleting.value = true
   try {
-    await $fetch(`${config.public.apiBase}/servers/${serverToDelete.value.id}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${useCookie('auth-token').value}`
-      }
-    })
+    await serversStore.deleteServer(serverToDelete.value.id)
     
     showDeleteConfirm.value = false
     serverToDelete.value = null
-    await fetchServers()
     successMessage.value = '服务器删除成功'
   } catch (error) {
     console.error('删除失败:', error)
-    errorMessage.value = error.data?.error || '删除失败，请稍后重试'
+    errorMessage.value = error.data?.error || serversStore.error || '删除失败，请稍后重试'
   } finally {
     deleting.value = false
   }
 }
 
-// 启动服务器（占位函数）
-const startServer = (server) => {
-  console.log('启动服务器:', server.name)
-  // TODO: 实现启动服务器功能
+// 启动服务器
+const startServer = async (server) => {
+  try {
+    await serversStore.startServer(server.id)
+    successMessage.value = `服务器 "${server.name}" 启动中...`
+  } catch (error) {
+    console.error('启动服务器失败:', error)
+    errorMessage.value = serversStore.error || '启动服务器失败，请稍后重试'
+  }
 }
 
-// 停止服务器（占位函数）
-const stopServer = (server) => {
-  console.log('停止服务器:', server.name)
-  // TODO: 实现停止服务器功能
+// 停止服务器
+const stopServer = async (server) => {
+  try {
+    await serversStore.stopServer(server.id)
+    successMessage.value = `服务器 "${server.name}" 停止中...`
+  } catch (error) {
+    console.error('停止服务器失败:', error)
+    errorMessage.value = serversStore.error || '停止服务器失败，请稍后重试'
+  }
+}
+
+// 切换服务器密码显示
+const toggleServerPassword = (serverId) => {
+  showServerPasswords.value[serverId] = !showServerPasswords.value[serverId]
+}
+
+// 显示RCON信息
+const showRCONInfo = async (server) => {
+  try {
+    console.log('获取服务器RCON信息:', server.id)
+    const rconData = await serversStore.getServerRCON(server.id)
+    rconInfo.value = rconData
+    showRCONPassword.value = false // 默认隐藏密码
+    showRCONModal.value = true
+  } catch (error) {
+    console.error('获取RCON信息失败:', error)
+    errorMessage.value = '获取RCON信息失败，请稍后重试'
+  }
+}
+
+// 复制到剪贴板
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text.toString())
+    successMessage.value = '已复制到剪贴板'
+  } catch (error) {
+    console.error('复制失败:', error)
+    errorMessage.value = '复制失败，请手动复制'
+  }
 }
 
 // 获取状态文本
