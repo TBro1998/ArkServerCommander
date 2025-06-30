@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 const (
@@ -216,53 +215,6 @@ func GetConfigFileInfo(serverID uint, fileName string) models.ServerConfigFileIn
 	}
 
 	return info
-}
-
-// ReadServerConfigs 读取服务器的所有配置文件
-func ReadServerConfigs(serverID uint) (models.ServerConfigResponse, error) {
-	response := models.ServerConfigResponse{
-		ServerID:             serverID,
-		GameUserSettingsPath: GetConfigFilePath(serverID, GameUserSettingsFileName),
-		GameIniPath:          GetConfigFilePath(serverID, GameIniFileName),
-		UpdatedAt:            time.Now().Format("2006-01-02 15:04:05"),
-	}
-
-	// 读取 GameUserSettings.ini
-	gameUserSettings, err := ReadConfigFile(serverID, GameUserSettingsFileName)
-	if err != nil {
-		// 如果文件不存在，使用空字符串而不是报错
-		gameUserSettings = ""
-	}
-	response.GameUserSettings = gameUserSettings
-
-	// 读取 Game.ini
-	gameIni, err := ReadConfigFile(serverID, GameIniFileName)
-	if err != nil {
-		// 如果文件不存在，使用空字符串而不是报错
-		gameIni = ""
-	}
-	response.GameIni = gameIni
-
-	return response, nil
-}
-
-// WriteServerConfigs 写入服务器的配置文件
-func WriteServerConfigs(serverID uint, request models.ServerConfigRequest) error {
-	// 写入 GameUserSettings.ini
-	if request.GameUserSettings != "" {
-		if err := WriteConfigFile(serverID, GameUserSettingsFileName, request.GameUserSettings); err != nil {
-			return fmt.Errorf("写入 %s 失败: %v", GameUserSettingsFileName, err)
-		}
-	}
-
-	// 写入 Game.ini
-	if request.GameIni != "" {
-		if err := WriteConfigFile(serverID, GameIniFileName, request.GameIni); err != nil {
-			return fmt.Errorf("写入 %s 失败: %v", GameIniFileName, err)
-		}
-	}
-
-	return nil
 }
 
 // CreateDefaultConfigFiles 为服务器创建默认配置文件

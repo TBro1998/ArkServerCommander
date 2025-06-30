@@ -331,7 +331,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "根据ID获取指定服务器的详细信息",
+                "description": "根据ID获取指定服务器的详细信息（包括配置文件内容）",
                 "consumes": [
                     "application/json"
                 ],
@@ -353,7 +353,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "服务器信息",
+                        "description": "服务器信息（包含配置文件）",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -396,7 +396,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "更新指定服务器的配置信息",
+                "description": "更新指定服务器的配置信息（包括配置文件）",
                 "consumes": [
                     "application/json"
                 ],
@@ -416,7 +416,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "更新的服务器配置",
+                        "description": "更新的服务器配置（可包含配置文件内容）",
                         "name": "server",
                         "in": "body",
                         "required": true,
@@ -538,226 +538,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "服务器错误",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/servers/{id}/config": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "获取指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "服务器管理"
-                ],
-                "summary": "获取服务器配置文件",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "服务器ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "配置文件内容",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "$ref": "#/definitions/models.ServerConfigResponse"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "请求错误",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "未授权",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "服务器不存在",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "更新指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "服务器管理"
-                ],
-                "summary": "更新服务器配置文件",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "服务器ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "配置文件内容",
-                        "name": "config",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.ServerConfigRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "更新成功",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "$ref": "#/definitions/models.ServerConfigResponse"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "请求错误",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "未授权",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "服务器不存在",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "服务器错误",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/servers/{id}/config/files": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "列出指定服务器配置目录下的所有INI文件",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "服务器管理"
-                ],
-                "summary": "列出服务器配置文件",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "服务器ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "配置文件列表",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/models.ServerConfigFileInfo"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "请求错误",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "未授权",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "服务器不存在",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1052,74 +832,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.ServerConfigFileInfo": {
-            "type": "object",
-            "properties": {
-                "exists": {
-                    "description": "文件是否存在",
-                    "type": "boolean"
-                },
-                "file_name": {
-                    "description": "文件名",
-                    "type": "string"
-                },
-                "file_path": {
-                    "description": "文件完整路径",
-                    "type": "string"
-                },
-                "file_size": {
-                    "description": "文件大小（字节）",
-                    "type": "integer"
-                },
-                "last_modified": {
-                    "description": "最后修改时间",
-                    "type": "string"
-                }
-            }
-        },
-        "models.ServerConfigRequest": {
-            "type": "object",
-            "properties": {
-                "game_ini": {
-                    "description": "Game.ini 文件内容",
-                    "type": "string"
-                },
-                "game_user_settings": {
-                    "description": "GameUserSettings.ini 文件内容",
-                    "type": "string"
-                }
-            }
-        },
-        "models.ServerConfigResponse": {
-            "type": "object",
-            "properties": {
-                "game_ini": {
-                    "description": "Game.ini 文件内容",
-                    "type": "string"
-                },
-                "game_ini_path": {
-                    "description": "Game.ini 文件路径",
-                    "type": "string"
-                },
-                "game_user_settings": {
-                    "description": "GameUserSettings.ini 文件内容",
-                    "type": "string"
-                },
-                "game_user_settings_path": {
-                    "description": "GameUserSettings.ini 文件路径",
-                    "type": "string"
-                },
-                "server_id": {
-                    "type": "integer"
-                },
-                "server_name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "models.ServerRequest": {
             "type": "object",
             "required": [
@@ -1177,6 +889,14 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "game_ini": {
+                    "description": "Game.ini 文件内容",
+                    "type": "string"
+                },
+                "game_user_settings": {
+                    "description": "配置文件内容",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -1216,6 +936,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "type": "string"
+                },
+                "game_ini": {
+                    "description": "Game.ini 文件内容",
+                    "type": "string"
+                },
+                "game_user_settings": {
+                    "description": "配置文件内容（可选）",
                     "type": "string"
                 },
                 "map": {

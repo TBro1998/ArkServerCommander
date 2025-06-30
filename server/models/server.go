@@ -49,6 +49,9 @@ type ServerResponse struct {
 	UserID        uint   `json:"user_id"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
+	// 配置文件内容
+	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
+	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
 }
 
 type ServerUpdateRequest struct {
@@ -60,23 +63,9 @@ type ServerUpdateRequest struct {
 	AdminPassword string `json:"admin_password"`
 	Map           string `json:"map"`
 	MaxPlayers    int    `json:"max_players" binding:"min=1,max=200"`
-}
-
-// ServerConfigRequest 服务器配置文件更新请求
-type ServerConfigRequest struct {
-	GameUserSettings string `json:"game_user_settings"` // GameUserSettings.ini 文件内容
-	GameIni          string `json:"game_ini"`           // Game.ini 文件内容
-}
-
-// ServerConfigResponse 服务器配置文件响应
-type ServerConfigResponse struct {
-	ServerID             uint   `json:"server_id"`
-	ServerName           string `json:"server_name"`
-	GameUserSettings     string `json:"game_user_settings"`      // GameUserSettings.ini 文件内容
-	GameIni              string `json:"game_ini"`                // Game.ini 文件内容
-	GameUserSettingsPath string `json:"game_user_settings_path"` // GameUserSettings.ini 文件路径
-	GameIniPath          string `json:"game_ini_path"`           // Game.ini 文件路径
-	UpdatedAt            string `json:"updated_at"`
+	// 配置文件内容（可选）
+	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
+	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
 }
 
 // ServerConfigFileInfo 服务器配置文件信息

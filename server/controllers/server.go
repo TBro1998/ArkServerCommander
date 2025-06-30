@@ -59,97 +59,6 @@ func GetServers(c *gin.Context) {
 	})
 }
 
-// GetServer 获取单个服务器信息
-// @Summary 获取服务器详情
-// @Description 根据ID获取指定服务器的详细信息
-// @Tags 服务器管理
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param id path int true "服务器ID"
-// @Success 200 {object} map[string]models.ServerResponse "服务器信息"
-// @Failure 400 {object} map[string]string "请求错误"
-// @Failure 404 {object} map[string]string "服务器不存在"
-// @Failure 401 {object} map[string]string "未授权"
-// @Router /servers/{id} [get]
-func GetServer(c *gin.Context) {
-	userID := c.GetUint("user_id")
-	serverID := c.Param("id")
-
-	id, err := strconv.ParseUint(serverID, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
-		return
-	}
-
-	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
-		return
-	}
-
-	response := models.ServerResponse{
-		ID:            server.ID,
-		Name:          server.Name,
-		Description:   server.Description,
-		Port:          server.Port,
-		QueryPort:     server.QueryPort,
-		RCONPort:      server.RCONPort,
-		AdminPassword: server.AdminPassword,
-		Map:           server.Map,
-		MaxPlayers:    server.MaxPlayers,
-		Status:        server.Status,
-		UserID:        server.UserID,
-		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"data":    response,
-	})
-}
-
-// GetServerRCON 获取服务器RCON连接信息
-// @Summary 获取服务器RCON信息
-// @Description 获取指定服务器的RCON连接信息（包括密码）
-// @Tags 服务器管理
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param id path int true "服务器ID"
-// @Success 200 {object} map[string]interface{} "RCON信息"
-// @Failure 400 {object} map[string]string "请求错误"
-// @Failure 404 {object} map[string]string "服务器不存在"
-// @Failure 401 {object} map[string]string "未授权"
-// @Router /servers/{id}/rcon [get]
-func GetServerRCON(c *gin.Context) {
-	userID := c.GetUint("user_id")
-	serverID := c.Param("id")
-
-	id, err := strconv.ParseUint(serverID, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
-		return
-	}
-
-	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"data": gin.H{
-			"server_id":      server.ID,
-			"server_name":    server.Name,
-			"rcon_port":      server.RCONPort,
-			"admin_password": server.AdminPassword,
-		},
-	})
-}
-
 // CreateServer 创建服务器
 // @Summary 创建新服务器
 // @Description 创建一个新的ARK服务器配置
@@ -238,15 +147,114 @@ func CreateServer(c *gin.Context) {
 	})
 }
 
-// UpdateServer 更新服务器
-// @Summary 更新服务器配置
-// @Description 更新指定服务器的配置信息
+// GetServer 获取单个服务器信息
+// @Summary 获取服务器详情
+// @Description 根据ID获取指定服务器的详细信息（包括配置文件内容）
 // @Tags 服务器管理
 // @Accept json
 // @Produce json
 // @Security Bearer
 // @Param id path int true "服务器ID"
-// @Param server body models.ServerUpdateRequest true "更新的服务器配置"
+// @Success 200 {object} map[string]models.ServerResponse "服务器信息（包含配置文件）"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Failure 401 {object} map[string]string "未授权"
+// @Router /servers/{id} [get]
+func GetServer(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	serverID := c.Param("id")
+
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
+		return
+	}
+
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
+		return
+	}
+
+	response := models.ServerResponse{
+		ID:            server.ID,
+		Name:          server.Name,
+		Description:   server.Description,
+		Port:          server.Port,
+		QueryPort:     server.QueryPort,
+		RCONPort:      server.RCONPort,
+		AdminPassword: server.AdminPassword,
+		Map:           server.Map,
+		MaxPlayers:    server.MaxPlayers,
+		Status:        server.Status,
+		UserID:        server.UserID,
+		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	// 读取配置文件内容（如果存在）
+	if gameUserSettings, err := utils.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
+		response.GameUserSettings = gameUserSettings
+	}
+	if gameIni, err := utils.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
+		response.GameIni = gameIni
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"data":    response,
+	})
+}
+
+// GetServerRCON 获取服务器RCON连接信息
+// @Summary 获取服务器RCON信息
+// @Description 获取指定服务器的RCON连接信息（包括密码）
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string]interface{} "RCON信息"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Failure 401 {object} map[string]string "未授权"
+// @Router /servers/{id}/rcon [get]
+func GetServerRCON(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	serverID := c.Param("id")
+
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
+		return
+	}
+
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"data": gin.H{
+			"server_id":      server.ID,
+			"server_name":    server.Name,
+			"rcon_port":      server.RCONPort,
+			"admin_password": server.AdminPassword,
+		},
+	})
+}
+
+// UpdateServer 更新服务器
+// @Summary 更新服务器配置
+// @Description 更新指定服务器的配置信息（包括配置文件）
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param server body models.ServerUpdateRequest true "更新的服务器配置（可包含配置文件内容）"
 // @Success 200 {object} map[string]models.ServerResponse "更新成功"
 // @Failure 400 {object} map[string]string "请求错误"
 // @Failure 404 {object} map[string]string "服务器不存在"
@@ -314,6 +322,37 @@ func UpdateServer(c *gin.Context) {
 		return
 	}
 
+	// 更新数据时必须有配置文件数据
+	if req.GameUserSettings != "" && req.GameIni != "" {
+		// 验证配置文件格式
+		if req.GameUserSettings != "" {
+			if err := utils.ValidateINIContent(req.GameUserSettings); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("GameUserSettings.ini格式错误: %v", err)})
+				return
+			}
+		}
+		if req.GameIni != "" {
+			if err := utils.ValidateINIContent(req.GameIni); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Game.ini格式错误: %v", err)})
+				return
+			}
+		}
+
+		// 写入配置文件
+		if req.GameUserSettings != "" {
+			if err := utils.WriteConfigFile(uint(id), utils.GameUserSettingsFileName, req.GameUserSettings); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入GameUserSettings.ini失败: %v", err)})
+				return
+			}
+		}
+		if req.GameIni != "" {
+			if err := utils.WriteConfigFile(uint(id), utils.GameIniFileName, req.GameIni); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入Game.ini失败: %v", err)})
+				return
+			}
+		}
+	}
+
 	response := models.ServerResponse{
 		ID:            server.ID,
 		Name:          server.Name,
@@ -328,6 +367,14 @@ func UpdateServer(c *gin.Context) {
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	// 读取配置文件内容并添加到响应中
+	if gameUserSettings, err := utils.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
+		response.GameUserSettings = gameUserSettings
+	}
+	if gameIni, err := utils.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
+		response.GameIni = gameIni
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -567,165 +614,5 @@ func GetServerFolderInfo(c *gin.Context) {
 			"folder_path": folderPath,
 			"folder_size": folderSize,
 		},
-	})
-}
-
-// GetServerConfig 获取服务器配置文件
-// @Summary 获取服务器配置文件
-// @Description 获取指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）
-// @Tags 服务器管理
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param id path int true "服务器ID"
-// @Success 200 {object} map[string]models.ServerConfigResponse "配置文件内容"
-// @Failure 400 {object} map[string]string "请求错误"
-// @Failure 404 {object} map[string]string "服务器不存在"
-// @Failure 401 {object} map[string]string "未授权"
-// @Router /servers/{id}/config [get]
-func GetServerConfig(c *gin.Context) {
-	userID := c.GetUint("user_id")
-	serverID := c.Param("id")
-
-	id, err := strconv.ParseUint(serverID, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
-		return
-	}
-
-	// 验证服务器所有权
-	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
-		return
-	}
-
-	// 从文件系统读取配置
-	response, err := utils.ReadServerConfigs(uint(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取配置文件失败: %v", err)})
-		return
-	}
-
-	// 设置服务器名称
-	response.ServerName = server.Name
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"data":    response,
-	})
-}
-
-// UpdateServerConfig 更新服务器配置文件
-// @Summary 更新服务器配置文件
-// @Description 更新指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）
-// @Tags 服务器管理
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param id path int true "服务器ID"
-// @Param config body models.ServerConfigRequest true "配置文件内容"
-// @Success 200 {object} map[string]models.ServerConfigResponse "更新成功"
-// @Failure 400 {object} map[string]string "请求错误"
-// @Failure 404 {object} map[string]string "服务器不存在"
-// @Failure 401 {object} map[string]string "未授权"
-// @Failure 500 {object} map[string]string "服务器错误"
-// @Router /servers/{id}/config [put]
-func UpdateServerConfig(c *gin.Context) {
-	userID := c.GetUint("user_id")
-	serverID := c.Param("id")
-
-	id, err := strconv.ParseUint(serverID, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
-		return
-	}
-
-	var req models.ServerConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
-		return
-	}
-
-	// 验证INI配置文件格式
-	if err := utils.ValidateINIContent(req.GameUserSettings); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("GameUserSettings.ini格式错误: %v", err)})
-		return
-	}
-
-	if err := utils.ValidateINIContent(req.GameIni); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Game.ini格式错误: %v", err)})
-		return
-	}
-
-	// 查找服务器
-	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
-		return
-	}
-
-	// 写入配置文件到文件系统
-	if err := utils.WriteServerConfigs(uint(id), req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("配置文件更新失败: %v", err)})
-		return
-	}
-
-	// 重新读取配置文件获取最新状态
-	response, err := utils.ReadServerConfigs(uint(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取更新后的配置失败: %v", err)})
-		return
-	}
-
-	// 设置服务器名称
-	response.ServerName = server.Name
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "配置文件更新成功",
-		"data":    response,
-	})
-}
-
-// ListServerConfigFiles 列出服务器配置文件
-// @Summary 列出服务器配置文件
-// @Description 列出指定服务器配置目录下的所有INI文件
-// @Tags 服务器管理
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param id path int true "服务器ID"
-// @Success 200 {object} map[string][]models.ServerConfigFileInfo "配置文件列表"
-// @Failure 400 {object} map[string]string "请求错误"
-// @Failure 404 {object} map[string]string "服务器不存在"
-// @Failure 401 {object} map[string]string "未授权"
-// @Router /servers/{id}/config/files [get]
-func ListServerConfigFiles(c *gin.Context) {
-	userID := c.GetUint("user_id")
-	serverID := c.Param("id")
-
-	id, err := strconv.ParseUint(serverID, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
-		return
-	}
-
-	// 验证服务器所有权
-	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
-		return
-	}
-
-	// 列出配置文件
-	files, err := utils.ListConfigFiles(uint(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("列出配置文件失败: %v", err)})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"data":    files,
 	})
 }
