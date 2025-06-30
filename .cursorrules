@@ -1,0 +1,210 @@
+# ARK 服务器管理器 - Cursor 规则文件
+
+## 项目概述
+这是一个基于 Nuxt.js + Gin + Gorm 的前后端分离 ARK 服务器管理系统。
+- 前端：Nuxt.js 3 + Pinia + Tailwind CSS
+- 后端：Gin + Gorm + SQLite + JWT
+- 数据库：SQLite
+- 认证：JWT + bcrypt
+
+## 项目结构
+```
+ArkServerManager/
+├── server/          # 后端 Go 代码
+│   ├── config/      # 配置
+│   ├── controllers/ # 控制器
+│   ├── database/    # 数据库
+│   ├── middleware/  # 中间件
+│   ├── models/      # 数据模型
+│   ├── routes/      # 路由
+│   └── utils/       # 工具函数
+└── web/             # 前端 Nuxt.js 代码
+    ├── layouts/     # 布局
+    ├── middleware/  # 中间件
+    ├── pages/       # 页面
+    └── stores/      # 状态管理
+```
+
+## 代码规范
+
+### Go 后端规范
+- 使用 `gofmt` 格式化代码
+- 包名使用小写单词，简洁明了
+- 函数名使用驼峰命名法 (camelCase)
+- 公开函数首字母大写 (PascalCase)
+- 私有函数首字母小写 (camelCase)
+- 常量使用大写字母和下划线 (CONST_NAME)
+- 错误处理必须显式检查，不能忽略 error
+- 数据库模型结构体使用 gorm 标签
+- API 响应使用一致的 JSON 格式
+- 中间件函数返回 `gin.HandlerFunc`
+- 控制器函数接收 `*gin.Context` 参数
+
+### Vue/JavaScript 前端规范
+- 使用 Composition API (setup script)
+- 组件文件名使用 PascalCase (MyComponent.vue)
+- 页面文件名使用 kebab-case (my-page.vue)
+- 变量和函数使用 camelCase
+- 常量使用 UPPER_SNAKE_CASE
+- 使用 TypeScript 类型注解
+- Props 定义使用 TypeScript 接口
+- 使用 Pinia 进行状态管理
+- Tailwind CSS 类名按功能分组
+- 使用 Vue 3 的响应式 API (ref, reactive, computed)
+
+### 文件命名约定
+- Go 文件：snake_case.go
+- Vue 组件：PascalCase.vue
+- Vue 页面：kebab-case.vue
+- TypeScript 文件：camelCase.ts
+- 配置文件：kebab-case.config.js/ts
+
+## 开发约定
+
+### API 设计
+- RESTful API 设计原则
+- 统一的错误响应格式：`{"error": "错误信息"}`
+- 成功响应格式：`{"message": "成功信息", "data": {}}`
+- 使用 HTTP 状态码表示请求结果
+- API 路径使用小写和连字符
+- 认证使用 Bearer Token 格式
+
+### 数据库
+- 使用 Gorm 进行数据库操作
+- 模型结构体包含标准字段：ID, CreatedAt, UpdatedAt, DeletedAt
+- 外键关系使用 Gorm 约定
+- 数据库迁移使用 AutoMigrate
+- 敏感数据（如密码）使用 json:"-" 标签隐藏
+
+### 前端组件
+- 每个页面对应一个 Vue 文件
+- 复用组件放在 components/ 目录
+- 使用 Tailwind CSS 进行样式设计
+- 响应式设计，支持移动端
+- 表单验证在前端和后端都要实现
+- 使用 Pinia store 管理全局状态
+
+### 错误处理
+- 后端：统一的错误处理中间件
+- 前端：使用 try-catch 处理异步操作
+- 用户友好的错误信息显示
+- 开发环境显示详细错误，生产环境显示简化错误
+
+### 安全规范
+- 密码使用 bcrypt 加密
+- JWT token 设置合理的过期时间
+- API 接口进行适当的权限验证
+- 前端不存储敏感信息
+- 使用 HTTPS（生产环境）
+- CORS 配置仅允许必要的源
+
+## 代码示例
+
+### Go 控制器示例
+```go
+func GetUser(c *gin.Context) {
+    userID := c.GetUint("user_id")
+    
+    var user models.User
+    if err := database.DB.First(&user, userID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+        return
+    }
+    
+    c.JSON(http.StatusOK, gin.H{
+        "user": models.UserResponse{
+            ID: user.ID,
+            Username: user.Username,
+        },
+    })
+}
+```
+
+### Vue 组件示例
+```vue
+<template>
+  <div class="container mx-auto px-4">
+    <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
+    <form @submit.prevent="handleSubmit">
+      <!-- 表单内容 -->
+    </form>
+  </div>
+</template>
+
+<script setup>
+const title = ref('页面标题')
+
+const handleSubmit = async () => {
+  try {
+    // 处理表单提交
+  } catch (error) {
+    console.error('提交失败:', error)
+  }
+}
+</script>
+```
+
+### Pinia Store 示例
+```javascript
+export const useExampleStore = defineStore('example', {
+  state: () => ({
+    items: [],
+    isLoading: false
+  }),
+
+  getters: {
+    itemCount: (state) => state.items.length
+  },
+
+  actions: {
+    async fetchItems() {
+      this.isLoading = true
+      try {
+        const response = await $fetch('/api/items')
+        this.items = response.data
+      } catch (error) {
+        console.error('获取数据失败:', error)
+      } finally {
+        this.isLoading = false
+      }
+    }
+  }
+})
+```
+
+## 提交规范
+使用约定式提交格式：
+- `feat: 新功能`
+- `fix: 修复问题`
+- `docs: 文档更新`
+- `style: 代码格式修改`
+- `refactor: 重构代码`
+- `test: 测试相关`
+- `chore: 构建过程或辅助工具的变动`
+
+## 注释规范
+- Go：使用 // 进行单行注释，函数上方写明功能
+- JavaScript/Vue：使用 // 或 /* */ 注释
+- 复杂逻辑必须添加注释说明
+- API 接口注释包含参数和返回值说明
+- 数据库模型注释包含字段说明
+
+## 性能考虑
+- 数据库查询避免 N+1 问题
+- 前端组件懒加载
+- 图片资源优化
+- API 响应时间监控
+- 适当使用缓存
+
+## 测试要求
+- 关键业务逻辑编写单元测试
+- API 接口编写集成测试
+- 前端组件编写组件测试
+- 覆盖率目标：80%+
+
+## 部署规范
+- 使用环境变量管理配置
+- 生产环境禁用开发工具
+- 构建优化和代码压缩
+- 健康检查接口
+- 日志记录和监控 
