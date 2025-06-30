@@ -8,6 +8,7 @@ import (
 
 	"ark-server-manager/database"
 	"ark-server-manager/models"
+	"ark-server-manager/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -202,6 +203,19 @@ func CreateServer(c *gin.Context) {
 		return
 	}
 
+	// 创建服务器文件夹
+	_, err := utils.CreateServerFolder(server.ID)
+	if err != nil {
+		// 记录错误日志，但不影响服务器创建
+		fmt.Printf("Warning: Failed to create server folder: %v\n", err)
+	}
+
+	// 创建默认配置文件
+	if err := utils.CreateDefaultConfigFiles(server.ID, server.Name, server.Map, server.Port, server.QueryPort, server.RCONPort, server.MaxPlayers, server.AdminPassword); err != nil {
+		// 记录错误日志，但不影响服务器创建
+		fmt.Printf("Warning: Failed to create default config files: %v\n", err)
+	}
+
 	response := models.ServerResponse{
 		ID:            server.ID,
 		Name:          server.Name,
@@ -365,6 +379,12 @@ func DeleteServer(c *gin.Context) {
 		return
 	}
 
+	// 删除服务器文件夹（包括配置文件）
+	if err := utils.RemoveServerFolder(server.ID); err != nil {
+		// 记录错误日志，但不影响服务器删除成功
+		fmt.Printf("Warning: Failed to remove server folder: %v\n", err)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "服务器删除成功",
 	})
@@ -501,5 +521,211 @@ func StopServer(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "服务器停止命令已发送",
+	})
+}
+
+// GetServerFolderInfo 获取服务器文件夹信息（内部管理使用）
+// @Summary 获取服务器文件夹信息
+// @Description 获取指定服务器的文件夹路径和大小（仅供内部管理使用）
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string]interface{} "文件夹信息"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Failure 401 {object} map[string]string "未授权"
+// @Router /servers/{id}/folder [get]
+func GetServerFolderInfo(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	serverID := c.Param("id")
+
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
+		return
+	}
+
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
+		return
+	}
+
+	// 获取服务器文件夹路径
+	folderPath := utils.GetServerFolderPath(server.ID)
+
+	var folderSize int64 = 0
+	folderSize, _ = utils.GetFolderSize(folderPath)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"data": gin.H{
+			"server_id":   server.ID,
+			"server_name": server.Name,
+			"folder_path": folderPath,
+			"folder_size": folderSize,
+		},
+	})
+}
+
+// GetServerConfig 获取服务器配置文件
+// @Summary 获取服务器配置文件
+// @Description 获取指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string]models.ServerConfigResponse "配置文件内容"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Failure 401 {object} map[string]string "未授权"
+// @Router /servers/{id}/config [get]
+func GetServerConfig(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	serverID := c.Param("id")
+
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
+		return
+	}
+
+	// 验证服务器所有权
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
+		return
+	}
+
+	// 从文件系统读取配置
+	response, err := utils.ReadServerConfigs(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取配置文件失败: %v", err)})
+		return
+	}
+
+	// 设置服务器名称
+	response.ServerName = server.Name
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"data":    response,
+	})
+}
+
+// UpdateServerConfig 更新服务器配置文件
+// @Summary 更新服务器配置文件
+// @Description 更新指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param config body models.ServerConfigRequest true "配置文件内容"
+// @Success 200 {object} map[string]models.ServerConfigResponse "更新成功"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Failure 401 {object} map[string]string "未授权"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /servers/{id}/config [put]
+func UpdateServerConfig(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	serverID := c.Param("id")
+
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
+		return
+	}
+
+	var req models.ServerConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	// 验证INI配置文件格式
+	if err := utils.ValidateINIContent(req.GameUserSettings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("GameUserSettings.ini格式错误: %v", err)})
+		return
+	}
+
+	if err := utils.ValidateINIContent(req.GameIni); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Game.ini格式错误: %v", err)})
+		return
+	}
+
+	// 查找服务器
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
+		return
+	}
+
+	// 写入配置文件到文件系统
+	if err := utils.WriteServerConfigs(uint(id), req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("配置文件更新失败: %v", err)})
+		return
+	}
+
+	// 重新读取配置文件获取最新状态
+	response, err := utils.ReadServerConfigs(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取更新后的配置失败: %v", err)})
+		return
+	}
+
+	// 设置服务器名称
+	response.ServerName = server.Name
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "配置文件更新成功",
+		"data":    response,
+	})
+}
+
+// ListServerConfigFiles 列出服务器配置文件
+// @Summary 列出服务器配置文件
+// @Description 列出指定服务器配置目录下的所有INI文件
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string][]models.ServerConfigFileInfo "配置文件列表"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Failure 401 {object} map[string]string "未授权"
+// @Router /servers/{id}/config/files [get]
+func ListServerConfigFiles(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	serverID := c.Param("id")
+
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
+		return
+	}
+
+	// 验证服务器所有权
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
+		return
+	}
+
+	// 列出配置文件
+	files, err := utils.ListConfigFiles(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("列出配置文件失败: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"data":    files,
 	})
 }

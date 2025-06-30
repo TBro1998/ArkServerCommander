@@ -61,3 +61,29 @@ type ServerUpdateRequest struct {
 	Map           string `json:"map"`
 	MaxPlayers    int    `json:"max_players" binding:"min=1,max=200"`
 }
+
+// ServerConfigRequest 服务器配置文件更新请求
+type ServerConfigRequest struct {
+	GameUserSettings string `json:"game_user_settings"` // GameUserSettings.ini 文件内容
+	GameIni          string `json:"game_ini"`           // Game.ini 文件内容
+}
+
+// ServerConfigResponse 服务器配置文件响应
+type ServerConfigResponse struct {
+	ServerID             uint   `json:"server_id"`
+	ServerName           string `json:"server_name"`
+	GameUserSettings     string `json:"game_user_settings"`      // GameUserSettings.ini 文件内容
+	GameIni              string `json:"game_ini"`                // Game.ini 文件内容
+	GameUserSettingsPath string `json:"game_user_settings_path"` // GameUserSettings.ini 文件路径
+	GameIniPath          string `json:"game_ini_path"`           // Game.ini 文件路径
+	UpdatedAt            string `json:"updated_at"`
+}
+
+// ServerConfigFileInfo 服务器配置文件信息
+type ServerConfigFileInfo struct {
+	FileName     string `json:"file_name"`     // 文件名
+	FilePath     string `json:"file_path"`     // 文件完整路径
+	FileSize     int64  `json:"file_size"`     // 文件大小（字节）
+	LastModified string `json:"last_modified"` // 最后修改时间
+	Exists       bool   `json:"exists"`        // 文件是否存在
+}

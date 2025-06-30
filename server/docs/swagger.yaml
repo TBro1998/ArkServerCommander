@@ -1,5 +1,53 @@
 basePath: /api
 definitions:
+  models.ServerConfigFileInfo:
+    properties:
+      exists:
+        description: 文件是否存在
+        type: boolean
+      file_name:
+        description: 文件名
+        type: string
+      file_path:
+        description: 文件完整路径
+        type: string
+      file_size:
+        description: 文件大小（字节）
+        type: integer
+      last_modified:
+        description: 最后修改时间
+        type: string
+    type: object
+  models.ServerConfigRequest:
+    properties:
+      game_ini:
+        description: Game.ini 文件内容
+        type: string
+      game_user_settings:
+        description: GameUserSettings.ini 文件内容
+        type: string
+    type: object
+  models.ServerConfigResponse:
+    properties:
+      game_ini:
+        description: Game.ini 文件内容
+        type: string
+      game_ini_path:
+        description: Game.ini 文件路径
+        type: string
+      game_user_settings:
+        description: GameUserSettings.ini 文件内容
+        type: string
+      game_user_settings_path:
+        description: GameUserSettings.ini 文件路径
+        type: string
+      server_id:
+        type: integer
+      server_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
   models.ServerRequest:
     properties:
       admin_password:
@@ -458,6 +506,190 @@ paths:
       security:
       - Bearer: []
       summary: 更新服务器配置
+      tags:
+      - 服务器管理
+  /servers/{id}/config:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置文件内容
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.ServerConfigResponse'
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取服务器配置文件
+      tags:
+      - 服务器管理
+    put:
+      consumes:
+      - application/json
+      description: 更新指定服务器的INI配置文件内容（GameUserSettings.ini和Game.ini）
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 配置文件内容
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/models.ServerConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.ServerConfigResponse'
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新服务器配置文件
+      tags:
+      - 服务器管理
+  /servers/{id}/config/files:
+    get:
+      consumes:
+      - application/json
+      description: 列出指定服务器配置目录下的所有INI文件
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置文件列表
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.ServerConfigFileInfo'
+              type: array
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出服务器配置文件
+      tags:
+      - 服务器管理
+  /servers/{id}/folder:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定服务器的文件夹路径和大小（仅供内部管理使用）
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 文件夹信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取服务器文件夹信息
       tags:
       - 服务器管理
   /servers/{id}/rcon:
