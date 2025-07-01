@@ -44,7 +44,7 @@
     <!-- 可视化编辑模式 -->
     <div v-if="editMode === 'visual'" class="space-y-6">
       <div 
-        v-for="(section, sectionKey) in arkConfigParams.gameIni" 
+        v-for="(section, sectionKey) in gameIniParams" 
         :key="sectionKey"
         class="bg-gray-50 rounded-lg p-4"
       >
@@ -167,7 +167,7 @@
 </template>
 
 <script setup>
-import { arkConfigParams } from '../utils/arkConfigParams.js'
+import { gameIniParams } from '../utils/gameIniParams.js'
 import { extractConfigValues, formatConfigContent } from '../utils/configParser.js'
 
 // Props
@@ -199,13 +199,13 @@ let textSyncTimer = null
 // 初始化可视化配置默认值
 const initializeVisualConfig = () => {
   try {
-    if (!arkConfigParams || !arkConfigParams.gameIni) {
+    if (!gameIniParams) {
       console.warn('Game.ini 配置参数尚未加载，跳过初始化')
       return
     }
 
-    Object.keys(arkConfigParams.gameIni).forEach(sectionKey => {
-      const section = arkConfigParams.gameIni[sectionKey]
+    Object.keys(gameIniParams).forEach(sectionKey => {
+      const section = gameIniParams[sectionKey]
       if (section && section.params) {
         Object.keys(section.params).forEach(paramKey => {
           const param = section.params[paramKey]
@@ -223,7 +223,7 @@ const initializeVisualConfig = () => {
 // 解析文本配置到可视化配置
 const parseTextToVisual = () => {
   try {
-    if (!arkConfigParams || !arkConfigParams.gameIni) {
+    if (!gameIniParams) {
       console.warn('Game.ini 配置参数尚未加载')
       return
     }
@@ -231,7 +231,7 @@ const parseTextToVisual = () => {
     if (textContent.value) {
       const values = extractConfigValues(
         textContent.value, 
-        arkConfigParams.gameIni
+        gameIniParams
       )
       if (values) {
         Object.assign(visualConfig.value, values)
@@ -245,14 +245,14 @@ const parseTextToVisual = () => {
 // 将可视化配置同步到文本
 const syncVisualToText = () => {
   try {
-    if (!arkConfigParams || !arkConfigParams.gameIni) {
+    if (!gameIniParams) {
       console.warn('Game.ini 配置参数尚未加载，无法同步')
       return
     }
 
     let content = '[/script/shootergame.shootergamemode]\n'
-    Object.keys(arkConfigParams.gameIni).forEach(sectionKey => {
-      const section = arkConfigParams.gameIni[sectionKey]
+    Object.keys(gameIniParams).forEach(sectionKey => {
+      const section = gameIniParams[sectionKey]
       if (section && section.params) {
         Object.keys(section.params).forEach(paramKey => {
           const value = visualConfig.value[paramKey]
