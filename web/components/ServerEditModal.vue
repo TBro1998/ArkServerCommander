@@ -6,10 +6,29 @@
   >
     <div class="relative top-2 sm:top-10 mx-2 sm:mx-4 lg:mx-8 xl:mx-12 p-4 sm:p-5 border w-auto shadow-lg rounded-md bg-white mb-4" @click.stop>
       <div class="mb-4">
-        <h3 class="text-lg font-bold text-gray-900">
-          {{ mode === 'create' ? '新增服务器' : '编辑服务器' }} 
-          {{ server && mode === 'edit' ? `- ${server.identifier}` : '' }}
-        </h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-900">
+            {{ mode === 'create' ? '新增服务器' : '编辑服务器' }} 
+            {{ server && mode === 'edit' ? `- ${server.identifier}` : '' }}
+          </h3>
+          
+          <!-- 操作按钮 -->
+          <div v-if="!loading" class="flex gap-2">
+            <button
+              @click="saveServer"
+              :disabled="saving"
+              class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {{ saving ? '保存中...' : (mode === 'create' ? '创建服务器' : '保存更改') }}
+            </button>
+            <button
+              @click="$emit('close')"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        </div>
       </div>
 
       <div v-if="loading" class="text-center py-8">
@@ -188,23 +207,6 @@
           </div>
 
 
-        </div>
-
-        <!-- 操作按钮 -->
-        <div class="flex flex-col sm:flex-row gap-3 pt-4">
-          <button
-            @click="saveServer"
-            :disabled="saving"
-            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {{ saving ? '保存中...' : (mode === 'create' ? '创建服务器' : '保存更改') }}
-          </button>
-          <button
-            @click="$emit('close')"
-            class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors"
-          >
-            取消
-          </button>
         </div>
       </div>
     </div>

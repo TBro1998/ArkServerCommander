@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 flex flex-col">
     <nav v-if="authStore.isAuthenticated" class="bg-white shadow-sm border-b">
       <div class="w-full px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -96,15 +96,57 @@
       </div>
     </nav>
     
-    <main class="w-full py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+    <main class="flex-1 w-full py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
       <slot />
     </main>
+
+    <!-- 固定底部商标信息 -->
+    <AppFooter 
+      :app-version="appVersion"
+      @show-privacy-policy="showPrivacyPolicy = true"
+      @show-terms-of-service="showTermsOfService = true"
+    />
+
+    <!-- 隐私政策模态框 -->
+    <div v-if="showPrivacyPolicy" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showPrivacyPolicy = false">
+      <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
+        <h3 class="text-lg font-semibold mb-4">隐私政策</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          我们重视您的隐私。本应用仅收集必要的服务器管理信息，不会泄露您的个人数据。
+        </p>
+        <button 
+          @click="showPrivacyPolicy = false"
+          class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          确定
+        </button>
+      </div>
+    </div>
+
+    <!-- 服务条款模态框 -->
+    <div v-if="showTermsOfService" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showTermsOfService = false">
+      <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
+        <h3 class="text-lg font-semibold mb-4">服务条款</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          使用本ARK服务器管理器即表示您同意遵守相关使用条款。请合理使用本工具进行服务器管理。
+        </p>
+        <button 
+          @click="showTermsOfService = false"
+          class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          确定
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 const authStore = useAuthStore()
 const mobileMenuOpen = ref(false)
+const showPrivacyPolicy = ref(false)
+const showTermsOfService = ref(false)
+const appVersion = ref('1.0.0')
 
 // 在客户端初始化时从cookie恢复登录状态
 onMounted(() => {

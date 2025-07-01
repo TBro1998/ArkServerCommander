@@ -88,13 +88,15 @@ export function convertValue(value, type) {
   switch (type) {
     case 'boolean':
       if (typeof value === 'string') {
-        return value.toLowerCase() === 'true'
+        const lowerValue = value.toLowerCase().trim()
+        // 支持多种布尔值表示
+        return lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes' || lowerValue === 'on'
       }
       return Boolean(value)
     
     case 'number':
       if (typeof value === 'string') {
-        const num = parseFloat(value)
+        const num = parseFloat(value.trim())
         return isNaN(num) ? 0 : num
       }
       return Number(value)
@@ -102,7 +104,7 @@ export function convertValue(value, type) {
     case 'text':
     case 'password':
     default:
-      return String(value)
+      return String(value).trim()
   }
 }
 
@@ -206,15 +208,21 @@ export function mergeConfigs(defaultConfig, userConfig) {
 export function extractConfigValues(content, paramDefs) {
   // 安全检查
   if (!content || typeof content !== 'string') {
+    console.warn('extractConfigValues: content 为空或不是字符串')
     return {}
   }
   
   if (!paramDefs || typeof paramDefs !== 'object') {
+    console.warn('extractConfigValues: paramDefs 为空或不是对象')
     return {}
   }
   
+  console.log('extractConfigValues: 开始解析配置文件')
   const parsed = parseIniFile(content)
+  console.log('extractConfigValues: 解析后的 INI 结构:', parsed)
+  
   const result = {}
+  let foundValuesCount = 0
   
   // 遍历所有参数定义
   Object.keys(paramDefs).forEach(sectionKey => {
@@ -229,11 +237,16 @@ export function extractConfigValues(content, paramDefs) {
       // 在解析结果中查找值
       Object.keys(parsed).forEach(parsedSection => {
         if (parsed[parsedSection] && parsed[parsedSection][paramKey] !== undefined) {
-          result[paramKey] = convertValue(parsed[parsedSection][paramKey], param.type)
+          const rawValue = parsed[parsedSection][paramKey]
+          const convertedValue = convertValue(rawValue, param.type)
+          result[paramKey] = convertedValue
+          foundValuesCount++
+          console.log(`extractConfigValues: 找到参数 ${paramKey} = ${rawValue} (转换为 ${convertedValue})`)
         }
       })
     })
   })
   
+  console.log(`extractConfigValues: 完成解析，找到 ${foundValuesCount} 个参数值`)
   return result
 } 

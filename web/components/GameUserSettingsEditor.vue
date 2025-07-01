@@ -204,17 +204,23 @@ const initializeVisualConfig = () => {
       return
     }
 
+    // 只在 visualConfig 为空时才设置默认值
+    const isVisualConfigEmpty = Object.keys(visualConfig.value).length === 0
+
     Object.keys(gameUserSettingsParams).forEach(sectionKey => {
       const section = gameUserSettingsParams[sectionKey]
       if (section && section.params) {
         Object.keys(section.params).forEach(paramKey => {
           const param = section.params[paramKey]
-          if (param && param.default !== undefined) {
+          // 只在参数不存在时才设置默认值
+          if (param && param.default !== undefined && (isVisualConfigEmpty || visualConfig.value[paramKey] === undefined)) {
             visualConfig.value[paramKey] = param.default
           }
         })
       }
     })
+    
+    console.log('初始化后的可视化配置:', visualConfig.value)
   } catch (error) {
     console.error('初始化 GameUserSettings 可视化配置失败:', error)
   }
@@ -229,12 +235,16 @@ const parseTextToVisual = () => {
     }
 
     if (textContent.value) {
+      console.log('开始解析 GameUserSettings 配置:', textContent.value.substring(0, 200) + '...')
       const values = extractConfigValues(
         textContent.value, 
         gameUserSettingsParams
       )
+      console.log('解析得到的配置值:', values)
       if (values) {
+        // 合并而不是覆盖，保留未在配置文件中定义的默认值
         Object.assign(visualConfig.value, values)
+        console.log('更新后的可视化配置:', visualConfig.value)
       }
     }
   } catch (error) {
@@ -285,7 +295,21 @@ const syncVisualToText = () => {
 // 监听 props.modelValue 变化
 watch(() => props.modelValue, (newValue) => {
   textContent.value = newValue || ''
-  parseTextToVisual()
+  // 只有在 gameUserSettingsParams 已加载时才解析
+  if (gameUserSettingsParams) {
+    parseTextToVisual()
+  }
+}, { immediate: true })
+
+// 监听 gameUserSettingsParams 的变化（处理异步加载）
+watch(() => gameUserSettingsParams, (newParams) => {
+  if (newParams) {
+    console.log('GameUserSettings 参数已加载，重新初始化')
+    initializeVisualConfig()
+    if (textContent.value) {
+      parseTextToVisual()
+    }
+  }
 }, { immediate: true })
 
 // 监听可视化配置变化，自动同步到文本
@@ -376,7 +400,17 @@ const formatConfig = () => {
 
 // 组件挂载时初始化
 onMounted(() => {
-  initializeVisualConfig()
+  console.log('GameUserSettingsEditor 组件已挂载')
+  console.log('初始 textContent:', textContent.value.substring(0, 100) + '...')
+  console.log('gameUserSettingsParams 是否已加载:', !!gameUserSettingsParams)
+  
+  // 如果参数已经加载，立即初始化
+  if (gameUserSettingsParams) {
+    initializeVisualConfig()
+    if (textContent.value) {
+      parseTextToVisual()
+    }
+  }
 })
 
 // 组件卸载时清理定时器
