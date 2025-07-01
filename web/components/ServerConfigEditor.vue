@@ -4,7 +4,7 @@
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
     @click="$emit('close')"
   >
-    <div class="relative top-10 mx-auto p-5 border w-full max-w-6xl shadow-lg rounded-md bg-white" @click.stop>
+    <div class="relative top-10 mx-auto p-5 border w-full max-w-7xl shadow-lg rounded-md bg-white" @click.stop>
       <div class="mb-4">
         <h3 class="text-lg font-bold text-gray-900">
           编辑服务器配置文件 - {{ server?.name }}
@@ -47,67 +47,19 @@
 
         <!-- 配置文件编辑区域 -->
         <div class="space-y-4">
-          <!-- GameUserSettings.ini -->
-          <div v-if="activeTab === 'game_user_settings'">
-            <div class="flex justify-between items-center mb-2">
-              <label class="block text-sm font-medium text-gray-700">
-                GameUserSettings.ini 内容
-              </label>
-              <div class="flex gap-2">
-                <button
-                  @click="resetToDefault('game_user_settings')"
-                  class="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  重置为默认
-                </button>
-                <button
-                  @click="formatConfig('game_user_settings')"
-                  class="text-sm text-green-600 hover:text-green-800"
-                >
-                  格式化
-                </button>
-              </div>
-            </div>
-            <textarea
-              v-model="localConfigData.game_user_settings"
-              class="w-full h-96 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-              placeholder="输入 GameUserSettings.ini 配置内容..."
-            ></textarea>
-            <p class="text-xs text-gray-500 mt-1">
-              此文件包含服务器的基本设置，如端口、密码、最大玩家数等
-            </p>
-          </div>
+          <!-- GameUserSettings.ini 编辑器 -->
+          <GameUserSettingsEditor
+            v-if="activeTab === 'game_user_settings'"
+            v-model="localConfigData.game_user_settings"
+            :server="server"
+          />
 
-          <!-- Game.ini -->
-          <div v-if="activeTab === 'game_ini'">
-            <div class="flex justify-between items-center mb-2">
-              <label class="block text-sm font-medium text-gray-700">
-                Game.ini 内容
-              </label>
-              <div class="flex gap-2">
-                <button
-                  @click="resetToDefault('game_ini')"
-                  class="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  重置为默认
-                </button>
-                <button
-                  @click="formatConfig('game_ini')"
-                  class="text-sm text-green-600 hover:text-green-800"
-                >
-                  格式化
-                </button>
-              </div>
-            </div>
-            <textarea
-              v-model="localConfigData.game_ini"
-              class="w-full h-96 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-              placeholder="输入 Game.ini 配置内容..."
-            ></textarea>
-            <p class="text-xs text-gray-500 mt-1">
-              此文件包含游戏规则设置，如倍率、难度、PvP设置等
-            </p>
-          </div>
+          <!-- Game.ini 编辑器 -->
+          <GameIniEditor
+            v-if="activeTab === 'game_ini'"
+            v-model="localConfigData.game_ini"
+            :server="server"
+          />
         </div>
 
         <!-- 配置文件路径信息 -->
@@ -147,6 +99,9 @@
 </template>
 
 <script setup>
+import GameUserSettingsEditor from './GameUserSettingsEditor.vue'
+import GameIniEditor from './GameIniEditor.vue'
+
 // Props
 const props = defineProps({
   show: {
@@ -203,118 +158,5 @@ watch(() => props.show, (newShow) => {
 // 保存配置
 const saveConfig = () => {
   emit('save', localConfigData.value)
-}
-
-// 重置为默认配置
-const resetToDefault = (configType) => {
-  if (!props.server) return
-  
-  const server = props.server
-  
-  if (configType === 'game_user_settings') {
-    localConfigData.value.game_user_settings = `[ServerSettings]
-SessionName=${server.name}
-ServerPassword=
-ServerAdminPassword=${server.admin_password}
-Port=${server.port}
-QueryPort=${server.query_port}
-RCONEnabled=True
-RCONPort=${server.rcon_port}
-MaxPlayers=${server.max_players}
-
-[SessionSettings]
-SessionName=${server.name}
-
-[MessageOfTheDay]
-Message=欢迎来到 ${server.name} ARK 服务器！
-
-[/Script/ShooterGame.ShooterGameMode]
-bUseSingleplayerSettings=False
-bDisableStructurePlacementCollision=False
-bAllowFlyerCarryPvE=True
-bDisableStructureDecayPvE=False
-
-[RCONSettings]
-RCONEnabled=True
-RCONPort=${server.rcon_port}`
-  } else if (configType === 'game_ini') {
-    localConfigData.value.game_ini = `[/script/shootergame.shootergamemode]
-bUseSingleplayerSettings=false
-bDisableStructurePlacementCollision=false
-bAllowFlyerCarryPvE=true
-bDisableStructureDecayPvE=false
-bAllowUnlimitedRespecs=true
-bAllowPlatformSaddleMultiFloors=true
-bPassiveDefensesDamageRiderlessDinos=true
-MaxNumberOfPlayersInTribe=0
-
-[/script/engine.gamesession]
-MaxPlayers=${server.max_players}
-
-[/Script/ShooterGame.ShooterGameMode]
-DifficultyOffset=1.0
-OverrideOfficialDifficulty=5.0
-
-# 资源重生倍率
-ResourcesRespawnPeriodMultiplier=1.0
-
-# 驯服相关设置
-TamingSpeedMultiplier=1.0
-DinoCharacterFoodDrainMultiplier=1.0
-DinoCharacterStaminaDrainMultiplier=1.0
-DinoCharacterHealthRecoveryMultiplier=1.0
-DinoCountMultiplier=1.0
-
-# 经验值倍率
-XPMultiplier=1.0
-PlayerCharacterWaterDrainMultiplier=1.0
-PlayerCharacterFoodDrainMultiplier=1.0
-PlayerCharacterStaminaDrainMultiplier=1.0
-PlayerCharacterHealthRecoveryMultiplier=1.0
-
-# 收集倍率
-HarvestAmountMultiplier=1.0
-HarvestHealthMultiplier=1.0
-
-# 白天/夜晚时间流逝速度
-DayCycleSpeedScale=1.0
-NightTimeSpeedScale=1.0
-
-# 结构相关
-StructureResistanceMultiplier=1.0
-StructureDamageMultiplier=1.0
-StructureDamageRepairCooldown=180
-PvEStructureDecayPeriodMultiplier=1.0
-
-# PvP相关设置
-bPvEDisableFriendlyFire=False
-bEnablePvPGamma=False
-bDisableFriendlyFire=False
-bAllowFlyerCarryPvE=True`
-  }
-}
-
-// 格式化配置文件内容
-const formatConfig = (configType) => {
-  const configKey = configType
-  const lines = localConfigData.value[configKey].split('\n')
-  const formatted = []
-  let lastWasEmpty = false
-  
-  for (const line of lines) {
-    const trimmed = line.trim()
-    
-    if (trimmed === '') {
-      if (!lastWasEmpty) {
-        formatted.push('')
-        lastWasEmpty = true
-      }
-    } else {
-      formatted.push(trimmed)
-      lastWasEmpty = false
-    }
-  }
-  
-  localConfigData.value[configKey] = formatted.join('\n')
 }
 </script> 
