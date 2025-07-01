@@ -4,7 +4,7 @@
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
     @click="$emit('close')"
   >
-    <div class="relative top-10 mx-auto p-5 border w-full max-w-7xl shadow-lg rounded-md bg-white" @click.stop>
+    <div class="relative top-2 sm:top-10 mx-2 sm:mx-4 lg:mx-8 xl:mx-12 p-4 sm:p-5 border w-auto shadow-lg rounded-md bg-white mb-4" @click.stop>
       <div class="mb-4">
         <h3 class="text-lg font-bold text-gray-900">
           {{ mode === 'create' ? '新增服务器' : '编辑服务器' }} 
@@ -20,11 +20,11 @@
       <div v-else class="space-y-6">
         <!-- 选项卡导航 -->
         <div class="border-b border-gray-200">
-          <nav class="-mb-px flex space-x-8">
+          <nav class="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
             <button
               @click="activeTab = 'basic'"
               :class="[
-                'py-2 px-1 border-b-2 font-medium text-sm',
+                'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
                 activeTab === 'basic'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -35,7 +35,7 @@
             <button
               @click="activeTab = 'game_user_settings'"
               :class="[
-                'py-2 px-1 border-b-2 font-medium text-sm',
+                'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
                 activeTab === 'game_user_settings'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -46,7 +46,7 @@
             <button
               @click="activeTab = 'game_ini'"
               :class="[
-                'py-2 px-1 border-b-2 font-medium text-sm',
+                'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
                 activeTab === 'game_ini'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -62,7 +62,7 @@
           <!-- 基本参数选项卡 -->
           <div v-if="activeTab === 'basic'" class="space-y-4">
             <form @submit.prevent="saveServer" class="space-y-4">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">服务器标识 *</label>
                   <input
@@ -76,7 +76,7 @@
                 <div></div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">游戏端口 *</label>
                   <input
@@ -92,7 +92,7 @@
                 <div></div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">查询端口 *</label>
                   <input
@@ -119,7 +119,7 @@
                 </div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">地图</label>
                   <select
@@ -191,7 +191,7 @@
         </div>
 
         <!-- 操作按钮 -->
-        <div class="flex gap-3 pt-4">
+        <div class="flex flex-col sm:flex-row gap-3 pt-4">
           <button
             @click="saveServer"
             :disabled="saving"

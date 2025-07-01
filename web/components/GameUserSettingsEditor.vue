@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-4">
     <!-- 编辑模式切换 -->
-    <div class="flex justify-between items-center">
-      <div class="flex space-x-4">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div class="flex flex-wrap gap-2 sm:gap-4">
         <button
           @click="switchToVisualMode"
           :class="[
@@ -26,7 +26,7 @@
           <i class="fas fa-code mr-2"></i>文本编辑
         </button>
       </div>
-      <div class="flex items-center space-x-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
         <div class="text-sm text-gray-500">
           GameUserSettings.ini - {{ editMode === 'visual' ? '可视化编辑' : '文本编辑' }}
         </div>
@@ -48,10 +48,10 @@
         :key="sectionKey"
         class="bg-gray-50 rounded-lg p-4"
       >
-        <h4 class="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
+        <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
           {{ section.title }}
         </h4>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <div 
             v-for="(param, paramKey) in section.params" 
             :key="paramKey"
@@ -114,7 +114,7 @@
 
     <!-- 文本编辑模式 -->
     <div v-else>
-      <div class="flex justify-between items-center mb-2">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2">
         <label class="block text-sm font-medium text-gray-700">
           GameUserSettings.ini 内容
         </label>
@@ -135,7 +135,7 @@
       </div>
       <textarea
         v-model="textContent"
-        class="w-full h-96 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+        class="w-full h-64 sm:h-96 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
         placeholder="输入 GameUserSettings.ini 配置内容..."
       ></textarea>
       <p class="text-xs text-gray-500 mt-1">
@@ -145,8 +145,8 @@
 
     <!-- 提示信息 -->
     <div v-if="editMode === 'visual'" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <div class="flex items-center">
-        <i class="fas fa-info-circle text-blue-500 mr-3"></i>
+      <div class="flex flex-col sm:flex-row items-start">
+        <i class="fas fa-info-circle text-blue-500 mr-0 sm:mr-3 mb-2 sm:mb-0"></i>
         <div class="text-sm text-blue-700">
           <p class="font-medium">可视化编辑模式</p>
           <p>通过表单控件修改参数，鼠标悬停在参数名称旁的 <i class="fas fa-info-circle text-blue-400"></i> 图标可查看详细说明。修改会自动同步到配置文件，切换到文本模式可查看生成的配置内容。</p>
@@ -155,8 +155,8 @@
     </div>
 
     <div v-if="editMode === 'text'" class="bg-green-50 border border-green-200 rounded-lg p-4">
-      <div class="flex items-center">
-        <i class="fas fa-code text-green-500 mr-3"></i>
+      <div class="flex flex-col sm:flex-row items-start">
+        <i class="fas fa-code text-green-500 mr-0 sm:mr-3 mb-2 sm:mb-0"></i>
         <div class="text-sm text-green-700">
           <p class="font-medium">文本编辑模式</p>
           <p>直接编辑 INI 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。</p>

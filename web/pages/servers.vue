@@ -1,12 +1,12 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="w-full px-2 sm:px-4 py-4 sm:py-8">
     <div class="bg-white rounded-lg shadow-lg">
-      <div class="p-6 border-b border-gray-200">
-        <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-bold text-gray-900">服务器管理</h1>
+      <div class="p-4 sm:p-6 border-b border-gray-200">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 class="text-xl sm:text-2xl font-bold text-gray-900">服务器管理</h1>
           <button
             @click="showCreateForm = true"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -16,7 +16,7 @@
         </div>
       </div>
 
-      <div class="p-6">
+      <div class="p-4 sm:p-6">
         <!-- 消息提示 -->
         <ErrorMessage
           :show="!!errorMessage"
@@ -51,17 +51,17 @@
           </div>
         </div>
 
-        <div v-else class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div v-else class="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           <div
             v-for="server in servers"
             :key="server.id"
-            class="bg-gray-50 rounded-lg p-6 hover:shadow-md transition-shadow h-fit"
+            class="bg-gray-50 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow h-fit"
           >
             <div class="flex justify-between items-start mb-4">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">{{ server.identifier }}</h3>
+              <div class="min-w-0 flex-1">
+                <h3 class="text-base sm:text-lg font-semibold text-gray-900 truncate">{{ server.identifier }}</h3>
               </div>
-              <div class="flex gap-2">
+              <div class="flex gap-1 sm:gap-2 ml-2">
                 <button
                   @click="showRCONInfo(server)"
                   class="text-green-600 hover:text-green-800 p-1"
@@ -149,7 +149,7 @@
                 <div class="flex justify-between items-center">
                   <span class="text-gray-600">管理员密码:</span>
                   <div class="flex items-center gap-2">
-                    <span class="font-mono text-gray-800">{{ showServerPasswords[server.id] ? server.admin_password : '***' }}</span>
+                    <span class="font-mono text-gray-800 text-xs sm:text-sm">{{ showServerPasswords[server.id] ? server.admin_password : '***' }}</span>
                     <button
                       @click="toggleServerPassword(server.id)"
                       class="text-xs text-gray-500 hover:text-gray-700"
@@ -173,11 +173,11 @@
               <div class="space-y-1 text-sm pl-5">
                 <div class="flex justify-between">
                   <span class="text-gray-600">创建时间:</span>
-                  <span class="text-gray-800">{{ formatDate(server.created_at) }}</span>
+                  <span class="text-gray-800 text-xs sm:text-sm">{{ formatDate(server.created_at) }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600">更新时间:</span>
-                  <span class="text-gray-800">{{ formatDate(server.updated_at) }}</span>
+                  <span class="text-gray-800 text-xs sm:text-sm">{{ formatDate(server.updated_at) }}</span>
                 </div>
               </div>
             </div>
@@ -190,7 +190,7 @@
               </div>
             </div>
 
-            <div class="mt-4 flex gap-2">
+            <div class="mt-4 flex flex-col sm:flex-row gap-2">
               <button
                 v-if="server.status === 'stopped'"
                 @click="startServer(server)"

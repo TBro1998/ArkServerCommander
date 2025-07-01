@@ -9,7 +9,21 @@ module.exports = {
     "./app.vue"
   ],
   theme: {
-    extend: {},
+    extend: {
+      screens: {
+        '3xl': '1600px',
+        '4xl': '1920px',
+      },
+      maxWidth: {
+        'screen-3xl': '1600px',
+        'screen-4xl': '1920px',
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+        '128': '32rem',
+      }
+    },
   },
   plugins: [],
 }
