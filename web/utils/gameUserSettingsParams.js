@@ -16,41 +16,11 @@ export const gameUserSettingsParams = {
         default: '',
         description: '玩家加入服务器需要的密码，留空表示无密码'
       },
-      ServerAdminPassword: {
-        type: 'password',
-        label: '管理员密码',
-        default: '',
-        description: '获得管理员权限所需的密码'
-      },
       SpectatorPassword: {
         type: 'password',
         label: '观察者密码',
         default: '',
         description: '非管理员观察模式密码'
-      },
-      Port: {
-        type: 'number',
-        label: '游戏端口',
-        default: 7777,
-        min: 1024,
-        max: 65535,
-        description: '玩家连接到服务器使用的端口'
-      },
-      QueryPort: {
-        type: 'number',
-        label: '查询端口',
-        default: 27015,
-        min: 1024,
-        max: 65535,
-        description: 'Steam 查询端口，用于在服务器列表中显示'
-      },
-      RCONPort: {
-        type: 'number',
-        label: 'RCON端口',
-        default: 32330,
-        min: 1024,
-        max: 65535,
-        description: '远程控制台访问端口'
       },
       MaxPlayers: {
         type: 'number',

@@ -72,19 +72,9 @@
                   </svg>
                 </button>
                 <button
-                  @click="editServerConfig(server)"
-                  class="text-purple-600 hover:text-purple-800 p-1"
-                  title="编辑配置文件"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                  </svg>
-                </button>
-                <button
                   @click="editServer(server)"
                   class="text-blue-600 hover:text-blue-800 p-1"
-                  title="编辑基本信息"
+                  title="编辑服务器"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -184,146 +174,17 @@
       </div>
     </div>
 
-    <!-- 创建/编辑服务器表单模态框 -->
-    <div
-      v-if="showCreateForm || showEditForm"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-      @click="closeForm"
-    >
-      <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white" @click.stop>
-        <div class="mb-4">
-          <h3 class="text-lg font-bold text-gray-900">
-            {{ showEditForm ? '编辑服务器' : '新增服务器' }}
-          </h3>
-        </div>
+    <!-- 统一的服务器编辑模态框 -->
+    <ServerEditModal
+      :show="showCreateForm || showEditForm"
+      :mode="showCreateForm ? 'create' : 'edit'"
+      :server="currentEditServer"
+      :loading="loadingServerData"
+      :saving="submitting"
+      @close="closeForm"
+      @save="handleServerSave"
+    />
 
-        <form @submit.prevent="submitForm" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">服务器标识 *</label>
-              <input
-                v-model="form.identifier"
-                type="text"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="输入服务器标识"
-              />
-            </div>
-            <div></div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">游戏端口 *</label>
-              <input
-                v-model.number="form.port"
-                type="number"
-                required
-                min="1"
-                max="65535"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="7777"
-              />
-            </div>
-            <div></div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">查询端口 *</label>
-              <input
-                v-model.number="form.query_port"
-                type="number"
-                required
-                min="1"
-                max="65535"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="27015"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">RCON端口 *</label>
-              <input
-                v-model.number="form.rcon_port"
-                type="number"
-                required
-                min="1"
-                max="65535"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="27020"
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">地图</label>
-              <select
-                v-model="form.map"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="TheIsland">The Island</option>
-                <option value="TheCenter">The Center</option>
-                <option value="ScorchedEarth_P">Scorched Earth</option>
-                <option value="Aberration_P">Aberration</option>
-                <option value="Extinction">Extinction</option>
-                <option value="Valguero_P">Valguero</option>
-                <option value="Genesis">Genesis</option>
-                <option value="CrystalIsles">Crystal Isles</option>
-                <option value="Genesis2">Genesis 2</option>
-                <option value="LostIsland">Lost Island</option>
-                <option value="Fjordur">Fjordur</option>
-              </select>
-            </div>
-            <div></div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">管理员密码 *</label>
-            <div class="relative">
-              <input
-                v-model="form.admin_password"
-                :type="showFormPassword ? 'text' : 'password'"
-                required
-                class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="输入管理员密码（同时作为RCON密码）"
-              />
-              <button
-                type="button"
-                @click="toggleFormPassword"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
-                :title="showFormPassword ? '隐藏密码' : '显示密码'"
-              >
-                <svg v-if="showFormPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
-                </svg>
-                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex gap-3 pt-4">
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {{ submitting ? '提交中...' : (showEditForm ? '更新服务器' : '创建服务器') }}
-            </button>
-            <button
-              type="button"
-              @click="closeForm"
-              class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors"
-            >
-              取消
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
 
     <!-- 删除确认模态框 -->
     <div
@@ -428,17 +289,7 @@
       </div>
     </div>
 
-    <!-- 配置文件编辑组件 -->
-    <ServerConfigEditor
-      :show="showConfigModal"
-      :server="currentConfigServer"
-      :config-data="configData"
-      :config-paths="configPaths"
-      :loading="loadingConfig"
-      :saving="savingConfig"
-      @close="closeConfigModal"
-      @save="saveConfig"
-    />
+
   </div>
 </template>
 
@@ -458,34 +309,15 @@ const showEditForm = ref(false)
 const showDeleteConfirm = ref(false)
 const showRCONModal = ref(false)
 const serverToDelete = ref(null)
-const editingServer = ref(null)
 const rconInfo = ref(null)
 const showRCONPassword = ref(false)
 const showServerPasswords = ref({})
-const showFormPassword = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
-// 配置文件编辑相关
-const showConfigModal = ref(false)
-const currentConfigServer = ref(null)
-const loadingConfig = ref(false)
-const savingConfig = ref(false)
-const configData = ref({
-  game_user_settings: '',
-  game_ini: ''
-})
-const configPaths = ref(null)
-
-// 表单数据
-const form = ref({
-  identifier: '',
-  port: 7777,
-  query_port: 27015,
-  rcon_port: 27020,
-  admin_password: '',
-  map: 'TheIsland'
-})
+// 统一编辑器相关
+const currentEditServer = ref(null)
+const loadingServerData = ref(false)
 
 // 使用 store 中的数据
 const servers = computed(() => serversStore.servers)
@@ -514,55 +346,52 @@ const fetchServers = async () => {
   }
 }
 
-// 重置表单
-const resetForm = () => {
-  form.value = {
-    identifier: '',
-    port: 7777,
-    query_port: 27015,
-    rcon_port: 27020,
-    admin_password: '',
-    map: 'TheIsland'
-  }
-}
-
 // 关闭表单
 const closeForm = () => {
   showCreateForm.value = false
   showEditForm.value = false
-  editingServer.value = null
-  showFormPassword.value = false
-  resetForm()
+  currentEditServer.value = null
+  loadingServerData.value = false
 }
 
-// 编辑服务器
-const editServer = (server) => {
-  editingServer.value = server
-  form.value = {
-    identifier: server.identifier,
-    port: server.port,
-    query_port: server.query_port,
-    rcon_port: server.rcon_port,
-    admin_password: server.admin_password, // 显示当前密码
-    map: server.map
-  }
+// 编辑服务器（统一入口）
+const editServer = async (server) => {
+  currentEditServer.value = null
+  loadingServerData.value = true
   showEditForm.value = true
+  
+  try {
+    console.log('加载服务器信息:', server.id)
+    const serverData = await serversStore.getServer(server.id)
+    
+    // 设置服务器数据
+    currentEditServer.value = serverData
+    
+    console.log('服务器信息加载成功', serverData)
+  } catch (error) {
+    console.error('加载服务器信息失败:', error)
+    errorMessage.value = '加载服务器信息失败，请稍后重试'
+    closeForm()
+  } finally {
+    loadingServerData.value = false
+  }
 }
 
-// 提交表单
-const submitForm = async () => {
+// 统一的服务器保存处理
+const handleServerSave = async (formData) => {
   submitting.value = true
   try {
-    if (showEditForm.value) {
+    if (showEditForm.value && currentEditServer.value) {
       // 更新服务器
-      await serversStore.updateServer(editingServer.value.id, form.value)
+      await serversStore.updateServer(currentEditServer.value.id, formData)
+      successMessage.value = '服务器更新成功'
     } else {
       // 创建服务器
-      await serversStore.createServer(form.value)
+      await serversStore.createServer(formData)
+      successMessage.value = '服务器创建成功'
     }
     
     closeForm()
-    successMessage.value = showEditForm.value ? '服务器更新成功' : '服务器创建成功'
   } catch (error) {
     console.error('操作失败:', error)
     errorMessage.value = error.data?.error || serversStore.error || '操作失败，请稍后重试'
@@ -625,10 +454,7 @@ const toggleServerPassword = (serverId) => {
   showServerPasswords.value[serverId] = !showServerPasswords.value[serverId]
 }
 
-// 切换表单密码显示
-const toggleFormPassword = () => {
-  showFormPassword.value = !showFormPassword.value
-}
+
 
 // 显示RCON信息
 const showRCONInfo = async (server) => {
@@ -666,70 +492,7 @@ const getStatusText = (status) => {
   }
 }
 
-// 编辑服务器配置文件
-const editServerConfig = async (server) => {
-  currentConfigServer.value = server
-  showConfigModal.value = true
-  loadingConfig.value = true
-  
-  try {
-    console.log('加载服务器配置文件:', server.id)
-    const serverData = await serversStore.getServer(server.id)
-    
-    // 设置配置文件内容
-    configData.value = {
-      game_user_settings: serverData.game_user_settings || '',
-      game_ini: serverData.game_ini || ''
-    }
-    
-    // 设置配置文件路径
-    configPaths.value = {
-      game_user_settings_path: serverData.game_user_settings_path,
-      game_ini_path: serverData.game_ini_path
-    }
-    
-    console.log('配置文件加载成功', configData.value)
-  } catch (error) {
-    console.error('加载配置文件失败:', error)
-    errorMessage.value = '加载配置文件失败，请稍后重试'
-    showConfigModal.value = false
-  } finally {
-    loadingConfig.value = false
-  }
-}
 
-// 关闭配置文件编辑模态框
-const closeConfigModal = () => {
-  showConfigModal.value = false
-  currentConfigServer.value = null
-  activeConfigTab.value = 'game_user_settings'
-  configData.value = {
-    game_user_settings: '',
-    game_ini: ''
-  }
-  configPaths.value = null
-}
-
-// 保存配置文件
-const saveConfig = async (updatedConfigData) => {
-  if (!currentConfigServer.value) return
-  
-  savingConfig.value = true
-  try {
-    console.log('保存配置文件:', currentConfigServer.value.id, updatedConfigData)
-    
-    const updatedServer = await serversStore.updateServer(currentConfigServer.value.id, updatedConfigData)
-    console.log('配置文件保存成功:', updatedServer)
-    
-    closeConfigModal()
-    successMessage.value = '配置文件保存成功'
-  } catch (error) {
-    console.error('保存配置文件失败:', error)
-    errorMessage.value = error.data?.error || '保存配置文件失败，请稍后重试'
-  } finally {
-    savingConfig.value = false
-  }
-}
 
 
 

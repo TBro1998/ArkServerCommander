@@ -62,20 +62,7 @@
           />
         </div>
 
-        <!-- 配置文件路径信息 -->
-        <div v-if="configPaths" class="bg-gray-50 p-4 rounded-lg">
-          <h4 class="text-sm font-medium text-gray-700 mb-2">配置文件路径信息</h4>
-          <div class="space-y-1 text-xs text-gray-600">
-            <div v-if="activeTab === 'game_user_settings'">
-              <span class="font-medium">GameUserSettings.ini:</span>
-              <span class="font-mono ml-2">{{ configPaths.game_user_settings_path }}</span>
-            </div>
-            <div v-if="activeTab === 'game_ini'">
-              <span class="font-medium">Game.ini:</span>
-              <span class="font-mono ml-2">{{ configPaths.game_ini_path }}</span>
-            </div>
-          </div>
-        </div>
+
 
         <!-- 操作按钮 -->
         <div class="flex gap-3 pt-4">
@@ -119,10 +106,7 @@ const props = defineProps({
       game_ini: ''
     })
   },
-  configPaths: {
-    type: Object,
-    default: null
-  },
+
   loading: {
     type: Boolean,
     default: false
