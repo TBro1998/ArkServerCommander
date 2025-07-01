@@ -340,20 +340,20 @@ const resetToDefault = () => {
   const server = props.server
   
   textContent.value = `[ServerSettings]
-SessionName=${server.name}
+SessionName=${server.identifier}
 ServerPassword=
 ServerAdminPassword=${server.admin_password}
 Port=${server.port}
 QueryPort=${server.query_port}
 RCONEnabled=True
 RCONPort=${server.rcon_port}
-MaxPlayers=${server.max_players}
+MaxPlayers=70
 
 [SessionSettings]
-SessionName=${server.name}
+SessionName=${server.identifier}
 
 [MessageOfTheDay]
-Message=欢迎来到 ${server.name} ARK 服务器！
+Message=欢迎来到 ${server.identifier} ARK 服务器！
 
 [/Script/ShooterGame.ShooterGameMode]
 bUseSingleplayerSettings=False

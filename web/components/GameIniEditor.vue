@@ -338,7 +338,7 @@ bPassiveDefensesDamageRiderlessDinos=true
 MaxNumberOfPlayersInTribe=0
 
 [/script/engine.gamesession]
-MaxPlayers=${server.max_players}
+MaxPlayers=70
 
 [/Script/ShooterGame.ShooterGameMode]
 DifficultyOffset=1.0

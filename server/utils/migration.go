@@ -36,10 +36,10 @@ func InitializeExistingServerFolders() error {
 			// 创建文件夹
 			_, err := CreateServerFolder(server.ID)
 			if err != nil {
-				log.Printf("Warning: Failed to create folder for server %d (%s): %v", server.ID, server.Name, err)
+				log.Printf("Warning: Failed to create folder for server %d (%s): %v", server.ID, server.Identifier, err)
 				errorCount++
 			} else {
-				log.Printf("Created folder for existing server %d (%s): %s", server.ID, server.Name, folderPath)
+				log.Printf("Created folder for existing server %d (%s): %s", server.ID, server.Identifier, folderPath)
 				createdCount++
 			}
 		}
@@ -115,17 +115,17 @@ func MigrateServerConfigs() error {
 		if !gameUserSettingsExists || !gameIniExists {
 			if err := CreateDefaultConfigFiles(
 				server.ID,
-				server.Name,
+				server.Identifier,
 				server.Map,
 				server.Port,
 				server.QueryPort,
 				server.RCONPort,
-				server.MaxPlayers,
+				70, // 默认最大玩家数
 				server.AdminPassword,
 			); err != nil {
-				log.Printf("Warning: Failed to create config files for server %d (%s): %v", server.ID, server.Name, err)
+				log.Printf("Warning: Failed to create config files for server %d (%s): %v", server.ID, server.Identifier, err)
 			} else {
-				log.Printf("Created default config files for server %d (%s)", server.ID, server.Name)
+				log.Printf("Created default config files for server %d (%s)", server.ID, server.Identifier)
 				createdCount++
 			}
 		}

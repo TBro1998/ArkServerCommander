@@ -38,14 +38,12 @@ func GetServers(c *gin.Context) {
 	for _, server := range servers {
 		serverResponses = append(serverResponses, models.ServerResponse{
 			ID:            server.ID,
-			Name:          server.Name,
-			Description:   server.Description,
+			Identifier:    server.Identifier,
 			Port:          server.Port,
 			QueryPort:     server.QueryPort,
 			RCONPort:      server.RCONPort,
 			AdminPassword: server.AdminPassword,
 			Map:           server.Map,
-			MaxPlayers:    server.MaxPlayers,
 			Status:        server.Status,
 			UserID:        server.UserID,
 			CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -81,10 +79,10 @@ func CreateServer(c *gin.Context) {
 		return
 	}
 
-	// 检查服务器名称是否已存在
+	// 检查服务器标识是否已存在
 	var existingServer models.Server
-	if err := database.DB.Where("name = ? AND user_id = ?", req.Name, userID).First(&existingServer).Error; err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "服务器名称已存在"})
+	if err := database.DB.Where("identifier = ? AND user_id = ?", req.Identifier, userID).First(&existingServer).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "服务器标识已存在"})
 		return
 	}
 
@@ -95,14 +93,12 @@ func CreateServer(c *gin.Context) {
 
 	// 创建服务器
 	server := models.Server{
-		Name:          req.Name,
-		Description:   req.Description,
+		Identifier:    req.Identifier,
 		Port:          req.Port,
 		QueryPort:     req.QueryPort,
 		RCONPort:      req.RCONPort,
 		AdminPassword: req.AdminPassword,
 		Map:           req.Map,
-		MaxPlayers:    req.MaxPlayers,
 		Status:        "stopped",
 		UserID:        userID,
 	}
@@ -120,21 +116,19 @@ func CreateServer(c *gin.Context) {
 	}
 
 	// 创建默认配置文件
-	if err := utils.CreateDefaultConfigFiles(server.ID, server.Name, server.Map, server.Port, server.QueryPort, server.RCONPort, server.MaxPlayers, server.AdminPassword); err != nil {
+	if err := utils.CreateDefaultConfigFiles(server.ID, server.Identifier, server.Map, server.Port, server.QueryPort, server.RCONPort, 70, server.AdminPassword); err != nil {
 		// 记录错误日志，但不影响服务器创建
 		fmt.Printf("Warning: Failed to create default config files: %v\n", err)
 	}
 
 	response := models.ServerResponse{
 		ID:            server.ID,
-		Name:          server.Name,
-		Description:   server.Description,
+		Identifier:    server.Identifier,
 		Port:          server.Port,
 		QueryPort:     server.QueryPort,
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
-		MaxPlayers:    server.MaxPlayers,
 		Status:        server.Status,
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -178,14 +172,12 @@ func GetServer(c *gin.Context) {
 
 	response := models.ServerResponse{
 		ID:            server.ID,
-		Name:          server.Name,
-		Description:   server.Description,
+		Identifier:    server.Identifier,
 		Port:          server.Port,
 		QueryPort:     server.QueryPort,
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
-		MaxPlayers:    server.MaxPlayers,
 		Status:        server.Status,
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -238,10 +230,10 @@ func GetServerRCON(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "获取成功",
 		"data": gin.H{
-			"server_id":      server.ID,
-			"server_name":    server.Name,
-			"rcon_port":      server.RCONPort,
-			"admin_password": server.AdminPassword,
+			"server_id":         server.ID,
+			"server_identifier": server.Identifier,
+			"rcon_port":         server.RCONPort,
+			"admin_password":    server.AdminPassword,
 		},
 	})
 }
@@ -284,20 +276,17 @@ func UpdateServer(c *gin.Context) {
 		return
 	}
 
-	// 检查名称是否与其他服务器冲突
-	if req.Name != "" && req.Name != server.Name {
+	// 检查标识是否与其他服务器冲突
+	if req.Identifier != "" && req.Identifier != server.Identifier {
 		var existingServer models.Server
-		if err := database.DB.Where("name = ? AND user_id = ? AND id != ?", req.Name, userID, id).First(&existingServer).Error; err == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "服务器名称已存在"})
+		if err := database.DB.Where("identifier = ? AND user_id = ? AND id != ?", req.Identifier, userID, id).First(&existingServer).Error; err == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "服务器标识已存在"})
 			return
 		}
-		server.Name = req.Name
+		server.Identifier = req.Identifier
 	}
 
 	// 更新字段
-	if req.Description != "" {
-		server.Description = req.Description
-	}
 	if req.Port > 0 {
 		server.Port = req.Port
 	}
@@ -312,9 +301,6 @@ func UpdateServer(c *gin.Context) {
 	}
 	if req.Map != "" {
 		server.Map = req.Map
-	}
-	if req.MaxPlayers > 0 {
-		server.MaxPlayers = req.MaxPlayers
 	}
 
 	if err := database.DB.Save(&server).Error; err != nil {
@@ -355,14 +341,12 @@ func UpdateServer(c *gin.Context) {
 
 	response := models.ServerResponse{
 		ID:            server.ID,
-		Name:          server.Name,
-		Description:   server.Description,
+		Identifier:    server.Identifier,
 		Port:          server.Port,
 		QueryPort:     server.QueryPort,
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
-		MaxPlayers:    server.MaxPlayers,
 		Status:        server.Status,
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -610,7 +594,7 @@ func GetServerFolderInfo(c *gin.Context) {
 		"message": "获取成功",
 		"data": gin.H{
 			"server_id":   server.ID,
-			"server_name": server.Name,
+			"server_name": server.Identifier,
 			"folder_path": folderPath,
 			"folder_size": folderSize,
 		},

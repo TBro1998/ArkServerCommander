@@ -59,8 +59,7 @@
           >
             <div class="flex justify-between items-start mb-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900">{{ server.name }}</h3>
-                <p class="text-sm text-gray-600 mt-1">{{ server.description || '无描述' }}</p>
+                <h3 class="text-lg font-semibold text-gray-900">{{ server.identifier }}</h3>
               </div>
               <div class="flex gap-2">
                 <button
@@ -125,10 +124,7 @@
                 <span class="text-gray-600">地图:</span>
                 <span>{{ server.map }}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600">最大玩家:</span>
-                <span>{{ server.max_players }}</span>
-              </div>
+
               <div class="flex justify-between">
                 <span class="text-gray-600">管理员密码:</span>
                 <span class="font-mono">{{ showServerPasswords[server.id] ? server.admin_password : '***' }}</span>
@@ -204,24 +200,16 @@
         <form @submit.prevent="submitForm" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">服务器名称 *</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">服务器标识 *</label>
               <input
-                v-model="form.name"
+                v-model="form.identifier"
                 type="text"
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="输入服务器名称"
+                placeholder="输入服务器标识"
               />
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">服务器描述</label>
-              <input
-                v-model="form.description"
-                type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="输入服务器描述"
-              />
-            </div>
+            <div></div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -237,18 +225,7 @@
                 placeholder="7777"
               />
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">最大玩家数 *</label>
-              <input
-                v-model.number="form.max_players"
-                type="number"
-                required
-                min="1"
-                max="200"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="70"
-              />
-            </div>
+            <div></div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -362,7 +339,7 @@
           <h3 class="text-lg font-medium text-gray-900">确认删除</h3>
           <div class="mt-2 px-7 py-3">
             <p class="text-sm text-gray-500">
-              您确定要删除服务器 "{{ serverToDelete?.name }}" 吗？此操作无法撤销。
+              您确定要删除服务器 "{{ serverToDelete?.identifier }}" 吗？此操作无法撤销。
             </p>
           </div>
           <div class="flex gap-3 mt-4">
@@ -397,8 +374,8 @@
         
         <div v-if="rconInfo" class="space-y-3">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">服务器名称</label>
-            <p class="px-3 py-2 bg-gray-50 rounded border text-sm">{{ rconInfo.server_name }}</p>
+            <label class="block text-sm font-medium text-gray-700 mb-1">服务器标识</label>
+            <p class="px-3 py-2 bg-gray-50 rounded border text-sm">{{ rconInfo.server_identifier }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">RCON端口</label>
@@ -502,14 +479,12 @@ const configPaths = ref(null)
 
 // 表单数据
 const form = ref({
-  name: '',
-  description: '',
+  identifier: '',
   port: 7777,
   query_port: 27015,
   rcon_port: 27020,
   admin_password: '',
-  map: 'TheIsland',
-  max_players: 70
+  map: 'TheIsland'
 })
 
 // 使用 store 中的数据
@@ -542,14 +517,12 @@ const fetchServers = async () => {
 // 重置表单
 const resetForm = () => {
   form.value = {
-    name: '',
-    description: '',
+    identifier: '',
     port: 7777,
     query_port: 27015,
     rcon_port: 27020,
     admin_password: '',
-    map: 'TheIsland',
-    max_players: 70
+    map: 'TheIsland'
   }
 }
 
@@ -566,14 +539,12 @@ const closeForm = () => {
 const editServer = (server) => {
   editingServer.value = server
   form.value = {
-    name: server.name,
-    description: server.description,
+    identifier: server.identifier,
     port: server.port,
     query_port: server.query_port,
     rcon_port: server.rcon_port,
     admin_password: server.admin_password, // 显示当前密码
-    map: server.map,
-    max_players: server.max_players
+    map: server.map
   }
   showEditForm.value = true
 }
@@ -631,7 +602,7 @@ const deleteServer = async () => {
 const startServer = async (server) => {
   try {
     await serversStore.startServer(server.id)
-    successMessage.value = `服务器 "${server.name}" 启动中...`
+    successMessage.value = `服务器 "${server.identifier}" 启动中...`
   } catch (error) {
     console.error('启动服务器失败:', error)
     errorMessage.value = serversStore.error || '启动服务器失败，请稍后重试'
@@ -642,7 +613,7 @@ const startServer = async (server) => {
 const stopServer = async (server) => {
   try {
     await serversStore.stopServer(server.id)
-    successMessage.value = `服务器 "${server.name}" 停止中...`
+    successMessage.value = `服务器 "${server.identifier}" 停止中...`
   } catch (error) {
     console.error('停止服务器失败:', error)
     errorMessage.value = serversStore.error || '停止服务器失败，请稍后重试'

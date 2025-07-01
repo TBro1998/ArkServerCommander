@@ -7,7 +7,7 @@
     <div class="relative top-10 mx-auto p-5 border w-full max-w-7xl shadow-lg rounded-md bg-white" @click.stop>
       <div class="mb-4">
         <h3 class="text-lg font-bold text-gray-900">
-          编辑服务器配置文件 - {{ server?.name }}
+          编辑服务器配置文件 - {{ server?.identifier }}
         </h3>
       </div>
 
