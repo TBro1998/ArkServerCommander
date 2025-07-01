@@ -51,11 +51,11 @@
           </div>
         </div>
 
-        <div v-else class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div v-else class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div
             v-for="server in servers"
             :key="server.id"
-            class="bg-gray-50 rounded-lg p-6 hover:shadow-md transition-shadow"
+            class="bg-gray-50 rounded-lg p-6 hover:shadow-md transition-shadow h-fit"
           >
             <div class="flex justify-between items-start mb-4">
               <div>
@@ -92,6 +92,7 @@
               </div>
             </div>
 
+            <!-- 基本信息 -->
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-gray-600">状态:</span>
@@ -107,21 +108,85 @@
                 </span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-600">游戏端口:</span>
-                <span class="font-mono">{{ server.port }}</span>
-              </div>
-              <div class="flex justify-between">
                 <span class="text-gray-600">地图:</span>
-                <span>{{ server.map }}</span>
+                <span class="font-medium">{{ server.map || 'TheIsland' }}</span>
               </div>
+            </div>
 
-              <div class="flex justify-between">
-                <span class="text-gray-600">管理员密码:</span>
-                <span class="font-mono">{{ showServerPasswords[server.id] ? server.admin_password : '***' }}</span>
+            <!-- 端口信息 -->
+            <div class="mt-4 mb-4">
+              <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+                </svg>
+                端口配置
+              </h4>
+              <div class="space-y-1 text-sm pl-5">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">游戏端口:</span>
+                  <span class="font-mono text-blue-600">{{ server.port }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">查询端口:</span>
+                  <span class="font-mono text-blue-600">{{ server.query_port }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">RCON端口:</span>
+                  <span class="font-mono text-blue-600">{{ server.rcon_port }}</span>
+                </div>
               </div>
+            </div>
+
+            <!-- 认证信息 -->
+            <div class="mb-4">
+              <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                认证信息
+              </h4>
+              <div class="space-y-1 text-sm pl-5">
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">管理员密码:</span>
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-gray-800">{{ showServerPasswords[server.id] ? server.admin_password : '***' }}</span>
+                    <button
+                      @click="toggleServerPassword(server.id)"
+                      class="text-xs text-gray-500 hover:text-gray-700"
+                      :title="showServerPasswords[server.id] ? '隐藏密码' : '显示密码'"
+                    >
+                      {{ showServerPasswords[server.id] ? '隐藏' : '显示' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 时间信息 -->
+            <div class="mb-4">
+              <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                时间信息
+              </h4>
+              <div class="space-y-1 text-sm pl-5">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">创建时间:</span>
+                  <span class="text-gray-800">{{ formatDate(server.created_at) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">更新时间:</span>
+                  <span class="text-gray-800">{{ formatDate(server.updated_at) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 服务器ID信息 -->
+            <div class="text-xs text-gray-500 border-t pt-2 mt-2">
               <div class="flex justify-between">
-                <span class="text-gray-600">创建时间:</span>
-                <span>{{ server.created_at }}</span>
+                <span>服务器ID:</span>
+                <span class="font-mono">#{{ server.id }}</span>
               </div>
             </div>
 
@@ -160,13 +225,6 @@
                 disabled
               >
                 未知状态
-              </button>
-              <button
-                @click="toggleServerPassword(server.id)"
-                class="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
-                :title="showServerPasswords[server.id] ? '隐藏密码' : '显示密码'"
-              >
-                {{ showServerPasswords[server.id] ? '隐藏' : '显示' }}
               </button>
             </div>
           </div>
@@ -489,6 +547,23 @@ const getStatusText = (status) => {
     case 'starting': return '启动中'
     case 'stopping': return '停止中'
     default: return '未知'
+  }
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '暂无'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return dateString
   }
 }
 
