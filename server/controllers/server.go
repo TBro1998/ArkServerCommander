@@ -33,9 +33,25 @@ func GetServers(c *gin.Context) {
 		return
 	}
 
-	// 转换为响应格式
+	// 转换为响应格式并获取实时状态
+	dockerManager := utils.NewDockerManager()
 	var serverResponses []models.ServerResponse
 	for _, server := range servers {
+		// 获取Docker容器实时状态
+		containerName := utils.GetServerContainerName(server.ID)
+		realTimeStatus := server.Status // 默认使用数据库状态
+		if dockerStatus, err := dockerManager.GetContainerStatus(containerName); err == nil {
+			// 如果能获取到Docker状态，使用实时状态
+			realTimeStatus = dockerStatus
+
+			// 如果实时状态与数据库状态不同，更新数据库（异步）
+			if realTimeStatus != server.Status {
+				go func(s models.Server, status string) {
+					database.DB.Model(&s).Update("status", status)
+				}(server, realTimeStatus)
+			}
+		}
+
 		serverResponses = append(serverResponses, models.ServerResponse{
 			ID:            server.ID,
 			Identifier:    server.Identifier,
@@ -44,7 +60,7 @@ func GetServers(c *gin.Context) {
 			RCONPort:      server.RCONPort,
 			AdminPassword: server.AdminPassword,
 			Map:           server.Map,
-			Status:        server.Status,
+			Status:        realTimeStatus,
 			UserID:        server.UserID,
 			CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -108,17 +124,45 @@ func CreateServer(c *gin.Context) {
 		return
 	}
 
-	// 创建服务器文件夹
-	_, err := utils.CreateServerFolder(server.ID)
+	// 创建Docker卷和容器
+	dockerManager := utils.NewDockerManager()
+
+	// 创建Docker卷
+	volumeName, err := dockerManager.CreateVolume(server.ID)
 	if err != nil {
-		// 记录错误日志，但不影响服务器创建
-		fmt.Printf("Warning: Failed to create server folder: %v\n", err)
+		// 删除数据库记录并返回错误
+		database.DB.Delete(&server)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建Docker卷失败: %v", err)})
+		return
+	}
+	fmt.Printf("Created Docker volume: %s\n", volumeName)
+
+	// 创建Docker容器（不立即启动）
+	containerID, err := dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map)
+	if err != nil {
+		// 清理已创建的卷
+		dockerManager.RemoveVolume(volumeName)
+		database.DB.Delete(&server)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建Docker容器失败: %v", err)})
+		return
+	}
+	fmt.Printf("Created Docker container: %s\n", containerID)
+
+	// 停止容器（创建时会自动启动）
+	containerName := utils.GetServerContainerName(server.ID)
+	if err := dockerManager.StopContainer(containerName); err != nil {
+		fmt.Printf("Warning: Failed to stop container after creation: %v\n", err)
 	}
 
-	// 创建默认配置文件
-	if err := utils.CreateDefaultConfigFiles(server.ID, server.Identifier, server.Map, server.Port, server.QueryPort, server.RCONPort, 70, server.AdminPassword); err != nil {
-		// 记录错误日志，但不影响服务器创建
-		fmt.Printf("Warning: Failed to create default config files: %v\n", err)
+	// 创建默认配置文件到Docker卷中
+	gameUserSettings := utils.GetDefaultGameUserSettings(server.Identifier, server.Map, server.Port, server.QueryPort, server.RCONPort, 70, server.AdminPassword)
+	if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, gameUserSettings); err != nil {
+		fmt.Printf("Warning: Failed to create default GameUserSettings.ini: %v\n", err)
+	}
+
+	gameIni := utils.GetDefaultGameIni()
+	if err := dockerManager.WriteConfigFile(server.ID, utils.GameIniFileName, gameIni); err != nil {
+		fmt.Printf("Warning: Failed to create default Game.ini: %v\n", err)
 	}
 
 	response := models.ServerResponse{
@@ -184,11 +228,12 @@ func GetServer(c *gin.Context) {
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	// 读取配置文件内容（如果存在）
-	if gameUserSettings, err := utils.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
+	// 从Docker卷读取配置文件内容（如果存在）
+	dockerManager := utils.NewDockerManager()
+	if gameUserSettings, err := dockerManager.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
 		response.GameUserSettings = gameUserSettings
 	}
-	if gameIni, err := utils.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
+	if gameIni, err := dockerManager.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
 		response.GameIni = gameIni
 	}
 
@@ -234,6 +279,74 @@ func GetServerRCON(c *gin.Context) {
 			"server_identifier": server.Identifier,
 			"rcon_port":         server.RCONPort,
 			"admin_password":    server.AdminPassword,
+		},
+	})
+}
+
+// ExecuteRCONCommand 执行RCON命令
+// @Summary 执行RCON命令
+// @Description 在指定服务器上执行RCON命令
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param command body map[string]string true "RCON命令 {\"command\": \"ListPlayers\"}"
+// @Success 200 {object} map[string]string "命令执行结果"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Failure 401 {object} map[string]string "未授权"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /servers/{id}/rcon/execute [post]
+func ExecuteRCONCommand(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	serverID := c.Param("id")
+
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的服务器ID"})
+		return
+	}
+
+	// 解析请求体
+	var req struct {
+		Command string `json:"command" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "服务器不存在"})
+		return
+	}
+
+	// 检查服务器状态
+	if server.Status != "running" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "服务器未运行，无法执行RCON命令"})
+		return
+	}
+
+	// 执行RCON命令
+	dockerManager := utils.NewDockerManager()
+	containerName := utils.GetServerContainerName(server.ID)
+
+	// 构建RCON命令
+	rconCommand := fmt.Sprintf("echo '%s' | /ark/rcon -H localhost -P 32330 -p '%s'", req.Command, server.AdminPassword)
+
+	output, err := dockerManager.ExecuteCommand(containerName, rconCommand)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("执行RCON命令失败: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "RCON命令执行成功",
+		"data": gin.H{
+			"command": req.Command,
+			"output":  output,
 		},
 	})
 }
@@ -324,15 +437,16 @@ func UpdateServer(c *gin.Context) {
 			}
 		}
 
-		// 写入配置文件
+		// 写入配置文件到Docker卷
+		dockerManager := utils.NewDockerManager()
 		if req.GameUserSettings != "" {
-			if err := utils.WriteConfigFile(uint(id), utils.GameUserSettingsFileName, req.GameUserSettings); err != nil {
+			if err := dockerManager.WriteConfigFile(uint(id), utils.GameUserSettingsFileName, req.GameUserSettings); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入GameUserSettings.ini失败: %v", err)})
 				return
 			}
 		}
 		if req.GameIni != "" {
-			if err := utils.WriteConfigFile(uint(id), utils.GameIniFileName, req.GameIni); err != nil {
+			if err := dockerManager.WriteConfigFile(uint(id), utils.GameIniFileName, req.GameIni); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入Game.ini失败: %v", err)})
 				return
 			}
@@ -353,11 +467,12 @@ func UpdateServer(c *gin.Context) {
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	// 读取配置文件内容并添加到响应中
-	if gameUserSettings, err := utils.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
+	// 从Docker卷读取配置文件内容并添加到响应中
+	dockerManager2 := utils.NewDockerManager()
+	if gameUserSettings, err := dockerManager2.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
 		response.GameUserSettings = gameUserSettings
 	}
-	if gameIni, err := utils.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
+	if gameIni, err := dockerManager2.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
 		response.GameIni = gameIni
 	}
 
@@ -410,10 +525,19 @@ func DeleteServer(c *gin.Context) {
 		return
 	}
 
-	// 删除服务器文件夹（包括配置文件）
-	if err := utils.RemoveServerFolder(server.ID); err != nil {
-		// 记录错误日志，但不影响服务器删除成功
-		fmt.Printf("Warning: Failed to remove server folder: %v\n", err)
+	// 删除Docker容器和卷
+	dockerManager := utils.NewDockerManager()
+	containerName := utils.GetServerContainerName(server.ID)
+	volumeName := utils.GetServerVolumeName(server.ID)
+
+	// 删除容器
+	if err := dockerManager.RemoveContainer(containerName); err != nil {
+		fmt.Printf("Warning: Failed to remove Docker container: %v\n", err)
+	}
+
+	// 删除卷
+	if err := dockerManager.RemoveVolume(volumeName); err != nil {
+		fmt.Printf("Warning: Failed to remove Docker volume: %v\n", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -470,17 +594,40 @@ func StartServer(c *gin.Context) {
 		return
 	}
 
-	// TODO: 这里应该实现实际的服务器启动逻辑
-	// 目前只是模拟启动过程
-	go func() {
-		// 模拟启动过程
-		time.Sleep(3 * time.Second)
+	// 启动Docker容器
+	dockerManager := utils.NewDockerManager()
+	containerName := utils.GetServerContainerName(server.ID)
 
-		// 更新状态为运行中
-		if err := database.DB.Model(&server).Update("status", "running").Error; err != nil {
-			// 记录错误日志
-			fmt.Printf("Failed to update server status to running: %v\n", err)
+	go func() {
+		// 启动容器
+		if err := dockerManager.StartContainer(containerName); err != nil {
+			fmt.Printf("Failed to start Docker container: %v\n", err)
+			// 更新状态为停止
+			database.DB.Model(&server).Update("status", "stopped")
+			return
 		}
+
+		// 等待容器启动并验证状态
+		for i := 0; i < 30; i++ { // 最多等待30秒
+			time.Sleep(1 * time.Second)
+			status, err := dockerManager.GetContainerStatus(containerName)
+			if err != nil {
+				fmt.Printf("Failed to get container status: %v\n", err)
+				continue
+			}
+
+			if status == "running" {
+				// 更新状态为运行中
+				if err := database.DB.Model(&server).Update("status", "running").Error; err != nil {
+					fmt.Printf("Failed to update server status to running: %v\n", err)
+				}
+				return
+			}
+		}
+
+		// 超时或启动失败
+		fmt.Printf("Container failed to start or timeout\n")
+		database.DB.Model(&server).Update("status", "stopped")
 	}()
 
 	c.JSON(http.StatusOK, gin.H{
@@ -537,15 +684,33 @@ func StopServer(c *gin.Context) {
 		return
 	}
 
-	// TODO: 这里应该实现实际的服务器停止逻辑
-	// 目前只是模拟停止过程
+	// 停止Docker容器
+	dockerManager := utils.NewDockerManager()
+	containerName := utils.GetServerContainerName(server.ID)
+
 	go func() {
-		// 模拟停止过程
-		time.Sleep(2 * time.Second)
+		// 停止容器
+		if err := dockerManager.StopContainer(containerName); err != nil {
+			fmt.Printf("Failed to stop Docker container: %v\n", err)
+			// 即使停止失败，也更新状态（可能容器已经停止）
+		}
+
+		// 验证容器状态
+		for i := 0; i < 30; i++ { // 最多等待30秒
+			time.Sleep(1 * time.Second)
+			status, err := dockerManager.GetContainerStatus(containerName)
+			if err != nil {
+				fmt.Printf("Failed to get container status: %v\n", err)
+				continue
+			}
+
+			if status == "stopped" || status == "not_found" {
+				break
+			}
+		}
 
 		// 更新状态为已停止
 		if err := database.DB.Model(&server).Update("status", "stopped").Error; err != nil {
-			// 记录错误日志
 			fmt.Printf("Failed to update server status to stopped: %v\n", err)
 		}
 	}()
@@ -584,19 +749,35 @@ func GetServerFolderInfo(c *gin.Context) {
 		return
 	}
 
-	// 获取服务器文件夹路径
-	folderPath := utils.GetServerFolderPath(server.ID)
+	// 获取Docker卷信息
+	dockerManager := utils.NewDockerManager()
+	volumeName := utils.GetServerVolumeName(server.ID)
+	containerName := utils.GetServerContainerName(server.ID)
 
-	var folderSize int64 = 0
-	folderSize, _ = utils.GetFolderSize(folderPath)
+	// 检查卷是否存在
+	volumeExists, _ := dockerManager.VolumeExists(volumeName)
+
+	// 检查容器是否存在
+	containerExists, _ := dockerManager.ContainerExists(containerName)
+
+	// 获取容器状态
+	containerStatus := "not_found"
+	if containerExists {
+		if status, err := dockerManager.GetContainerStatus(containerName); err == nil {
+			containerStatus = status
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "获取成功",
 		"data": gin.H{
-			"server_id":   server.ID,
-			"server_name": server.Identifier,
-			"folder_path": folderPath,
-			"folder_size": folderSize,
+			"server_id":        server.ID,
+			"server_name":      server.Identifier,
+			"volume_name":      volumeName,
+			"volume_exists":    volumeExists,
+			"container_name":   containerName,
+			"container_exists": containerExists,
+			"container_status": containerStatus,
 		},
 	})
 }

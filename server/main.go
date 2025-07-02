@@ -43,21 +43,14 @@ func main() {
 	// 初始化数据库
 	database.InitDB()
 
-	// 初始化Works目录
-	worksPath, err := utils.EnsureWorksDirectory()
-	if err != nil {
-		log.Fatalf("Failed to initialize Works directory: %v", err)
-	}
-	log.Printf("Works directory initialized: %s", worksPath)
-
-	// 为现有服务器初始化文件夹
-	if err := utils.InitializeExistingServerFolders(); err != nil {
-		log.Printf("Warning: Failed to initialize existing server folders: %v", err)
+	// 为现有服务器初始化Docker容器和卷
+	if err := utils.InitializeDockerForExistingServers(); err != nil {
+		log.Printf("Warning: Failed to initialize Docker for existing servers: %v", err)
 	}
 
-	// 为现有服务器生成默认配置
-	if err := utils.MigrateServerConfigs(); err != nil {
-		log.Printf("Warning: Failed to migrate server configs: %v", err)
+	// 同步服务器状态与Docker容器状态
+	if err := utils.SyncServerStatusWithDocker(); err != nil {
+		log.Printf("Warning: Failed to sync server status with Docker: %v", err)
 	}
 
 	// 创建Gin实例
@@ -107,7 +100,7 @@ func main() {
 	log.Println("📚 API文档: http://localhost:8080/swagger/index.html")
 	log.Println("🔗 健康检查: http://localhost:8080/health")
 	log.Println("🌐 CORS: 已启用（允许所有来源）")
-	log.Printf("📁 服务器文件夹: %s", worksPath)
+	log.Printf("🐳 Docker容器化ARK服务器管理")
 	log.Println("=========================================")
 
 	r.Run(":8080")

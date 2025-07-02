@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+
+# GitHub Actions
+.github
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# 开发环境文件
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器配置
+.vscode
+.idea
+*.swp
+*.swo
+
+# 前端相关
+web/node_modules
+web/.nuxt
+web/.output
+web/dist
+web/.nitro
+
+# 后端相关
+server/main
+server/*.exe
+server/ark_server.db
+
+# 开发工具
+start-dev.bat
+
+# Docker 相关
+docker-compose.yml
+docker-compose.override.yml
+docker-compose.example.yml
+server/Dockerfile
+
+# 数据目录
+data/
+logs/ 

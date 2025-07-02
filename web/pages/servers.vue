@@ -51,17 +51,69 @@
           </div>
         </div>
 
-        <div v-else class="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div v-else class="flex flex-wrap gap-4 sm:gap-6 justify-center sm:justify-start">
           <div
             v-for="server in servers"
             :key="server.id"
-            class="bg-gray-50 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow h-fit"
+            class="bg-gray-50 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow h-fit w-80"
           >
             <div class="flex justify-between items-start mb-4">
               <div class="min-w-0 flex-1">
                 <h3 class="text-base sm:text-lg font-semibold text-gray-900 truncate">{{ server.identifier }}</h3>
               </div>
               <div class="flex gap-1 sm:gap-2 ml-2">
+                <!-- 启动/停止按钮 -->
+                <button
+                  v-if="server.status === 'stopped'"
+                  @click="startServer(server)"
+                  class="text-green-600 hover:text-green-800 p-1"
+                  title="启动服务器"
+                >
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </button>
+                <button
+                  v-else-if="server.status === 'running'"
+                  @click="stopServer(server)"
+                  class="text-red-600 hover:text-red-800 p-1"
+                  title="停止服务器"
+                >
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h4v12H6zm8-6v18h4V6h-4z"/>
+                  </svg>
+                </button>
+                <button
+                  v-else-if="server.status === 'starting'"
+                  class="text-yellow-600 p-1 cursor-not-allowed"
+                  disabled
+                  title="启动中..."
+                >
+                  <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                </button>
+                <button
+                  v-else-if="server.status === 'stopping'"
+                  class="text-yellow-600 p-1 cursor-not-allowed"
+                  disabled
+                  title="停止中..."
+                >
+                  <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                </button>
+                <button
+                  v-else
+                  class="text-gray-400 p-1 cursor-not-allowed"
+                  disabled
+                  title="未知状态"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </button>
+                
                 <button
                   @click="showRCONInfo(server)"
                   class="text-green-600 hover:text-green-800 p-1"
@@ -188,44 +240,6 @@
                 <span>服务器ID:</span>
                 <span class="font-mono">#{{ server.id }}</span>
               </div>
-            </div>
-
-            <div class="mt-4 flex flex-col sm:flex-row gap-2">
-              <button
-                v-if="server.status === 'stopped'"
-                @click="startServer(server)"
-                class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm transition-colors"
-              >
-                启动
-              </button>
-              <button
-                v-else-if="server.status === 'running'"
-                @click="stopServer(server)"
-                class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-sm transition-colors"
-              >
-                停止
-              </button>
-              <button
-                v-else-if="server.status === 'starting'"
-                class="flex-1 bg-gray-400 text-white py-2 rounded-lg text-sm cursor-not-allowed"
-                disabled
-              >
-                启动中...
-              </button>
-              <button
-                v-else-if="server.status === 'stopping'"
-                class="flex-1 bg-gray-400 text-white py-2 rounded-lg text-sm cursor-not-allowed"
-                disabled
-              >
-                停止中...
-              </button>
-              <button
-                v-else
-                class="flex-1 bg-gray-400 text-white py-2 rounded-lg text-sm cursor-not-allowed"
-                disabled
-              >
-                未知状态
-              </button>
             </div>
           </div>
         </div>
