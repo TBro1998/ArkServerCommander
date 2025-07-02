@@ -44,9 +44,10 @@ FROM alpine:latest
 # 安装必要的包
 RUN apk add --no-cache ca-certificates docker-cli sqlite wget
 
-# 创建非root用户
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+# 创建docker组和用户
+RUN addgroup -g 999 docker && \
+    addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup,docker
 
 # 设置工作目录
 WORKDIR /app
