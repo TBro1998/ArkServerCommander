@@ -11,5 +11,8 @@ export default defineNuxtConfig({
       apiBase: process.env.API_BASE || '/api'
     }
   },
-  ssr: false
+  ssr: false,
+  nitro: {
+    preset: 'static'
+  }
 }) 

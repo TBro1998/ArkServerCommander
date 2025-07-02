@@ -132,7 +132,7 @@ dist
 *.test
 
 # Output of the go compiler
-go.sum
+# go.sum  # 注释掉：go.sum 应该被提交到版本控制
 
 # Dependency directories (remove the comment below to include it)
 vendor/

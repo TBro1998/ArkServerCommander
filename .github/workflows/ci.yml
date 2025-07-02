@@ -40,10 +40,20 @@ jobs:
       run: |
         if [ ! -d ".output" ]; then
           echo "❌ 前端构建失败：.output 目录不存在"
+          ls -la
           exit 1
         fi
-        if [ ! -f ".output/public/index.html" ]; then
-          echo "❌ 前端构建失败：index.html 不存在"
+        echo "📁 构建目录结构："
+        ls -la .output/
+        if [ -d ".output/public" ]; then
+          ls -la .output/public/
+        fi
+        
+        # 检查 SPA 应用的主入口文件
+        if [ ! -f ".output/public/index.html" ] && [ ! -f ".output/public/200.html" ]; then
+          echo "❌ 前端构建失败：找不到 HTML 入口文件"
+          echo "📁 .output 目录内容："
+          find .output -name "*.html" -o -name "*.js" | head -10
           exit 1
         fi
         echo "✅ 前端构建成功"
@@ -66,7 +76,9 @@ jobs:
         cache-dependency-path: server/go.sum
 
     - name: Install dependencies
-      run: go mod download
+      run: |
+        go mod download
+        go mod tidy
 
     - name: Run go fmt
       run: |
