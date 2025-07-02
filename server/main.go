@@ -56,9 +56,6 @@ func main() {
 	// 创建Gin实例
 	r := gin.Default()
 
-	// 配置可信任的代理（安全设置）
-	r.SetTrustedProxies(config.TrustedProxies)
-
 	// 最简单的CORS解决方案 - 允许所有来源（仅开发环境）
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")

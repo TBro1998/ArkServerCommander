@@ -12,7 +12,6 @@ services:
       - DB_PATH=/data/ark_server.db
       - SERVER_PORT=8080
       - STATIC_PATH=/app/static
-      - TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12
     volumes:
       # 数据库存储
       - ./data:/data
