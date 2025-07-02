@@ -24,7 +24,9 @@ func RegisterRoutes(r *gin.Engine) {
 
 	// 检查静态文件目录是否存在
 	if _, err := os.Stat(staticPath); err == nil {
+		// 服务 Nuxt.js 生成的静态资源
 		r.Static("/assets", filepath.Join(staticPath, "assets"))
+		r.Static("/_nuxt", filepath.Join(staticPath, "_nuxt"))
 		r.StaticFile("/favicon.ico", filepath.Join(staticPath, "favicon.ico"))
 
 		// 处理 SPA 路由 - 所有非 API 和静态资源的请求都返回 index.html

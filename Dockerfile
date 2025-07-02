@@ -14,8 +14,8 @@ RUN npm install -g pnpm && pnpm install
 # 复制前端源代码
 COPY web/ ./
 
-# 构建前端
-RUN pnpm build
+# 构建前端并生成静态文件
+RUN pnpm build && pnpm generate
 
 # 后端构建阶段
 FROM golang:1.23-alpine AS backend-builder
@@ -71,9 +71,6 @@ ENV GIN_MODE=release
 ENV DB_PATH=/data/ark_server.db
 ENV STATIC_PATH=/app/static
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # 启动应用
 CMD ["./main"] 

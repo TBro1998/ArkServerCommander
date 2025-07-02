@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # ARK服务器管理系统 (前后端一体)
   ark-manager:
-    build: .
+    image: tbro98/arkservermanager:0.0.1-b3
     container_name: ark-manager
     ports:
       - "8080:8080"
