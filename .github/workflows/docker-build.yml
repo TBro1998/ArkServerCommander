@@ -53,9 +53,12 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Generate artifact attestation
-      uses: actions/attest-build-provenance@v1
-      with:
-        subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        subject-digest: ${{ steps.build.outputs.digest }}
-        push-to-registry: true 
+    # Note: Artifact attestation is primarily designed for GitHub Container Registry
+    # For Docker Hub, this step is optional and may cause authentication issues
+    # Uncomment the following lines if you want to enable attestation for GHCR
+    # - name: Generate artifact attestation
+    #   uses: actions/attest-build-provenance@v1
+    #   with:
+    #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+    #     subject-digest: ${{ steps.build.outputs.digest }}
+    #     push-to-registry: true 
