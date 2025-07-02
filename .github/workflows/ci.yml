@@ -116,11 +116,19 @@ jobs:
         context: .
         push: false
         tags: ark-server-manager:test
+        load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Test Docker image
       run: |
+        # 验证镜像是否构建成功
+        if ! docker image inspect ark-server-manager:test > /dev/null 2>&1; then
+          echo "❌ Docker 镜像构建失败或不存在"
+          docker images | grep ark-server-manager || echo "未找到 ark-server-manager 镜像"
+          exit 1
+        fi
+
         # 启动容器进行测试
         docker run -d --name test-container \
           -p 8080:8080 \
@@ -135,7 +143,10 @@ jobs:
           echo "✅ Docker 镜像健康检查通过"
         else
           echo "❌ Docker 镜像健康检查失败"
+          echo "📋 容器日志："
           docker logs test-container
+          echo "📊 容器状态："
+          docker ps -a | grep test-container
           exit 1
         fi
 
