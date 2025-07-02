@@ -44,11 +44,6 @@ FROM alpine:latest
 # 安装必要的包
 RUN apk add --no-cache ca-certificates docker-cli sqlite wget
 
-# 创建docker组和用户
-RUN addgroup -g 999 docker && \
-    addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup,docker
-
 # 设置工作目录
 WORKDIR /app
 
@@ -59,10 +54,7 @@ COPY --from=backend-builder /app/main .
 COPY --from=frontend-builder /app/web/.output/public ./static
 
 # 创建数据目录
-RUN mkdir -p /data && chown -R appuser:appgroup /data /app
-
-# 切换到非root用户
-USER appuser
+RUN mkdir -p /data
 
 # 暴露端口
 EXPOSE 8080

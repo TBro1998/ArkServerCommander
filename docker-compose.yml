@@ -17,6 +17,7 @@ services:
       # Docker socket (用于管理Docker容器)
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
+    privileged: true
 
 
 
