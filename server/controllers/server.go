@@ -124,6 +124,14 @@ func CreateServer(c *gin.Context) {
 		return
 	}
 
+	// 检查Docker环境
+	if err := utils.CheckDockerStatus(); err != nil {
+		// 删除数据库记录并返回错误
+		database.DB.Delete(&server)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Docker环境检查失败: %v", err)})
+		return
+	}
+
 	// 创建Docker卷和容器
 	dockerManager := utils.NewDockerManager()
 

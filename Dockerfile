@@ -69,7 +69,6 @@ EXPOSE 8080
 # 设置环境变量
 ENV GIN_MODE=release
 ENV DB_PATH=/data/ark_server.db
-ENV STATIC_PATH=/app/static
 
 
 # 启动应用

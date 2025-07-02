@@ -43,6 +43,12 @@ func main() {
 	// 初始化数据库
 	database.InitDB()
 
+	// 检查Docker环境
+	if err := utils.CheckDockerStatus(); err != nil {
+		log.Fatalf("Docker环境检查失败: %v\n请确保Docker已安装并运行", err)
+	}
+	log.Println("✅ Docker环境检查通过")
+
 	// 为现有服务器初始化Docker容器和卷
 	if err := utils.InitializeDockerForExistingServers(); err != nil {
 		log.Printf("Warning: Failed to initialize Docker for existing servers: %v", err)

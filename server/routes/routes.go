@@ -5,7 +5,6 @@ import (
 	"ark-server-manager/middleware"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,17 +16,12 @@ func RegisterRoutes(r *gin.Engine) {
 	})
 
 	// 静态文件服务 - 服务前端文件
-	staticPath := os.Getenv("STATIC_PATH")
-	if staticPath == "" {
-		staticPath = "./static"
-	}
-
 	// 检查静态文件目录是否存在
-	if _, err := os.Stat(staticPath); err == nil {
+	if _, err := os.Stat("./static"); err == nil {
 		// 服务 Nuxt.js 生成的静态资源
-		r.Static("/assets", filepath.Join(staticPath, "assets"))
-		r.Static("/_nuxt", filepath.Join(staticPath, "_nuxt"))
-		r.StaticFile("/favicon.ico", filepath.Join(staticPath, "favicon.ico"))
+		r.Static("/assets", "./static/assets")
+		r.Static("/_nuxt", "./static/_nuxt")
+		r.StaticFile("/favicon.ico", "./static/favicon.ico")
 
 		// 处理 SPA 路由 - 所有非 API 和静态资源的请求都返回 index.html
 		r.NoRoute(func(c *gin.Context) {
@@ -38,7 +32,7 @@ func RegisterRoutes(r *gin.Engine) {
 				return
 			}
 			// 否则返回前端应用的 index.html
-			c.File(filepath.Join(staticPath, "index.html"))
+			c.File("./static/index.html")
 		})
 	}
 

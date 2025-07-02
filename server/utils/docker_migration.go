@@ -11,6 +11,11 @@ import (
 // InitializeDockerForExistingServers 为现有服务器初始化Docker容器和卷
 // 在系统启动时调用，确保所有现有服务器都有对应的Docker容器和卷
 func InitializeDockerForExistingServers() error {
+	// 首先检查Docker环境
+	if err := CheckDockerStatus(); err != nil {
+		return fmt.Errorf("Docker环境不可用: %v", err)
+	}
+
 	var servers []models.Server
 
 	// 获取所有活跃服务器（不包括软删除的）
@@ -148,6 +153,11 @@ func CleanupOrphanedDockerResources() error {
 
 // SyncServerStatusWithDocker 同步服务器状态与Docker容器状态
 func SyncServerStatusWithDocker() error {
+	// 首先检查Docker环境
+	if err := CheckDockerStatus(); err != nil {
+		return fmt.Errorf("Docker环境不可用: %v", err)
+	}
+
 	var servers []models.Server
 
 	// 获取所有活跃服务器

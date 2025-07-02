@@ -11,7 +11,6 @@ services:
       - JWT_SECRET=your-secret-key-here
       - DB_PATH=/data/ark_server.db
       - SERVER_PORT=8080
-      - STATIC_PATH=/app/static
     volumes:
       # 数据库存储
       - ./data:/data

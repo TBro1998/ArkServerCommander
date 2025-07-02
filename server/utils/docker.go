@@ -26,19 +26,24 @@ func (dm *DockerManager) CreateVolume(serverID uint) (string, error) {
 	volumeName := fmt.Sprintf("ark-server-%d", serverID)
 
 	// 检查卷是否已存在
-	if exists, err := dm.VolumeExists(volumeName); err != nil {
+	exists, err := dm.VolumeExists(volumeName)
+	if err != nil {
 		return "", fmt.Errorf("检查卷是否存在失败: %v", err)
-	} else if exists {
+	}
+	if exists {
+		fmt.Printf("Docker卷 %s 已存在，跳过创建\n", volumeName)
 		return volumeName, nil // 卷已存在，直接返回
 	}
 
 	// 创建卷
+	fmt.Printf("正在创建Docker卷: %s\n", volumeName)
 	cmd := exec.CommandContext(dm.ctx, "docker", "volume", "create", volumeName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("创建Docker卷失败: %v, 输出: %s", err, string(output))
 	}
 
+	fmt.Printf("Docker卷创建成功: %s\n", volumeName)
 	return volumeName, nil
 }
 
@@ -47,18 +52,23 @@ func (dm *DockerManager) CreateVolume(serverID uint) (string, error) {
 // 返回: 错误信息
 func (dm *DockerManager) RemoveVolume(volumeName string) error {
 	// 检查卷是否存在
-	if exists, err := dm.VolumeExists(volumeName); err != nil {
+	exists, err := dm.VolumeExists(volumeName)
+	if err != nil {
 		return fmt.Errorf("检查卷是否存在失败: %v", err)
-	} else if !exists {
+	}
+	if !exists {
+		fmt.Printf("Docker卷 %s 不存在，跳过删除\n", volumeName)
 		return nil // 卷不存在，视为删除成功
 	}
 
+	fmt.Printf("正在删除Docker卷: %s\n", volumeName)
 	cmd := exec.CommandContext(dm.ctx, "docker", "volume", "rm", volumeName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("删除Docker卷失败: %v, 输出: %s", err, string(output))
 	}
 
+	fmt.Printf("Docker卷删除成功: %s\n", volumeName)
 	return nil
 }
 
@@ -66,25 +76,27 @@ func (dm *DockerManager) RemoveVolume(volumeName string) error {
 // volumeName: 卷名称
 // 返回: 是否存在和错误信息
 func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
-	cmd := exec.CommandContext(dm.ctx, "docker", "volume", "ls", "-q", "--filter", fmt.Sprintf("name=%s", volumeName))
-	output, err := cmd.Output()
+	// 首先检查Docker是否可用
+	testCmd := exec.CommandContext(dm.ctx, "docker", "version")
+	if err := testCmd.Run(); err != nil {
+		return false, fmt.Errorf("Docker不可用，请确保Docker已安装并运行: %v", err)
+	}
+
+	// 使用更简单的命令检查卷是否存在
+	cmd := exec.CommandContext(dm.ctx, "docker", "volume", "inspect", volumeName)
+	err := cmd.Run()
 	if err != nil {
-		return false, fmt.Errorf("检查Docker卷失败: %v", err)
-	}
-
-	volumes := strings.TrimSpace(string(output))
-	if volumes == "" {
-		return false, nil
-	}
-
-	// 检查是否完全匹配
-	for _, vol := range strings.Split(volumes, "\n") {
-		if strings.TrimSpace(vol) == volumeName {
-			return true, nil
+		// 如果卷不存在，docker volume inspect 会返回错误
+		// 检查具体的错误信息
+		output, cmdErr := cmd.CombinedOutput()
+		if cmdErr != nil && strings.Contains(string(output), "No such volume") {
+			return false, nil // 卷不存在，这是正常情况
 		}
+		// 其他错误情况
+		return false, fmt.Errorf("检查Docker卷失败: %v, 输出: %s", err, string(output))
 	}
 
-	return false, nil
+	return true, nil
 }
 
 // CreateContainer 创建并启动ARK服务器容器
@@ -192,13 +204,20 @@ func (dm *DockerManager) RemoveContainer(containerName string) error {
 // containerName: 容器名称
 // 返回: 是否存在和错误信息
 func (dm *DockerManager) ContainerExists(containerName string) (bool, error) {
-	cmd := exec.CommandContext(dm.ctx, "docker", "ps", "-a", "-q", "--filter", fmt.Sprintf("name=^%s$", containerName))
-	output, err := cmd.Output()
+	// 使用inspect命令检查容器是否存在，这比filter更可靠
+	cmd := exec.CommandContext(dm.ctx, "docker", "container", "inspect", containerName)
+	err := cmd.Run()
 	if err != nil {
-		return false, fmt.Errorf("检查Docker容器失败: %v", err)
+		// 检查是否是"容器不存在"的错误
+		output, cmdErr := cmd.CombinedOutput()
+		if cmdErr != nil && strings.Contains(string(output), "No such container") {
+			return false, nil // 容器不存在，这是正常情况
+		}
+		// 其他错误情况
+		return false, fmt.Errorf("检查Docker容器失败: %v, 输出: %s", err, string(output))
 	}
 
-	return strings.TrimSpace(string(output)) != "", nil
+	return true, nil
 }
 
 // GetContainerStatus 获取容器状态
@@ -317,4 +336,23 @@ func GetServerContainerName(serverID uint) string {
 // 返回: 卷名称
 func GetServerVolumeName(serverID uint) string {
 	return fmt.Sprintf("ark-server-%d", serverID)
+}
+
+// CheckDockerStatus 检查Docker环境状态
+// 返回: Docker是否可用和错误信息
+func CheckDockerStatus() error {
+	// 检查Docker是否安装
+	cmd := exec.Command("docker", "--version")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Docker未安装或不在PATH中: %v", err)
+	}
+
+	// 检查Docker服务是否运行
+	cmd = exec.Command("docker", "info")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Docker服务未运行: %v, 输出: %s", err, string(output))
+	}
+
+	return nil
 }
