@@ -20,8 +20,8 @@ RUN pnpm build
 # 后端构建阶段
 FROM golang:1.23-alpine AS backend-builder
 
-# 安装必要的包
-RUN apk add --no-cache git
+# 安装必要的包（纯 Go 构建不需要 git）
+# RUN apk add --no-cache git
 
 # 设置工作目录
 WORKDIR /app
@@ -36,7 +36,7 @@ RUN go mod download
 COPY server/ ./
 
 # 构建后端应用
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
 # 最终运行阶段
 FROM alpine:latest

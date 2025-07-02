@@ -6,7 +6,7 @@ import (
 	"ark-server-manager/config"
 	"ark-server-manager/models"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
