@@ -6,7 +6,7 @@ import (
 	"ark-server-manager/config"
 	"ark-server-manager/database"
 	"ark-server-manager/routes"
-	"ark-server-manager/utils"
+	"ark-server-manager/service/docker_manager"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -43,7 +43,7 @@ func main() {
 	database.InitDB()
 
 	// 检查Docker环境
-	if err := utils.CheckDockerStatus(); err != nil {
+	if err := docker_manager.CheckDockerStatus(); err != nil {
 		log.Fatalf("Docker环境检查失败: %v\n请确保Docker已安装并运行", err)
 	}
 	log.Println("✅ Docker环境检查通过")
@@ -51,7 +51,7 @@ func main() {
 	// 异步检查并拉取必要的Docker镜像
 	log.Println("🔍 检查必要的Docker镜像...")
 	go func() {
-		if err := utils.EnsureRequiredImages(); err != nil {
+		if err := docker_manager.EnsureRequiredImages(); err != nil {
 			log.Printf("⚠️  镜像拉取失败: %v\n请检查网络连接，服务器创建功能可能不可用", err)
 		} else {
 			log.Println("✅ 所有必要镜像检查完成")
@@ -59,12 +59,12 @@ func main() {
 	}()
 
 	// 为现有服务器初始化Docker容器和卷
-	if err := utils.InitializeDockerForExistingServers(); err != nil {
+	if err := docker_manager.InitializeDockerForExistingServers(); err != nil {
 		log.Printf("Warning: Failed to initialize Docker for existing servers: %v", err)
 	}
 
 	// 同步服务器状态与Docker容器状态
-	if err := utils.SyncServerStatusWithDocker(); err != nil {
+	if err := docker_manager.SyncServerStatusWithDocker(); err != nil {
 		log.Printf("Warning: Failed to sync server status with Docker: %v", err)
 	}
 

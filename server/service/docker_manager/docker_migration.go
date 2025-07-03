@@ -1,15 +1,18 @@
-package utils
+package docker_manager
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
 
 	"ark-server-manager/database"
 	"ark-server-manager/models"
+	"ark-server-manager/utils"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/client"
 )
 
 // 全局镜像状态管理
@@ -23,7 +26,7 @@ var (
 func InitializeDockerForExistingServers() error {
 	// 首先检查Docker环境
 	if err := CheckDockerStatus(); err != nil {
-		return fmt.Errorf("Docker环境不可用: %v", err)
+		return fmt.Errorf("docker环境不可用: %v", err)
 	}
 
 	var servers []models.Server
@@ -59,7 +62,7 @@ func InitializeDockerForExistingServers() error {
 		log.Printf("Checking Docker resources for server %d (%s)...", server.ID, server.Identifier)
 
 		// 检查并创建Docker卷
-		volumeName := GetServerVolumeName(server.ID)
+		volumeName := utils.GetServerVolumeName(server.ID)
 		if !existingVolumes[volumeName] {
 			// 创建卷
 			if _, err := dockerManager.CreateVolume(server.ID); err != nil {
@@ -72,7 +75,7 @@ func InitializeDockerForExistingServers() error {
 		}
 
 		// 检查并创建Docker容器
-		containerName := GetServerContainerName(server.ID)
+		containerName := utils.GetServerContainerName(server.ID)
 		if !existingContainers[containerName] {
 			// 创建容器
 			containerID, err := dockerManager.CreateContainer(
@@ -141,9 +144,9 @@ func batchCheckDockerResources(dockerManager *DockerManager, servers []models.Se
 // ensureDefaultConfigFiles 确保服务器有默认配置文件
 func ensureDefaultConfigFiles(dockerManager *DockerManager, server models.Server) error {
 	// 检查是否已有配置文件
-	if _, err := dockerManager.ReadConfigFile(server.ID, GameUserSettingsFileName); err != nil {
+	if _, err := dockerManager.ReadConfigFile(server.ID, utils.GameUserSettingsFileName); err != nil {
 		// 文件不存在，创建默认配置
-		gameUserSettings := GetDefaultGameUserSettings(
+		gameUserSettings := utils.GetDefaultGameUserSettings(
 			server.Identifier,
 			server.Map,
 			server.Port,
@@ -152,16 +155,16 @@ func ensureDefaultConfigFiles(dockerManager *DockerManager, server models.Server
 			70, // 默认最大玩家数
 			server.AdminPassword,
 		)
-		if err := dockerManager.WriteConfigFile(server.ID, GameUserSettingsFileName, gameUserSettings); err != nil {
+		if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, gameUserSettings); err != nil {
 			return fmt.Errorf("创建默认GameUserSettings.ini失败: %v", err)
 		}
 		log.Printf("Created default GameUserSettings.ini for server %d", server.ID)
 	}
 
-	if _, err := dockerManager.ReadConfigFile(server.ID, GameIniFileName); err != nil {
+	if _, err := dockerManager.ReadConfigFile(server.ID, utils.GameIniFileName); err != nil {
 		// 文件不存在，创建默认配置
-		gameIni := GetDefaultGameIni()
-		if err := dockerManager.WriteConfigFile(server.ID, GameIniFileName, gameIni); err != nil {
+		gameIni := utils.GetDefaultGameIni()
+		if err := dockerManager.WriteConfigFile(server.ID, utils.GameIniFileName, gameIni); err != nil {
 			return fmt.Errorf("创建默认Game.ini失败: %v", err)
 		}
 		log.Printf("Created default Game.ini for server %d", server.ID)
@@ -206,7 +209,7 @@ func IsImagePulling(imageName string) bool {
 func SyncServerStatusWithDocker() error {
 	// 首先检查Docker环境
 	if err := CheckDockerStatus(); err != nil {
-		return fmt.Errorf("Docker环境不可用: %v", err)
+		return fmt.Errorf("docker环境不可用: %v", err)
 	}
 
 	var servers []models.Server
@@ -225,7 +228,7 @@ func SyncServerStatusWithDocker() error {
 	updatedCount := 0
 
 	for _, server := range servers {
-		containerName := GetServerContainerName(server.ID)
+		containerName := utils.GetServerContainerName(server.ID)
 
 		// 获取Docker容器状态
 		dockerStatus, err := dockerManager.GetContainerStatus(containerName)
@@ -306,6 +309,24 @@ func EnsureRequiredImages() error {
 		} else {
 			log.Printf("镜像 %s 已存在，跳过拉取", imageName)
 		}
+	}
+
+	return nil
+}
+
+// CheckDockerStatus 检查Docker环境状态
+// 返回: Docker是否可用和错误信息
+func CheckDockerStatus() error {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return fmt.Errorf("docker客户端创建失败: %v", err)
+	}
+	defer cli.Close()
+
+	// 检查Docker服务是否运行
+	_, err = cli.Ping(context.Background())
+	if err != nil {
+		return fmt.Errorf("docker服务未运行或无法连接: %v", err)
 	}
 
 	return nil

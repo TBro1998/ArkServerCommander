@@ -8,6 +8,7 @@ import (
 
 	"ark-server-manager/database"
 	"ark-server-manager/models"
+	"ark-server-manager/service/docker_manager"
 	"ark-server-manager/utils"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +35,7 @@ func GetServers(c *gin.Context) {
 	}
 
 	// 转换为响应格式并获取实时状态
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
@@ -154,14 +155,14 @@ func CreateServer(c *gin.Context) {
 	}
 
 	// 检查Docker环境
-	if err := utils.CheckDockerStatus(); err != nil {
+	if err := docker_manager.CheckDockerStatus(); err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Docker环境检查失败: %v", err)})
 		return
 	}
 
 	// 创建Docker卷和容器
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
@@ -285,7 +286,7 @@ func GetServer(c *gin.Context) {
 	}
 
 	// 从Docker卷读取配置文件内容（如果存在）
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
@@ -394,7 +395,7 @@ func ExecuteRCONCommand(c *gin.Context) {
 	}
 
 	// 执行RCON命令
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
@@ -507,7 +508,7 @@ func UpdateServer(c *gin.Context) {
 		}
 
 		// 写入配置文件到Docker卷
-		dockerManager, err := utils.NewDockerManager()
+		dockerManager, err := docker_manager.NewDockerManager()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 			return
@@ -549,7 +550,7 @@ func UpdateServer(c *gin.Context) {
 	}
 
 	// 从Docker卷读取配置文件内容并添加到响应中
-	dockerManager2, err := utils.NewDockerManager()
+	dockerManager2, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
@@ -615,7 +616,7 @@ func DeleteServer(c *gin.Context) {
 	}
 
 	// 删除Docker容器和卷
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
@@ -689,7 +690,7 @@ func StartServer(c *gin.Context) {
 	}
 
 	// 启动Docker容器
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
@@ -784,7 +785,7 @@ func StopServer(c *gin.Context) {
 	}
 
 	// 停止Docker容器
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
@@ -854,7 +855,7 @@ func GetServerFolderInfo(c *gin.Context) {
 	}
 
 	// 获取Docker卷信息
-	dockerManager, err := utils.NewDockerManager()
+	dockerManager, err := docker_manager.NewDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
 		return
