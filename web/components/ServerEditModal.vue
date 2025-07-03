@@ -73,6 +73,17 @@
             >
               Game.ini
             </button>
+            <button
+              @click="activeTab = 'server_config'"
+              :class="[
+                'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
+                activeTab === 'server_config'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ]"
+            >
+              server.cfg
+            </button>
           </nav>
         </div>
 
@@ -206,6 +217,13 @@
             />
           </div>
 
+          <!-- server.cfg 选项卡 -->
+          <div v-if="activeTab === 'server_config'" class="space-y-4">
+            <ServerConfigEditor
+              v-model="formData.server_config"
+              :server="server"
+            />
+          </div>
 
         </div>
       </div>
@@ -216,6 +234,7 @@
 <script setup>
 import GameUserSettingsEditor from './GameUserSettingsEditor.vue'
 import GameIniEditor from './GameIniEditor.vue'
+import ServerConfigEditor from './ServerConfigEditor.vue'
 
 // Props
 const props = defineProps({
@@ -258,7 +277,8 @@ const formData = ref({
   admin_password: '',
   map: 'TheIsland',
   game_user_settings: '',
-  game_ini: ''
+  game_ini: '',
+  server_config: ''
 })
 
 // 切换密码显示
@@ -282,7 +302,8 @@ watch(() => props.show, (newShow) => {
         admin_password: '',
         map: 'TheIsland',
         game_user_settings: '',
-        game_ini: ''
+        game_ini: '',
+        server_config: ''
       }
     } else if (props.mode === 'edit' && props.server) {
       // 编辑模式：填充当前服务器数据
@@ -294,7 +315,8 @@ watch(() => props.show, (newShow) => {
         admin_password: props.server.admin_password || '',
         map: props.server.map || 'TheIsland',
         game_user_settings: props.server.game_user_settings || '',
-        game_ini: props.server.game_ini || ''
+        game_ini: props.server.game_ini || '',
+        server_config: props.server.server_config || ''
       }
     }
   }
@@ -306,12 +328,13 @@ watch(() => props.server, (newServer) => {
     formData.value = {
       identifier: newServer.identifier || '',
       port: newServer.port || 7777,
-              query_port: newServer.query_port || 27015,
-        rcon_port: newServer.rcon_port || 32330,
-        admin_password: newServer.admin_password || '',
+      query_port: newServer.query_port || 27015,
+      rcon_port: newServer.rcon_port || 32330,
+      admin_password: newServer.admin_password || '',
       map: newServer.map || 'TheIsland',
       game_user_settings: newServer.game_user_settings || '',
-      game_ini: newServer.game_ini || ''
+      game_ini: newServer.game_ini || '',
+      server_config: newServer.server_config || ''
     }
   }
 }, { deep: true })
