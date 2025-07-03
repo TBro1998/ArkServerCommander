@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -107,6 +110,115 @@ func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
 	return true, nil
 }
 
+// PullImage 拉取Docker镜像
+// imageName: 镜像名称
+// 返回: 错误信息
+func (dm *DockerManager) PullImage(imageName string) error {
+	fmt.Printf("正在拉取Docker镜像: %s\n", imageName)
+
+	// 拉取镜像
+	reader, err := dm.client.ImagePull(dm.ctx, imageName, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("拉取Docker镜像失败: %v", err)
+	}
+	defer reader.Close()
+
+	// 读取拉取进度（可选，用于显示进度）
+	_, err = io.Copy(io.Discard, reader)
+	if err != nil {
+		return fmt.Errorf("读取镜像拉取进度失败: %v", err)
+	}
+
+	fmt.Printf("Docker镜像拉取成功: %s\n", imageName)
+	return nil
+}
+
+// PullImageWithProgress 拉取Docker镜像并显示进度
+// imageName: 镜像名称
+// 返回: 错误信息
+func (dm *DockerManager) PullImageWithProgress(imageName string) error {
+	fmt.Printf("正在拉取Docker镜像: %s\n", imageName)
+
+	// 拉取镜像
+	reader, err := dm.client.ImagePull(dm.ctx, imageName, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("拉取Docker镜像失败: %v", err)
+	}
+	defer reader.Close()
+
+	// 读取并显示拉取进度
+	buffer := make([]byte, 1024)
+	for {
+		n, err := reader.Read(buffer)
+		if n > 0 {
+			// 解析JSON进度信息并显示
+			progress := string(buffer[:n])
+			if strings.Contains(progress, "Downloading") || strings.Contains(progress, "Extracting") {
+				// 提取进度信息
+				if strings.Contains(progress, "progress") {
+					fmt.Print("\r正在下载... ")
+				}
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("读取镜像拉取进度失败: %v", err)
+		}
+	}
+
+	fmt.Printf("\nDocker镜像拉取成功: %s\n", imageName)
+	return nil
+}
+
+// ImageExists 检查Docker镜像是否存在
+// imageName: 镜像名称
+// 返回: 是否存在和错误信息
+func (dm *DockerManager) ImageExists(imageName string) (bool, error) {
+	// 尝试获取镜像信息
+	_, _, err := dm.client.ImageInspectWithRaw(dm.ctx, imageName)
+	if err != nil {
+		if client.IsErrNotFound(err) {
+			return false, nil // 镜像不存在
+		}
+		return false, fmt.Errorf("检查Docker镜像失败: %v", err)
+	}
+
+	return true, nil
+}
+
+// WaitForImage 等待镜像拉取完成
+// imageName: 镜像名称
+// timeout: 超时时间（秒）
+// 返回: 是否成功和错误信息
+func (dm *DockerManager) WaitForImage(imageName string, timeout int) (bool, error) {
+	log.Printf("等待镜像 %s 拉取完成...", imageName)
+
+	// 每秒检查一次镜像是否存在
+	for i := 0; i < timeout; i++ {
+		exists, err := dm.ImageExists(imageName)
+		if err != nil {
+			return false, fmt.Errorf("检查镜像失败: %v", err)
+		}
+
+		if exists {
+			log.Printf("镜像 %s 已准备就绪", imageName)
+			return true, nil
+		}
+
+		// 检查是否正在拉取中
+		if IsImagePulling(imageName) {
+			log.Printf("镜像 %s 正在拉取中，继续等待...", imageName)
+		}
+
+		// 等待1秒后再次检查
+		time.Sleep(1 * time.Second)
+	}
+
+	return false, fmt.Errorf("等待镜像 %s 超时（%d秒）", imageName, timeout)
+}
+
 // CreateContainer 创建ARK服务器容器（不自动启动）
 // serverID: 服务器ID
 // serverName: 服务器名称
@@ -120,6 +232,7 @@ func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
 func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName string, autoRestart bool) (string, error) {
 	containerName := GetServerContainerName(serverID)
 	volumeName := GetServerVolumeName(serverID)
+	imageName := "tbro98/ase-server:latest"
 
 	// 检查容器是否已存在
 	if exists, err := dm.ContainerExists(containerName); err != nil {
@@ -131,9 +244,19 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		}
 	}
 
+	// 检查镜像是否存在，如果不存在则等待拉取完成
+	if exists, err := dm.ImageExists(imageName); err != nil {
+		return "", fmt.Errorf("检查镜像是否存在失败: %v", err)
+	} else if !exists {
+		// 等待镜像拉取完成（最多等待60秒）
+		if ready, err := dm.WaitForImage(imageName, 60); err != nil || !ready {
+			return "", fmt.Errorf("镜像 %s 拉取超时或失败，请稍后重试", imageName)
+		}
+	}
+
 	// 构建容器配置
 	containerConfig := &container.Config{
-		Image: "tbro98/ase-server:latest",
+		Image: imageName,
 		Env: []string{
 			"TZ=Asia/Shanghai",
 		},
@@ -348,6 +471,17 @@ func (dm *DockerManager) ExecuteCommand(containerName string, command string) (s
 // 返回: 文件内容和错误信息
 func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string, error) {
 	volumeName := GetServerVolumeName(serverID)
+	alpineImage := "alpine:latest"
+
+	// 检查Alpine镜像是否存在，如果不存在则等待拉取完成
+	if exists, err := dm.ImageExists(alpineImage); err != nil {
+		return "", fmt.Errorf("检查Alpine镜像是否存在失败: %v", err)
+	} else if !exists {
+		// 等待镜像拉取完成（最多等待30秒）
+		if ready, err := dm.WaitForImage(alpineImage, 30); err != nil || !ready {
+			return "", fmt.Errorf("Alpine镜像拉取超时或失败，请稍后重试")
+		}
+	}
 
 	// 根据文件名确定路径
 	var configPath string
@@ -361,7 +495,7 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 
 	// 创建临时容器读取文件
 	containerConfig := &container.Config{
-		Image: "alpine:latest",
+		Image: alpineImage,
 		Cmd:   []string{"cat", configPath},
 	}
 
@@ -429,6 +563,17 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 // 返回: 错误信息
 func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string) error {
 	volumeName := GetServerVolumeName(serverID)
+	alpineImage := "alpine:latest"
+
+	// 检查Alpine镜像是否存在，如果不存在则等待拉取完成
+	if exists, err := dm.ImageExists(alpineImage); err != nil {
+		return fmt.Errorf("检查Alpine镜像是否存在失败: %v", err)
+	} else if !exists {
+		// 等待镜像拉取完成（最多等待30秒）
+		if ready, err := dm.WaitForImage(alpineImage, 30); err != nil || !ready {
+			return fmt.Errorf("Alpine镜像拉取超时或失败，请稍后重试")
+		}
+	}
 
 	// 根据文件名确定路径
 	var configPath string
@@ -446,7 +591,7 @@ func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string
 
 	// 首先确保目录存在
 	containerConfig := &container.Config{
-		Image: "alpine:latest",
+		Image: alpineImage,
 		Cmd:   []string{"mkdir", "-p", configDir},
 	}
 
@@ -486,7 +631,7 @@ func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string
 
 	// 写入文件内容
 	containerConfig = &container.Config{
-		Image: "alpine:latest",
+		Image: alpineImage,
 		Cmd:   []string{"sh", "-c", fmt.Sprintf("echo '%s' > %s", strings.ReplaceAll(content, "'", "'\"'\"'"), configPath)},
 	}
 

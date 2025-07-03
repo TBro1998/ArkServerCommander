@@ -3,12 +3,19 @@ package utils
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"ark-server-manager/database"
 	"ark-server-manager/models"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/volume"
+)
+
+// 全局镜像状态管理
+var (
+	imagePullStatus = make(map[string]bool) // 记录镜像是否正在拉取
+	imagePullMutex  sync.RWMutex
 )
 
 // InitializeDockerForExistingServers 为现有服务器初始化Docker容器和卷
@@ -188,6 +195,13 @@ func CleanupOrphanedDockerResources() error {
 	return nil
 }
 
+// IsImagePulling 检查镜像是否正在拉取中
+func IsImagePulling(imageName string) bool {
+	imagePullMutex.RLock()
+	defer imagePullMutex.RUnlock()
+	return imagePullStatus[imageName]
+}
+
 // SyncServerStatusWithDocker 同步服务器状态与Docker容器状态
 func SyncServerStatusWithDocker() error {
 	// 首先检查Docker环境
@@ -233,6 +247,65 @@ func SyncServerStatusWithDocker() error {
 
 	if updatedCount > 0 {
 		log.Printf("Synchronized status for %d servers", updatedCount)
+	}
+
+	return nil
+}
+
+// EnsureRequiredImages 确保必要的Docker镜像存在
+// 检查并异步拉取ARK服务器镜像和Alpine镜像
+func EnsureRequiredImages() error {
+	dockerManager, err := NewDockerManager()
+	if err != nil {
+		return fmt.Errorf("创建Docker管理器失败: %v", err)
+	}
+	defer dockerManager.Close()
+
+	// 需要检查的镜像列表
+	requiredImages := []string{
+		"tbro98/ase-server:latest", // ARK服务器镜像
+		"alpine:latest",            // Alpine镜像（用于配置文件操作）
+	}
+
+	for _, imageName := range requiredImages {
+		log.Printf("检查镜像: %s", imageName)
+
+		// 检查镜像是否存在
+		exists, err := dockerManager.ImageExists(imageName)
+		if err != nil {
+			return fmt.Errorf("检查镜像 %s 失败: %v", imageName, err)
+		}
+
+		if !exists {
+			// 检查是否已经在拉取中
+			imagePullMutex.Lock()
+			if imagePullStatus[imageName] {
+				imagePullMutex.Unlock()
+				log.Printf("镜像 %s 正在拉取中，跳过重复拉取", imageName)
+				continue
+			}
+			imagePullStatus[imageName] = true
+			imagePullMutex.Unlock()
+
+			log.Printf("镜像 %s 不存在，开始后台拉取...", imageName)
+
+			// 异步拉取镜像，不阻塞主进程
+			go func(imgName string) {
+				defer func() {
+					imagePullMutex.Lock()
+					imagePullStatus[imgName] = false
+					imagePullMutex.Unlock()
+				}()
+
+				if err := dockerManager.PullImageWithProgress(imgName); err != nil {
+					log.Printf("❌ 镜像 %s 拉取失败: %v", imgName, err)
+				} else {
+					log.Printf("✅ 镜像 %s 拉取完成", imgName)
+				}
+			}(imageName)
+		} else {
+			log.Printf("镜像 %s 已存在，跳过拉取", imageName)
+		}
 	}
 
 	return nil
