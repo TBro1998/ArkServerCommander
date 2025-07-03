@@ -3,6 +3,7 @@ package routes
 import (
 	"ark-server-manager/controllers"
 	"ark-server-manager/middleware"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine) {
-	// 添加健康检查端点
+	// 添加健康检查端点（需要日志）
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "message": "服务器运行正常"})
 	})
@@ -36,8 +37,18 @@ func RegisterRoutes(r *gin.Engine) {
 		})
 	}
 
-	// API路由组
+	// API路由组（需要日志）
 	api := r.Group("/api")
+	api.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("[%s] %s %s %d %s Origin:%s\n",
+			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+			param.Method,
+			param.Path,
+			param.StatusCode,
+			param.Latency,
+			param.Request.Header.Get("Origin"),
+		)
+	}))
 	{
 		// 认证相关路由
 		auth := api.Group("/auth")

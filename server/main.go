@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"ark-server-manager/config"
@@ -77,18 +76,6 @@ func main() {
 
 		c.Next()
 	})
-
-	// 添加请求日志中间件
-	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-		return fmt.Sprintf("[%s] %s %s %d %s Origin:%s\n",
-			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
-			param.Method,
-			param.Path,
-			param.StatusCode,
-			param.Latency,
-			param.Request.Header.Get("Origin"),
-		)
-	}))
 
 	// 注册路由
 	routes.RegisterRoutes(r)
