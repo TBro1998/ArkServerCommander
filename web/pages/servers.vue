@@ -121,8 +121,14 @@
                 <button
                   v-if="server.status === 'stopped'"
                   @click="startServer(server)"
-                  class="text-green-600 hover:text-green-800 p-1"
-                  title="启动服务器"
+                  :disabled="imageStatus && !imageStatus.can_start_server"
+                  :class="[
+                    'p-1',
+                    imageStatus && !imageStatus.can_start_server 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : 'text-green-600 hover:text-green-800'
+                  ]"
+                  :title="imageStatus && !imageStatus.can_start_server ? '镜像未就绪，无法启动' : '启动服务器'"
                 >
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z"/>
@@ -589,6 +595,12 @@ const deleteServer = async () => {
 
 // 启动服务器
 const startServer = async (server) => {
+  // 检查镜像状态
+  if (imageStatus.value && !imageStatus.value.can_start_server) {
+    errorMessage.value = '镜像未就绪，无法启动服务器，请等待镜像下载完成'
+    return
+  }
+  
   try {
     await serversStore.startServer(server.id)
     successMessage.value = `服务器 "${server.identifier}" 启动中...`
