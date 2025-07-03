@@ -67,6 +67,7 @@ func GetServers(c *gin.Context) {
 			AdminPassword: server.AdminPassword,
 			Map:           server.Map,
 			Status:        realTimeStatus,
+			AutoRestart:   server.AutoRestart,
 			UserID:        server.UserID,
 			CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -112,6 +113,11 @@ func CreateServer(c *gin.Context) {
 	if req.Map == "" {
 		req.Map = "TheIsland"
 	}
+	// 设置默认自动重启值
+	if req.AutoRestart == nil {
+		defaultVal := true
+		req.AutoRestart = &defaultVal
+	}
 
 	// 开始数据库事务
 	tx := database.DB.Begin()
@@ -137,6 +143,7 @@ func CreateServer(c *gin.Context) {
 		AdminPassword: req.AdminPassword,
 		Map:           req.Map,
 		Status:        "stopped",
+		AutoRestart:   *req.AutoRestart,
 		UserID:        userID,
 	}
 
@@ -176,7 +183,7 @@ func CreateServer(c *gin.Context) {
 	fmt.Printf("Created Docker volume: %s\n", volumeName)
 
 	// 创建Docker容器（不自动启动）
-	containerID, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map)
+	containerID, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.AutoRestart)
 	if err != nil {
 		// 清理已创建的卷
 		dockerManager.RemoveVolume(volumeName)
@@ -221,6 +228,7 @@ func CreateServer(c *gin.Context) {
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
 		Status:        server.Status,
+		AutoRestart:   server.AutoRestart,
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -270,6 +278,7 @@ func GetServer(c *gin.Context) {
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
 		Status:        server.Status,
+		AutoRestart:   server.AutoRestart,
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -533,6 +542,7 @@ func UpdateServer(c *gin.Context) {
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
 		Status:        server.Status,
+		AutoRestart:   server.AutoRestart,
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),

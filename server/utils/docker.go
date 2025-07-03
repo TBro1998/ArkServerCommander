@@ -115,8 +115,9 @@ func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
 // rconPort: RCON端口
 // adminPassword: 管理员密码
 // mapName: 地图名称
+// autoRestart: 是否自动重启
 // 返回: 容器ID和错误信息
-func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName string) (string, error) {
+func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName string, autoRestart bool) (string, error) {
 	containerName := GetServerContainerName(serverID)
 	volumeName := GetServerVolumeName(serverID)
 
@@ -148,10 +149,16 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		},
 	}
 
+	// 根据autoRestart设置重启策略
+	restartPolicyName := container.RestartPolicyMode("unless-stopped")
+	if !autoRestart {
+		restartPolicyName = container.RestartPolicyMode("no")
+	}
+
 	// 构建主机配置
 	hostConfig := &container.HostConfig{
 		RestartPolicy: container.RestartPolicy{
-			Name: "unless-stopped",
+			Name: restartPolicyName,
 		},
 		PortBindings: nat.PortMap{
 			nat.Port(fmt.Sprintf("%d/udp", port)): {
