@@ -4,37 +4,14 @@
       <div class="p-4 sm:p-6 border-b border-gray-200">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 class="text-xl sm:text-2xl font-bold text-gray-900">服务器管理</h1>
-          <div class="flex flex-col sm:flex-row items-center gap-4">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
             <!-- 镜像状态显示 -->
-            <div v-if="imageStatus" class="flex items-center gap-2 text-sm">
-              <div v-if="imageStatus.any_pulling" class="flex items-center gap-1 text-yellow-600">
-                <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                镜像下载中...
-              </div>
-              <div v-else-if="!imageStatus.can_create_server" class="flex items-center gap-1 text-red-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                </svg>
-                镜像未就绪
-              </div>
-              <div v-else class="flex items-center gap-1 text-green-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                镜像就绪
-              </div>
-              <button
-                @click="refreshImageStatus"
-                class="text-blue-600 hover:text-blue-800 p-1"
-                title="刷新镜像状态"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-              </button>
-            </div>
+            <ImageStatus 
+              v-if="imageStatus" 
+              :image-status="imageStatus"
+              @refresh="refreshImageStatus"
+
+            />
             <button
               @click="showCreateForm = true"
               :disabled="!imageStatus?.can_create_server"
@@ -61,6 +38,8 @@
           :message="successMessage"
           @close="successMessage = ''"
         />
+        
+
         
         <!-- 服务器列表 -->
         <div v-if="loading" class="text-center py-8">
@@ -406,6 +385,8 @@ definePageMeta({
 // 使用 servers store
 const serversStore = useServersStore()
 
+
+
 // 响应式数据
 const submitting = ref(false)
 const deleting = ref(false)
@@ -439,6 +420,8 @@ const fetchImageStatus = async () => {
     const status = await serversStore.getImageStatus()
     imageStatus.value = status
     console.log('镜像状态获取成功:', status)
+    
+
   } catch (error) {
     console.error('获取镜像状态失败:', error)
     // 不显示错误消息，因为镜像状态不是关键功能
@@ -625,6 +608,8 @@ const getStatusText = (status) => {
   }
 }
 
+
+
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '暂无'
@@ -651,10 +636,10 @@ onMounted(() => {
   fetchServers()
   fetchImageStatus()
   
-  // 设置定时刷新镜像状态（每5秒检查一次）
+  // 设置定时刷新镜像状态（每2秒检查一次）
   imageStatusInterval.value = setInterval(() => {
     fetchImageStatus()
-  }, 5000)
+  }, 2000)
 })
 
 // 页面卸载时清理定时器

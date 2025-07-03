@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
 )
 
 // ImagePullProgress 镜像拉取进度信息
@@ -26,19 +26,24 @@ type ImagePullProgress struct {
 
 // ImageStatus 镜像状态信息
 type ImageStatus struct {
-	Exists   bool   `json:"exists"`   // 镜像是否存在
-	Pulling  bool   `json:"pulling"`  // 是否正在拉取
-	Progress string `json:"progress"` // 下载进度信息
-	Ready    bool   `json:"ready"`    // 是否准备就绪
-	Error    string `json:"error"`    // 错误信息
-	Percent  int    `json:"percent"`  // 拉取进度百分比
+	Exists         bool   `json:"exists"`          // 镜像是否存在
+	Pulling        bool   `json:"pulling"`         // 是否正在拉取
+	Progress       string `json:"progress"`        // 下载进度信息
+	Ready          bool   `json:"ready"`           // 是否准备就绪
+	Error          string `json:"error"`           // 错误信息
+	Percent        int    `json:"percent"`         // 拉取进度百分比
+	Size           int64  `json:"size"`            // 镜像总大小（字节）
+	DownloadedSize int64  `json:"downloaded_size"` // 已下载大小（字节）
 }
 
 // 全局镜像状态管理
 var (
-	imagePullStatus   = make(map[string]bool)   // 记录镜像是否正在拉取
-	imagePullProgress = make(map[string]string) // 记录镜像拉取进度
-	imagePullMutex    sync.RWMutex
+	imagePullStatus     = make(map[string]bool)   // 记录镜像是否正在拉取
+	imagePullProgress   = make(map[string]string) // 记录镜像拉取进度
+	imagePullPercent    = make(map[string]int)    // 记录镜像拉取百分比
+	imagePullSize       = make(map[string]int64)  // 记录镜像总大小
+	imagePullDownloaded = make(map[string]int64)  // 记录已下载大小
+	imagePullMutex      sync.RWMutex
 )
 
 // PullImageWithProgress 拉取Docker镜像并显示进度
@@ -50,7 +55,10 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 	// 设置拉取状态
 	imagePullMutex.Lock()
 	imagePullStatus[imageName] = true
-	imagePullProgress[imageName] = "开始拉取镜像..."
+	imagePullProgress[imageName] = "正在准备下载..."
+	imagePullPercent[imageName] = 5
+	imagePullSize[imageName] = 0
+	imagePullDownloaded[imageName] = 0
 	imagePullMutex.Unlock()
 
 	// 确保在函数结束时清理状态
@@ -58,6 +66,9 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 		imagePullMutex.Lock()
 		imagePullStatus[imageName] = false
 		delete(imagePullProgress, imageName)
+		delete(imagePullPercent, imageName)
+		delete(imagePullSize, imageName)
+		delete(imagePullDownloaded, imageName)
 		imagePullMutex.Unlock()
 	}()
 
@@ -92,7 +103,55 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 					if progressInfo.Progress != "" {
 						imagePullProgress[imageName] = progressInfo.Progress
 					} else if progressInfo.Status != "" {
-						imagePullProgress[imageName] = progressInfo.Status
+						// 翻译状态信息为中文
+						statusText := progressInfo.Status
+						if strings.Contains(statusText, "Downloading") {
+							statusText = "正在下载"
+						} else if strings.Contains(statusText, "Extracting") {
+							statusText = "正在解压"
+						} else if strings.Contains(statusText, "Verifying") {
+							statusText = "正在验证"
+						} else if strings.Contains(statusText, "Pull complete") {
+							statusText = "拉取完成"
+						} else if strings.Contains(statusText, "Already up to date") {
+							statusText = "镜像已是最新"
+						}
+						imagePullProgress[imageName] = statusText
+					}
+
+					// 解析进度详情
+					if progressInfo.ProgressDetail != nil {
+						current := progressInfo.ProgressDetail.Current
+						total := progressInfo.ProgressDetail.Total
+
+						if total > 0 {
+							// 更新大小信息
+							imagePullSize[imageName] = total
+							imagePullDownloaded[imageName] = current
+
+							// 根据状态计算百分比
+							var percent int
+							if strings.Contains(progressInfo.Status, "Downloading") {
+								// 下载阶段：0-70%
+								downloadPercent := int((float64(current) / float64(total)) * 70)
+								percent = downloadPercent
+							} else if strings.Contains(progressInfo.Status, "Extracting") {
+								// 解压阶段：70-90%
+								extractPercent := int((float64(current) / float64(total)) * 20)
+								percent = 70 + extractPercent
+							} else if strings.Contains(progressInfo.Status, "Verifying") {
+								// 验证阶段：90-95%
+								percent = 90 + int((float64(current)/float64(total))*5)
+							} else if strings.Contains(progressInfo.Status, "Pull complete") || strings.Contains(progressInfo.Status, "complete") {
+								// 完成：100%
+								percent = 100
+							} else {
+								// 其他状态：基于当前进度
+								percent = int((float64(current) / float64(total)) * 100)
+							}
+
+							imagePullPercent[imageName] = percent
+						}
 					}
 					imagePullMutex.Unlock()
 
@@ -119,6 +178,7 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 	// 设置完成状态
 	imagePullMutex.Lock()
 	imagePullProgress[imageName] = "镜像拉取完成"
+	imagePullPercent[imageName] = 100
 	imagePullMutex.Unlock()
 
 	return nil
@@ -129,9 +189,9 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 // 返回: 是否存在和错误信息
 func (dm *DockerManager) ImageExists(imageName string) (bool, error) {
 	// 尝试获取镜像信息
-	_, _, err := dm.client.ImageInspectWithRaw(dm.ctx, imageName)
+	_, err := dm.client.ImageInspect(dm.ctx, imageName)
 	if err != nil {
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return false, nil // 镜像不存在
 		}
 		return false, fmt.Errorf("检查Docker镜像失败: %v", err)
@@ -145,12 +205,14 @@ func (dm *DockerManager) ImageExists(imageName string) (bool, error) {
 // 返回: 镜像状态信息
 func (dm *DockerManager) GetImageStatus(imageName string) *ImageStatus {
 	status := &ImageStatus{
-		Exists:   false,
-		Pulling:  false,
-		Progress: "",
-		Ready:    false,
-		Error:    "",
-		Percent:  0,
+		Exists:         false,
+		Pulling:        false,
+		Progress:       "",
+		Ready:          false,
+		Error:          "",
+		Percent:        0,
+		Size:           0,
+		DownloadedSize: 0,
 	}
 
 	// 检查镜像是否存在
@@ -165,6 +227,27 @@ func (dm *DockerManager) GetImageStatus(imageName string) *ImageStatus {
 		status.Ready = true
 		status.Progress = "镜像已存在"
 		status.Percent = 100
+
+		// 获取镜像大小信息
+		if imageInfo, err := dm.client.ImageInspect(dm.ctx, imageName); err == nil {
+			log.Printf("镜像 %s 的Size: %d bytes", imageName, imageInfo.Size)
+
+			// 使用Size字段（这是镜像的实际大小）
+			if imageInfo.Size > 0 {
+				status.Size = imageInfo.Size
+				log.Printf("使用Size字段作为镜像大小: %d bytes", status.Size)
+			}
+
+			// 如果通过ImageInspect获取的大小仍然很小，尝试使用ImageList获取更准确的大小
+			if status.Size < 1024*1024 {
+				log.Printf("镜像大小过小，尝试使用ImageList获取更准确的大小")
+				if accurateSize, err := dm.getImageSizeFromList(imageName); err == nil && accurateSize > 0 {
+					status.Size = accurateSize
+					log.Printf("通过ImageList获取到更准确的大小: %d bytes", status.Size)
+				}
+			}
+		}
+
 		return status
 	}
 
@@ -173,22 +256,17 @@ func (dm *DockerManager) GetImageStatus(imageName string) *ImageStatus {
 	status.Pulling = imagePullStatus[imageName]
 	if status.Pulling {
 		status.Progress = imagePullProgress[imageName]
-		// 根据进度信息估算百分比
-		if strings.Contains(status.Progress, "Downloading") {
-			status.Percent = 50
-		} else if strings.Contains(status.Progress, "Extracting") {
-			status.Percent = 75
-		} else if strings.Contains(status.Progress, "完成") {
-			status.Percent = 100
-		} else {
-			status.Percent = 25
-		}
+		status.Percent = imagePullPercent[imageName]
+		status.Size = imagePullSize[imageName]
+		status.DownloadedSize = imagePullDownloaded[imageName]
 	}
 	imagePullMutex.RUnlock()
 
 	if !status.Pulling {
 		status.Progress = "镜像不存在，需要下载"
 		status.Percent = 0
+		status.Size = 0
+		status.DownloadedSize = 0
 	}
 
 	return status
@@ -237,4 +315,34 @@ func (dm *DockerManager) WaitForImage(imageName string, timeout int) (bool, erro
 	}
 
 	return false, fmt.Errorf("等待镜像 %s 超时（%d秒）", imageName, timeout)
+}
+
+// getImageSizeFromList 通过ImageList获取镜像大小
+// imageName: 镜像名称
+// 返回: 镜像大小（字节）和错误信息
+func (dm *DockerManager) getImageSizeFromList(imageName string) (int64, error) {
+	// 获取镜像列表
+	images, err := dm.client.ImageList(dm.ctx, image.ListOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("获取镜像列表失败: %v", err)
+	}
+
+	// 查找指定镜像
+	for _, img := range images {
+		// 检查镜像标签是否匹配
+		for _, tag := range img.RepoTags {
+			if tag == imageName {
+				log.Printf("在ImageList中找到镜像 %s，大小: %d bytes", imageName, img.Size)
+				return img.Size, nil
+			}
+		}
+
+		// 如果没有标签，检查镜像ID
+		if img.ID == imageName {
+			log.Printf("在ImageList中找到镜像 %s（通过ID），大小: %d bytes", imageName, img.Size)
+			return img.Size, nil
+		}
+	}
+
+	return 0, fmt.Errorf("在镜像列表中未找到镜像: %s", imageName)
 }

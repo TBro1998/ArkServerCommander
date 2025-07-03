@@ -911,6 +911,8 @@ func GetImageStatus(c *gin.Context) {
 	imageStatuses := make(map[string]*docker_manager.ImageStatus)
 	allReady := true
 	anyPulling := false
+	totalProgress := 0
+	pullingCount := 0
 
 	for _, imageName := range requiredImages {
 		status := dockerManager.GetImageStatus(imageName)
@@ -922,7 +924,48 @@ func GetImageStatus(c *gin.Context) {
 
 		if status.Pulling {
 			anyPulling = true
+			pullingCount++
+			totalProgress += status.Percent
 		}
+	}
+
+	// 计算总体进度和大小
+	overallProgress := 0
+	totalSize := int64(0)
+	downloadedSize := int64(0)
+	totalPercent := 0
+	imageCount := 0
+
+	for _, status := range imageStatuses {
+		imageCount++
+		if status.Size > 0 {
+			totalSize += status.Size
+			if status.DownloadedSize > 0 {
+				downloadedSize += status.DownloadedSize
+			} else if status.Ready {
+				downloadedSize += status.Size
+			}
+		}
+		totalPercent += status.Percent
+	}
+
+	if imageCount > 0 {
+		overallProgress = totalPercent / imageCount
+	}
+
+	// 如果所有镜像都准备好了，确保进度是100%
+	if allReady {
+		overallProgress = 100
+	}
+
+	// 生成总体状态描述
+	var overallStatus string
+	if allReady {
+		overallStatus = "所有镜像已就绪"
+	} else if anyPulling {
+		overallStatus = fmt.Sprintf("正在下载镜像 (%d%%)", overallProgress)
+	} else {
+		overallStatus = "镜像未就绪，等待下载"
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -932,6 +975,12 @@ func GetImageStatus(c *gin.Context) {
 			"any_pulling":       anyPulling, // 检查是否有镜像正在拉取中
 			"any_not_ready":     !allReady,
 			"can_create_server": allReady, // 只有当所有镜像都准备好时才能创建服务器
+			"overall_progress":  overallProgress,
+			"overall_status":    overallStatus,
+			"pulling_count":     pullingCount,
+			"total_images":      len(requiredImages),
+			"total_size":        totalSize,
+			"downloaded_size":   downloadedSize,
 		},
 	})
 }

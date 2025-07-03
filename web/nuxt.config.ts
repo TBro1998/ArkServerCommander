@@ -8,15 +8,28 @@ export default defineNuxtConfig({
   ],
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE || '/api'
+      // 开发环境连接本地后端，生产环境使用相对路径
+      apiBase: '/api'
     }
   },
   ssr: false,
   nitro: {
-    preset: 'static'
+    preset: 'static',
+    // 开发环境代理配置
+    devProxy: {
+      '/api': {
+        target: 'http://localhost:8080/api',
+        changeOrigin: true
+      }
+    }
   },
   app: {
     baseURL: '/',
     buildAssetsDir: '/_nuxt/'
+  },
+  // 开发环境配置
+  devServer: {
+    port: 3000,
+    host: 'localhost'
   }
 }) 

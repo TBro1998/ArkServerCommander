@@ -8,6 +8,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -23,35 +24,27 @@ type DockerManager struct {
 var (
 	instance *DockerManager
 	once     sync.Once
-	mu       sync.RWMutex
 )
 
 // GetDockerManager 获取Docker管理器单例实例
 func GetDockerManager() (*DockerManager, error) {
-	mu.RLock()
-	if instance != nil {
-		mu.RUnlock()
-		return instance, nil
-	}
-	mu.RUnlock()
+	var err error
+	once.Do(func() {
+		// 创建新实例
+		cli, clientErr := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		if clientErr != nil {
+			err = fmt.Errorf("创建Docker客户端失败: %v", clientErr)
+			return
+		}
 
-	mu.Lock()
-	defer mu.Unlock()
+		instance = &DockerManager{
+			client: cli,
+			ctx:    context.Background(),
+		}
+	})
 
-	// 双重检查锁定
-	if instance != nil {
-		return instance, nil
-	}
-
-	// 创建新实例
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return nil, fmt.Errorf("创建Docker客户端失败: %v", err)
-	}
-
-	instance = &DockerManager{
-		client: cli,
-		ctx:    context.Background(),
+		return nil, err
 	}
 
 	return instance, nil
@@ -59,9 +52,6 @@ func GetDockerManager() (*DockerManager, error) {
 
 // CloseDockerManager 关闭Docker管理器（通常在程序退出时调用）
 func CloseDockerManager() error {
-	mu.Lock()
-	defer mu.Unlock()
-
 	if instance != nil && instance.client != nil {
 		err := instance.client.Close()
 		instance = nil
@@ -79,6 +69,8 @@ func (dm *DockerManager) EnsureRequiredImages() error {
 
 	log.Println("🔍 检查必要的Docker镜像...")
 
+	// 检查哪些镜像需要下载
+	var imagesToPull []string
 	for _, imageName := range requiredImages {
 		exists, err := dm.ImageExists(imageName)
 		if err != nil {
@@ -87,18 +79,49 @@ func (dm *DockerManager) EnsureRequiredImages() error {
 		}
 
 		if !exists {
-			log.Printf("📥 拉取镜像: %s", imageName)
-			if err := dm.PullImageWithProgress(imageName); err != nil {
-				log.Printf("❌ 拉取镜像 %s 失败: %v", imageName, err)
-				return fmt.Errorf("拉取镜像 %s 失败: %v", imageName, err)
-			}
-			log.Printf("✅ 镜像 %s 拉取完成", imageName)
+			imagesToPull = append(imagesToPull, imageName)
+			log.Printf("📥 需要拉取镜像: %s", imageName)
 		} else {
 			log.Printf("✅ 镜像 %s 已存在", imageName)
 		}
 	}
 
-	log.Println("✅ 所有必要镜像检查完成")
+	// 如果没有需要下载的镜像，直接返回
+	if len(imagesToPull) == 0 {
+		log.Println("✅ 所有必要镜像已存在")
+		return nil
+	}
+
+	// 并发下载镜像
+	log.Printf("🚀 开始并发下载 %d 个镜像...", len(imagesToPull))
+
+	var wg sync.WaitGroup
+	errorChan := make(chan error, len(imagesToPull))
+
+	for _, imageName := range imagesToPull {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+			log.Printf("📥 开始拉取镜像: %s", name)
+			if err := dm.PullImageWithProgress(name); err != nil {
+				log.Printf("❌ 拉取镜像 %s 失败: %v", name, err)
+				errorChan <- fmt.Errorf("拉取镜像 %s 失败: %v", name, err)
+			} else {
+				log.Printf("✅ 镜像 %s 拉取完成", name)
+			}
+		}(imageName)
+	}
+
+	// 等待所有下载完成
+	wg.Wait()
+	close(errorChan)
+
+	// 检查是否有错误
+	for err := range errorChan {
+		return err
+	}
+
+	log.Println("✅ 所有必要镜像下载完成")
 	return nil
 }
 
@@ -267,7 +290,7 @@ func (dm *DockerManager) ContainerExists(containerName string) (bool, error) {
 	// 使用inspect命令检查容器是否存在
 	_, err := dm.client.ContainerInspect(dm.ctx, containerName)
 	if err != nil {
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return false, nil // 容器不存在
 		}
 		return false, fmt.Errorf("检查Docker容器失败: %v", err)
@@ -282,7 +305,7 @@ func (dm *DockerManager) ContainerExists(containerName string) (bool, error) {
 func (dm *DockerManager) GetContainerStatus(containerName string) (string, error) {
 	containerInfo, err := dm.client.ContainerInspect(dm.ctx, containerName)
 	if err != nil {
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return "not_found", nil
 		}
 		return "", fmt.Errorf("获取Docker容器状态失败: %v", err)
