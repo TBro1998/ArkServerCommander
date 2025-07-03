@@ -11,7 +11,7 @@ type Server struct {
 	Identifier    string         `json:"identifier" gorm:"not null"`
 	Port          int            `json:"port" gorm:"not null;default:7777"`
 	QueryPort     int            `json:"query_port" gorm:"not null;default:27015"`
-	RCONPort      int            `json:"rcon_port" gorm:"not null;default:27020"`
+	RCONPort      int            `json:"rcon_port" gorm:"not null;default:32330"`
 	AdminPassword string         `json:"admin_password" gorm:"not null;default:password"`
 	Map           string         `json:"map" gorm:"default:'TheIsland'"`
 	Status        string         `json:"status" gorm:"default:'stopped'"`
@@ -46,6 +46,7 @@ type ServerResponse struct {
 	// 配置文件内容
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
+	ServerConfig     string `json:"server_config,omitempty"`      // server.cfg 文件内容
 }
 
 type ServerUpdateRequest struct {
@@ -58,6 +59,7 @@ type ServerUpdateRequest struct {
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
+	ServerConfig     string `json:"server_config,omitempty"`      // server.cfg 文件内容
 }
 
 // ServerConfigFileInfo 服务器配置文件信息

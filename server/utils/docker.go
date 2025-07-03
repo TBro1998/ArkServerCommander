@@ -132,25 +132,19 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 
 	// 构建容器配置
 	containerConfig := &container.Config{
-		Image: "tbro98/ase-server:v0.32",
+		Image: "tbro98/ase-server:latest",
 		Env: []string{
-			fmt.Sprintf("SESSIONNAME=%s", serverName),
-			fmt.Sprintf("SERVERMAP=%s", mapName),
-			"SERVERPASSWORD=", // 服务器密码为空
-			fmt.Sprintf("ADMINPASSWORD=%s", adminPassword),
-			"RCONENABLED=true",
-			"RCONPORT=32330",  // 容器内部RCON端口固定为32330
-			"SERVERPORT=7777", // 容器内部游戏端口固定为7777
-			"QUERYPORT=27015", // 容器内部查询端口固定为27015
-			"BACKUPONSTART=1", // 启动时备份
-			"UPDATEONSTART=1", // 启动时更新
-			"AUTOSTART=1",     // 自动启动
+			"TZ=Asia/Shanghai",
 		},
 		ExposedPorts: nat.PortSet{
-			"7777/udp":  struct{}{},
-			"7778/udp":  struct{}{},
-			"27015/udp": struct{}{},
-			"32330/tcp": struct{}{},
+			"7777/udp": struct{}{},
+			"7777/tcp": struct{}{},
+			"7778/udp": struct{}{},
+			"7778/tcp": struct{}{},
+			nat.Port(fmt.Sprintf("%d/udp", queryPort)): struct{}{},
+			nat.Port(fmt.Sprintf("%d/tcp", queryPort)): struct{}{},
+			nat.Port(fmt.Sprintf("%d/udp", rconPort)):  struct{}{},
+			nat.Port(fmt.Sprintf("%d/tcp", rconPort)):  struct{}{},
 		},
 	}
 
@@ -163,18 +157,30 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 			"7777/udp": {
 				{HostPort: fmt.Sprintf("%d", port)},
 			},
+			"7777/tcp": {
+				{HostPort: fmt.Sprintf("%d", port)},
+			},
 			"7778/udp": {
 				{HostPort: fmt.Sprintf("%d", port+1)},
 			},
-			"27015/udp": {
+			"7778/tcp": {
+				{HostPort: fmt.Sprintf("%d", port+1)},
+			},
+			nat.Port(fmt.Sprintf("%d/udp", queryPort)): {
 				{HostPort: fmt.Sprintf("%d", queryPort)},
 			},
-			"32330/tcp": {
+			nat.Port(fmt.Sprintf("%d/tcp", queryPort)): {
+				{HostPort: fmt.Sprintf("%d", queryPort)},
+			},
+			nat.Port(fmt.Sprintf("%d/udp", rconPort)): {
+				{HostPort: fmt.Sprintf("%d", rconPort)},
+			},
+			nat.Port(fmt.Sprintf("%d/tcp", rconPort)): {
 				{HostPort: fmt.Sprintf("%d", rconPort)},
 			},
 		},
 		Binds: []string{
-			fmt.Sprintf("%s:/ark", volumeName),
+			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),
 		},
 	}
 
@@ -342,7 +348,16 @@ func (dm *DockerManager) ExecuteCommand(containerName string, command string) (s
 // 返回: 文件内容和错误信息
 func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string, error) {
 	volumeName := fmt.Sprintf("ark-server-%d", serverID)
-	configPath := fmt.Sprintf("/ark/ShooterGame/Saved/Config/LinuxServer/%s", fileName)
+
+	// 根据文件名确定路径
+	var configPath string
+	if fileName == ServerConfigFileName {
+		// server.cfg 文件在根目录
+		configPath = "/home/steam/arkserver/ShooterGame/Saved/server.cfg"
+	} else {
+		// 其他配置文件在 Config/WindowsServer 目录
+		configPath = fmt.Sprintf("/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer/%s", fileName)
+	}
 
 	// 创建临时容器读取文件
 	containerConfig := &container.Config{
@@ -352,7 +367,7 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 
 	hostConfig := &container.HostConfig{
 		Binds: []string{
-			fmt.Sprintf("%s:/ark", volumeName),
+			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),
 		},
 	}
 
@@ -414,8 +429,20 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 // 返回: 错误信息
 func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string) error {
 	volumeName := fmt.Sprintf("ark-server-%d", serverID)
-	configPath := fmt.Sprintf("/ark/ShooterGame/Saved/Config/LinuxServer/%s", fileName)
-	configDir := "/ark/ShooterGame/Saved/Config/LinuxServer"
+
+	// 根据文件名确定路径
+	var configPath string
+	var configDir string
+
+	if fileName == ServerConfigFileName {
+		// server.cfg 文件在根目录
+		configPath = "/home/steam/arkserver/ShooterGame/Saved/server.cfg"
+		configDir = "/home/steam/arkserver/ShooterGame/Saved"
+	} else {
+		// 其他配置文件在 Config/WindowsServer 目录
+		configPath = fmt.Sprintf("/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer/%s", fileName)
+		configDir = "/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer"
+	}
 
 	// 首先确保目录存在
 	containerConfig := &container.Config{
@@ -425,7 +452,7 @@ func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string
 
 	hostConfig := &container.HostConfig{
 		Binds: []string{
-			fmt.Sprintf("%s:/ark", volumeName),
+			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),
 		},
 	}
 

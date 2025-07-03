@@ -12,9 +12,10 @@ const (
 	// 配置文件名常量
 	GameUserSettingsFileName = "GameUserSettings.ini"
 	GameIniFileName          = "Game.ini"
+	ServerConfigFileName     = "server.cfg"
 
-	// 配置文件目录
-	ConfigDirectory = "Saved/Config/WindowsServer"
+	// 配置文件目录 - 适配新的ASE服务器镜像路径
+	ConfigDirectory = "Config/WindowsServer"
 )
 
 // GetDefaultGameUserSettings 获取默认的GameUserSettings.ini配置
@@ -103,6 +104,23 @@ bEnablePvPGamma=False
 bDisableFriendlyFire=False
 bAllowFlyerCarryPvE=True
 `
+}
+
+// GetDefaultServerConfig 获取默认的server.cfg配置
+func GetDefaultServerConfig(serverName, mapName string, port, queryPort, rconPort, maxPlayers int, adminPassword string) string {
+	return fmt.Sprintf(`PORT=%d
+QUERYPORT=%d
+MAP=%s
+MAX_PLAYERS=%d
+UPDATE_SERVER=false
+UPDATE_MODS=true
+MODIDS="895711211,669673294,1136125765,554678442,926028694,676288311,876038468,566885854"
+SERVER_ARGS="-NoBattlEye -servergamelog -structurememopts -UseStructureStasisGrid -SecureSendArKPayload -UseItemDupeCheck -UseSecureSpawnRules -nosteamclient -game -server -log -MinimumTimeBetweenInventoryRetrieval=3600 -newsaveformat -usestore"
+SESSIONNAME=%s
+ADMINPASSWORD=%s
+RCONENABLED=true
+RCONPORT=%d
+`, port, queryPort, mapName, maxPlayers, serverName, adminPassword, rconPort)
 }
 
 // ValidateINIContent 验证INI内容的基本格式
@@ -236,6 +254,12 @@ func CreateDefaultConfigFiles(serverID uint, serverName, mapName string, port, q
 		return fmt.Errorf("创建默认 %s 失败: %v", GameIniFileName, err)
 	}
 
+	// 创建默认的 server.cfg
+	serverConfig := GetDefaultServerConfig(serverName, mapName, port, queryPort, rconPort, maxPlayers, adminPassword)
+	if err := WriteConfigFile(serverID, ServerConfigFileName, serverConfig); err != nil {
+		return fmt.Errorf("创建默认 %s 失败: %v", ServerConfigFileName, err)
+	}
+
 	return nil
 }
 
@@ -270,7 +294,7 @@ func ListConfigFiles(serverID uint) ([]models.ServerConfigFileInfo, error) {
 
 	// 处理每个文件
 	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".ini" {
+		if !entry.IsDir() && (filepath.Ext(entry.Name()) == ".ini" || filepath.Ext(entry.Name()) == ".cfg") {
 			fileInfo := GetConfigFileInfo(serverID, entry.Name())
 			files = append(files, fileInfo)
 		}

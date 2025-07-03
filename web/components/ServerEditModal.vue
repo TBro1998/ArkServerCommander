@@ -133,7 +133,7 @@
                     min="1"
                     max="65535"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="27020"
+                    placeholder="32330"
                   />
                 </div>
               </div>
@@ -278,7 +278,7 @@ watch(() => props.show, (newShow) => {
         identifier: '',
         port: 7777,
         query_port: 27015,
-        rcon_port: 27020,
+        rcon_port: 32330,
         admin_password: '',
         map: 'TheIsland',
         game_user_settings: '',
@@ -290,7 +290,7 @@ watch(() => props.show, (newShow) => {
         identifier: props.server.identifier || '',
         port: props.server.port || 7777,
         query_port: props.server.query_port || 27015,
-        rcon_port: props.server.rcon_port || 27020,
+        rcon_port: props.server.rcon_port || 32330,
         admin_password: props.server.admin_password || '',
         map: props.server.map || 'TheIsland',
         game_user_settings: props.server.game_user_settings || '',
@@ -306,9 +306,9 @@ watch(() => props.server, (newServer) => {
     formData.value = {
       identifier: newServer.identifier || '',
       port: newServer.port || 7777,
-      query_port: newServer.query_port || 27015,
-      rcon_port: newServer.rcon_port || 27020,
-      admin_password: newServer.admin_password || '',
+              query_port: newServer.query_port || 27015,
+        rcon_port: newServer.rcon_port || 32330,
+        admin_password: newServer.admin_password || '',
       map: newServer.map || 'TheIsland',
       game_user_settings: newServer.game_user_settings || '',
       game_ini: newServer.game_ini || ''
