@@ -40,7 +40,7 @@ func (dm *DockerManager) Close() error {
 // serverID: 服务器ID
 // 返回: 卷名称和错误信息
 func (dm *DockerManager) CreateVolume(serverID uint) (string, error) {
-	volumeName := fmt.Sprintf("ark-server-%d", serverID)
+	volumeName := GetServerVolumeName(serverID)
 
 	// 检查卷是否已存在
 	exists, err := dm.VolumeExists(volumeName)
@@ -107,7 +107,7 @@ func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
 	return true, nil
 }
 
-// CreateContainer 创建并启动ARK服务器容器
+// CreateContainer 创建ARK服务器容器（不自动启动）
 // serverID: 服务器ID
 // serverName: 服务器名称
 // port: 游戏端口
@@ -117,8 +117,8 @@ func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
 // mapName: 地图名称
 // 返回: 容器ID和错误信息
 func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName string) (string, error) {
-	containerName := fmt.Sprintf("ark-server-%d", serverID)
-	volumeName := fmt.Sprintf("ark-server-%d", serverID)
+	containerName := GetServerContainerName(serverID)
+	volumeName := GetServerVolumeName(serverID)
 
 	// 检查容器是否已存在
 	if exists, err := dm.ContainerExists(containerName); err != nil {
@@ -137,10 +137,10 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 			"TZ=Asia/Shanghai",
 		},
 		ExposedPorts: nat.PortSet{
-			"7777/udp": struct{}{},
-			"7777/tcp": struct{}{},
-			"7778/udp": struct{}{},
-			"7778/tcp": struct{}{},
+			nat.Port(fmt.Sprintf("%d/udp", port)):      struct{}{},
+			nat.Port(fmt.Sprintf("%d/tcp", port)):      struct{}{},
+			nat.Port(fmt.Sprintf("%d/udp", port+1)):    struct{}{},
+			nat.Port(fmt.Sprintf("%d/tcp", port+1)):    struct{}{},
 			nat.Port(fmt.Sprintf("%d/udp", queryPort)): struct{}{},
 			nat.Port(fmt.Sprintf("%d/tcp", queryPort)): struct{}{},
 			nat.Port(fmt.Sprintf("%d/udp", rconPort)):  struct{}{},
@@ -154,16 +154,16 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 			Name: "unless-stopped",
 		},
 		PortBindings: nat.PortMap{
-			"7777/udp": {
+			nat.Port(fmt.Sprintf("%d/udp", port)): {
 				{HostPort: fmt.Sprintf("%d", port)},
 			},
-			"7777/tcp": {
+			nat.Port(fmt.Sprintf("%d/tcp", port)): {
 				{HostPort: fmt.Sprintf("%d", port)},
 			},
-			"7778/udp": {
+			nat.Port(fmt.Sprintf("%d/udp", port+1)): {
 				{HostPort: fmt.Sprintf("%d", port+1)},
 			},
-			"7778/tcp": {
+			nat.Port(fmt.Sprintf("%d/tcp", port+1)): {
 				{HostPort: fmt.Sprintf("%d", port+1)},
 			},
 			nat.Port(fmt.Sprintf("%d/udp", queryPort)): {
@@ -191,14 +191,7 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		return "", fmt.Errorf("创建Docker容器失败: %v", err)
 	}
 
-	// 启动容器
-	fmt.Printf("正在启动Docker容器: %s\n", containerName)
-	err = dm.client.ContainerStart(dm.ctx, resp.ID, container.StartOptions{})
-	if err != nil {
-		return "", fmt.Errorf("启动Docker容器失败: %v", err)
-	}
-
-	fmt.Printf("Docker容器创建并启动成功: %s (ID: %s)\n", containerName, resp.ID)
+	fmt.Printf("Docker容器创建成功: %s (ID: %s)，容器处于停止状态，需要手动启动\n", containerName, resp.ID)
 	return resp.ID, nil
 }
 
@@ -347,7 +340,7 @@ func (dm *DockerManager) ExecuteCommand(containerName string, command string) (s
 // fileName: 文件名
 // 返回: 文件内容和错误信息
 func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string, error) {
-	volumeName := fmt.Sprintf("ark-server-%d", serverID)
+	volumeName := GetServerVolumeName(serverID)
 
 	// 根据文件名确定路径
 	var configPath string
@@ -428,7 +421,7 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 // content: 文件内容
 // 返回: 错误信息
 func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string) error {
-	volumeName := fmt.Sprintf("ark-server-%d", serverID)
+	volumeName := GetServerVolumeName(serverID)
 
 	// 根据文件名确定路径
 	var configPath string
@@ -526,14 +519,14 @@ func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string
 // serverID: 服务器ID
 // 返回: 容器名称
 func GetServerContainerName(serverID uint) string {
-	return fmt.Sprintf("ark-server-%d", serverID)
+	return fmt.Sprintf("ase-server-%d", serverID)
 }
 
 // GetServerVolumeName 获取服务器卷名称
 // serverID: 服务器ID
 // 返回: 卷名称
 func GetServerVolumeName(serverID uint) string {
-	return fmt.Sprintf("ark-server-%d", serverID)
+	return fmt.Sprintf("ase-server-%d", serverID)
 }
 
 // CheckDockerStatus 检查Docker环境状态

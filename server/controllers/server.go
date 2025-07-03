@@ -175,7 +175,7 @@ func CreateServer(c *gin.Context) {
 	}
 	fmt.Printf("Created Docker volume: %s\n", volumeName)
 
-	// 创建Docker容器（不立即启动）
+	// 创建Docker容器（不自动启动）
 	containerID, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map)
 	if err != nil {
 		// 清理已创建的卷
@@ -185,12 +185,6 @@ func CreateServer(c *gin.Context) {
 		return
 	}
 	fmt.Printf("Created Docker container: %s\n", containerID)
-
-	// 停止容器（创建时会自动启动）
-	containerName = utils.GetServerContainerName(server.ID)
-	if err := dockerManager.StopContainer(containerName); err != nil {
-		fmt.Printf("Warning: Failed to stop container after creation: %v\n", err)
-	}
 
 	// 创建默认配置文件到Docker卷中
 	gameUserSettings := utils.GetDefaultGameUserSettings(server.Identifier, server.Map, server.Port, server.QueryPort, server.RCONPort, 70, server.AdminPassword)
