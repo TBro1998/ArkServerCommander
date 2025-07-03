@@ -201,6 +201,12 @@ func CreateServer(c *gin.Context) {
 		fmt.Printf("Warning: Failed to create default Game.ini: %v\n", err)
 	}
 
+	// 创建默认的server.cfg文件
+	serverConfig := utils.GetDefaultServerConfig(server.Identifier, server.Map, server.Port, server.QueryPort, server.RCONPort, 70, server.AdminPassword)
+	if err := dockerManager.WriteConfigFile(server.ID, utils.ServerConfigFileName, serverConfig); err != nil {
+		fmt.Printf("Warning: Failed to create default server.cfg: %v\n", err)
+	}
+
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
 		// 提交失败，清理Docker资源
@@ -222,9 +228,6 @@ func CreateServer(c *gin.Context) {
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
-		ServerArgs:    nil,
-		UpdateServer:  false,
-		UpdateMods:    false,
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
@@ -275,9 +278,6 @@ func GetServer(c *gin.Context) {
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
-		ServerArgs:    nil,
-		UpdateServer:  false,
-		UpdateMods:    false,
 	}
 
 	// 从Docker卷读取配置文件内容（如果存在）
@@ -291,6 +291,9 @@ func GetServer(c *gin.Context) {
 	}
 	if gameIni, err := dockerManager.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
 		response.GameIni = gameIni
+	}
+	if serverConfig, err := dockerManager.ReadConfigFile(uint(id), utils.ServerConfigFileName); err == nil {
+		response.ServerConfig = serverConfig
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -526,6 +529,12 @@ func UpdateServer(c *gin.Context) {
 				return
 			}
 		}
+		if req.ServerConfig != "" {
+			if err := dockerManager.WriteConfigFile(uint(id), utils.ServerConfigFileName, req.ServerConfig); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入server.cfg失败: %v", err)})
+				return
+			}
+		}
 	}
 
 	response := models.ServerResponse{
@@ -541,9 +550,6 @@ func UpdateServer(c *gin.Context) {
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
-		ServerArgs:    nil,
-		UpdateServer:  false,
-		UpdateMods:    false,
 	}
 
 	// 从Docker卷读取配置文件内容并添加到响应中
@@ -557,6 +563,9 @@ func UpdateServer(c *gin.Context) {
 	}
 	if gameIni, err := dockerManager2.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
 		response.GameIni = gameIni
+	}
+	if serverConfig, err := dockerManager2.ReadConfigFile(uint(id), utils.ServerConfigFileName); err == nil {
+		response.ServerConfig = serverConfig
 	}
 
 	c.JSON(http.StatusOK, gin.H{
