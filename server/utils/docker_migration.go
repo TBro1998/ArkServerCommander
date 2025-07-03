@@ -28,7 +28,12 @@ func InitializeDockerForExistingServers() error {
 		return nil
 	}
 
-	dockerManager := NewDockerManager()
+	dockerManager, err := NewDockerManager()
+	if err != nil {
+		return fmt.Errorf("创建Docker管理器失败: %v", err)
+	}
+	defer dockerManager.Close()
+
 	createdVolumes := 0
 	createdContainers := 0
 	errorCount := 0
@@ -165,7 +170,12 @@ func SyncServerStatusWithDocker() error {
 		return fmt.Errorf("获取服务器列表失败: %v", err)
 	}
 
-	dockerManager := NewDockerManager()
+	dockerManager, err := NewDockerManager()
+	if err != nil {
+		return fmt.Errorf("创建Docker管理器失败: %v", err)
+	}
+	defer dockerManager.Close()
+
 	updatedCount := 0
 
 	for _, server := range servers {

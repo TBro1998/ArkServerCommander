@@ -3,20 +3,37 @@ package utils
 import (
 	"context"
 	"fmt"
-	"os/exec"
+	"io"
 	"strings"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 )
 
 // DockerManager Docker管理器结构体
 type DockerManager struct {
-	ctx context.Context
+	client *client.Client
+	ctx    context.Context
 }
 
 // NewDockerManager 创建新的Docker管理器
-func NewDockerManager() *DockerManager {
-	return &DockerManager{
-		ctx: context.Background(),
+func NewDockerManager() (*DockerManager, error) {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return nil, fmt.Errorf("创建Docker客户端失败: %v", err)
 	}
+
+	return &DockerManager{
+		client: cli,
+		ctx:    context.Background(),
+	}, nil
+}
+
+// Close 关闭Docker客户端连接
+func (dm *DockerManager) Close() error {
+	return dm.client.Close()
 }
 
 // CreateVolume 创建Docker卷
@@ -32,15 +49,18 @@ func (dm *DockerManager) CreateVolume(serverID uint) (string, error) {
 	}
 	if exists {
 		fmt.Printf("Docker卷 %s 已存在，跳过创建\n", volumeName)
-		return volumeName, nil // 卷已存在，直接返回
+		return volumeName, nil
 	}
 
 	// 创建卷
 	fmt.Printf("正在创建Docker卷: %s\n", volumeName)
-	cmd := exec.CommandContext(dm.ctx, "docker", "volume", "create", volumeName)
-	output, err := cmd.CombinedOutput()
+	volumeCreateBody := volume.CreateOptions{
+		Name: volumeName,
+	}
+
+	_, err = dm.client.VolumeCreate(dm.ctx, volumeCreateBody)
 	if err != nil {
-		return "", fmt.Errorf("创建Docker卷失败: %v, 输出: %s", err, string(output))
+		return "", fmt.Errorf("创建Docker卷失败: %v", err)
 	}
 
 	fmt.Printf("Docker卷创建成功: %s\n", volumeName)
@@ -58,14 +78,13 @@ func (dm *DockerManager) RemoveVolume(volumeName string) error {
 	}
 	if !exists {
 		fmt.Printf("Docker卷 %s 不存在，跳过删除\n", volumeName)
-		return nil // 卷不存在，视为删除成功
+		return nil
 	}
 
 	fmt.Printf("正在删除Docker卷: %s\n", volumeName)
-	cmd := exec.CommandContext(dm.ctx, "docker", "volume", "rm", volumeName)
-	output, err := cmd.CombinedOutput()
+	err = dm.client.VolumeRemove(dm.ctx, volumeName, false)
 	if err != nil {
-		return fmt.Errorf("删除Docker卷失败: %v, 输出: %s", err, string(output))
+		return fmt.Errorf("删除Docker卷失败: %v", err)
 	}
 
 	fmt.Printf("Docker卷删除成功: %s\n", volumeName)
@@ -76,24 +95,13 @@ func (dm *DockerManager) RemoveVolume(volumeName string) error {
 // volumeName: 卷名称
 // 返回: 是否存在和错误信息
 func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
-	// 首先检查Docker是否可用
-	testCmd := exec.CommandContext(dm.ctx, "docker", "version")
-	if err := testCmd.Run(); err != nil {
-		return false, fmt.Errorf("Docker不可用，请确保Docker已安装并运行: %v", err)
-	}
-
-	// 使用更简单的命令检查卷是否存在
-	cmd := exec.CommandContext(dm.ctx, "docker", "volume", "inspect", volumeName)
-	err := cmd.Run()
+	// 尝试获取卷信息
+	_, err := dm.client.VolumeInspect(dm.ctx, volumeName)
 	if err != nil {
-		// 如果卷不存在，docker volume inspect 会返回错误
-		// 检查具体的错误信息
-		output, cmdErr := cmd.CombinedOutput()
-		if cmdErr != nil && strings.Contains(string(output), "No such volume") {
-			return false, nil // 卷不存在，这是正常情况
+		if client.IsErrNotFound(err) {
+			return false, nil // 卷不存在
 		}
-		// 其他错误情况
-		return false, fmt.Errorf("检查Docker卷失败: %v, 输出: %s", err, string(output))
+		return false, fmt.Errorf("检查Docker卷失败: %v", err)
 	}
 
 	return true, nil
@@ -122,50 +130,83 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		}
 	}
 
-	// 构建docker run命令
-	args := []string{
-		"run", "-d",
-		"--name", containerName,
-		"--restart", "unless-stopped",
-		"-p", fmt.Sprintf("%d:7777/udp", port), // 游戏端口
-		"-p", fmt.Sprintf("%d:7778/udp", port+1), // 原始套接字端口
-		"-p", fmt.Sprintf("%d:27015/udp", queryPort), // 查询端口
-		"-p", fmt.Sprintf("%d:32330/tcp", rconPort), // RCON端口
-		"-v", fmt.Sprintf("%s:/ark", volumeName), // 挂载卷
-		"-e", fmt.Sprintf("SESSIONNAME=%s", serverName),
-		"-e", fmt.Sprintf("SERVERMAP=%s", mapName),
-		"-e", fmt.Sprintf("SERVERPASSWORD="), // 服务器密码为空
-		"-e", fmt.Sprintf("ADMINPASSWORD=%s", adminPassword),
-		"-e", fmt.Sprintf("RCONENABLED=true"),
-		"-e", fmt.Sprintf("RCONPORT=32330"), // 容器内部RCON端口固定为32330
-		"-e", fmt.Sprintf("SERVERPORT=7777"), // 容器内部游戏端口固定为7777
-		"-e", fmt.Sprintf("QUERYPORT=27015"), // 容器内部查询端口固定为27015
-		"-e", "BACKUPONSTART=1", // 启动时备份
-		"-e", "UPDATEONSTART=1", // 启动时更新
-		"-e", "AUTOSTART=1", // 自动启动
-		"tbro98/ase-server:v0.32", // 镜像名称
+	// 构建容器配置
+	containerConfig := &container.Config{
+		Image: "tbro98/ase-server:v0.32",
+		Env: []string{
+			fmt.Sprintf("SESSIONNAME=%s", serverName),
+			fmt.Sprintf("SERVERMAP=%s", mapName),
+			"SERVERPASSWORD=", // 服务器密码为空
+			fmt.Sprintf("ADMINPASSWORD=%s", adminPassword),
+			"RCONENABLED=true",
+			"RCONPORT=32330",  // 容器内部RCON端口固定为32330
+			"SERVERPORT=7777", // 容器内部游戏端口固定为7777
+			"QUERYPORT=27015", // 容器内部查询端口固定为27015
+			"BACKUPONSTART=1", // 启动时备份
+			"UPDATEONSTART=1", // 启动时更新
+			"AUTOSTART=1",     // 自动启动
+		},
+		ExposedPorts: nat.PortSet{
+			"7777/udp":  struct{}{},
+			"7778/udp":  struct{}{},
+			"27015/udp": struct{}{},
+			"32330/tcp": struct{}{},
+		},
 	}
 
-	cmd := exec.CommandContext(dm.ctx, "docker", args...)
-	output, err := cmd.CombinedOutput()
+	// 构建主机配置
+	hostConfig := &container.HostConfig{
+		RestartPolicy: container.RestartPolicy{
+			Name: "unless-stopped",
+		},
+		PortBindings: nat.PortMap{
+			"7777/udp": {
+				{HostPort: fmt.Sprintf("%d", port)},
+			},
+			"7778/udp": {
+				{HostPort: fmt.Sprintf("%d", port+1)},
+			},
+			"27015/udp": {
+				{HostPort: fmt.Sprintf("%d", queryPort)},
+			},
+			"32330/tcp": {
+				{HostPort: fmt.Sprintf("%d", rconPort)},
+			},
+		},
+		Binds: []string{
+			fmt.Sprintf("%s:/ark", volumeName),
+		},
+	}
+
+	// 创建容器
+	fmt.Printf("正在创建Docker容器: %s\n", containerName)
+	resp, err := dm.client.ContainerCreate(dm.ctx, containerConfig, hostConfig, nil, nil, containerName)
 	if err != nil {
-		return "", fmt.Errorf("创建Docker容器失败: %v, 输出: %s", err, string(output))
+		return "", fmt.Errorf("创建Docker容器失败: %v", err)
 	}
 
-	containerID := strings.TrimSpace(string(output))
-	return containerID, nil
+	// 启动容器
+	fmt.Printf("正在启动Docker容器: %s\n", containerName)
+	err = dm.client.ContainerStart(dm.ctx, resp.ID, container.StartOptions{})
+	if err != nil {
+		return "", fmt.Errorf("启动Docker容器失败: %v", err)
+	}
+
+	fmt.Printf("Docker容器创建并启动成功: %s (ID: %s)\n", containerName, resp.ID)
+	return resp.ID, nil
 }
 
 // StartContainer 启动容器
 // containerName: 容器名称
 // 返回: 错误信息
 func (dm *DockerManager) StartContainer(containerName string) error {
-	cmd := exec.CommandContext(dm.ctx, "docker", "start", containerName)
-	output, err := cmd.CombinedOutput()
+	fmt.Printf("正在启动容器: %s\n", containerName)
+	err := dm.client.ContainerStart(dm.ctx, containerName, container.StartOptions{})
 	if err != nil {
-		return fmt.Errorf("启动Docker容器失败: %v, 输出: %s", err, string(output))
+		return fmt.Errorf("启动Docker容器失败: %v", err)
 	}
 
+	fmt.Printf("容器启动成功: %s\n", containerName)
 	return nil
 }
 
@@ -173,13 +214,18 @@ func (dm *DockerManager) StartContainer(containerName string) error {
 // containerName: 容器名称
 // 返回: 错误信息
 func (dm *DockerManager) StopContainer(containerName string) error {
-	// 使用优雅停止，给容器30秒时间保存数据
-	cmd := exec.CommandContext(dm.ctx, "docker", "stop", "-t", "30", containerName)
-	output, err := cmd.CombinedOutput()
+	fmt.Printf("正在停止容器: %s\n", containerName)
+
+	// 设置30秒超时时间
+	timeout := 30
+	err := dm.client.ContainerStop(dm.ctx, containerName, container.StopOptions{
+		Timeout: &timeout,
+	})
 	if err != nil {
-		return fmt.Errorf("停止Docker容器失败: %v, 输出: %s", err, string(output))
+		return fmt.Errorf("停止Docker容器失败: %v", err)
 	}
 
+	fmt.Printf("容器停止成功: %s\n", containerName)
 	return nil
 }
 
@@ -191,12 +237,15 @@ func (dm *DockerManager) RemoveContainer(containerName string) error {
 	dm.StopContainer(containerName)
 
 	// 删除容器
-	cmd := exec.CommandContext(dm.ctx, "docker", "rm", "-f", containerName)
-	output, err := cmd.CombinedOutput()
+	fmt.Printf("正在删除容器: %s\n", containerName)
+	err := dm.client.ContainerRemove(dm.ctx, containerName, container.RemoveOptions{
+		Force: true,
+	})
 	if err != nil {
-		return fmt.Errorf("删除Docker容器失败: %v, 输出: %s", err, string(output))
+		return fmt.Errorf("删除Docker容器失败: %v", err)
 	}
 
+	fmt.Printf("容器删除成功: %s\n", containerName)
 	return nil
 }
 
@@ -204,17 +253,13 @@ func (dm *DockerManager) RemoveContainer(containerName string) error {
 // containerName: 容器名称
 // 返回: 是否存在和错误信息
 func (dm *DockerManager) ContainerExists(containerName string) (bool, error) {
-	// 使用inspect命令检查容器是否存在，这比filter更可靠
-	cmd := exec.CommandContext(dm.ctx, "docker", "container", "inspect", containerName)
-	err := cmd.Run()
+	// 使用inspect命令检查容器是否存在
+	_, err := dm.client.ContainerInspect(dm.ctx, containerName)
 	if err != nil {
-		// 检查是否是"容器不存在"的错误
-		output, cmdErr := cmd.CombinedOutput()
-		if cmdErr != nil && strings.Contains(string(output), "No such container") {
-			return false, nil // 容器不存在，这是正常情况
+		if client.IsErrNotFound(err) {
+			return false, nil // 容器不存在
 		}
-		// 其他错误情况
-		return false, fmt.Errorf("检查Docker容器失败: %v, 输出: %s", err, string(output))
+		return false, fmt.Errorf("检查Docker容器失败: %v", err)
 	}
 
 	return true, nil
@@ -224,25 +269,23 @@ func (dm *DockerManager) ContainerExists(containerName string) (bool, error) {
 // containerName: 容器名称
 // 返回: 状态字符串和错误信息
 func (dm *DockerManager) GetContainerStatus(containerName string) (string, error) {
-	cmd := exec.CommandContext(dm.ctx, "docker", "ps", "-a", "--filter", fmt.Sprintf("name=^%s$", containerName), "--format", "{{.Status}}")
-	output, err := cmd.Output()
+	containerInfo, err := dm.client.ContainerInspect(dm.ctx, containerName)
 	if err != nil {
+		if client.IsErrNotFound(err) {
+			return "not_found", nil
+		}
 		return "", fmt.Errorf("获取Docker容器状态失败: %v", err)
 	}
 
-	status := strings.TrimSpace(string(output))
-	if status == "" {
-		return "not_found", nil
-	}
-
 	// 解析Docker状态为我们的状态格式
-	if strings.Contains(status, "Up") {
+	state := containerInfo.State
+	if state.Running {
 		return "running", nil
-	} else if strings.Contains(status, "Exited") {
+	} else if state.Status == "exited" {
 		return "stopped", nil
-	} else if strings.Contains(status, "Created") {
+	} else if state.Status == "created" {
 		return "stopped", nil
-	} else if strings.Contains(status, "Restarting") {
+	} else if state.Status == "restarting" {
 		return "starting", nil
 	} else {
 		return "unknown", nil
@@ -254,10 +297,40 @@ func (dm *DockerManager) GetContainerStatus(containerName string) (string, error
 // command: 要执行的命令
 // 返回: 命令输出和错误信息
 func (dm *DockerManager) ExecuteCommand(containerName string, command string) (string, error) {
-	cmd := exec.CommandContext(dm.ctx, "docker", "exec", containerName, "sh", "-c", command)
-	output, err := cmd.CombinedOutput()
+	// 创建执行配置
+	execConfig := container.ExecOptions{
+		Cmd:          []string{"sh", "-c", command},
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	// 创建执行实例
+	execResp, err := dm.client.ContainerExecCreate(dm.ctx, containerName, execConfig)
 	if err != nil {
-		return "", fmt.Errorf("在容器中执行命令失败: %v, 输出: %s", err, string(output))
+		return "", fmt.Errorf("创建执行实例失败: %v", err)
+	}
+
+	// 执行命令
+	resp, err := dm.client.ContainerExecAttach(dm.ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return "", fmt.Errorf("执行命令失败: %v", err)
+	}
+	defer resp.Close()
+
+	// 读取输出
+	output, err := io.ReadAll(resp.Reader)
+	if err != nil {
+		return "", fmt.Errorf("读取命令输出失败: %v", err)
+	}
+
+	// 检查执行结果
+	inspectResp, err := dm.client.ContainerExecInspect(dm.ctx, execResp.ID)
+	if err != nil {
+		return "", fmt.Errorf("检查执行结果失败: %v", err)
+	}
+
+	if inspectResp.ExitCode != 0 {
+		return string(output), fmt.Errorf("命令执行失败，退出码: %d", inspectResp.ExitCode)
 	}
 
 	return string(output), nil
@@ -269,18 +342,66 @@ func (dm *DockerManager) ExecuteCommand(containerName string, command string) (s
 // 返回: 文件内容和错误信息
 func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string, error) {
 	volumeName := fmt.Sprintf("ark-server-%d", serverID)
-
-	// 使用临时容器读取文件
 	configPath := fmt.Sprintf("/ark/ShooterGame/Saved/Config/LinuxServer/%s", fileName)
 
-	cmd := exec.CommandContext(dm.ctx, "docker", "run", "--rm",
-		"-v", fmt.Sprintf("%s:/ark", volumeName),
-		"alpine:latest",
-		"cat", configPath)
+	// 创建临时容器读取文件
+	containerConfig := &container.Config{
+		Image: "alpine:latest",
+		Cmd:   []string{"cat", configPath},
+	}
 
-	output, err := cmd.Output()
+	hostConfig := &container.HostConfig{
+		Binds: []string{
+			fmt.Sprintf("%s:/ark", volumeName),
+		},
+	}
+
+	// 创建临时容器
+	resp, err := dm.client.ContainerCreate(dm.ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		return "", fmt.Errorf("读取配置文件失败: %v", err)
+		return "", fmt.Errorf("创建临时容器失败: %v", err)
+	}
+
+	// 启动容器
+	err = dm.client.ContainerStart(dm.ctx, resp.ID, container.StartOptions{})
+	if err != nil {
+		return "", fmt.Errorf("启动临时容器失败: %v", err)
+	}
+
+	// 等待容器完成
+	waitCh, errCh := dm.client.ContainerWait(dm.ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return "", fmt.Errorf("等待容器完成失败: %v", err)
+		}
+	case <-waitCh:
+		// 容器已完成
+	}
+
+	// 获取容器日志（输出）
+	logs, err := dm.client.ContainerLogs(dm.ctx, resp.ID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("获取容器日志失败: %v", err)
+	}
+	defer logs.Close()
+
+	output, err := io.ReadAll(logs)
+	if err != nil {
+		return "", fmt.Errorf("读取容器输出失败: %v", err)
+	}
+
+	// 删除临时容器
+	dm.client.ContainerRemove(dm.ctx, resp.ID, container.RemoveOptions{
+		Force: true,
+	})
+
+	// 移除Docker日志前缀（前8个字节）
+	if len(output) > 8 {
+		output = output[8:]
 	}
 
 	return string(output), nil
@@ -293,34 +414,84 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 // 返回: 错误信息
 func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string) error {
 	volumeName := fmt.Sprintf("ark-server-%d", serverID)
-
-	// 使用临时容器写入文件
 	configPath := fmt.Sprintf("/ark/ShooterGame/Saved/Config/LinuxServer/%s", fileName)
 	configDir := "/ark/ShooterGame/Saved/Config/LinuxServer"
 
 	// 首先确保目录存在
-	cmd := exec.CommandContext(dm.ctx, "docker", "run", "--rm",
-		"-v", fmt.Sprintf("%s:/ark", volumeName),
-		"alpine:latest",
-		"mkdir", "-p", configDir)
-
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("创建配置目录失败: %v", err)
+	containerConfig := &container.Config{
+		Image: "alpine:latest",
+		Cmd:   []string{"mkdir", "-p", configDir},
 	}
+
+	hostConfig := &container.HostConfig{
+		Binds: []string{
+			fmt.Sprintf("%s:/ark", volumeName),
+		},
+	}
+
+	// 创建临时容器创建目录
+	resp, err := dm.client.ContainerCreate(dm.ctx, containerConfig, hostConfig, nil, nil, "")
+	if err != nil {
+		return fmt.Errorf("创建临时容器失败: %v", err)
+	}
+
+	// 启动容器
+	err = dm.client.ContainerStart(dm.ctx, resp.ID, container.StartOptions{})
+	if err != nil {
+		return fmt.Errorf("启动临时容器失败: %v", err)
+	}
+
+	// 等待容器完成
+	waitCh, errCh := dm.client.ContainerWait(dm.ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("等待容器完成失败: %v", err)
+		}
+	case <-waitCh:
+		// 容器已完成
+	}
+
+	// 删除临时容器
+	dm.client.ContainerRemove(dm.ctx, resp.ID, container.RemoveOptions{
+		Force: true,
+	})
 
 	// 写入文件内容
-	cmd = exec.CommandContext(dm.ctx, "docker", "run", "--rm", "-i",
-		"-v", fmt.Sprintf("%s:/ark", volumeName),
-		"alpine:latest",
-		"sh", "-c", fmt.Sprintf("cat > %s", configPath))
-
-	cmd.Stdin = strings.NewReader(content)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("写入配置文件失败: %v, 输出: %s", err, string(output))
+	containerConfig = &container.Config{
+		Image: "alpine:latest",
+		Cmd:   []string{"sh", "-c", fmt.Sprintf("echo '%s' > %s", strings.ReplaceAll(content, "'", "'\"'\"'"), configPath)},
 	}
 
+	// 创建临时容器写入文件
+	resp, err = dm.client.ContainerCreate(dm.ctx, containerConfig, hostConfig, nil, nil, "")
+	if err != nil {
+		return fmt.Errorf("创建临时容器失败: %v", err)
+	}
+
+	// 启动容器
+	err = dm.client.ContainerStart(dm.ctx, resp.ID, container.StartOptions{})
+	if err != nil {
+		return fmt.Errorf("启动临时容器失败: %v", err)
+	}
+
+	// 等待容器完成
+	waitCh, errCh = dm.client.ContainerWait(dm.ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("等待容器完成失败: %v", err)
+		}
+	case <-waitCh:
+		// 容器已完成
+	}
+
+	// 删除临时容器
+	dm.client.ContainerRemove(dm.ctx, resp.ID, container.RemoveOptions{
+		Force: true,
+	})
+
+	fmt.Printf("配置文件写入成功: %s\n", fileName)
 	return nil
 }
 
@@ -341,17 +512,16 @@ func GetServerVolumeName(serverID uint) string {
 // CheckDockerStatus 检查Docker环境状态
 // 返回: Docker是否可用和错误信息
 func CheckDockerStatus() error {
-	// 检查Docker是否安装
-	cmd := exec.Command("docker", "--version")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Docker未安装或不在PATH中: %v", err)
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return fmt.Errorf("Docker客户端创建失败: %v", err)
 	}
+	defer cli.Close()
 
 	// 检查Docker服务是否运行
-	cmd = exec.Command("docker", "info")
-	output, err := cmd.CombinedOutput()
+	_, err = cli.Ping(context.Background())
 	if err != nil {
-		return fmt.Errorf("Docker服务未运行: %v, 输出: %s", err, string(output))
+		return fmt.Errorf("Docker服务未运行或无法连接: %v", err)
 	}
 
 	return nil

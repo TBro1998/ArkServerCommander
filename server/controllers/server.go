@@ -34,7 +34,13 @@ func GetServers(c *gin.Context) {
 	}
 
 	// 转换为响应格式并获取实时状态
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
+
 	var serverResponses []models.ServerResponse
 	for _, server := range servers {
 		// 获取Docker容器实时状态
@@ -107,6 +113,21 @@ func CreateServer(c *gin.Context) {
 		req.Map = "TheIsland"
 	}
 
+	// 开始数据库事务
+	tx := database.DB.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库事务启动失败"})
+		return
+	}
+
+	// 确保在函数结束时处理事务
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器创建过程中发生异常"})
+		}
+	}()
+
 	// 创建服务器
 	server := models.Server{
 		Identifier:    req.Identifier,
@@ -119,45 +140,54 @@ func CreateServer(c *gin.Context) {
 		UserID:        userID,
 	}
 
-	if err := database.DB.Create(&server).Error; err != nil {
+	if err := tx.Create(&server).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器创建失败"})
 		return
 	}
 
 	// 检查Docker环境
 	if err := utils.CheckDockerStatus(); err != nil {
-		// 删除数据库记录并返回错误
-		database.DB.Delete(&server)
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Docker环境检查失败: %v", err)})
 		return
 	}
 
 	// 创建Docker卷和容器
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
+
+	var volumeName string
+	var containerID string
+	var containerName string
 
 	// 创建Docker卷
-	volumeName, err := dockerManager.CreateVolume(server.ID)
+	volumeName, err = dockerManager.CreateVolume(server.ID)
 	if err != nil {
-		// 删除数据库记录并返回错误
-		database.DB.Delete(&server)
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建Docker卷失败: %v", err)})
 		return
 	}
 	fmt.Printf("Created Docker volume: %s\n", volumeName)
 
 	// 创建Docker容器（不立即启动）
-	containerID, err := dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map)
+	containerID, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map)
 	if err != nil {
 		// 清理已创建的卷
 		dockerManager.RemoveVolume(volumeName)
-		database.DB.Delete(&server)
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建Docker容器失败: %v", err)})
 		return
 	}
 	fmt.Printf("Created Docker container: %s\n", containerID)
 
 	// 停止容器（创建时会自动启动）
-	containerName := utils.GetServerContainerName(server.ID)
+	containerName = utils.GetServerContainerName(server.ID)
 	if err := dockerManager.StopContainer(containerName); err != nil {
 		fmt.Printf("Warning: Failed to stop container after creation: %v\n", err)
 	}
@@ -171,6 +201,15 @@ func CreateServer(c *gin.Context) {
 	gameIni := utils.GetDefaultGameIni()
 	if err := dockerManager.WriteConfigFile(server.ID, utils.GameIniFileName, gameIni); err != nil {
 		fmt.Printf("Warning: Failed to create default Game.ini: %v\n", err)
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		// 提交失败，清理Docker资源
+		dockerManager.RemoveContainer(containerName)
+		dockerManager.RemoveVolume(volumeName)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库提交失败"})
+		return
 	}
 
 	response := models.ServerResponse{
@@ -237,7 +276,12 @@ func GetServer(c *gin.Context) {
 	}
 
 	// 从Docker卷读取配置文件内容（如果存在）
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
 	if gameUserSettings, err := dockerManager.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
 		response.GameUserSettings = gameUserSettings
 	}
@@ -338,7 +382,12 @@ func ExecuteRCONCommand(c *gin.Context) {
 	}
 
 	// 执行RCON命令
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 
 	// 构建RCON命令
@@ -446,7 +495,12 @@ func UpdateServer(c *gin.Context) {
 		}
 
 		// 写入配置文件到Docker卷
-		dockerManager := utils.NewDockerManager()
+		dockerManager, err := utils.NewDockerManager()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+			return
+		}
+		defer dockerManager.Close()
 		if req.GameUserSettings != "" {
 			if err := dockerManager.WriteConfigFile(uint(id), utils.GameUserSettingsFileName, req.GameUserSettings); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入GameUserSettings.ini失败: %v", err)})
@@ -476,7 +530,12 @@ func UpdateServer(c *gin.Context) {
 	}
 
 	// 从Docker卷读取配置文件内容并添加到响应中
-	dockerManager2 := utils.NewDockerManager()
+	dockerManager2, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager2.Close()
 	if gameUserSettings, err := dockerManager2.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
 		response.GameUserSettings = gameUserSettings
 	}
@@ -534,7 +593,12 @@ func DeleteServer(c *gin.Context) {
 	}
 
 	// 删除Docker容器和卷
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 	volumeName := utils.GetServerVolumeName(server.ID)
 
@@ -603,7 +667,12 @@ func StartServer(c *gin.Context) {
 	}
 
 	// 启动Docker容器
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 
 	go func() {
@@ -693,7 +762,12 @@ func StopServer(c *gin.Context) {
 	}
 
 	// 停止Docker容器
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 
 	go func() {
@@ -758,7 +832,12 @@ func GetServerFolderInfo(c *gin.Context) {
 	}
 
 	// 获取Docker卷信息
-	dockerManager := utils.NewDockerManager()
+	dockerManager, err := utils.NewDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		return
+	}
+	defer dockerManager.Close()
 	volumeName := utils.GetServerVolumeName(server.ID)
 	containerName := utils.GetServerContainerName(server.ID)
 
