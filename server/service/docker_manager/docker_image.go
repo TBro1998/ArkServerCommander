@@ -41,29 +41,6 @@ var (
 	imagePullMutex    sync.RWMutex
 )
 
-// PullImage 拉取Docker镜像
-// imageName: 镜像名称
-// 返回: 错误信息
-func (dm *DockerManager) PullImage(imageName string) error {
-	fmt.Printf("正在拉取Docker镜像: %s\n", imageName)
-
-	// 拉取镜像
-	reader, err := dm.client.ImagePull(dm.ctx, imageName, image.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("拉取Docker镜像失败: %v", err)
-	}
-	defer reader.Close()
-
-	// 读取拉取进度（可选，用于显示进度）
-	_, err = io.Copy(io.Discard, reader)
-	if err != nil {
-		return fmt.Errorf("读取镜像拉取进度失败: %v", err)
-	}
-
-	fmt.Printf("Docker镜像拉取成功: %s\n", imageName)
-	return nil
-}
-
 // PullImageWithProgress 拉取Docker镜像并显示进度
 // imageName: 镜像名称
 // 返回: 错误信息

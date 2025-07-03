@@ -14,8 +14,6 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// 全局镜像状态管理已在 docker_image.go 中定义
-
 // InitializeDockerForExistingServers 为现有服务器初始化Docker容器和卷
 // 在系统启动时调用，确保所有数据库中的服务器都有对应的Docker资源
 func InitializeDockerForExistingServers() error {
