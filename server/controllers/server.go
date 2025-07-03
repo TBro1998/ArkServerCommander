@@ -35,12 +35,11 @@ func GetServers(c *gin.Context) {
 	}
 
 	// 转换为响应格式并获取实时状态
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 
 	var serverResponses []models.ServerResponse
 	for _, server := range servers {
@@ -162,13 +161,12 @@ func CreateServer(c *gin.Context) {
 	}
 
 	// 创建Docker卷和容器
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 
 	var volumeName string
 	var containerID string
@@ -286,12 +284,11 @@ func GetServer(c *gin.Context) {
 	}
 
 	// 从Docker卷读取配置文件内容（如果存在）
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 	if gameUserSettings, err := dockerManager.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
 		response.GameUserSettings = gameUserSettings
 	}
@@ -395,12 +392,11 @@ func ExecuteRCONCommand(c *gin.Context) {
 	}
 
 	// 执行RCON命令
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 
 	// 构建RCON命令 - 使用服务器的RCON端口
@@ -508,12 +504,11 @@ func UpdateServer(c *gin.Context) {
 		}
 
 		// 写入配置文件到Docker卷
-		dockerManager, err := docker_manager.NewDockerManager()
+		dockerManager, err := docker_manager.GetDockerManager()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 			return
 		}
-		defer dockerManager.Close()
 		if req.GameUserSettings != "" {
 			if err := dockerManager.WriteConfigFile(uint(id), utils.GameUserSettingsFileName, req.GameUserSettings); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入GameUserSettings.ini失败: %v", err)})
@@ -550,12 +545,11 @@ func UpdateServer(c *gin.Context) {
 	}
 
 	// 从Docker卷读取配置文件内容并添加到响应中
-	dockerManager2, err := docker_manager.NewDockerManager()
+	dockerManager2, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager2.Close()
 	if gameUserSettings, err := dockerManager2.ReadConfigFile(uint(id), utils.GameUserSettingsFileName); err == nil {
 		response.GameUserSettings = gameUserSettings
 	}
@@ -616,12 +610,11 @@ func DeleteServer(c *gin.Context) {
 	}
 
 	// 删除Docker容器和卷
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 	volumeName := utils.GetServerVolumeName(server.ID)
 
@@ -690,12 +683,11 @@ func StartServer(c *gin.Context) {
 	}
 
 	// 启动Docker容器
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 
 	go func() {
@@ -785,12 +777,11 @@ func StopServer(c *gin.Context) {
 	}
 
 	// 停止Docker容器
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 	containerName := utils.GetServerContainerName(server.ID)
 
 	go func() {
@@ -855,12 +846,11 @@ func GetServerFolderInfo(c *gin.Context) {
 	}
 
 	// 获取Docker卷信息
-	dockerManager, err := docker_manager.NewDockerManager()
+	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Docker管理器失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
-	defer dockerManager.Close()
 	volumeName := utils.GetServerVolumeName(server.ID)
 	containerName := utils.GetServerContainerName(server.ID)
 
@@ -888,6 +878,55 @@ func GetServerFolderInfo(c *gin.Context) {
 			"container_name":   containerName,
 			"container_exists": containerExists,
 			"container_status": containerStatus,
+		},
+	})
+}
+
+// GetImageStatus 获取镜像状态和拉取进度
+// @Summary 获取镜像状态
+// @Description 获取ARK服务器镜像的状态信息（镜像仅在启动时拉取）
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]interface{} "镜像状态信息"
+// @Failure 401 {object} map[string]string "未授权"
+// @Failure 500 {object} map[string]string "服务器错误"
+// @Router /servers/images/status [get]
+func GetImageStatus(c *gin.Context) {
+	// 创建Docker管理器
+	dockerManager, err := docker_manager.GetDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
+		return
+	}
+
+	// 需要检查的镜像列表
+	requiredImages := []string{
+		"tbro98/ase-server:latest", // ARK服务器镜像
+		"alpine:latest",            // Alpine镜像（用于配置文件操作）
+	}
+
+	// 获取每个镜像的状态
+	imageStatuses := make(map[string]*docker_manager.ImageStatus)
+	allReady := true
+
+	for _, imageName := range requiredImages {
+		status := dockerManager.GetImageStatus(imageName)
+		imageStatuses[imageName] = status
+
+		if !status.Ready {
+			allReady = false
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"data": gin.H{
+			"images":            imageStatuses,
+			"any_pulling":       false, // 镜像只在启动时拉取，不会在运行时拉取
+			"any_not_ready":     !allReady,
+			"can_create_server": allReady, // 只有当所有镜像都准备好时才能创建服务器
 		},
 	})
 }

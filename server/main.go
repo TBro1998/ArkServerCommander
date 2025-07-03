@@ -48,15 +48,17 @@ func main() {
 	}
 	log.Println("✅ Docker环境检查通过")
 
-	// 异步检查并拉取必要的Docker镜像
-	log.Println("🔍 检查必要的Docker镜像...")
-	go func() {
-		if err := docker_manager.EnsureRequiredImages(); err != nil {
-			log.Printf("⚠️  镜像拉取失败: %v\n请检查网络连接，服务器创建功能可能不可用", err)
-		} else {
-			log.Println("✅ 所有必要镜像检查完成")
-		}
-	}()
+	// 获取Docker管理器单例实例
+	dockerManager, err := docker_manager.GetDockerManager()
+	if err != nil {
+		log.Fatalf("获取Docker管理器失败: %v", err)
+	}
+	defer docker_manager.CloseDockerManager()
+
+	// 检查并拉取必要的Docker镜像（仅在启动时）
+	if err := dockerManager.EnsureRequiredImages(); err != nil {
+		log.Printf("⚠️  镜像拉取失败: %v\n请检查网络连接，服务器创建功能可能不可用", err)
+	}
 
 	// 为现有服务器初始化Docker容器和卷
 	if err := docker_manager.InitializeDockerForExistingServers(); err != nil {

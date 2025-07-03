@@ -4,15 +4,48 @@
       <div class="p-4 sm:p-6 border-b border-gray-200">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 class="text-xl sm:text-2xl font-bold text-gray-900">服务器管理</h1>
-          <button
-            @click="showCreateForm = true"
-            class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            新增服务器
-          </button>
+          <div class="flex flex-col sm:flex-row items-center gap-4">
+            <!-- 镜像状态显示 -->
+            <div v-if="imageStatus" class="flex items-center gap-2 text-sm">
+              <div v-if="imageStatus.any_pulling" class="flex items-center gap-1 text-yellow-600">
+                <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                镜像下载中...
+              </div>
+              <div v-else-if="!imageStatus.can_create_server" class="flex items-center gap-1 text-red-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+                镜像未就绪
+              </div>
+              <div v-else class="flex items-center gap-1 text-green-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                镜像就绪
+              </div>
+              <button
+                @click="refreshImageStatus"
+                class="text-blue-600 hover:text-blue-800 p-1"
+                title="刷新镜像状态"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+              </button>
+            </div>
+            <button
+              @click="showCreateForm = true"
+              :disabled="!imageStatus?.can_create_server"
+              class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              新增服务器
+            </button>
+          </div>
         </div>
       </div>
 
@@ -387,6 +420,10 @@ const showServerPasswords = ref({})
 const errorMessage = ref('')
 const successMessage = ref('')
 
+// 镜像状态相关
+const imageStatus = ref(null)
+const imageStatusInterval = ref(null)
+
 // 统一编辑器相关
 const currentEditServer = ref(null)
 const loadingServerData = ref(false)
@@ -394,6 +431,24 @@ const loadingServerData = ref(false)
 // 使用 store 中的数据
 const servers = computed(() => serversStore.servers)
 const loading = computed(() => serversStore.isLoading)
+
+// 获取镜像状态
+const fetchImageStatus = async () => {
+  try {
+    console.log('开始获取镜像状态...')
+    const status = await serversStore.getImageStatus()
+    imageStatus.value = status
+    console.log('镜像状态获取成功:', status)
+  } catch (error) {
+    console.error('获取镜像状态失败:', error)
+    // 不显示错误消息，因为镜像状态不是关键功能
+  }
+}
+
+// 刷新镜像状态
+const refreshImageStatus = async () => {
+  await fetchImageStatus()
+}
 
 // 获取服务器列表
 const fetchServers = async () => {
@@ -451,6 +506,12 @@ const editServer = async (server) => {
 
 // 统一的服务器保存处理
 const handleServerSave = async (formData) => {
+  // 检查镜像状态（仅在创建服务器时）
+  if (!showEditForm.value && imageStatus.value && !imageStatus.value.can_create_server) {
+    errorMessage.value = '镜像未就绪，无法创建服务器，请等待镜像下载完成'
+    return
+  }
+  
   submitting.value = true
   try {
     if (showEditForm.value && currentEditServer.value) {
@@ -588,5 +649,18 @@ const formatDate = (dateString) => {
 // 页面加载时获取数据
 onMounted(() => {
   fetchServers()
+  fetchImageStatus()
+  
+  // 设置定时刷新镜像状态（每5秒检查一次）
+  imageStatusInterval.value = setInterval(() => {
+    fetchImageStatus()
+  }, 5000)
+})
+
+// 页面卸载时清理定时器
+onUnmounted(() => {
+  if (imageStatusInterval.value) {
+    clearInterval(imageStatusInterval.value)
+  }
 })
 </script> 

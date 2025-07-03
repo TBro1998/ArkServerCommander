@@ -196,6 +196,24 @@ export const useServersStore = defineStore('servers', {
       }
     },
 
+    // 获取镜像状态
+    async getImageStatus() {
+      try {
+        console.log('正在获取镜像状态...')
+        
+        const response = await this.makeRequest('/servers/images/status')
+        
+        console.log('获取镜像状态响应:', response)
+        
+        return response.data
+      } catch (error) {
+        this.error = '获取镜像状态失败'
+        console.error('获取镜像状态失败:', error)
+        console.error('错误详情:', error.data)
+        throw error
+      }
+    },
+
     // 启动服务器
     async startServer(serverId) {
       try {

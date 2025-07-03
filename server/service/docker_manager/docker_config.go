@@ -17,14 +17,14 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 	volumeName := utils.GetServerVolumeName(serverID)
 	alpineImage := "alpine:latest"
 
-	// 检查Alpine镜像是否存在，如果不存在则等待拉取完成
-	if exists, err := dm.ImageExists(alpineImage); err != nil {
-		return "", fmt.Errorf("检查Alpine镜像是否存在失败: %v", err)
-	} else if !exists {
-		// 等待镜像拉取完成（最多等待30秒）
-		if ready, err := dm.WaitForImage(alpineImage, 30); err != nil || !ready {
-			return "", fmt.Errorf("alpine镜像拉取超时或失败，请稍后重试")
-		}
+	// 检查Alpine镜像是否存在
+	exists, err := dm.ImageExists(alpineImage)
+	if err != nil {
+		return "", fmt.Errorf("检查Alpine镜像失败: %v", err)
+	}
+
+	if !exists {
+		return "", fmt.Errorf("Alpine镜像不存在，请确保后端启动时已成功拉取镜像")
 	}
 
 	// 根据文件名确定路径
@@ -109,14 +109,14 @@ func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string
 	volumeName := utils.GetServerVolumeName(serverID)
 	alpineImage := "alpine:latest"
 
-	// 检查Alpine镜像是否存在，如果不存在则等待拉取完成
-	if exists, err := dm.ImageExists(alpineImage); err != nil {
-		return fmt.Errorf("检查Alpine镜像是否存在失败: %v", err)
-	} else if !exists {
-		// 等待镜像拉取完成（最多等待30秒）
-		if ready, err := dm.WaitForImage(alpineImage, 30); err != nil || !ready {
-			return fmt.Errorf("alpine镜像拉取超时或失败，请稍后重试")
-		}
+	// 检查Alpine镜像是否存在
+	exists, err := dm.ImageExists(alpineImage)
+	if err != nil {
+		return fmt.Errorf("检查Alpine镜像失败: %v", err)
+	}
+
+	if !exists {
+		return fmt.Errorf("Alpine镜像不存在，请确保后端启动时已成功拉取镜像")
 	}
 
 	// 根据文件名确定路径

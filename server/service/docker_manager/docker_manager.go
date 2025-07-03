@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strings"
-	"time"
+	"sync"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 )
@@ -22,202 +19,87 @@ type DockerManager struct {
 	ctx    context.Context
 }
 
-// NewDockerManager 创建新的Docker管理器
-func NewDockerManager() (*DockerManager, error) {
+// 单例相关变量
+var (
+	instance *DockerManager
+	once     sync.Once
+	mu       sync.RWMutex
+)
+
+// GetDockerManager 获取Docker管理器单例实例
+func GetDockerManager() (*DockerManager, error) {
+	mu.RLock()
+	if instance != nil {
+		mu.RUnlock()
+		return instance, nil
+	}
+	mu.RUnlock()
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	// 双重检查锁定
+	if instance != nil {
+		return instance, nil
+	}
+
+	// 创建新实例
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("创建Docker客户端失败: %v", err)
 	}
 
-	return &DockerManager{
+	instance = &DockerManager{
 		client: cli,
 		ctx:    context.Background(),
-	}, nil
+	}
+
+	return instance, nil
 }
 
-// Close 关闭Docker客户端连接
-func (dm *DockerManager) Close() error {
-	return dm.client.Close()
-}
+// CloseDockerManager 关闭Docker管理器（通常在程序退出时调用）
+func CloseDockerManager() error {
+	mu.Lock()
+	defer mu.Unlock()
 
-// CreateVolume 创建Docker卷
-// serverID: 服务器ID
-// 返回: 卷名称和错误信息
-func (dm *DockerManager) CreateVolume(serverID uint) (string, error) {
-	volumeName := utils.GetServerVolumeName(serverID)
-
-	// 检查卷是否已存在
-	exists, err := dm.VolumeExists(volumeName)
-	if err != nil {
-		return "", fmt.Errorf("检查卷是否存在失败: %v", err)
+	if instance != nil && instance.client != nil {
+		err := instance.client.Close()
+		instance = nil
+		return err
 	}
-	if exists {
-		fmt.Printf("Docker卷 %s 已存在，跳过创建\n", volumeName)
-		return volumeName, nil
-	}
-
-	// 创建卷
-	fmt.Printf("正在创建Docker卷: %s\n", volumeName)
-	volumeCreateBody := volume.CreateOptions{
-		Name: volumeName,
-	}
-
-	_, err = dm.client.VolumeCreate(dm.ctx, volumeCreateBody)
-	if err != nil {
-		return "", fmt.Errorf("创建Docker卷失败: %v", err)
-	}
-
-	fmt.Printf("Docker卷创建成功: %s\n", volumeName)
-	return volumeName, nil
-}
-
-// RemoveVolume 删除Docker卷
-// volumeName: 卷名称
-// 返回: 错误信息
-func (dm *DockerManager) RemoveVolume(volumeName string) error {
-	// 检查卷是否存在
-	exists, err := dm.VolumeExists(volumeName)
-	if err != nil {
-		return fmt.Errorf("检查卷是否存在失败: %v", err)
-	}
-	if !exists {
-		fmt.Printf("Docker卷 %s 不存在，跳过删除\n", volumeName)
-		return nil
-	}
-
-	fmt.Printf("正在删除Docker卷: %s\n", volumeName)
-	err = dm.client.VolumeRemove(dm.ctx, volumeName, false)
-	if err != nil {
-		return fmt.Errorf("删除Docker卷失败: %v", err)
-	}
-
-	fmt.Printf("Docker卷删除成功: %s\n", volumeName)
 	return nil
 }
 
-// VolumeExists 检查Docker卷是否存在
-// volumeName: 卷名称
-// 返回: 是否存在和错误信息
-func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
-	// 尝试获取卷信息
-	_, err := dm.client.VolumeInspect(dm.ctx, volumeName)
-	if err != nil {
-		if client.IsErrNotFound(err) {
-			return false, nil // 卷不存在
-		}
-		return false, fmt.Errorf("检查Docker卷失败: %v", err)
+// EnsureRequiredImages 确保必要的镜像已拉取（仅在启动时调用）
+func (dm *DockerManager) EnsureRequiredImages() error {
+	requiredImages := []string{
+		"tbro98/ase-server:latest", // ARK服务器镜像
+		"alpine:latest",            // Alpine镜像（用于配置文件操作）
 	}
 
-	return true, nil
-}
+	log.Println("🔍 检查必要的Docker镜像...")
 
-// PullImage 拉取Docker镜像
-// imageName: 镜像名称
-// 返回: 错误信息
-func (dm *DockerManager) PullImage(imageName string) error {
-	fmt.Printf("正在拉取Docker镜像: %s\n", imageName)
-
-	// 拉取镜像
-	reader, err := dm.client.ImagePull(dm.ctx, imageName, image.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("拉取Docker镜像失败: %v", err)
-	}
-	defer reader.Close()
-
-	// 读取拉取进度（可选，用于显示进度）
-	_, err = io.Copy(io.Discard, reader)
-	if err != nil {
-		return fmt.Errorf("读取镜像拉取进度失败: %v", err)
-	}
-
-	fmt.Printf("Docker镜像拉取成功: %s\n", imageName)
-	return nil
-}
-
-// PullImageWithProgress 拉取Docker镜像并显示进度
-// imageName: 镜像名称
-// 返回: 错误信息
-func (dm *DockerManager) PullImageWithProgress(imageName string) error {
-	fmt.Printf("正在拉取Docker镜像: %s\n", imageName)
-
-	// 拉取镜像
-	reader, err := dm.client.ImagePull(dm.ctx, imageName, image.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("拉取Docker镜像失败: %v", err)
-	}
-	defer reader.Close()
-
-	// 读取并显示拉取进度
-	buffer := make([]byte, 1024)
-	for {
-		n, err := reader.Read(buffer)
-		if n > 0 {
-			// 解析JSON进度信息并显示
-			progress := string(buffer[:n])
-			if strings.Contains(progress, "Downloading") || strings.Contains(progress, "Extracting") {
-				// 提取进度信息
-				if strings.Contains(progress, "progress") {
-					fmt.Print("\r正在下载... ")
-				}
-			}
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("读取镜像拉取进度失败: %v", err)
-		}
-	}
-
-	fmt.Printf("\nDocker镜像拉取成功: %s\n", imageName)
-	return nil
-}
-
-// ImageExists 检查Docker镜像是否存在
-// imageName: 镜像名称
-// 返回: 是否存在和错误信息
-func (dm *DockerManager) ImageExists(imageName string) (bool, error) {
-	// 尝试获取镜像信息
-	_, _, err := dm.client.ImageInspectWithRaw(dm.ctx, imageName)
-	if err != nil {
-		if client.IsErrNotFound(err) {
-			return false, nil // 镜像不存在
-		}
-		return false, fmt.Errorf("检查Docker镜像失败: %v", err)
-	}
-
-	return true, nil
-}
-
-// WaitForImage 等待镜像拉取完成
-// imageName: 镜像名称
-// timeout: 超时时间（秒）
-// 返回: 是否成功和错误信息
-func (dm *DockerManager) WaitForImage(imageName string, timeout int) (bool, error) {
-	log.Printf("等待镜像 %s 拉取完成...", imageName)
-
-	// 每秒检查一次镜像是否存在
-	for i := 0; i < timeout; i++ {
+	for _, imageName := range requiredImages {
 		exists, err := dm.ImageExists(imageName)
 		if err != nil {
-			return false, fmt.Errorf("检查镜像失败: %v", err)
+			log.Printf("⚠️  检查镜像 %s 失败: %v", imageName, err)
+			continue
 		}
 
-		if exists {
-			log.Printf("镜像 %s 已准备就绪", imageName)
-			return true, nil
+		if !exists {
+			log.Printf("📥 拉取镜像: %s", imageName)
+			if err := dm.PullImageWithProgress(imageName); err != nil {
+				log.Printf("❌ 拉取镜像 %s 失败: %v", imageName, err)
+				return fmt.Errorf("拉取镜像 %s 失败: %v", imageName, err)
+			}
+			log.Printf("✅ 镜像 %s 拉取完成", imageName)
+		} else {
+			log.Printf("✅ 镜像 %s 已存在", imageName)
 		}
-
-		// 检查是否正在拉取中
-		if IsImagePulling(imageName) {
-			log.Printf("镜像 %s 正在拉取中，继续等待...", imageName)
-		}
-
-		// 等待1秒后再次检查
-		time.Sleep(1 * time.Second)
 	}
 
-	return false, fmt.Errorf("等待镜像 %s 超时（%d秒）", imageName, timeout)
+	log.Println("✅ 所有必要镜像检查完成")
+	return nil
 }
 
 // CreateContainer 创建ARK服务器容器（不自动启动）
@@ -245,14 +127,13 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		}
 	}
 
-	// 检查镜像是否存在，如果不存在则等待拉取完成
-	if exists, err := dm.ImageExists(imageName); err != nil {
+	// 检查镜像是否存在
+	exists, err := dm.ImageExists(imageName)
+	if err != nil {
 		return "", fmt.Errorf("检查镜像是否存在失败: %v", err)
-	} else if !exists {
-		// 等待镜像拉取完成（最多等待60秒）
-		if ready, err := dm.WaitForImage(imageName, 60); err != nil || !ready {
-			return "", fmt.Errorf("镜像 %s 拉取超时或失败，请稍后重试", imageName)
-		}
+	}
+	if !exists {
+		return "", fmt.Errorf("镜像 %s 不存在，请等待镜像下载完成", imageName)
 	}
 
 	// 构建容器配置
