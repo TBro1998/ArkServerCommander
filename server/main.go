@@ -55,10 +55,15 @@ func main() {
 	}
 	defer docker_manager.CloseDockerManager()
 
-	// 检查并拉取必要的Docker镜像（仅在启动时）
-	if err := dockerManager.EnsureRequiredImages(); err != nil {
-		log.Printf("⚠️  镜像拉取失败: %v\n请检查网络连接，服务器创建功能可能不可用", err)
-	}
+	// 异步检查并拉取必要的Docker镜像（不阻塞启动）
+	go func() {
+		log.Println("🔄 开始异步检查Docker镜像...")
+		if err := dockerManager.EnsureRequiredImages(); err != nil {
+			log.Printf("⚠️  镜像拉取失败: %v\n请检查网络连接，服务器创建功能可能不可用", err)
+		} else {
+			log.Println("✅ 所有必要镜像检查完成")
+		}
+	}()
 
 	// 为现有服务器初始化Docker容器和卷
 	if err := docker_manager.InitializeDockerForExistingServers(); err != nil {
@@ -103,6 +108,7 @@ func main() {
 	log.Println("🔗 健康检查: http://localhost:8080/health")
 	log.Println("🌐 CORS: 已启用（允许所有来源）")
 	log.Printf("🐳 Docker容器化ARK服务器管理")
+	log.Println("🔄 Docker镜像正在后台检查中...")
 	log.Println("=========================================")
 
 	r.Run(":8080")

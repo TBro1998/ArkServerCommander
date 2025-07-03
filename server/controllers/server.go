@@ -884,7 +884,7 @@ func GetServerFolderInfo(c *gin.Context) {
 
 // GetImageStatus 获取镜像状态和拉取进度
 // @Summary 获取镜像状态
-// @Description 获取ARK服务器镜像的状态信息（镜像仅在启动时拉取）
+// @Description 获取ARK服务器镜像的状态信息（镜像在后台异步拉取）
 // @Tags 服务器管理
 // @Accept json
 // @Produce json
@@ -910,6 +910,7 @@ func GetImageStatus(c *gin.Context) {
 	// 获取每个镜像的状态
 	imageStatuses := make(map[string]*docker_manager.ImageStatus)
 	allReady := true
+	anyPulling := false
 
 	for _, imageName := range requiredImages {
 		status := dockerManager.GetImageStatus(imageName)
@@ -918,13 +919,17 @@ func GetImageStatus(c *gin.Context) {
 		if !status.Ready {
 			allReady = false
 		}
+
+		if status.Pulling {
+			anyPulling = true
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "获取成功",
 		"data": gin.H{
 			"images":            imageStatuses,
-			"any_pulling":       false, // 镜像只在启动时拉取，不会在运行时拉取
+			"any_pulling":       anyPulling, // 检查是否有镜像正在拉取中
 			"any_not_ready":     !allReady,
 			"can_create_server": allReady, // 只有当所有镜像都准备好时才能创建服务器
 		},
