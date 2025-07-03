@@ -23,6 +23,6 @@ echo API代理: http://localhost:3000/api -> http://localhost:8080/api
 echo.
 echo 请确保后端服务已在 http://localhost:8080 运行
 echo.
-pnpm run dev
+pnpm dev
 
 pause 
