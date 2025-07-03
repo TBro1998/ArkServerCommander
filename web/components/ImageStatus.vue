@@ -32,19 +32,7 @@
 
     </div>
     
-    <!-- 总体进度条 -->
-    <div v-if="imageStatus.overall_progress !== undefined" class="w-full">
-      <div class="flex justify-between text-xs text-gray-600 mb-1">
-        <span>总体进度</span>
-        <span>{{ imageStatus.overall_progress }}%</span>
-      </div>
-      <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-        <div 
-          class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
-          :style="{ width: imageStatus.overall_progress + '%' }"
-        ></div>
-      </div>
-    </div>
+
     
     <!-- 详细镜像状态 -->
     <div v-if="imageStatus.images" class="space-y-2">
@@ -68,24 +56,57 @@
             }"
             class="ml-2 font-semibold"
           >
-            {{ status.percent }}%
+            {{ status.pulling ? '下载中' : (status.ready ? '就绪' : '未就绪') }}
           </span>
         </div>
-        <div v-if="status.pulling || !status.ready" class="text-xs text-gray-500 mt-1 break-words">
-          {{ status.progress }}
-          <span v-if="status.percent !== undefined" class="text-blue-600">({{ status.percent }}%)</span>
-        </div>
-        <!-- 镜像大小信息 -->
-        <div v-if="status.size" class="text-xs text-gray-600 mt-1">
-          大小: {{ formatBytes(status.size) }}
-        </div>
-        <!-- 单个镜像进度条 -->
-        <div v-if="status.pulling" class="mt-1">
-          <div class="w-full bg-gray-100 rounded-full h-1">
-            <div 
-              class="bg-yellow-500 h-1 rounded-full transition-all duration-300"
-              :style="{ width: status.percent + '%' }"
-            ></div>
+
+        <!-- 层级信息 -->
+        <div v-if="status.pulling && status.layers" class="text-xs text-gray-600 mt-2 space-y-1">
+          <div class="font-medium text-gray-700">层级下载进度:</div>
+          <div 
+            v-for="(layer, layerId) in status.layers" 
+            :key="layerId"
+            class="bg-gray-50 p-2 rounded border"
+          >
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-gray-600 font-mono text-xs">
+                {{ layer.id.substring(0, 12) }}...
+              </span>
+              <span 
+                :class="{
+                  'text-blue-600': layer.status === 'downloading',
+                  'text-yellow-600': layer.status === 'extracting',
+                  'text-purple-600': layer.status === 'verifying',
+                  'text-green-600': layer.status === 'complete',
+                  'text-gray-500': layer.status === 'pending'
+                }"
+                class="text-xs font-medium"
+              >
+                {{ getLayerStatusText(layer.status) }}
+              </span>
+            </div>
+            
+            <div v-if="layer.size > 0" class="text-xs text-gray-500 mb-1">
+              {{ formatBytes(layer.progress) }} / {{ formatBytes(layer.size) }}
+            </div>
+            <div v-else class="text-xs text-gray-500 mb-1">
+              {{ formatBytes(layer.progress) }} / 未知大小
+            </div>
+            
+            <!-- 层级进度条 -->
+            <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+              <div 
+                :class="{
+                  'bg-blue-500': layer.status === 'downloading',
+                  'bg-yellow-500': layer.status === 'extracting',
+                  'bg-purple-500': layer.status === 'verifying',
+                  'bg-green-500': layer.status === 'complete',
+                  'bg-gray-400': layer.status === 'pending'
+                }"
+                class="h-1.5 rounded-full transition-all duration-300"
+                :style="{ width: layer.size > 0 ? Math.min((layer.progress / layer.size) * 100, 100) + '%' : (layer.status === 'complete' ? '100%' : '0%') }"
+              ></div>
+            </div>
           </div>
         </div>
       </div>
@@ -128,6 +149,18 @@ const getImageDisplayName = (imageName) => {
     case 'tbro98/ase-server:latest': return 'ARK服务器'
     case 'alpine:latest': return 'Alpine系统'
     default: return imageName
+  }
+}
+
+// 获取层级状态文本
+const getLayerStatusText = (status) => {
+  switch (status) {
+    case 'pending': return '等待中'
+    case 'downloading': return '下载中'
+    case 'extracting': return '解压中'
+    case 'verifying': return '验证中'
+    case 'complete': return '已完成'
+    default: return status
   }
 }
 </script> 
