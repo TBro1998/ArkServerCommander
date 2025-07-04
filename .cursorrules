@@ -174,4 +174,73 @@ export const useExampleStore = defineStore('example', {
 - 可以使用**静态检查**命令（如 `go build`、`npm install` 等不启动服务的命令）
 - **严禁**使用任何可能启动服务或需要用户交互的命令
 
-这些限制确保了在 Cursor 环境下的稳定开发体验，避免因环境不兼容导致的问题。 
+这些限制确保了在 Cursor 环境下的稳定开发体验，避免因环境不兼容导致的问题。
+
+## Git 提交规范
+
+### Conventional Commits 标准
+使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范进行 Git 提交，格式如下：
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### 提交类型 (type)
+- **feat**: 新功能
+- **fix**: 修复 bug
+- **docs**: 文档更新
+- **style**: 代码格式调整（不影响代码逻辑）
+- **refactor**: 代码重构
+- **perf**: 性能优化
+- **test**: 测试相关
+- **chore**: 构建过程或辅助工具的变动
+- **ci**: CI/CD 相关变更
+- **build**: 构建系统或外部依赖变更
+
+### 作用域 (scope)
+可选，用于说明提交影响的范围：
+- **frontend**: 前端相关
+- **backend**: 后端相关
+- **database**: 数据库相关
+- **docker**: Docker 相关
+- **auth**: 认证相关
+- **api**: API 接口相关
+
+### 提交示例
+```
+feat(auth): 添加用户登录功能
+fix(backend): 修复服务器启动时的端口冲突问题
+docs: 更新 README.md 安装说明
+style(frontend): 统一按钮组件样式
+refactor(api): 重构服务器管理 API 接口
+perf(database): 优化数据库查询性能
+test(backend): 添加用户认证单元测试
+chore: 更新依赖包版本
+ci: 配置 GitHub Actions 自动部署
+build(docker): 优化 Docker 镜像构建过程
+```
+
+### 提交规范要求
+- 提交信息使用中文描述
+- 类型和作用域使用英文
+- 描述简洁明了，不超过 50 个字符
+- 如果需要详细说明，在 body 中补充
+- 关联 issue 时在 footer 中使用 `Closes #123` 格式
+
+### 分支命名规范
+- **feature/**: 新功能分支，如 `feature/user-auth`
+- **fix/**: 修复分支，如 `fix/server-startup`
+- **hotfix/**: 紧急修复分支，如 `hotfix/critical-bug`
+- **docs/**: 文档分支，如 `docs/api-documentation`
+- **refactor/**: 重构分支，如 `refactor/database-models`
+
+### 工作流程
+1. 从 `main` 分支创建功能分支
+2. 在分支上进行开发和测试
+3. 提交时遵循 Conventional Commits 规范
+4. 创建 Pull Request 进行代码审查
+5. 合并到 `main` 分支并删除功能分支 
