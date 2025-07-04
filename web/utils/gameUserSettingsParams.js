@@ -16,31 +16,11 @@ export const gameUserSettingsParams = {
         default: '',
         description: '玩家加入服务器需要的密码，留空表示无密码'
       },
-      ServerAdminPassword: {
-        type: 'password',
-        label: '管理员密码',
-        default: '',
-        description: '管理员访问服务器控制台命令的密码'
-      },
       SpectatorPassword: {
         type: 'password',
         label: '观察者密码',
         default: '',
         description: '非管理员观察模式密码'
-      },
-      MaxPlayers: {
-        type: 'number',
-        label: '最大玩家数',
-        default: 70,
-        min: 1,
-        max: 999,
-        description: '服务器同时允许的最大玩家数量'
-      },
-      RCONEnabled: {
-        type: 'boolean',
-        label: '启用RCON',
-        default: true,
-        description: '启用远程控制台访问'
       },
       AdminLogging: {
         type: 'boolean',

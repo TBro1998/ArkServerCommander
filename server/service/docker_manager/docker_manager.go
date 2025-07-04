@@ -1,9 +1,11 @@
 package docker_manager
 
 import (
+	"ark-server-manager/database"
 	"ark-server-manager/models"
 	"ark-server-manager/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -161,25 +163,28 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		return "", fmt.Errorf("镜像 %s 不存在，请等待镜像下载完成", imageName)
 	}
 
-	// 生成服务器启动参数
-	serverArgs := utils.GenerateServerArgs(models.Server{
-		Map:           mapName,
-		Port:          port,
-		QueryPort:     queryPort,
-		RCONPort:      rconPort,
-		AdminPassword: adminPassword,
-		GameModIds:    gameModIds,
-	})
+	// 1. 查数据库获取Server对象
+	var server models.Server
+	if err := database.DB.Where("id = ?", serverID).First(&server).Error; err != nil {
+		return "", fmt.Errorf("获取服务器信息失败: %v", err)
+	}
 
-	// 构建环境变量
+	// 2. 反序列化ServerArgsJSON
+	serverArgs := models.NewServerArgs()
+	if server.ServerArgsJSON != "" && server.ServerArgsJSON != "{}" {
+		_ = json.Unmarshal([]byte(server.ServerArgsJSON), serverArgs)
+	} else {
+		serverArgs = models.FromServer(server)
+	}
+	argsString := serverArgs.GenerateArgsString(server)
+
+	// 3. 构建环境变量
 	envVars := []string{
 		"TZ=Asia/Shanghai",
-		fmt.Sprintf("SERVER_ARGS=%s", serverArgs),
+		fmt.Sprintf("SERVER_ARGS=%s", argsString),
 	}
-	
-	// 添加GameModIds环境变量（如果不为空）
-	if gameModIds != "" {
-		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", gameModIds))
+	if server.GameModIds != "" {
+		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", server.GameModIds))
 	}
 
 	// 构建容器配置

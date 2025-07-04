@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -159,6 +160,17 @@ func CreateServer(c *gin.Context) {
 		AutoRestart:   *req.AutoRestart,
 		UserID:        userID,
 	}
+	if req.ServerArgs != nil {
+		argsJson, err := json.Marshal(req.ServerArgs)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "启动参数格式错误"})
+			return
+		}
+		server.ServerArgsJSON = string(argsJson)
+	} else {
+		server.ServerArgsJSON = "{}"
+	}
 
 	if err := tx.Create(&server).Error; err != nil {
 		tx.Rollback()
@@ -227,6 +239,19 @@ func CreateServer(c *gin.Context) {
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
+	// 从Docker卷读取配置文件内容并添加到响应中
+	dockerManager2, err := docker_manager.GetDockerManager()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
+		return
+	}
+	if gameUserSettings, err := dockerManager2.ReadConfigFile(uint(server.ID), utils.GameUserSettingsFileName); err == nil {
+		response.GameUserSettings = gameUserSettings
+	}
+	if gameIni, err := dockerManager2.ReadConfigFile(uint(server.ID), utils.GameIniFileName); err == nil {
+		response.GameIni = gameIni
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "服务器创建成功",
 		"data":    response,
@@ -262,6 +287,18 @@ func GetServer(c *gin.Context) {
 		return
 	}
 
+	// 解析启动参数
+	var serverArgs *models.ServerArgs
+	if server.ServerArgsJSON != "" && server.ServerArgsJSON != "{}" {
+		serverArgs = models.NewServerArgs()
+		if err := json.Unmarshal([]byte(server.ServerArgsJSON), serverArgs); err != nil {
+			// 如果解析失败，使用默认参数
+			serverArgs = models.FromServer(server)
+		}
+	} else {
+		serverArgs = models.FromServer(server)
+	}
+
 	response := models.ServerResponse{
 		ID:            server.ID,
 		Identifier:    server.Identifier,
@@ -276,6 +313,8 @@ func GetServer(c *gin.Context) {
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ServerArgs:    serverArgs,
+		GeneratedArgs: serverArgs.GenerateArgsString(server),
 	}
 
 	// 从Docker卷读取配置文件内容（如果存在）
@@ -487,6 +526,14 @@ func UpdateServer(c *gin.Context) {
 	if req.GameModIds != "" {
 		server.GameModIds = req.GameModIds
 	}
+	if req.ServerArgs != nil {
+		argsJson, err := json.Marshal(req.ServerArgs)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "启动参数格式错误"})
+			return
+		}
+		server.ServerArgsJSON = string(argsJson)
+	}
 
 	if err := database.DB.Save(&server).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器更新失败"})
@@ -544,6 +591,7 @@ func UpdateServer(c *gin.Context) {
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ServerArgs:    models.FromServer(server),
 	}
 
 	// 从Docker卷读取配置文件内容并添加到响应中

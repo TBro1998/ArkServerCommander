@@ -176,6 +176,23 @@
         </div>
       </div>
     </div>
+    
+    <!-- 基础参数说明 -->
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div class="flex flex-col sm:flex-row items-start">
+        <i class="fas fa-check-circle text-green-500 mr-0 sm:mr-3 mb-2 sm:mb-0"></i>
+        <div class="text-sm text-green-700">
+          <p class="font-medium">基础参数说明</p>
+          <p>以下基础参数已从服务器基本设置中自动获取，无需在此处重复设置：</p>
+          <ul class="list-disc list-inside mt-1 space-y-1">
+            <li><strong>管理员密码 (ServerAdminPassword)</strong> - 从服务器基本设置的管理员密码获取</li>
+            <li><strong>最大玩家数 (MaxPlayers)</strong> - 固定为70</li>
+            <li><strong>RCON启用 (RCONEnabled)</strong> - 固定为True</li>
+          </ul>
+          <p class="mt-2">这些参数会在启动时自动添加到启动参数字符串中。</p>
+        </div>
+      </div>
+    </div>
 
     <div v-if="editMode === 'text'" class="bg-green-50 border border-green-200 rounded-lg p-4">
       <div class="flex flex-col sm:flex-row items-start">
