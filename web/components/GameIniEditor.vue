@@ -328,14 +328,99 @@ const resetToDefault = () => {
   const server = props.server
   
   textContent.value = `[/script/shootergame.shootergamemode]
+# 基础游戏设置
 bUseSingleplayerSettings=false
 bDisableStructurePlacementCollision=false
 bAllowFlyerCarryPvE=true
-bDisableStructureDecayPvE=false
 bAllowUnlimitedRespecs=true
-bAllowPlatformSaddleMultiFloors=true
 bPassiveDefensesDamageRiderlessDinos=true
+bAllowCustomRecipes=true
+bUseCorpseLocator=false
+bDisableLootCrates=false
+bPvEDisableFriendlyFire=false
+bDisableFriendlyFire=false
+
+# 经验值和等级设置
+OverrideMaxExperiencePointsPlayer=0
+OverrideMaxExperiencePointsDino=0
+OverridePlayerLevelEngramPoints=0
+KillXPMultiplier=1.0
+HarvestXPMultiplier=1.0
+CraftXPMultiplier=1.0
+GenericXPMultiplier=1.0
+SpecialXPMultiplier=1.0
+
+# 繁殖设置
+MatingIntervalMultiplier=1.0
+MatingSpeedMultiplier=1.0
+EggHatchSpeedMultiplier=1.0
+BabyMatureSpeedMultiplier=1.0
+BabyCuddleIntervalMultiplier=1.0
+BabyFoodConsumptionSpeedMultiplier=1.0
+BabyImprintingStatScaleMultiplier=1.0
+BabyImprintAmountMultiplier=1.0
+BabyCuddleGracePeriodMultiplier=1.0
+BabyCuddleLoseImprintQualitySpeedMultiplier=1.0
+
+# 物品和资源设置
+CropGrowthSpeedMultiplier=1.0
+CropDecaySpeedMultiplier=1.0
+GlobalSpoilingTimeMultiplier=1.0
+GlobalItemDecompositionTimeMultiplier=1.0
+GlobalCorpseDecompositionTimeMultiplier=1.0
+UseCorpseLifeSpanMultiplier=1.0
+SupplyCrateLootQualityMultiplier=1.0
+FishingLootQualityMultiplier=1.0
+CustomRecipeEffectivenessMultiplier=1.0
+CustomRecipeSkillMultiplier=1.0
+CraftingSkillBonusMultiplier=1.0
+ResourceNoReplenishRadiusPlayers=1.0
+ResourceNoReplenishRadiusStructures=1.0
+DinoHarvestingDamageMultiplier=1.0
+PlayerHarvestingDamageMultiplier=1.0
+
+# 恐龙设置
+TamedDinoCharacterFoodDrainMultiplier=1.0
+WildDinoCharacterFoodDrainMultiplier=1.0
+WildDinoTorporDrainMultiplier=1.0
+TamedDinoTorporDrainMultiplier=1.0
+PassiveTameIntervalMultiplier=1.0
+DinoTurretDamageMultiplier=1.0
+DestroyTamesOverLevelClamp=0
+
+# 部落和玩家设置
 MaxNumberOfPlayersInTribe=0
+MaxAlliancesPerTribe=0
+MaxTribesPerAlliance=0
+TribeSlotReuseCooldown=0
+MaxTribeLogs=100
+KickIdlePlayersPeriod=0
+
+# PvP设置
+IncreasePvPRespawnIntervalCheckPeriod=300
+IncreasePvPRespawnIntervalMultiplier=2.0
+IncreasePvPRespawnIntervalBaseAmount=60
+AutoPvEStartTimeSeconds=0
+AutoPvEStopTimeSeconds=0
+PvPZoneStructureDamageMultiplier=1.0
+
+# 建筑和结构设置
+StructureDamageRepairCooldown=180
+StructureResistanceMultiplier=1.0
+StructureDamageMultiplier=1.0
+PvEStructureDecayPeriodMultiplier=1.0
+FastDecayInterval=0
+
+# 高级设置
+HairGrowthSpeedMultiplier=1.0
+PoopIntervalMultiplier=1.0
+LayEggIntervalMultiplier=1.0
+FuelConsumptionIntervalMultiplier=1.0
+GlobalPoweredBatteryDurabilityDecreasePerSecond=0
+LimitNonPlayerDroppedItemsRange=0
+LimitNonPlayerDroppedItemsCount=0
+MaxFallSpeedMultiplier=1.0
+PreventOfflinePvPConnectionInvincibleInterval=0
 
 [/script/engine.gamesession]
 MaxPlayers=70
@@ -369,17 +454,8 @@ HarvestHealthMultiplier=1.0
 DayCycleSpeedScale=1.0
 NightTimeSpeedScale=1.0
 
-# 结构相关
-StructureResistanceMultiplier=1.0
-StructureDamageMultiplier=1.0
-StructureDamageRepairCooldown=180
-PvEStructureDecayPeriodMultiplier=1.0
-
 # PvP相关设置
-bPvEDisableFriendlyFire=False
-bEnablePvPGamma=False
-bDisableFriendlyFire=False
-bAllowFlyerCarryPvE=True`
+bEnablePvPGamma=false`
 
   emit('update:modelValue', textContent.value)
 }
