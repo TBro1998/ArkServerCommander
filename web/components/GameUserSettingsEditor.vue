@@ -77,16 +77,12 @@
             </label>
             
             <!-- Boolean 类型 -->
-            <div v-if="param.type === 'boolean'" class="flex items-center space-x-2">
-              <input
+            <div v-if="param.type === 'boolean'">
+              <ToggleSwitch
                 :id="paramKey"
                 v-model="visualConfig[paramKey]"
-                type="checkbox"
-                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                :label="visualConfig[paramKey] ? '启用' : '禁用'"
               />
-              <span class="text-sm text-gray-600">
-                {{ visualConfig[paramKey] ? '启用' : '禁用' }}
-              </span>
             </div>
             
             <!-- Number 类型 -->
@@ -209,6 +205,7 @@
 <script setup>
 import { gameUserSettingsParams } from '../utils/gameUserSettingsParams.js'
 import { extractConfigValues, formatConfigContent } from '../utils/configParser.js'
+import ToggleSwitch from './ToggleSwitch.vue'
 
 // Props
 const props = defineProps({

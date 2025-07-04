@@ -188,13 +188,13 @@
                     v-model="formData.admin_password"
                     :type="showFormPassword ? 'text' : 'password'"
                     required
-                    class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="w-full px-3 py-2 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                     placeholder="输入管理员密码（同时作为RCON密码）"
                   />
                   <button
                     type="button"
                     @click="toggleFormPassword"
-                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-blue-600 transition-colors duration-200"
                     :title="showFormPassword ? '隐藏密码' : '显示密码'"
                   >
                     <svg v-if="showFormPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,132 +227,10 @@
           </div>
 
           <!-- 启动参数 SERVER_ARGS 选项卡 -->
-          <div v-if="activeTab === 'server_args'" class="flex-1 flex flex-col space-y-4">
-            <div class="flex justify-between items-center flex-shrink-0">
-              <label class="block font-bold mb-1">启动参数（精细控制）</label>
-              <div class="flex gap-2">
-                <button @click="resetToDefaults" class="text-blue-600 text-sm hover:underline">重置为默认</button>
-                <button @click="showAdvancedMode = !showAdvancedMode" class="text-gray-600 text-sm hover:underline">
-                  {{ showAdvancedMode ? '隐藏' : '显示' }}高级参数
-                </button>
-              </div>
-            </div>
-            
-
-            
-            <!-- 参数分类标签 -->
-            <div class="border-b border-gray-200 flex-shrink-0">
-              <nav class="-mb-px flex space-x-4 overflow-x-auto">
-                <button
-                  v-for="category in visibleCategories"
-                  :key="category.key"
-                  @click="activeParamCategory = category.key"
-                  :class="[
-                    'py-2 px-3 border-b-2 font-medium text-sm whitespace-nowrap',
-                    activeParamCategory === category.key
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  ]"
-                >
-                  {{ category.name }}
-                </button>
-              </nav>
-            </div>
-
-            <!-- 参数列表 -->
-            <div class="flex-1 min-h-96 overflow-y-auto">
-              <div v-for="category in visibleCategories" :key="category.key" v-show="activeParamCategory === category.key" class="space-y-3">
-                <!-- 预定义参数 -->
-                <div v-if="category.key !== 'custom'" v-for="param in category.params" :key="param.name" class="border rounded-lg p-3">
-                  <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                      <div class="flex items-center gap-2 mb-1">
-                        <label class="font-medium text-sm">{{ param.name }}</label>
-                        <span class="text-xs text-gray-500">{{ param.type === 'boolean' ? '开关' : param.type === 'number' ? '数值' : '文本' }}</span>
-                      </div>
-                      <p class="text-xs text-gray-600 mb-2">{{ param.description }}</p>
-                      
-                      <!-- 参数值编辑 -->
-                      <div class="space-y-2">
-                        <!-- 布尔值参数 -->
-                        <div v-if="param.type === 'boolean'" class="flex items-center gap-2">
-                          <input
-                            :id="'param-' + param.name"
-                            :checked="getParamValue(param.name)"
-                            @change="setParamValue(param.name, $event.target.checked)"
-                            type="checkbox"
-                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label :for="'param-' + param.name" class="text-sm">
-                            {{ getParamValue(param.name) ? '启用' : '禁用' }}
-                          </label>
-                        </div>
-                        
-                        <!-- 数值参数 -->
-                        <div v-if="param.type === 'number'" class="flex items-center gap-2">
-                          <input
-                            :value="getParamValue(param.name)"
-                            @input="setParamValue(param.name, $event.target.value)"
-                            type="number"
-                            :min="param.min"
-                            :max="param.max"
-                            :step="param.step || 1"
-                            class="w-32 px-2 py-1 border rounded text-sm"
-                            :placeholder="param.default?.toString()"
-                          />
-                          <span class="text-xs text-gray-500">
-                            {{ param.min !== undefined && param.max !== undefined ? `范围: ${param.min}-${param.max}` : '' }}
-                          </span>
-                        </div>
-                        
-                        <!-- 字符串参数 -->
-                        <div v-if="param.type === 'string'" class="flex items-center gap-2">
-                          <template v-if="param.options">
-                            <input
-                              :value="getParamValue(param.name)"
-                              @input="setParamValue(param.name, $event.target.value)"
-                              list="options-param.name"
-                              class="w-64 px-2 py-1 border rounded text-sm"
-                              :placeholder="param.default || ''"
-                            />
-                            <datalist :id="'options-' + param.name">
-                              <option v-for="option in param.options" :key="option" :value="option">{{ option }}</option>
-                            </datalist>
-                          </template>
-                          <input
-                            v-else
-                            :value="getParamValue(param.name)"
-                            @input="setParamValue(param.name, $event.target.value)"
-                            type="text"
-                            class="w-64 px-2 py-1 border rounded text-sm"
-                            :placeholder="param.default || ''"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <!-- 重置按钮 -->
-                    <button
-                      @click="resetParam(param.name)"
-                      class="text-gray-400 hover:text-gray-600 text-xs"
-                      title="重置为默认值"
-                    >
-                      重置
-                    </button>
-                  </div>
-                </div>
-                
-                <!-- 自定义参数 -->
-                <div v-if="category.key === 'custom'" class="space-y-3">
-                  <div class="font-semibold text-sm mb-2">自定义参数</div>
-                  <div v-for="(arg, idx) in formData.server_args.custom_args" :key="'custom-'+idx" class="flex gap-2 mb-1">
-                    <input v-model="formData.server_args.custom_args[idx]" class="flex-1 border rounded px-2 py-1 text-sm" placeholder="自定义参数" />
-                    <button @click="deleteCustomArg(idx)" class="text-red-500 text-sm px-2">删除</button>
-                  </div>
-                  <button @click="addCustomArg" class="text-blue-600 text-sm">+ 添加自定义参数</button>
-                </div>
-              </div>
-            </div>
+          <div v-if="activeTab === 'server_args'" class="flex-1 flex flex-col">
+            <ServerArgsEditor
+              v-model="formData.server_args"
+            />
           </div>
 
         </div>
@@ -364,6 +242,8 @@
 <script setup>
 import GameUserSettingsEditor from './GameUserSettingsEditor.vue'
 import GameIniEditor from './GameIniEditor.vue'
+import ServerArgsEditor from './ServerArgsEditor.vue'
+import ToggleSwitch from './ToggleSwitch.vue'
 import { ref, computed, watch } from 'vue'
 import { queryParams, commandLineArgs, categories, getParamsByCategory, getDefaultValues } from '~/utils/arkServerParams'
 
@@ -398,8 +278,6 @@ const emit = defineEmits(['close', 'save'])
 // 本地状态
 const activeTab = ref('basic')
 const showFormPassword = ref(false)
-const showAdvancedMode = ref(false)
-const activeParamCategory = ref('basic')
 
 // 表单数据
 const formData = ref({
@@ -416,42 +294,7 @@ const formData = ref({
   server_args: { query_params: {}, command_line_args: {}, custom_args: [] }
 })
 
-// 获取可见的分类
-const visibleCategories = computed(() => {
-  const paramsByCategory = getParamsByCategory()
-  const result = []
-  
-  Object.entries(categories).forEach(([key, category]) => {
-    if (key === 'custom') {
-      // 自定义参数分类总是显示
-      result.push({
-        key,
-        name: category.name,
-        description: category.description,
-        params: [] // 自定义参数由前端动态管理
-      })
-    } else {
-      const params = paramsByCategory[key] || []
-      if (params.length > 0) {
-        // 过滤高级参数
-        const visibleParams = showAdvancedMode.value 
-          ? params 
-          : params.filter(p => !['advanced', 'maintenance'].includes(p.category))
-        
-        if (visibleParams.length > 0) {
-          result.push({
-            key,
-            name: category.name,
-            description: category.description,
-            params: visibleParams
-          })
-        }
-      }
-    }
-  })
-  
-  return result
-})
+
 
 // 切换密码显示
 const toggleFormPassword = () => {
@@ -463,8 +306,6 @@ watch(() => props.show, (newShow) => {
   if (newShow) {
     activeTab.value = 'basic'
     showFormPassword.value = false
-    showAdvancedMode.value = false
-    activeParamCategory.value = 'basic'
     
     if (props.mode === 'create') {
       // 创建模式：重置表单
@@ -537,82 +378,7 @@ function ensureServerArgsStruct(val) {
   }
 }
 
-// 获取参数值（支持查询参数和命令行参数）
-function getParamValue(paramName) {
-  const queryParam = queryParams[paramName]
-  const cmdParam = commandLineArgs[paramName]
-  
-  if (queryParam) {
-    const value = formData.value.server_args.query_params[paramName]
-    // 对于布尔类型的查询参数，需要将字符串转换为布尔值用于UI显示
-    if (queryParam.type === 'boolean') {
-      if (value === 'True' || value === 'true' || value === true) {
-        return true
-      } else if (value === 'False' || value === 'false' || value === false) {
-        return false
-      } else {
-        // 如果值未设置，返回默认值
-        return queryParam.default === 'True' || queryParam.default === 'true'
-      }
-    }
-    return value
-  } else if (cmdParam) {
-    return formData.value.server_args.command_line_args[paramName]
-  }
-  return null
-}
 
-// 设置参数值
-function setParamValue(paramName, value) {
-  const queryParam = queryParams[paramName]
-  const cmdParam = commandLineArgs[paramName]
-  
-  if (queryParam) {
-    // 查询参数的值必须是字符串类型
-    if (typeof value === 'boolean') {
-      formData.value.server_args.query_params[paramName] = value ? 'True' : 'False'
-    } else if (value === null || value === undefined) {
-      formData.value.server_args.query_params[paramName] = ''
-    } else {
-      formData.value.server_args.query_params[paramName] = String(value)
-    }
-  } else if (cmdParam) {
-    // 命令行参数可以保持原始类型
-    formData.value.server_args.command_line_args[paramName] = value
-  }
-}
-
-// 重置参数为默认值
-function resetParam(paramName) {
-  const queryParam = queryParams[paramName]
-  const cmdParam = commandLineArgs[paramName]
-  
-  if (queryParam) {
-    // 查询参数的默认值需要转换为字符串
-    if (typeof queryParam.default === 'boolean') {
-      formData.value.server_args.query_params[paramName] = queryParam.default ? 'True' : 'False'
-    } else {
-      formData.value.server_args.query_params[paramName] = String(queryParam.default || '')
-    }
-  } else if (cmdParam) {
-    formData.value.server_args.command_line_args[paramName] = cmdParam.default
-  }
-}
-
-// 重置所有参数为默认值
-function resetToDefaults() {
-  if (confirm('确定要重置所有参数为默认值吗？')) {
-    formData.value.server_args = getDefaultValues()
-  }
-}
-
-// 新增/删除自定义参数
-function addCustomArg() {
-  formData.value.server_args.custom_args.push('')
-}
-function deleteCustomArg(idx) {
-  formData.value.server_args.custom_args.splice(idx, 1)
-}
 
 // 保存服务器
 const saveServer = () => {
