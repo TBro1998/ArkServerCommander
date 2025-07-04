@@ -74,15 +74,15 @@
               Game.ini
             </button>
             <button
-              @click="activeTab = 'server_config'"
+              @click="activeTab = 'server_args'"
               :class="[
                 'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap',
-                activeTab === 'server_config'
+                activeTab === 'server_args'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               ]"
             >
-              server.cfg
+              启动参数（SERVER_ARGS）
             </button>
           </nav>
         </div>
@@ -217,12 +217,31 @@
             />
           </div>
 
-          <!-- server.cfg 选项卡 -->
-          <div v-if="activeTab === 'server_config'" class="space-y-4">
-            <ServerConfigEditor
-              v-model="formData.server_config"
-              :server="server"
-            />
+          <!-- 启动参数 SERVER_ARGS 选项卡 -->
+          <div v-if="activeTab === 'server_args'" class="space-y-4">
+            <label class="block font-bold mb-1">启动参数（SERVER_ARGS）</label>
+            <textarea
+              v-model="formData.server_args"
+              rows="6"
+              class="w-full border rounded p-2 font-mono text-sm"
+              placeholder="如：TheIsland?listen?Port=7777?QueryPort=27015?MaxPlayers=70?RCONEnabled=True?RCONPort=32330?ServerAdminPassword=password -NoBattlEye -servergamelog ..."
+            ></textarea>
+            <div class="text-xs text-gray-500 mt-1">
+              参考参数：<a href="https://ark.fandom.com/wiki/Server_configuration#Command_line_arguments" target="_blank" class="text-blue-600 underline">ARK Wiki Command Line Arguments</a>
+            </div>
+            <details class="mt-2">
+              <summary class="cursor-pointer text-xs text-gray-600">常用参数说明</summary>
+              <ul class="text-xs text-gray-500 list-disc ml-5">
+                <li><b>?Port=</b> 游戏端口</li>
+                <li><b>?QueryPort=</b> 查询端口</li>
+                <li><b>?RCONPort=</b> RCON端口</li>
+                <li><b>?ServerAdminPassword=</b> 管理员密码</li>
+                <li><b>?GameModIds=</b> Mod ID 列表</li>
+                <li><b>-NoBattlEye</b> 关闭BattlEye</li>
+                <li><b>-servergamelog</b> 启用服务器日志</li>
+                <!-- 可补充更多常用参数 -->
+              </ul>
+            </details>
           </div>
 
         </div>
@@ -278,7 +297,8 @@ const formData = ref({
   map: 'TheIsland',
   game_user_settings: '',
   game_ini: '',
-  server_config: ''
+  server_config: '',
+  server_args: ''
 })
 
 // 切换密码显示
@@ -303,7 +323,8 @@ watch(() => props.show, (newShow) => {
         map: 'TheIsland',
         game_user_settings: '',
         game_ini: '',
-        server_config: ''
+        server_config: '',
+        server_args: ''
       }
     } else if (props.mode === 'edit' && props.server) {
       // 编辑模式：填充当前服务器数据
@@ -316,7 +337,8 @@ watch(() => props.show, (newShow) => {
         map: props.server.map || 'TheIsland',
         game_user_settings: props.server.game_user_settings || '',
         game_ini: props.server.game_ini || '',
-        server_config: props.server.server_config || ''
+        server_config: props.server.server_config || '',
+        server_args: props.server.server_args || ''
       }
     }
   }
@@ -334,7 +356,8 @@ watch(() => props.server, (newServer) => {
       map: newServer.map || 'TheIsland',
       game_user_settings: newServer.game_user_settings || '',
       game_ini: newServer.game_ini || '',
-      server_config: newServer.server_config || ''
+      server_config: newServer.server_config || '',
+      server_args: newServer.server_args || ''
     }
   }
 }, { deep: true })

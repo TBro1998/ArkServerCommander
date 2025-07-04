@@ -1,6 +1,7 @@
 package docker_manager
 
 import (
+	"ark-server-manager/models"
 	"ark-server-manager/utils"
 	"context"
 	"fmt"
@@ -133,9 +134,10 @@ func (dm *DockerManager) EnsureRequiredImages() error {
 // rconPort: RCON端口
 // adminPassword: 管理员密码
 // mapName: 地图名称
+// gameModIds: 游戏模组ID列表，用逗号分隔
 // autoRestart: 是否自动重启
 // 返回: 容器ID和错误信息
-func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName string, autoRestart bool) (string, error) {
+func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName, gameModIds string, autoRestart bool) (string, error) {
 	containerName := utils.GetServerContainerName(serverID)
 	volumeName := utils.GetServerVolumeName(serverID)
 	imageName := "tbro98/ase-server:latest"
@@ -159,12 +161,31 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		return "", fmt.Errorf("镜像 %s 不存在，请等待镜像下载完成", imageName)
 	}
 
+	// 生成服务器启动参数
+	serverArgs := utils.GenerateServerArgs(models.Server{
+		Map:           mapName,
+		Port:          port,
+		QueryPort:     queryPort,
+		RCONPort:      rconPort,
+		AdminPassword: adminPassword,
+		GameModIds:    gameModIds,
+	})
+
+	// 构建环境变量
+	envVars := []string{
+		"TZ=Asia/Shanghai",
+		fmt.Sprintf("SERVER_ARGS=%s", serverArgs),
+	}
+	
+	// 添加GameModIds环境变量（如果不为空）
+	if gameModIds != "" {
+		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", gameModIds))
+	}
+
 	// 构建容器配置
 	containerConfig := &container.Config{
 		Image: imageName,
-		Env: []string{
-			"TZ=Asia/Shanghai",
-		},
+		Env:   envVars,
 		ExposedPorts: nat.PortSet{
 			nat.Port(fmt.Sprintf("%d/udp", port)):      struct{}{},
 			nat.Port(fmt.Sprintf("%d/tcp", port)):      struct{}{},

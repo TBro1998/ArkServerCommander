@@ -302,3 +302,30 @@ func ListConfigFiles(serverID uint) ([]models.ServerConfigFileInfo, error) {
 
 	return files, nil
 }
+
+// GenerateServerArgs 生成ARK服务器的启动参数
+// 根据服务器配置生成完整的SERVER_ARGS环境变量
+func GenerateServerArgs(server models.Server) string {
+	// 基础服务器参数
+	args := fmt.Sprintf("%s?listen?Port=%d?QueryPort=%d?MaxPlayers=70?RCONEnabled=True?RCONPort=%d?ServerAdminPassword=%s",
+		server.Map, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword)
+
+	// 添加模组ID（如果有的话）
+	if server.GameModIds != "" {
+		args += fmt.Sprintf("?GameModIds=%s", server.GameModIds)
+	}
+
+	// 添加其他必要的启动参数
+	args += " -NoBattlEye -servergamelog -structurememopts -UseStructureStasisGrid -SecureSendArKPayload -UseItemDupeCheck -UseSecureSpawnRules -nosteamclient -game -server -log -MinimumTimeBetweenInventoryRetrieval=3600 -newsaveformat -usestore"
+
+	return args
+}
+
+// GenerateGameModIdsEnv 生成GameModIds环境变量
+// 如果GameModIds为空，返回空字符串
+func GenerateGameModIdsEnv(gameModIds string) string {
+	if gameModIds == "" {
+		return ""
+	}
+	return gameModIds
+}

@@ -80,6 +80,7 @@ func InitializeDockerForExistingServers() error {
 				server.RCONPort,
 				server.AdminPassword,
 				server.Map,
+				server.GameModIds,
 				server.AutoRestart,
 			)
 			if err != nil {

@@ -77,6 +77,7 @@ func GetServers(c *gin.Context) {
 			RCONPort:      server.RCONPort,
 			AdminPassword: server.AdminPassword,
 			Map:           server.Map,
+			GameModIds:    server.GameModIds,
 			Status:        realTimeStatus,
 			AutoRestart:   server.AutoRestart,
 			UserID:        server.UserID,
@@ -153,6 +154,7 @@ func CreateServer(c *gin.Context) {
 		RCONPort:      req.RCONPort,
 		AdminPassword: req.AdminPassword,
 		Map:           req.Map,
+		GameModIds:    req.GameModIds,
 		Status:        "stopped",
 		AutoRestart:   *req.AutoRestart,
 		UserID:        userID,
@@ -201,12 +203,6 @@ func CreateServer(c *gin.Context) {
 		fmt.Printf("Warning: Failed to create default Game.ini: %v\n", err)
 	}
 
-	// 创建默认的server.cfg文件
-	serverConfig := utils.GetDefaultServerConfig(server.Identifier, server.Map, server.Port, server.QueryPort, server.RCONPort, 70, server.AdminPassword)
-	if err := dockerManager.WriteConfigFile(server.ID, utils.ServerConfigFileName, serverConfig); err != nil {
-		fmt.Printf("Warning: Failed to create default server.cfg: %v\n", err)
-	}
-
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
 		// 提交失败，清理Docker资源
@@ -223,6 +219,7 @@ func CreateServer(c *gin.Context) {
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
+		GameModIds:    server.GameModIds,
 		Status:        server.Status,
 		AutoRestart:   server.AutoRestart,
 		UserID:        server.UserID,
@@ -273,6 +270,7 @@ func GetServer(c *gin.Context) {
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
+		GameModIds:    server.GameModIds,
 		Status:        server.Status,
 		AutoRestart:   server.AutoRestart,
 		UserID:        server.UserID,
@@ -291,9 +289,6 @@ func GetServer(c *gin.Context) {
 	}
 	if gameIni, err := dockerManager.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
 		response.GameIni = gameIni
-	}
-	if serverConfig, err := dockerManager.ReadConfigFile(uint(id), utils.ServerConfigFileName); err == nil {
-		response.ServerConfig = serverConfig
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -489,6 +484,9 @@ func UpdateServer(c *gin.Context) {
 	if req.Map != "" {
 		server.Map = req.Map
 	}
+	if req.GameModIds != "" {
+		server.GameModIds = req.GameModIds
+	}
 
 	if err := database.DB.Save(&server).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器更新失败"})
@@ -529,12 +527,7 @@ func UpdateServer(c *gin.Context) {
 				return
 			}
 		}
-		if req.ServerConfig != "" {
-			if err := dockerManager.WriteConfigFile(uint(id), utils.ServerConfigFileName, req.ServerConfig); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入server.cfg失败: %v", err)})
-				return
-			}
-		}
+
 	}
 
 	response := models.ServerResponse{
@@ -545,6 +538,7 @@ func UpdateServer(c *gin.Context) {
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
+		GameModIds:    server.GameModIds,
 		Status:        server.Status,
 		AutoRestart:   server.AutoRestart,
 		UserID:        server.UserID,
@@ -563,9 +557,6 @@ func UpdateServer(c *gin.Context) {
 	}
 	if gameIni, err := dockerManager2.ReadConfigFile(uint(id), utils.GameIniFileName); err == nil {
 		response.GameIni = gameIni
-	}
-	if serverConfig, err := dockerManager2.ReadConfigFile(uint(id), utils.ServerConfigFileName); err == nil {
-		response.ServerConfig = serverConfig
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -728,7 +719,7 @@ func StartServer(c *gin.Context) {
 
 		if !containerExists {
 			// 创建容器
-			_, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.AutoRestart)
+			_, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.GameModIds, server.AutoRestart)
 			if err != nil {
 				fmt.Printf("Failed to create Docker container: %v\n", err)
 				database.DB.Model(&server).Update("status", "stopped")
