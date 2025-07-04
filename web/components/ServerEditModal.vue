@@ -253,7 +253,6 @@
 <script setup>
 import GameUserSettingsEditor from './GameUserSettingsEditor.vue'
 import GameIniEditor from './GameIniEditor.vue'
-import ServerConfigEditor from './ServerConfigEditor.vue'
 
 // Props
 const props = defineProps({
