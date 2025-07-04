@@ -16,6 +16,12 @@ export const gameUserSettingsParams = {
         default: '',
         description: '玩家加入服务器需要的密码，留空表示无密码'
       },
+      ServerAdminPassword: {
+        type: 'password',
+        label: '管理员密码',
+        default: '',
+        description: '管理员访问服务器控制台命令的密码'
+      },
       SpectatorPassword: {
         type: 'password',
         label: '观察者密码',
@@ -39,7 +45,7 @@ export const gameUserSettingsParams = {
       AdminLogging: {
         type: 'boolean',
         label: '管理员日志',
-        default: false,
+        default: true,
         description: '将所有管理员命令记录到游戏聊天中'
       }
     }
@@ -64,13 +70,13 @@ export const gameUserSettingsParams = {
       ShowMapPlayerLocation: {
         type: 'boolean',
         label: '显示玩家位置',
-        default: true,
+        default: false,
         description: '在地图上显示玩家自己的位置'
       },
       AllowThirdPersonPlayer: {
         type: 'boolean',
         label: '允许第三人称',
-        default: true,
+        default: false,
         description: '允许玩家使用第三人称视角'
       },
       ServerCrosshair: {
@@ -131,13 +137,13 @@ export const gameUserSettingsParams = {
       alwaysNotifyPlayerJoined: {
         type: 'boolean',
         label: '总是通知玩家加入',
-        default: true,
+        default: false,
         description: '玩家加入服务器时总是通知其他玩家'
       },
       alwaysNotifyPlayerLeft: {
         type: 'boolean',
         label: '总是通知玩家离开',
-        default: true,
+        default: false,
         description: '玩家离开服务器时总是通知其他玩家'
       },
       DontAlwaysNotifyPlayerJoined: {
@@ -367,7 +373,7 @@ export const gameUserSettingsParams = {
       MaxTamedDinos: {
         type: 'number',
         label: '最大驯服恐龙数',
-        default: 5000,
+        default: 4000,
         min: 0,
         max: 50000,
         description: '服务器全局驯服恐龙数量上限'
@@ -421,6 +427,18 @@ export const gameUserSettingsParams = {
         max: 10,
         step: 0.1,
         description: '突袭恐龙(如泰坦龙)食物消耗速度倍率'
+      },
+      AllowFlyerCarryPvE: {
+        type: 'boolean',
+        label: 'PvE飞行载具抓取',
+        default: false,
+        description: 'PvE模式下允许飞行生物抓取野生恐龙和玩家'
+      },
+      bForceCanRideFliers: {
+        type: 'boolean',
+        label: '强制允许骑乘飞行生物',
+        default: false,
+        description: '允许在通常禁用飞行生物的地图上使用飞行生物'
       }
     }
   },
@@ -465,7 +483,7 @@ export const gameUserSettingsParams = {
       DifficultyOffset: {
         type: 'number',
         label: '难度偏移',
-        default: 1.0,
+        default: 0.2,
         min: 0,
         max: 1,
         step: 0.1,
@@ -519,6 +537,22 @@ export const gameUserSettingsParams = {
         max: 50000,
         description: '特定范围内可建造的最大建筑数量'
       },
+      NewMaxStructuresInRange: {
+        type: 'number',
+        label: '新范围内最大建筑数',
+        default: 6000,
+        min: 1000,
+        max: 50000,
+        description: '新的建筑数量限制系统'
+      },
+      MaxStructuresInRange: {
+        type: 'number',
+        label: '最大建筑范围数',
+        default: 1300,
+        min: 100,
+        max: 10000,
+        description: '建筑范围限制的最大数量'
+      },
       DisableStructureDecayPvE: {
         type: 'boolean',
         label: '禁用PvE建筑腐朽',
@@ -537,11 +571,10 @@ export const gameUserSettingsParams = {
       PvEStructureDecayDestructionPeriod: {
         type: 'number',
         label: 'PvE建筑腐朽销毁期',
-        default: 1.0,
-        min: 0.1,
-        max: 10,
-        step: 0.1,
-        description: 'PvE模式下建筑腐朽销毁时间'
+        default: 0,
+        min: 0,
+        max: 1000,
+        description: 'PvE模式下建筑腐朽销毁时间(天)'
       },
       PvPStructureDecay: {
         type: 'boolean',
@@ -652,7 +685,7 @@ export const gameUserSettingsParams = {
       AllowCaveBuildingPvP: {
         type: 'boolean',
         label: '允许PvP洞穴建造',
-        default: true,
+        default: false,
         description: 'PvP模式下允许在洞穴中建造'
       },
       PvEAllowStructuresAtSupplyDrops: {
@@ -666,6 +699,20 @@ export const gameUserSettingsParams = {
         label: '允许补给箱生成在建筑上',
         default: false,
         description: '允许空投补给箱出现在建筑物顶部'
+      },
+      bAllowPlatformSaddleMultiFloors: {
+        type: 'boolean',
+        label: '允许平台鞍多层',
+        default: false,
+        description: '允许平台鞍建造多层建筑'
+      },
+      MaxGateFrameOnSaddles: {
+        type: 'number',
+        label: '鞍座最大门框数',
+        default: 0,
+        min: 0,
+        max: 100,
+        description: '平台鞍上允许的最大门框数量'
       }
     }
   },
@@ -768,7 +815,7 @@ export const gameUserSettingsParams = {
       BanListURL: {
         type: 'text',
         label: '封禁列表URL',
-        default: '',
+        default: 'http://arkdedicated.com/banlist.txt',
         description: '指向在线封禁列表的URL，必须用引号包围'
       }
     }
@@ -781,9 +828,10 @@ export const gameUserSettingsParams = {
       AutoSavePeriodMinutes: {
         type: 'number',
         label: '自动保存间隔',
-        default: 15,
+        default: 15.0,
         min: 1,
         max: 60,
+        step: 0.1,
         description: '自动保存间隔时间(分钟)，设为0将持续保存'
       },
       KickIdlePlayersPeriod: {
@@ -810,6 +858,31 @@ export const gameUserSettingsParams = {
         min: 100,
         max: 10000,
         description: 'RCON服务器游戏日志缓冲区大小'
+      },
+      NPCNetworkStasisRangeScalePlayerCountStart: {
+        type: 'number',
+        label: 'NPC网络停滞范围玩家数起始',
+        default: 0,
+        min: 0,
+        max: 1000,
+        description: 'NPC网络停滞范围缩放的玩家数量起始值'
+      },
+      NPCNetworkStasisRangeScalePlayerCountEnd: {
+        type: 'number',
+        label: 'NPC网络停滞范围玩家数结束',
+        default: 0,
+        min: 0,
+        max: 1000,
+        description: 'NPC网络停滞范围缩放的玩家数量结束值'
+      },
+      NPCNetworkStasisRangeScalePercentEnd: {
+        type: 'number',
+        label: 'NPC网络停滞范围缩放百分比结束',
+        default: 0,
+        min: 0,
+        max: 100,
+        step: 0.1,
+        description: 'NPC网络停滞范围缩放的百分比结束值'
       }
     }
   },
@@ -935,6 +1008,30 @@ export const gameUserSettingsParams = {
         min: 0,
         max: 86400,
         description: '允许恐龙重新上传之间的冷却时间(秒)'
+      },
+      TributeItemExpirationSeconds: {
+        type: 'number',
+        label: '贡品物品过期时间',
+        default: 86400,
+        min: 0,
+        max: 604800,
+        description: '上传物品的过期时间(秒)'
+      },
+      TributeDinoExpirationSeconds: {
+        type: 'number',
+        label: '贡品恐龙过期时间',
+        default: 86400,
+        min: 0,
+        max: 604800,
+        description: '上传恐龙的过期时间(秒)'
+      },
+      TributeCharacterExpirationSeconds: {
+        type: 'number',
+        label: '贡品角色过期时间',
+        default: 86400,
+        min: 0,
+        max: 604800,
+        description: '上传角色的过期时间(秒)'
       }
     }
   },
@@ -943,12 +1040,6 @@ export const gameUserSettingsParams = {
   flyerSettings: {
     title: '飞行载具设置',
     params: {
-      AllowFlyerCarryPvE: {
-        type: 'boolean',
-        label: 'PvE飞行载具抓取',
-        default: false,
-        description: 'PvE模式下允许飞行生物抓取野生恐龙'
-      },
       AllowFlyingStaminaRecovery: {
         type: 'boolean',
         label: '飞行耐力恢复',
@@ -989,8 +1080,8 @@ export const gameUserSettingsParams = {
       AllowSharedConnections: {
         type: 'boolean',
         label: '允许共享连接',
-        default: true,
-        description: '允许共享网络连接'
+        default: false,
+        description: '允许共享网络连接，False表示禁用家庭共享'
       },
       bFilterTribeNames: {
         type: 'boolean',
@@ -1013,8 +1104,40 @@ export const gameUserSettingsParams = {
       EnableCryoSicknessPVE: {
         type: 'boolean',
         label: '启用PvE冷冻舱疾病',
-        default: false,
+        default: true,
         description: 'PvE模式下启用冷冻舱疾病机制'
+      },
+      EnableCryopodNerf: {
+        type: 'boolean',
+        label: '启用冷冻舱削弱',
+        default: false,
+        description: '启用从冷冻舱部署生物时的冷冻疾病'
+      },
+      CryopodNerfDuration: {
+        type: 'number',
+        label: '冷冻舱削弱持续时间',
+        default: 10,
+        min: 0,
+        max: 3600,
+        description: '从冷冻舱部署生物后冷冻疾病持续时间(秒)'
+      },
+      CryopodNerfDamageMult: {
+        type: 'number',
+        label: '冷冻舱削弱伤害倍率',
+        default: 0.01,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        description: '从冷冻舱部署的生物造成的伤害倍率'
+      },
+      CryopodNerfIncomingDamageMultPercent: {
+        type: 'number',
+        label: '冷冻舱削弱受到伤害倍率',
+        default: 0.25,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        description: '从冷冻舱部署的生物受到伤害的倍率'
       },
       DisableCryopodEnemyCheck: {
         type: 'boolean',
@@ -1049,6 +1172,18 @@ export const gameUserSettingsParams = {
         min: 0,
         max: 2000000000,
         description: '每个角色可以拥有的最大六边形数量'
+      },
+      AllowTekSuitPowersInGenesis: {
+        type: 'boolean',
+        label: '允许创世纪TEK套装能力',
+        default: false,
+        description: '在创世纪第一部分启用或禁用TEK套装能力'
+      },
+      CustomDynamicConfigUrl: {
+        type: 'text',
+        label: '自定义动态配置URL',
+        default: '',
+        description: '配置文件的直接链接'
       }
     }
   }
