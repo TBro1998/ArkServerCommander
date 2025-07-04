@@ -144,11 +144,7 @@ func ensureDefaultConfigFiles(dockerManager *DockerManager, server models.Server
 		gameUserSettings := utils.GetDefaultGameUserSettings(
 			server.Identifier,
 			server.Map,
-			server.Port,
-			server.QueryPort,
-			server.RCONPort,
 			70, // 默认最大玩家数
-			server.AdminPassword,
 		)
 		if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, gameUserSettings); err != nil {
 			return fmt.Errorf("创建默认GameUserSettings.ini失败: %v", err)

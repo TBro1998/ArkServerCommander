@@ -76,12 +76,3 @@ type ServerUpdateRequest struct {
 	// 启动参数（可选）
 	ServerArgs *ServerArgsRequest `json:"server_args,omitempty"` // 启动参数结构
 }
-
-// ServerConfigFileInfo 服务器配置文件信息
-type ServerConfigFileInfo struct {
-	FileName     string `json:"file_name"`     // 文件名
-	FilePath     string `json:"file_path"`     // 文件完整路径
-	FileSize     int64  `json:"file_size"`     // 文件大小（字节）
-	LastModified string `json:"last_modified"` // 最后修改时间
-	Exists       bool   `json:"exists"`        // 文件是否存在
-}

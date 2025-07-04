@@ -12,22 +12,16 @@ const (
 	// 配置文件名常量
 	GameUserSettingsFileName = "GameUserSettings.ini"
 	GameIniFileName          = "Game.ini"
-	ServerConfigFileName     = "server.cfg"
 
 	// 配置文件目录 - 适配新的ASE服务器镜像路径
 	ConfigDirectory = "Config/WindowsServer"
 )
 
 // GetDefaultGameUserSettings 获取默认的GameUserSettings.ini配置
-func GetDefaultGameUserSettings(serverName, mapName string, port, queryPort, rconPort, maxPlayers int, adminPassword string) string {
+func GetDefaultGameUserSettings(serverName, mapName string, maxPlayers int) string {
 	return fmt.Sprintf(`[ServerSettings]
 SessionName=%s
 ServerPassword=
-ServerAdminPassword=%s
-Port=%d
-QueryPort=%d
-RCONEnabled=True
-RCONPort=%d
 MaxPlayers=%d
 
 [SessionSettings]
@@ -36,16 +30,9 @@ SessionName=%s
 [MessageOfTheDay]
 Message=欢迎来到 %s ARK 服务器！
 
-[/Script/ShooterGame.ShooterGameMode]
-bUseSingleplayerSettings=False
-bDisableStructurePlacementCollision=False
-bAllowFlyerCarryPvE=True
-bDisableStructureDecayPvE=False
-
-[RCONSettings]
-RCONEnabled=True
-RCONPort=%d
-`, serverName, adminPassword, port, queryPort, rconPort, maxPlayers, serverName, serverName, rconPort)
+[/Script/Engine.GameSession]
+MaxPlayers=%d
+`, serverName, maxPlayers, serverName, serverName, maxPlayers)
 }
 
 // GetDefaultGameIni 获取默认的Game.ini配置
@@ -106,23 +93,6 @@ bAllowFlyerCarryPvE=True
 `
 }
 
-// GetDefaultServerConfig 获取默认的server.cfg配置
-func GetDefaultServerConfig(serverName, mapName string, port, queryPort, rconPort, maxPlayers int, adminPassword string) string {
-	return fmt.Sprintf(`PORT=%d
-QUERYPORT=%d
-MAP=%s
-MAX_PLAYERS=%d
-UPDATE_SERVER=false
-UPDATE_MODS=true
-MODIDS="895711211,669673294,1136125765,554678442,926028694,676288311,876038468,566885854"
-SERVER_ARGS="-NoBattlEye -servergamelog -structurememopts -UseStructureStasisGrid -SecureSendArKPayload -UseItemDupeCheck -UseSecureSpawnRules -nosteamclient -game -server -log -MinimumTimeBetweenInventoryRetrieval=3600 -newsaveformat -usestore"
-SESSIONNAME=%s
-ADMINPASSWORD=%s
-RCONENABLED=true
-RCONPORT=%d
-`, port, queryPort, mapName, maxPlayers, serverName, adminPassword, rconPort)
-}
-
 // ValidateINIContent 验证INI内容的基本格式
 func ValidateINIContent(content string) error {
 	if content == "" {
@@ -172,48 +142,6 @@ func GetConfigFilePath(serverID uint, fileName string) string {
 	return filepath.Join(configPath, fileName)
 }
 
-// EnsureConfigDirectory 确保配置文件目录存在
-func EnsureConfigDirectory(serverID uint) error {
-	configPath := GetServerConfigPath(serverID)
-	return os.MkdirAll(configPath, 0755)
-}
-
-// ReadConfigFile 读取配置文件内容
-func ReadConfigFile(serverID uint, fileName string) (string, error) {
-	filePath := GetConfigFilePath(serverID, fileName)
-
-	// 检查文件是否存在
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("配置文件不存在: %s", fileName)
-	}
-
-	// 读取文件内容
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("读取配置文件失败: %v", err)
-	}
-
-	return string(content), nil
-}
-
-// WriteConfigFile 写入配置文件内容
-func WriteConfigFile(serverID uint, fileName, content string) error {
-	// 确保配置目录存在
-	if err := EnsureConfigDirectory(serverID); err != nil {
-		return fmt.Errorf("创建配置目录失败: %v", err)
-	}
-
-	filePath := GetConfigFilePath(serverID, fileName)
-
-	// 写入文件
-	err := os.WriteFile(filePath, []byte(content), 0644)
-	if err != nil {
-		return fmt.Errorf("写入配置文件失败: %v", err)
-	}
-
-	return nil
-}
-
 // GetConfigFileInfo 获取配置文件信息
 func GetConfigFileInfo(serverID uint, fileName string) models.ServerConfigFileInfo {
 	filePath := GetConfigFilePath(serverID, fileName)
@@ -233,74 +161,6 @@ func GetConfigFileInfo(serverID uint, fileName string) models.ServerConfigFileIn
 	}
 
 	return info
-}
-
-// CreateDefaultConfigFiles 为服务器创建默认配置文件
-func CreateDefaultConfigFiles(serverID uint, serverName, mapName string, port, queryPort, rconPort, maxPlayers int, adminPassword string) error {
-	// 确保配置目录存在
-	if err := EnsureConfigDirectory(serverID); err != nil {
-		return err
-	}
-
-	// 创建默认的 GameUserSettings.ini
-	gameUserSettings := GetDefaultGameUserSettings(serverName, mapName, port, queryPort, rconPort, maxPlayers, adminPassword)
-	if err := WriteConfigFile(serverID, GameUserSettingsFileName, gameUserSettings); err != nil {
-		return fmt.Errorf("创建默认 %s 失败: %v", GameUserSettingsFileName, err)
-	}
-
-	// 创建默认的 Game.ini
-	gameIni := GetDefaultGameIni()
-	if err := WriteConfigFile(serverID, GameIniFileName, gameIni); err != nil {
-		return fmt.Errorf("创建默认 %s 失败: %v", GameIniFileName, err)
-	}
-
-	// 创建默认的 server.cfg
-	serverConfig := GetDefaultServerConfig(serverName, mapName, port, queryPort, rconPort, maxPlayers, adminPassword)
-	if err := WriteConfigFile(serverID, ServerConfigFileName, serverConfig); err != nil {
-		return fmt.Errorf("创建默认 %s 失败: %v", ServerConfigFileName, err)
-	}
-
-	return nil
-}
-
-// DeleteConfigFiles 删除服务器的配置文件
-func DeleteConfigFiles(serverID uint) error {
-	configPath := GetServerConfigPath(serverID)
-
-	// 删除整个配置目录
-	if err := os.RemoveAll(configPath); err != nil {
-		return fmt.Errorf("删除配置文件目录失败: %v", err)
-	}
-
-	return nil
-}
-
-// ListConfigFiles 列出服务器配置目录下的所有文件
-func ListConfigFiles(serverID uint) ([]models.ServerConfigFileInfo, error) {
-	configPath := GetServerConfigPath(serverID)
-
-	var files []models.ServerConfigFileInfo
-
-	// 检查配置目录是否存在
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return files, nil // 返回空列表而不是错误
-	}
-
-	// 读取目录内容
-	entries, err := os.ReadDir(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("读取配置目录失败: %v", err)
-	}
-
-	// 处理每个文件
-	for _, entry := range entries {
-		if !entry.IsDir() && (filepath.Ext(entry.Name()) == ".ini" || filepath.Ext(entry.Name()) == ".cfg") {
-			fileInfo := GetConfigFileInfo(serverID, entry.Name())
-			files = append(files, fileInfo)
-		}
-	}
-
-	return files, nil
 }
 
 // GenerateServerArgs 生成ARK服务器的启动参数

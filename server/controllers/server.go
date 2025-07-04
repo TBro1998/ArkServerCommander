@@ -205,7 +205,7 @@ func CreateServer(c *gin.Context) {
 	fmt.Printf("Created Docker volume: %s\n", volumeName)
 
 	// 创建默认配置文件到Docker卷中
-	gameUserSettings := utils.GetDefaultGameUserSettings(server.Identifier, server.Map, server.Port, server.QueryPort, server.RCONPort, 70, server.AdminPassword)
+	gameUserSettings := utils.GetDefaultGameUserSettings(server.Identifier, server.Map, 70)
 	if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, gameUserSettings); err != nil {
 		fmt.Printf("Warning: Failed to create default GameUserSettings.ini: %v\n", err)
 	}

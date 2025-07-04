@@ -22,6 +22,14 @@ export const gameUserSettingsParams = {
         default: '',
         description: '非管理员观察模式密码'
       },
+      MaxPlayers: {
+        type: 'number',
+        label: '最大玩家数',
+        default: 70,
+        min: 1,
+        max: 255,
+        description: '服务器最大玩家数量'
+      },
       AdminLogging: {
         type: 'boolean',
         label: '管理员日志',
@@ -41,7 +49,7 @@ export const gameUserSettingsParams = {
         default: false,
         description: '启用PvE模式，禁用玩家间伤害'
       },
-      ServerHardcore: {
+      serverHardcore: {
         type: 'boolean',
         label: '硬核模式',
         default: false,
@@ -53,7 +61,7 @@ export const gameUserSettingsParams = {
         default: false,
         description: '在地图上显示玩家自己的位置'
       },
-      AllowThirdPersonPlayer: {
+      allowThirdPersonPlayer: {
         type: 'boolean',
         label: '允许第三人称',
         default: false,
@@ -65,7 +73,7 @@ export const gameUserSettingsParams = {
         default: true,
         description: '显示武器瞄准准星'
       },
-      EnablePVPGamma: {
+      EnablePvPGamma: {
         type: 'boolean',
         label: 'PvP伽马调节',
         default: false,
@@ -77,7 +85,7 @@ export const gameUserSettingsParams = {
         default: false,
         description: '在PvE模式下禁用gamma控制台命令'
       },
-      ServerForceNoHud: {
+      serverForceNoHud: {
         type: 'boolean',
         label: '强制隐藏HUD',
         default: false,

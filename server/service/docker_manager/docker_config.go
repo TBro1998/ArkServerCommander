@@ -27,15 +27,8 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 		return "", fmt.Errorf("Alpine镜像不存在，请确保后端启动时已成功拉取镜像")
 	}
 
-	// 根据文件名确定路径
-	var configPath string
-	if fileName == utils.ServerConfigFileName {
-		// server.cfg 文件在根目录
-		configPath = "/home/steam/arkserver/ShooterGame/Saved/server.cfg"
-	} else {
-		// 其他配置文件在 Config/WindowsServer 目录
-		configPath = fmt.Sprintf("/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer/%s", fileName)
-	}
+	// 配置文件路径（所有配置文件都在 Config/WindowsServer 目录）
+	configPath := fmt.Sprintf("/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer/%s", fileName)
 
 	// 创建临时容器读取文件
 	containerConfig := &container.Config{
@@ -119,19 +112,9 @@ func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string
 		return fmt.Errorf("Alpine镜像不存在，请确保后端启动时已成功拉取镜像")
 	}
 
-	// 根据文件名确定路径
-	var configPath string
-	var configDir string
-
-	if fileName == utils.ServerConfigFileName {
-		// server.cfg 文件在根目录
-		configPath = "/home/steam/arkserver/ShooterGame/Saved/server.cfg"
-		configDir = "/home/steam/arkserver/ShooterGame/Saved"
-	} else {
-		// 其他配置文件在 Config/WindowsServer 目录
-		configPath = fmt.Sprintf("/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer/%s", fileName)
-		configDir = "/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer"
-	}
+	// 配置文件路径（所有配置文件都在 Config/WindowsServer 目录）
+	configPath := fmt.Sprintf("/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer/%s", fileName)
+	configDir := "/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer"
 
 	// 首先确保目录存在
 	containerConfig := &container.Config{

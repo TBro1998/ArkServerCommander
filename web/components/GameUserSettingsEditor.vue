@@ -172,33 +172,6 @@
         </div>
       </div>
     </div>
-    
-    <!-- 基础参数说明 -->
-    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-      <div class="flex flex-col sm:flex-row items-start">
-        <i class="fas fa-check-circle text-green-500 mr-0 sm:mr-3 mb-2 sm:mb-0"></i>
-        <div class="text-sm text-green-700">
-          <p class="font-medium">基础参数说明</p>
-          <p>以下基础参数已从服务器基本设置中自动获取，无需在此处重复设置：</p>
-          <ul class="list-disc list-inside mt-1 space-y-1">
-            <li><strong>管理员密码 (ServerAdminPassword)</strong> - 从服务器基本设置的管理员密码获取</li>
-            <li><strong>最大玩家数 (MaxPlayers)</strong> - 固定为70</li>
-            <li><strong>RCON启用 (RCONEnabled)</strong> - 固定为True</li>
-          </ul>
-          <p class="mt-2">这些参数会在启动时自动添加到启动参数字符串中。</p>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="editMode === 'text'" class="bg-green-50 border border-green-200 rounded-lg p-4">
-      <div class="flex flex-col sm:flex-row items-start">
-        <i class="fas fa-code text-green-500 mr-0 sm:mr-3 mb-2 sm:mb-0"></i>
-        <div class="text-sm text-green-700">
-          <p class="font-medium">文本编辑模式</p>
-          <p>直接编辑 INI 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。</p>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -245,20 +218,21 @@ const initializeVisualConfig = () => {
     // 只在 visualConfig 为空时才设置默认值
     const isVisualConfigEmpty = Object.keys(visualConfig.value).length === 0
 
-    Object.keys(gameUserSettingsParams).forEach(sectionKey => {
-      const section = gameUserSettingsParams[sectionKey]
-      if (section && section.params) {
-        Object.keys(section.params).forEach(paramKey => {
-          const param = section.params[paramKey]
-          // 只在参数不存在时才设置默认值
-          if (param && param.default !== undefined && (isVisualConfigEmpty || visualConfig.value[paramKey] === undefined)) {
-            visualConfig.value[paramKey] = param.default
-          }
-        })
-      }
-    })
-    
-    console.log('初始化后的可视化配置:', visualConfig.value)
+    if (isVisualConfigEmpty) {
+      Object.keys(gameUserSettingsParams).forEach(sectionKey => {
+        const section = gameUserSettingsParams[sectionKey]
+        if (section && section.params) {
+          Object.keys(section.params).forEach(paramKey => {
+            const param = section.params[paramKey]
+            // 只在参数不存在时才设置默认值
+            if (param && param.default !== undefined) {
+              visualConfig.value[paramKey] = param.default
+            }
+          })
+        }
+      })
+      console.log('初始化后的可视化配置:', visualConfig.value)
+    }
   } catch (error) {
     console.error('初始化 GameUserSettings 可视化配置失败:', error)
   }
@@ -279,14 +253,34 @@ const parseTextToVisual = () => {
         gameUserSettingsParams
       )
       console.log('解析得到的配置值:', values)
-      if (values) {
-        // 合并而不是覆盖，保留未在配置文件中定义的默认值
-        Object.assign(visualConfig.value, values)
+      
+      if (values && Object.keys(values).length > 0) {
+        // 先设置默认值，然后用配置文件中的值覆盖
+        initializeVisualConfig()
+        
+        // 用配置文件中的值覆盖默认值
+        Object.keys(values).forEach(key => {
+          if (values[key] !== undefined && values[key] !== null) {
+            visualConfig.value[key] = values[key]
+            console.log(`设置参数 ${key} = ${values[key]} (类型: ${typeof values[key]})`)
+          }
+        })
+        
         console.log('更新后的可视化配置:', visualConfig.value)
+      } else {
+        // 如果没有解析到任何值，至少设置默认值
+        console.log('没有解析到任何配置值，设置默认值')
+        initializeVisualConfig()
       }
+    } else {
+      // 如果文本内容为空，设置默认值
+      console.log('文本内容为空，设置默认值')
+      initializeVisualConfig()
     }
   } catch (error) {
     console.error('解析 GameUserSettings 配置文件失败:', error)
+    // 出错时也设置默认值
+    initializeVisualConfig()
   }
 }
 
@@ -313,8 +307,6 @@ const syncVisualToText = () => {
     
     content += '\n[SessionSettings]\n'
     content += `SessionName=${visualConfig.value.SessionName || 'ARK Server'}\n`
-    content += `Port=${visualConfig.value.Port || 7777}\n`
-    content += `QueryPort=${visualConfig.value.QueryPort || 27015}\n`
     
     content += '\n[/Script/Engine.GameSession]\n'
     content += `MaxPlayers=${visualConfig.value.MaxPlayers || 70}\n`
@@ -343,9 +335,11 @@ watch(() => props.modelValue, (newValue) => {
 watch(() => gameUserSettingsParams, (newParams) => {
   if (newParams) {
     console.log('GameUserSettings 参数已加载，重新初始化')
-    initializeVisualConfig()
+    // 如果已经有文本内容，先解析；否则只初始化默认值
     if (textContent.value) {
       parseTextToVisual()
+    } else {
+      initializeVisualConfig()
     }
   }
 }, { immediate: true })
@@ -404,12 +398,8 @@ const resetToDefault = () => {
   textContent.value = `[ServerSettings]
 SessionName=${server.identifier}
 ServerPassword=
-ServerAdminPassword=${server.admin_password}
-Port=${server.port}
-QueryPort=${server.query_port}
-RCONEnabled=True
-RCONPort=${server.rcon_port}
 MaxPlayers=70
+AdminLogging=True
 
 [SessionSettings]
 SessionName=${server.identifier}
@@ -417,15 +407,8 @@ SessionName=${server.identifier}
 [MessageOfTheDay]
 Message=欢迎来到 ${server.identifier} ARK 服务器！
 
-[/Script/ShooterGame.ShooterGameMode]
-bUseSingleplayerSettings=False
-bDisableStructurePlacementCollision=False
-bAllowFlyerCarryPvE=True
-bDisableStructureDecayPvE=False
-
-[RCONSettings]
-RCONEnabled=True
-RCONPort=${server.rcon_port}`
+[/Script/Engine.GameSession]
+MaxPlayers=70`
 
   emit('update:modelValue', textContent.value)
 }
@@ -447,11 +430,27 @@ onMounted(() => {
   console.log('初始 textContent:', textContent.value.substring(0, 100) + '...')
   console.log('gameUserSettingsParams 是否已加载:', !!gameUserSettingsParams)
   
+  // 输出参数定义的详细信息
+  if (gameUserSettingsParams) {
+    console.log('gameUserSettingsParams 结构:', Object.keys(gameUserSettingsParams))
+    Object.keys(gameUserSettingsParams).forEach(sectionKey => {
+      const section = gameUserSettingsParams[sectionKey]
+      console.log(`Section ${sectionKey}:`, section.title)
+      if (section.params) {
+        console.log(`  Parameters:`, Object.keys(section.params))
+      }
+    })
+  }
+  
   // 如果参数已经加载，立即初始化
   if (gameUserSettingsParams) {
-    initializeVisualConfig()
+    // 如果已经有文本内容，先解析；否则只初始化默认值
     if (textContent.value) {
+      console.log('开始解析现有配置内容...')
       parseTextToVisual()
+    } else {
+      console.log('没有现有配置内容，初始化默认值...')
+      initializeVisualConfig()
     }
   }
 })
