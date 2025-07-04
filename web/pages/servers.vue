@@ -427,6 +427,9 @@
 </template>
 
 <script setup>
+import { useAuthStore } from '~/stores/auth'
+import { useServersStore } from '~/stores/servers'
+
 definePageMeta({
   middleware: 'auth'
 })

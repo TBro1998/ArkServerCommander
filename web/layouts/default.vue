@@ -121,6 +121,8 @@
 </template>
 
 <script setup>
+import { useAuthStore } from '~/stores/auth'
+
 const authStore = useAuthStore()
 const mobileMenuOpen = ref(false)
 const showPrivacyPolicy = ref(false)

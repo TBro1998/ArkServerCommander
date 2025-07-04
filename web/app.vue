@@ -7,6 +7,8 @@
 </template>
 
 <script setup>
+import { useAuthStore } from '~/stores/auth'
+
 // 全局初始化auth store
 const authStore = useAuthStore()
 

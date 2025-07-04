@@ -66,6 +66,8 @@
 </template>
 
 <script setup>
+import { useAuthStore } from '~/stores/auth'
+
 definePageMeta({
   layout: false
 })

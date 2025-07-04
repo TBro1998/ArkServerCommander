@@ -1,3 +1,6 @@
+import { defineStore } from 'pinia'
+import { useAuthStore } from './auth'
+
 export const useServersStore = defineStore('servers', {
   state: () => ({
     servers: [],
