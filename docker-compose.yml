@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # ARK服务器管理系统 (前后端一体)
   ark-manager:
-    image: tbro98/arkservermanager:0.0.1-b3
+    image: tbro98/arkservermanager:latest
     container_name: ark-manager
     ports:
       - "8080:8080"
@@ -18,25 +18,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     privileged: true
-
-
-
-
-# 说明:
-# 1. ARK服务器管理系统运行在单个容器中，包含前后端
-# 2. 管理系统本身运行在容器中，但它管理的ARK服务器也是独立的容器
-# 3. 需要挂载Docker socket以便管理系统能够创建和管理ARK服务器容器
-# 4. ARK服务器容器的端口会映射到宿主机的不同端口
-# 5. 所有ARK服务器数据存储在Docker卷中
-# 
-# 端口分配建议:
-# - 管理系统(前后端一体): 8080
-# - ARK服务器游戏端口: 7777, 7778, 7779... (每个服务器递增)
-# - ARK服务器查询端口: 27015, 27016, 27017... (每个服务器递增)
-# - ARK服务器RCON端口: 32330, 32331, 32332... (每个服务器递增)
-#
-# 使用方法:
-# 1. 复制此文件为 docker-compose.yml
-# 2. 根据需要修改配置
-# 3. 运行: docker-compose up -d
-# 4. 访问 http://localhost:8080 进行管理 
