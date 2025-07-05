@@ -34,7 +34,11 @@
 
 ## 🚀 快速开始
 
-### Docker容器化部署（推荐）
+### 安装 1Panel
+推荐在服务器上安装1Panel来管理docker环境
+[1Panel安装文档](https://1panel.cn/docs/v2/installation/online_installation/)
+
+### Docker容器化部署
 
 拷贝docker-compose.yml，或直接复制
 ```yml
@@ -66,7 +70,7 @@ services:
 
 # 启动服务
 ```
-docker-compose up -d
+sudo docker-compose up -d
 ```
 
 通过 ip+端口，访问系统界面
