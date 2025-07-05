@@ -557,13 +557,19 @@ func UpdateServer(c *gin.Context) {
 	if req.GameModIds != "" {
 		server.GameModIds = req.GameModIds
 	}
+	// 检查启动参数是否发生变化
+	argsChanged := false
 	if req.ServerArgs != nil {
 		argsJson, err := json.Marshal(req.ServerArgs)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "启动参数格式错误"})
 			return
 		}
-		server.ServerArgsJSON = string(argsJson)
+		newArgsJSON := string(argsJson)
+		if server.ServerArgsJSON != newArgsJSON {
+			argsChanged = true
+			server.ServerArgsJSON = newArgsJSON
+		}
 	}
 
 	if err := database.DB.Save(&server).Error; err != nil {
@@ -639,9 +645,16 @@ func UpdateServer(c *gin.Context) {
 		response.GameIni = gameIni
 	}
 
+	// 构建响应消息
+	message := "服务器更新成功"
+	if argsChanged && server.Status == "running" {
+		message = "服务器更新成功，启动参数已修改。由于服务器正在运行，需要重启服务器以应用新的启动参数。"
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "服务器更新成功",
-		"data":    response,
+		"message":      message,
+		"data":         response,
+		"args_changed": argsChanged,
 	})
 }
 
@@ -789,7 +802,7 @@ func StartServer(c *gin.Context) {
 			return
 		}
 
-		// 检查容器是否存在，如果不存在则创建
+		// 检查容器是否存在
 		containerExists, err := dockerManager.ContainerExists(containerName)
 		if err != nil {
 			fmt.Printf("Failed to check container existence: %v\n", err)
@@ -797,7 +810,63 @@ func StartServer(c *gin.Context) {
 			return
 		}
 
-		if !containerExists {
+		needRecreateContainer := false
+
+		if containerExists {
+			// 容器存在，检查是否需要重建（比较启动参数）
+			envVars, err := dockerManager.GetContainerEnvVars(containerName)
+			if err != nil {
+				fmt.Printf("Failed to get container environment variables: %v\n", err)
+				// 如果无法获取环境变量，为了安全起见重建容器
+				needRecreateContainer = true
+			} else {
+				// 获取当前服务器的启动参数
+				var serverArgs *models.ServerArgs
+				if server.ServerArgsJSON != "" && server.ServerArgsJSON != "{}" {
+					serverArgs = models.NewServerArgs()
+					if err := json.Unmarshal([]byte(server.ServerArgsJSON), serverArgs); err != nil {
+						serverArgs = models.FromServer(server)
+					}
+				} else {
+					serverArgs = models.FromServer(server)
+				}
+				currentArgsString := serverArgs.GenerateArgsString(server)
+
+				// 比较环境变量中的SERVER_ARGS
+				if containerArgsString, exists := envVars["SERVER_ARGS"]; exists {
+					if containerArgsString != currentArgsString {
+						fmt.Printf("Server arguments changed, need to recreate container. Old: %s, New: %s\n", containerArgsString, currentArgsString)
+						needRecreateContainer = true
+					}
+				} else {
+					// 如果容器中没有SERVER_ARGS环境变量，重建容器
+					fmt.Printf("Container missing SERVER_ARGS environment variable, need to recreate\n")
+					needRecreateContainer = true
+				}
+
+				// 检查其他可能影响容器配置的参数
+				if !needRecreateContainer {
+					// 检查GameModIds
+					if server.GameModIds != envVars["GameModIds"] {
+						fmt.Printf("GameModIds changed, need to recreate container. Old: %s, New: %s\n", envVars["GameModIds"], server.GameModIds)
+						needRecreateContainer = true
+					}
+				}
+			}
+
+			if needRecreateContainer {
+				fmt.Printf("Recreating container due to configuration changes\n")
+				// 删除现有容器
+				if err := dockerManager.RemoveContainer(containerName); err != nil {
+					fmt.Printf("Failed to remove existing container: %v\n", err)
+					database.DB.Model(&server).Update("status", "stopped")
+					return
+				}
+			}
+		}
+
+		// 如果容器不存在或需要重建，创建新容器
+		if !containerExists || needRecreateContainer {
 			// 创建容器
 			_, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.GameModIds, server.AutoRestart)
 			if err != nil {

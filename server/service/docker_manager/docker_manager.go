@@ -396,3 +396,32 @@ func (dm *DockerManager) ExecuteCommand(containerName string, command string) (s
 
 	return string(output), nil
 }
+
+// GetContainerEnvVars 获取容器的环境变量
+// containerName: 容器名称
+// 返回: 环境变量映射和错误信息
+func (dm *DockerManager) GetContainerEnvVars(containerName string) (map[string]string, error) {
+	containerInfo, err := dm.client.ContainerInspect(dm.ctx, containerName)
+	if err != nil {
+		if errdefs.IsNotFound(err) {
+			return nil, fmt.Errorf("容器不存在: %s", containerName)
+		}
+		return nil, fmt.Errorf("获取Docker容器信息失败: %v", err)
+	}
+
+	// 解析环境变量
+	envVars := make(map[string]string)
+	for _, env := range containerInfo.Config.Env {
+		// 环境变量格式: KEY=VALUE
+		for i, char := range env {
+			if char == '=' {
+				key := env[:i]
+				value := env[i+1:]
+				envVars[key] = value
+				break
+			}
+		}
+	}
+
+	return envVars, nil
+}
