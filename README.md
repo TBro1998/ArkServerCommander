@@ -133,8 +133,8 @@ docker logs -f ark-server-1
 - 镜像源地址: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
 ## 界面展示
-![](docs\imgs\img_servers.png)
-![](docs\imgs\ima_base.png)
-![](docs\imgs\img_GameUserSettings.png)
-![](docs\imgs\img_GameIni.png)
-![](docs\imgs\img_args.png)
+![](./docs\imgs\img_servers.png)
+![](./docs\imgs\ima_base.png)
+![](./docs\imgs\img_GameUserSettings.png)
+![](./docs\imgs\img_GameIni.png)
+![](./docs\imgs\img_args.png)
