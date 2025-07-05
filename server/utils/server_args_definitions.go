@@ -149,15 +149,6 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"bRawSockets": {
-			Name:        "bRawSockets",
-			Type:        "query",
-			Category:    "network",
-			Description: "使用直接UDP套接字连接而不是Steam P2P",
-			Default:     "",
-			Required:    false,
-			Platform:    "All",
-		},
 		"ClampItemSpoilingTimes": {
 			Name:        "ClampItemSpoilingTimes",
 			Type:        "query",
@@ -704,15 +695,6 @@ func GetCommandLineArgDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"nonetthreading": {
-			Name:        "nonetthreading",
-			Type:        "command_line",
-			Category:    "performance",
-			Description: "只使用单线程进行网络连接",
-			Default:     "",
-			Required:    false,
-			Platform:    "All",
-		},
 		"noninlinesaveload": {
 			Name:        "noninlinesaveload",
 			Type:        "command_line",
@@ -839,15 +821,6 @@ func GetCommandLineArgDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"vday": {
-			Name:        "vday",
-			Type:        "command_line",
-			Category:    "events",
-			Description: "激活情人节活动",
-			Default:     "",
-			Required:    false,
-			Platform:    "All",
-		},
 		"webalarm": {
 			Name:        "webalarm",
 			Type:        "command_line",
@@ -874,15 +847,6 @@ func GetCommandLineArgDefinitions() map[string]ServerArgDefinition {
 			Default:     "",
 			Required:    false,
 			Platform:    "PC",
-		},
-		"forcenetthreading": {
-			Name:        "forcenetthreading",
-			Type:        "command_line",
-			Category:    "performance",
-			Description: "强制启用线程网络",
-			Default:     "",
-			Required:    false,
-			Platform:    "All",
 		},
 		"crossplay": {
 			Name:        "crossplay",
