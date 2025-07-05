@@ -259,32 +259,12 @@ const visibleCategories = computed(() => {
 
 // 获取分类名称
 function getCategoryName(key) {
-  const categoryMap = {
-    basic: '基础设置',
-    gameplay: '游戏机制',
-    performance: '性能优化',
-    security: '安全设置',
-    logging: '日志记录',
-    mods: '模组功能',
-    maintenance: '维护工具',
-    custom: '自定义参数'
-  }
-  return categoryMap[key] || key
+  return categories[key]?.name || key
 }
 
 // 获取分类描述
 function getCategoryDescription(key) {
-  const descriptionMap = {
-    basic: '服务器基础配置和常用参数',
-    gameplay: '游戏玩法、PvP、限制等核心游戏参数',
-    performance: '服务器性能、网络、图形优化参数',
-    security: '安全、反作弊、数据传输控制参数',
-    logging: '日志记录、调试、监控相关参数',
-    mods: '模组管理、自定义地图、平台相关参数',
-    maintenance: '服务器维护、存档、清理工具参数',
-    custom: '用户自定义启动参数'
-  }
-  return descriptionMap[key] || ''
+  return categories[key]?.description || ''
 }
 
 // 初始化参数值
