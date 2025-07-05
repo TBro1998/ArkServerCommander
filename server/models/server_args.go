@@ -116,11 +116,13 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 		case string:
 			if v != "" {
 				commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%s", key, v))
-			} else {
-				commandLineParams = append(commandLineParams, fmt.Sprintf("-%s", key))
 			}
+			// 如果字符串为空，则不追加该参数
 		case int, int32, int64, float32, float64:
-			commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%v", key, v))
+			// 检查数值是否为0，如果是0则不追加该参数
+			if v != 0 {
+				commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%v", key, v))
+			}
 		default:
 			commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%v", key, v))
 		}

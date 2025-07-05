@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"ark-server-manager/models"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -139,12 +138,6 @@ func GetServerConfigPath(serverID uint) string {
 func GetConfigFilePath(serverID uint, fileName string) string {
 	configPath := GetServerConfigPath(serverID)
 	return filepath.Join(configPath, fileName)
-}
-
-// GenerateServerArgs 生成ARK服务器的启动参数
-// 已废弃，统一用ServerArgs.GenerateArgsString
-func GenerateServerArgs(server models.Server) string {
-	return ""
 }
 
 // GenerateGameModIdsEnv 生成GameModIds环境变量
