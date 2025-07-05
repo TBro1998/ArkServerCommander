@@ -242,6 +242,7 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		},
 		Binds: []string{
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),
+			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Binaries/Win64/ArkApi/Plugins", utils.GetServerPluginsVolumeName(serverID)),
 		},
 	}
 

@@ -15,3 +15,10 @@ func GetServerContainerName(serverID uint) string {
 func GetServerVolumeName(serverID uint) string {
 	return fmt.Sprintf("ase-server-%d", serverID)
 }
+
+// GetServerPluginsVolumeName 获取服务器插件卷名称
+// serverID: 服务器ID
+// 返回: 插件卷名称
+func GetServerPluginsVolumeName(serverID uint) string {
+	return fmt.Sprintf("ase-server-plugins-%d", serverID)
+}

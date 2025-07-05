@@ -983,10 +983,12 @@ func GetServerFolderInfo(c *gin.Context) {
 		return
 	}
 	volumeName := utils.GetServerVolumeName(server.ID)
+	pluginsVolumeName := utils.GetServerPluginsVolumeName(server.ID)
 	containerName := utils.GetServerContainerName(server.ID)
 
 	// 检查卷是否存在
 	volumeExists, _ := dockerManager.VolumeExists(volumeName)
+	pluginsVolumeExists, _ := dockerManager.VolumeExists(pluginsVolumeName)
 
 	// 检查容器是否存在
 	containerExists, _ := dockerManager.ContainerExists(containerName)
@@ -1002,13 +1004,15 @@ func GetServerFolderInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "获取成功",
 		"data": gin.H{
-			"server_id":        server.ID,
-			"server_name":      server.Identifier,
-			"volume_name":      volumeName,
-			"volume_exists":    volumeExists,
-			"container_name":   containerName,
-			"container_exists": containerExists,
-			"container_status": containerStatus,
+			"server_id":             server.ID,
+			"server_name":           server.Identifier,
+			"volume_name":           volumeName,
+			"volume_exists":         volumeExists,
+			"plugins_volume_name":   pluginsVolumeName,
+			"plugins_volume_exists": pluginsVolumeExists,
+			"container_name":        containerName,
+			"container_exists":      containerExists,
+			"container_status":      containerStatus,
 		},
 	})
 }

@@ -57,14 +57,29 @@ func InitializeDockerForExistingServers() error {
 
 		// 检查并创建Docker卷
 		volumeName := utils.GetServerVolumeName(server.ID)
+		pluginsVolumeName := utils.GetServerPluginsVolumeName(server.ID)
+		
+		// 检查游戏数据卷
 		if !existingVolumes[volumeName] {
-			// 创建卷
+			// 创建卷（包括游戏数据卷和插件卷）
 			if _, err := dockerManager.CreateVolume(server.ID); err != nil {
-				log.Printf("Warning: Failed to create volume for server %d: %v", server.ID, err)
+				log.Printf("Warning: Failed to create volumes for server %d: %v", server.ID, err)
 				errorCount++
 			} else {
-				log.Printf("Created Docker volume for server %d: %s", server.ID, volumeName)
-				createdVolumes++
+				log.Printf("Created Docker volumes for server %d: game=%s, plugins=%s", server.ID, volumeName, pluginsVolumeName)
+				createdVolumes += 2 // 创建了两个卷
+			}
+		} else {
+			// 游戏数据卷存在，检查插件卷
+			if !existingVolumes[pluginsVolumeName] {
+				// 只创建插件卷
+				if err := dockerManager.createSingleVolume(pluginsVolumeName); err != nil {
+					log.Printf("Warning: Failed to create plugins volume for server %d: %v", server.ID, err)
+					errorCount++
+				} else {
+					log.Printf("Created Docker plugins volume for server %d: %s", server.ID, pluginsVolumeName)
+					createdVolumes++
+				}
 			}
 		}
 
