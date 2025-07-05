@@ -3,7 +3,6 @@ package utils
 import (
 	"ark-server-manager/models"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -140,27 +139,6 @@ func GetServerConfigPath(serverID uint) string {
 func GetConfigFilePath(serverID uint, fileName string) string {
 	configPath := GetServerConfigPath(serverID)
 	return filepath.Join(configPath, fileName)
-}
-
-// GetConfigFileInfo 获取配置文件信息
-func GetConfigFileInfo(serverID uint, fileName string) models.ServerConfigFileInfo {
-	filePath := GetConfigFilePath(serverID, fileName)
-
-	info := models.ServerConfigFileInfo{
-		FileName: fileName,
-		FilePath: filePath,
-		Exists:   false,
-	}
-
-	// 获取文件信息
-	fileInfo, err := os.Stat(filePath)
-	if err == nil {
-		info.Exists = true
-		info.FileSize = fileInfo.Size()
-		info.LastModified = fileInfo.ModTime().Format("2006-01-02 15:04:05")
-	}
-
-	return info
 }
 
 // GenerateServerArgs 生成ARK服务器的启动参数
