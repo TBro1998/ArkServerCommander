@@ -1,7 +1,9 @@
 package docker_manager
 
 import (
+	"archive/tar"
 	"ark-server-manager/utils"
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -30,10 +32,10 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 	// 配置文件路径（所有配置文件都在 Config/WindowsServer 目录）
 	configPath := fmt.Sprintf("/home/steam/arkserver/ShooterGame/Saved/Config/WindowsServer/%s", fileName)
 
-	// 创建临时容器读取文件
+	// 创建临时容器
 	containerConfig := &container.Config{
 		Image: alpineImage,
-		Cmd:   []string{"cat", configPath},
+		Cmd:   []string{"tail", "-f", "/dev/null"}, // 保持容器运行
 	}
 
 	hostConfig := &container.HostConfig{
@@ -54,43 +56,50 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 		return "", fmt.Errorf("启动临时容器失败: %v", err)
 	}
 
-	// 等待容器完成
-	waitCh, errCh := dm.client.ContainerWait(dm.ctx, resp.ID, container.WaitConditionNotRunning)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return "", fmt.Errorf("等待容器完成失败: %v", err)
+	// 确保容器清理
+	defer func() {
+		dm.client.ContainerRemove(dm.ctx, resp.ID, container.RemoveOptions{
+			Force: true,
+		})
+	}()
+
+	// 从容器中复制文件
+	reader, _, err := dm.client.CopyFromContainer(dm.ctx, resp.ID, configPath)
+	if err != nil {
+		return "", fmt.Errorf("从容器复制文件失败: %v", err)
+	}
+	defer reader.Close()
+
+	// 读取 tar 格式的数据
+	tarReader := tar.NewReader(reader)
+
+	// 读取第一个文件（tar 中只有一个文件）
+	header, err := tarReader.Next()
+	if err != nil {
+		if err == io.EOF {
+			return "", fmt.Errorf("文件不存在: %s", fileName)
 		}
-	case <-waitCh:
-		// 容器已完成
+		return "", fmt.Errorf("读取 tar 文件头失败: %v", err)
 	}
 
-	// 获取容器日志（输出）
-	logs, err := dm.client.ContainerLogs(dm.ctx, resp.ID, container.LogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-	})
+	// 检查是否是文件
+	if header.Typeflag != tar.TypeReg {
+		return "", fmt.Errorf("路径不是文件: %s", fileName)
+	}
+
+	// 读取文件内容
+	var buffer bytes.Buffer
+	_, err = io.Copy(&buffer, tarReader)
 	if err != nil {
-		return "", fmt.Errorf("获取容器日志失败: %v", err)
-	}
-	defer logs.Close()
-
-	output, err := io.ReadAll(logs)
-	if err != nil {
-		return "", fmt.Errorf("读取容器输出失败: %v", err)
+		return "", fmt.Errorf("读取文件内容失败: %v", err)
 	}
 
-	// 删除临时容器
-	dm.client.ContainerRemove(dm.ctx, resp.ID, container.RemoveOptions{
-		Force: true,
-	})
+	content := buffer.String()
 
-	// 移除Docker日志前缀（前8个字节）
-	if len(output) > 8 {
-		output = output[8:]
-	}
+	// 清理内容，移除可能的不可见字符
+	content = strings.TrimSpace(content)
 
-	return string(output), nil
+	return content, nil
 }
 
 // WriteConfigFile 向容器卷中写入配置文件
