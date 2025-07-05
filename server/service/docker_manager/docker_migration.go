@@ -9,7 +9,6 @@ import (
 	"ark-server-manager/models"
 	"ark-server-manager/utils"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 )
@@ -58,7 +57,7 @@ func InitializeDockerForExistingServers() error {
 		// 检查并创建Docker卷
 		volumeName := utils.GetServerVolumeName(server.ID)
 		pluginsVolumeName := utils.GetServerPluginsVolumeName(server.ID)
-		
+
 		// 检查游戏数据卷
 		if !existingVolumes[volumeName] {
 			// 创建卷（包括游戏数据卷和插件卷）
@@ -113,36 +112,6 @@ func batchCheckDockerVolumes(dockerManager *DockerManager) (map[string]bool, err
 	}
 
 	return existingVolumes, nil
-}
-
-// batchCheckDockerResources 批量检查Docker资源，减少API调用次数
-func batchCheckDockerResources(dockerManager *DockerManager, servers []models.Server) (map[string]bool, map[string]bool, error) {
-	existingVolumes := make(map[string]bool)
-	existingContainers := make(map[string]bool)
-
-	// 获取所有卷
-	volumes, err := dockerManager.client.VolumeList(dockerManager.ctx, volume.ListOptions{})
-	if err != nil {
-		return nil, nil, fmt.Errorf("获取卷列表失败: %v", err)
-	}
-
-	// 获取所有容器
-	containers, err := dockerManager.client.ContainerList(dockerManager.ctx, container.ListOptions{All: true})
-	if err != nil {
-		return nil, nil, fmt.Errorf("获取容器列表失败: %v", err)
-	}
-
-	// 构建卷名称集合
-	for _, volume := range volumes.Volumes {
-		existingVolumes[volume.Name] = true
-	}
-
-	// 构建容器名称集合
-	for _, container := range containers {
-		existingContainers[container.Names[0][1:]] = true // 移除开头的 "/"
-	}
-
-	return existingVolumes, existingContainers, nil
 }
 
 // ensureDefaultConfigFiles 确保服务器有默认配置文件
