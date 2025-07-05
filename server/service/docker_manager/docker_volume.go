@@ -4,8 +4,8 @@ import (
 	"ark-server-manager/utils"
 	"fmt"
 
+	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/client"
 )
 
 // CreateVolume 创建Docker卷（包括游戏数据卷和插件卷）
@@ -115,7 +115,7 @@ func (dm *DockerManager) VolumeExists(volumeName string) (bool, error) {
 	// 尝试获取卷信息
 	_, err := dm.client.VolumeInspect(dm.ctx, volumeName)
 	if err != nil {
-		if client.IsErrNotFound(err) {
+		if errdefs.IsNotFound(err) {
 			return false, nil // 卷不存在
 		}
 		return false, fmt.Errorf("检查Docker卷失败: %v", err)
