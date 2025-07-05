@@ -32,13 +32,13 @@
                 <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
-                <span>镜像下载中</span>
+                <span>镜像下载中{{ isPollingImageStatus ? ' (轮询中)' : '' }}</span>
               </div>
               <div v-else class="flex items-center gap-1 text-red-600">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
                 </svg>
-                <span>镜像未就绪</span>
+                <span>镜像未就绪{{ isPollingImageStatus ? ' (轮询中)' : '' }}</span>
               </div>
             </div>
           </div>
@@ -68,6 +68,8 @@
         
 
         
+
+        
         <!-- 服务器列表 -->
         <div v-if="loading" class="text-center py-8">
           <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -94,13 +96,13 @@
                 <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
-                <span>镜像下载中，请稍后创建服务器</span>
+                <span>镜像下载中{{ isPollingImageStatus ? ' (轮询中)' : '' }}，请稍后创建服务器</span>
               </div>
               <div v-else class="flex items-center gap-1 text-red-600">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
                 </svg>
-                <span>镜像未就绪，无法创建服务器</span>
+                <span>镜像未就绪{{ isPollingImageStatus ? ' (轮询中)' : '' }}，无法创建服务器</span>
               </div>
             </div>
           </div>
@@ -457,6 +459,7 @@ const successMessage = ref('')
 const imageStatus = ref(null)
 const imageStatusInterval = ref(null)
 const showImageStatusModal = ref(false)
+const imageStatusReady = ref(false) // 标记镜像是否已就绪
 
 // 统一编辑器相关
 const currentEditServer = ref(null)
@@ -466,6 +469,11 @@ const loadingServerData = ref(false)
 const servers = computed(() => serversStore.servers)
 const loading = computed(() => serversStore.isLoading)
 
+// 计算属性：是否正在轮询镜像状态
+const isPollingImageStatus = computed(() => {
+  return !imageStatusReady.value && !!imageStatusInterval.value
+})
+
 // 获取镜像状态
 const fetchImageStatus = async () => {
   try {
@@ -474,6 +482,21 @@ const fetchImageStatus = async () => {
     imageStatus.value = status
     console.log('镜像状态获取成功:', status)
     
+    // 检查镜像是否都已就绪
+    if (status && status.can_create_server && status.can_start_server) {
+      if (!imageStatusReady.value) {
+        console.log('镜像已全部就绪，停止轮询')
+        imageStatusReady.value = true
+        // 停止轮询
+        if (imageStatusInterval.value) {
+          clearInterval(imageStatusInterval.value)
+          imageStatusInterval.value = null
+        }
+      }
+    } else {
+      // 镜像未就绪，重置标记
+      imageStatusReady.value = false
+    }
 
   } catch (error) {
     console.error('获取镜像状态失败:', error)
@@ -483,7 +506,26 @@ const fetchImageStatus = async () => {
 
 // 刷新镜像状态
 const refreshImageStatus = async () => {
+  console.log('手动刷新镜像状态')
+  
+  // 重置就绪状态
+  imageStatusReady.value = false
+  
+  // 如果当前有轮询，先停止
+  if (imageStatusInterval.value) {
+    clearInterval(imageStatusInterval.value)
+    imageStatusInterval.value = null
+  }
+  
   await fetchImageStatus()
+  
+  // 如果镜像未就绪，重新启动轮询
+  if (!imageStatusReady.value) {
+    console.log('镜像未就绪，重新启动轮询')
+    imageStatusInterval.value = setInterval(() => {
+      fetchImageStatus()
+    }, 2000)
+  }
 }
 
 // 获取服务器列表
@@ -691,20 +733,27 @@ const formatDate = (dateString) => {
 
 
 // 页面加载时获取数据
-onMounted(() => {
+onMounted(async () => {
   fetchServers()
-  fetchImageStatus()
+  await fetchImageStatus()
   
-  // 设置定时刷新镜像状态（每2秒检查一次）
-  imageStatusInterval.value = setInterval(() => {
-    fetchImageStatus()
-  }, 2000)
+  // 只有在镜像未就绪时才启动轮询
+  if (!imageStatusReady.value) {
+    console.log('镜像未就绪，启动轮询')
+    imageStatusInterval.value = setInterval(() => {
+      fetchImageStatus()
+    }, 2000)
+  } else {
+    console.log('镜像已就绪，无需轮询')
+  }
 })
 
 // 页面卸载时清理定时器
 onUnmounted(() => {
   if (imageStatusInterval.value) {
+    console.log('清理镜像状态轮询定时器')
     clearInterval(imageStatusInterval.value)
+    imageStatusInterval.value = null
   }
 })
 </script> 
