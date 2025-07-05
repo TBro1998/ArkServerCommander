@@ -204,15 +204,46 @@ func CreateServer(c *gin.Context) {
 	}
 	fmt.Printf("Created Docker volume: %s\n", volumeName)
 
-	// 创建默认配置文件到Docker卷中
-	gameUserSettings := utils.GetDefaultGameUserSettings(server.Identifier, server.Map, 70)
-	if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, gameUserSettings); err != nil {
-		fmt.Printf("Warning: Failed to create default GameUserSettings.ini: %v\n", err)
+	// 写入配置文件到Docker卷中
+	// 如果请求中包含配置文件，使用请求中的配置；否则使用默认配置
+	var gameUserSettings string
+	var gameIni string
+
+	if req.GameUserSettings != "" {
+		// 验证配置文件格式
+		if err := utils.ValidateINIContent(req.GameUserSettings); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("GameUserSettings.ini格式错误: %v", err)})
+			return
+		}
+		gameUserSettings = req.GameUserSettings
+	} else {
+		gameUserSettings = utils.GetDefaultGameUserSettings(server.Identifier, server.Map, 70)
 	}
 
-	gameIni := utils.GetDefaultGameIni()
+	if req.GameIni != "" {
+		// 验证配置文件格式
+		if err := utils.ValidateINIContent(req.GameIni); err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Game.ini格式错误: %v", err)})
+			return
+		}
+		gameIni = req.GameIni
+	} else {
+		gameIni = utils.GetDefaultGameIni()
+	}
+
+	// 写入配置文件
+	if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, gameUserSettings); err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入GameUserSettings.ini失败: %v", err)})
+		return
+	}
+
 	if err := dockerManager.WriteConfigFile(server.ID, utils.GameIniFileName, gameIni); err != nil {
-		fmt.Printf("Warning: Failed to create default Game.ini: %v\n", err)
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入Game.ini失败: %v", err)})
+		return
 	}
 
 	// 提交事务
@@ -540,41 +571,42 @@ func UpdateServer(c *gin.Context) {
 		return
 	}
 
-	// 更新数据时必须有配置文件数据
-	if req.GameUserSettings != "" && req.GameIni != "" {
-		// 验证配置文件格式
-		if req.GameUserSettings != "" {
-			if err := utils.ValidateINIContent(req.GameUserSettings); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("GameUserSettings.ini格式错误: %v", err)})
-				return
-			}
-		}
-		if req.GameIni != "" {
-			if err := utils.ValidateINIContent(req.GameIni); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Game.ini格式错误: %v", err)})
-				return
-			}
-		}
-
-		// 写入配置文件到Docker卷
+	// 处理配置文件更新（允许单独更新任一配置文件）
+	if req.GameUserSettings != "" || req.GameIni != "" {
+		// 获取Docker管理器
 		dockerManager, err := docker_manager.GetDockerManager()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 			return
 		}
+
+		// 处理GameUserSettings.ini
 		if req.GameUserSettings != "" {
+			// 验证配置文件格式
+			if err := utils.ValidateINIContent(req.GameUserSettings); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("GameUserSettings.ini格式错误: %v", err)})
+				return
+			}
+			// 写入配置文件
 			if err := dockerManager.WriteConfigFile(uint(id), utils.GameUserSettingsFileName, req.GameUserSettings); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入GameUserSettings.ini失败: %v", err)})
 				return
 			}
 		}
+
+		// 处理Game.ini
 		if req.GameIni != "" {
+			// 验证配置文件格式
+			if err := utils.ValidateINIContent(req.GameIni); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Game.ini格式错误: %v", err)})
+				return
+			}
+			// 写入配置文件
 			if err := dockerManager.WriteConfigFile(uint(id), utils.GameIniFileName, req.GameIni); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("写入Game.ini失败: %v", err)})
 				return
 			}
 		}
-
 	}
 
 	response := models.ServerResponse{

@@ -14,11 +14,7 @@ export function parseIniFile(content) {
     return result
   }
   
-  console.log('parseIniFile: 开始解析 INI 文件')
-  console.log('parseIniFile: 内容长度:', content.length)
-  
   const lines = content.split('\n')
-  console.log('parseIniFile: 总行数:', lines.length)
   
   lines.forEach((line, index) => {
     const trimmedLine = line.trim()
@@ -34,7 +30,6 @@ export function parseIniFile(content) {
       if (!result[currentSection]) {
         result[currentSection] = {}
       }
-      console.log(`parseIniFile: 发现段落 [${currentSection}]`)
       return
     }
     
@@ -49,11 +44,9 @@ export function parseIniFile(content) {
       }
       
       result[currentSection][cleanKey] = value
-      console.log(`parseIniFile: 解析键值对 ${cleanKey}=${value} (段落: ${currentSection})`)
     }
   })
   
-  console.log('parseIniFile: 解析完成，结果:', result)
   return result
 }
 
@@ -92,11 +85,8 @@ export function generateIniFile(config) {
  */
 export function convertValue(value, type) {
   if (value === undefined || value === null) {
-    console.log(`convertValue: 值为空，返回原值: ${value}`)
     return value
   }
-  
-  console.log(`convertValue: 转换 ${value} (类型: ${typeof value}) 到 ${type}`)
   
   switch (type) {
     case 'boolean':
@@ -104,30 +94,21 @@ export function convertValue(value, type) {
         const lowerValue = value.toLowerCase().trim()
         // 支持多种布尔值表示
         const result = lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes' || lowerValue === 'on'
-        console.log(`convertValue: 布尔转换 ${value} -> ${lowerValue} -> ${result}`)
         return result
       }
-      const boolResult = Boolean(value)
-      console.log(`convertValue: 布尔转换 ${value} -> ${boolResult}`)
-      return boolResult
+      return Boolean(value)
     
     case 'number':
       if (typeof value === 'string') {
         const num = parseFloat(value.trim())
-        const result = isNaN(num) ? 0 : num
-        console.log(`convertValue: 数字转换 ${value} -> ${result}`)
-        return result
+        return isNaN(num) ? 0 : num
       }
-      const numResult = Number(value)
-      console.log(`convertValue: 数字转换 ${value} -> ${numResult}`)
-      return numResult
+      return Number(value)
     
     case 'text':
     case 'password':
     default:
-      const strResult = String(value).trim()
-      console.log(`convertValue: 字符串转换 ${value} -> ${strResult}`)
-      return strResult
+      return String(value).trim()
   }
 }
 
@@ -240,11 +221,7 @@ export function extractConfigValues(content, paramDefs) {
     return {}
   }
   
-  console.log('extractConfigValues: 开始解析配置文件')
-  console.log('extractConfigValues: 配置文件内容长度:', content.length)
   const parsed = parseIniFile(content)
-  console.log('extractConfigValues: 解析后的 INI 结构:', parsed)
-  
   const result = {}
   let foundValuesCount = 0
   
@@ -252,13 +229,11 @@ export function extractConfigValues(content, paramDefs) {
   Object.keys(paramDefs).forEach(sectionKey => {
     const section = paramDefs[sectionKey]
     if (!section || !section.params) {
-      console.log(`extractConfigValues: 跳过无效的 section: ${sectionKey}`)
       return
     }
     
     Object.keys(section.params).forEach(paramKey => {
       const param = section.params[paramKey]
-      console.log(`extractConfigValues: 查找参数 ${paramKey} (类型: ${param.type})`)
       
       // 在解析结果中查找值
       Object.keys(parsed).forEach(parsedSection => {
@@ -267,13 +242,10 @@ export function extractConfigValues(content, paramDefs) {
           const convertedValue = convertValue(rawValue, param.type)
           result[paramKey] = convertedValue
           foundValuesCount++
-          console.log(`extractConfigValues: 找到参数 ${paramKey} = ${rawValue} (转换为 ${convertedValue})`)
         }
       })
     })
   })
   
-  console.log(`extractConfigValues: 完成解析，找到 ${foundValuesCount} 个参数值`)
-  console.log('extractConfigValues: 最终结果:', result)
   return result
 } 

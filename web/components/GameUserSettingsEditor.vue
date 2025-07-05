@@ -247,34 +247,25 @@ const parseTextToVisual = () => {
     }
 
     if (textContent.value) {
-      console.log('开始解析 GameUserSettings 配置:', textContent.value.substring(0, 200) + '...')
       const values = extractConfigValues(
         textContent.value, 
         gameUserSettingsParams
       )
-      console.log('解析得到的配置值:', values)
-      
       if (values && Object.keys(values).length > 0) {
         // 先设置默认值，然后用配置文件中的值覆盖
         initializeVisualConfig()
-        
         // 用配置文件中的值覆盖默认值
         Object.keys(values).forEach(key => {
           if (values[key] !== undefined && values[key] !== null) {
             visualConfig.value[key] = values[key]
-            console.log(`设置参数 ${key} = ${values[key]} (类型: ${typeof values[key]})`)
           }
         })
-        
-        console.log('更新后的可视化配置:', visualConfig.value)
       } else {
         // 如果没有解析到任何值，至少设置默认值
-        console.log('没有解析到任何配置值，设置默认值')
         initializeVisualConfig()
       }
     } else {
       // 如果文本内容为空，设置默认值
-      console.log('文本内容为空，设置默认值')
       initializeVisualConfig()
     }
   } catch (error) {
@@ -426,30 +417,12 @@ const togglePasswordVisibility = (paramKey) => {
 
 // 组件挂载时初始化
 onMounted(() => {
-  console.log('GameUserSettingsEditor 组件已挂载')
-  console.log('初始 textContent:', textContent.value.substring(0, 100) + '...')
-  console.log('gameUserSettingsParams 是否已加载:', !!gameUserSettingsParams)
-  
-  // 输出参数定义的详细信息
-  if (gameUserSettingsParams) {
-    console.log('gameUserSettingsParams 结构:', Object.keys(gameUserSettingsParams))
-    Object.keys(gameUserSettingsParams).forEach(sectionKey => {
-      const section = gameUserSettingsParams[sectionKey]
-      console.log(`Section ${sectionKey}:`, section.title)
-      if (section.params) {
-        console.log(`  Parameters:`, Object.keys(section.params))
-      }
-    })
-  }
-  
   // 如果参数已经加载，立即初始化
   if (gameUserSettingsParams) {
     // 如果已经有文本内容，先解析；否则只初始化默认值
     if (textContent.value) {
-      console.log('开始解析现有配置内容...')
       parseTextToVisual()
     } else {
-      console.log('没有现有配置内容，初始化默认值...')
       initializeVisualConfig()
     }
   }

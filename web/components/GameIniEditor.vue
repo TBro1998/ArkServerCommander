@@ -188,6 +188,7 @@ const showTooltip = ref(null)
 const isSyncing = ref(false)
 const textContent = ref('')
 const visualConfig = ref({})
+const isInitialized = ref(false)
 
 // 防抖定时器
 let visualSyncTimer = null
@@ -201,17 +202,22 @@ const initializeVisualConfig = () => {
       return
     }
 
-    Object.keys(gameIniParams).forEach(sectionKey => {
-      const section = gameIniParams[sectionKey]
-      if (section && section.params) {
-        Object.keys(section.params).forEach(paramKey => {
-          const param = section.params[paramKey]
-          if (param && param.default !== undefined) {
-            visualConfig.value[paramKey] = param.default
-          }
-        })
-      }
-    })
+    // 只在未初始化时设置默认值
+    if (!isInitialized.value) {
+      Object.keys(gameIniParams).forEach(sectionKey => {
+        const section = gameIniParams[sectionKey]
+        if (section && section.params) {
+          Object.keys(section.params).forEach(paramKey => {
+            const param = section.params[paramKey]
+            if (param && param.default !== undefined) {
+              visualConfig.value[paramKey] = param.default
+            }
+          })
+        }
+      })
+      isInitialized.value = true
+      console.log('Game.ini 可视化配置初始化完成')
+    }
   } catch (error) {
     console.error('初始化 Game.ini 可视化配置失败:', error)
   }
@@ -226,12 +232,19 @@ const parseTextToVisual = () => {
     }
 
     if (textContent.value) {
+      console.log('开始解析 Game.ini 配置文件到可视化配置')
       const values = extractConfigValues(
         textContent.value, 
         gameIniParams
       )
-      if (values) {
-        Object.assign(visualConfig.value, values)
+      if (values && Object.keys(values).length > 0) {
+        // 合并解析的值，保留未解析参数的默认值
+        Object.keys(values).forEach(key => {
+          if (values[key] !== undefined && values[key] !== null) {
+            visualConfig.value[key] = values[key]
+          }
+        })
+        console.log('Game.ini 配置文件解析完成，更新了', Object.keys(values).length, '个参数')
       }
     }
   } catch (error) {
@@ -269,13 +282,30 @@ const syncVisualToText = () => {
 
 // 监听 props.modelValue 变化
 watch(() => props.modelValue, (newValue) => {
-  textContent.value = newValue || ''
-  parseTextToVisual()
+  if (newValue !== textContent.value) {
+    textContent.value = newValue || ''
+    // 只有在 gameIniParams 已加载且处于可视化模式时才解析
+    if (gameIniParams && editMode.value === 'visual') {
+      parseTextToVisual()
+    }
+  }
+}, { immediate: true })
+
+// 监听 gameIniParams 的变化（处理异步加载）
+watch(() => gameIniParams, (newParams) => {
+  if (newParams) {
+    console.log('Game.ini 参数已加载，重新初始化')
+    initializeVisualConfig()
+    // 如果已经有文本内容且处于可视化模式，解析配置
+    if (textContent.value && editMode.value === 'visual') {
+      parseTextToVisual()
+    }
+  }
 }, { immediate: true })
 
 // 监听可视化配置变化，自动同步到文本
 watch(() => visualConfig.value, () => {
-  if (editMode.value === 'visual') {
+  if (editMode.value === 'visual' && isInitialized.value) {
     isSyncing.value = true
     if (visualSyncTimer) {
       clearTimeout(visualSyncTimer)
@@ -306,7 +336,10 @@ watch(() => textContent.value, () => {
 const switchToVisualMode = () => {
   if (editMode.value !== 'visual') {
     editMode.value = 'visual'
-    parseTextToVisual()
+    // 确保在切换时解析文本配置
+    if (textContent.value && gameIniParams) {
+      parseTextToVisual()
+    }
   }
 }
 

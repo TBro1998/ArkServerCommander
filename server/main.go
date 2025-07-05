@@ -65,9 +65,9 @@ func main() {
 		}
 	}()
 
-	// 为现有服务器初始化Docker容器和卷
+	// 为现有服务器初始化Docker卷和配置文件（不创建容器）
 	if err := docker_manager.InitializeDockerForExistingServers(); err != nil {
-		log.Printf("Warning: Failed to initialize Docker for existing servers: %v", err)
+		log.Printf("Warning: Failed to initialize Docker volumes and config files for existing servers: %v", err)
 	}
 
 	// 同步服务器状态与Docker容器状态
@@ -109,6 +109,8 @@ func main() {
 	log.Println("🌐 CORS: 已启用（允许所有来源）")
 	log.Printf("🐳 Docker容器化ARK服务器管理")
 	log.Println("🔄 Docker镜像正在后台检查中...")
+	log.Println("📋 Docker卷和配置文件初始化完成")
+	log.Println("📋 服务器状态同步完成")
 	log.Println("=========================================")
 
 	r.Run(":8080")

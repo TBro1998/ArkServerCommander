@@ -14,8 +14,9 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// InitializeDockerForExistingServers 为现有服务器初始化Docker容器和卷
-// 在系统启动时调用，确保所有数据库中的服务器都有对应的Docker资源
+// InitializeDockerForExistingServers 为现有服务器初始化Docker卷和配置文件
+// 在系统启动时调用，确保所有数据库中的服务器都有对应的Docker卷和配置文件
+// 注意：不创建容器，容器只在服务器启动时创建
 func InitializeDockerForExistingServers() error {
 	// 首先检查Docker环境
 	if err := CheckDockerStatus(); err != nil {
@@ -34,21 +35,20 @@ func InitializeDockerForExistingServers() error {
 		return nil
 	}
 
-	log.Printf("开始为 %d 个服务器初始化Docker资源...", len(servers))
+	log.Printf("开始为 %d 个服务器初始化Docker卷和配置文件...", len(servers))
 
 	dockerManager, err := GetDockerManager()
 	if err != nil {
 		return fmt.Errorf("获取Docker管理器失败: %v", err)
 	}
 
-	// 批量检查现有资源，减少API调用
-	existingVolumes, existingContainers, err := batchCheckDockerResources(dockerManager, servers)
+	// 批量检查现有卷，减少API调用
+	existingVolumes, err := batchCheckDockerVolumes(dockerManager)
 	if err != nil {
-		log.Printf("Warning: Failed to batch check Docker resources: %v", err)
+		log.Printf("Warning: Failed to batch check Docker volumes: %v", err)
 	}
 
 	createdVolumes := 0
-	createdContainers := 0
 	createdConfigs := 0
 	errorCount := 0
 
@@ -68,30 +68,6 @@ func InitializeDockerForExistingServers() error {
 			}
 		}
 
-		// 检查并创建Docker容器
-		containerName := utils.GetServerContainerName(server.ID)
-		if !existingContainers[containerName] {
-			// 创建容器
-			containerID, err := dockerManager.CreateContainer(
-				server.ID,
-				server.Identifier,
-				server.Port,
-				server.QueryPort,
-				server.RCONPort,
-				server.AdminPassword,
-				server.Map,
-				server.GameModIds,
-				server.AutoRestart,
-			)
-			if err != nil {
-				log.Printf("Warning: Failed to create container for server %d: %v", server.ID, err)
-				errorCount++
-			} else {
-				log.Printf("Created Docker container for server %d: %s", server.ID, containerID)
-				createdContainers++
-			}
-		}
-
 		// 为没有配置文件的服务器创建默认配置文件
 		if err := ensureDefaultConfigFiles(dockerManager, server); err != nil {
 			log.Printf("Warning: Failed to ensure config files for server %d: %v", server.ID, err)
@@ -100,10 +76,28 @@ func InitializeDockerForExistingServers() error {
 		}
 	}
 
-	log.Printf("Docker initialization completed: %d volumes created, %d containers created, %d config files ensured, %d errors",
-		createdVolumes, createdContainers, createdConfigs, errorCount)
+	log.Printf("Docker initialization completed: %d volumes created, %d config files ensured, %d errors",
+		createdVolumes, createdConfigs, errorCount)
 
 	return nil
+}
+
+// batchCheckDockerVolumes 批量检查Docker卷，减少API调用次数
+func batchCheckDockerVolumes(dockerManager *DockerManager) (map[string]bool, error) {
+	existingVolumes := make(map[string]bool)
+
+	// 获取所有卷
+	volumes, err := dockerManager.client.VolumeList(dockerManager.ctx, volume.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取卷列表失败: %v", err)
+	}
+
+	// 构建卷名称集合
+	for _, volume := range volumes.Volumes {
+		existingVolumes[volume.Name] = true
+	}
+
+	return existingVolumes, nil
 }
 
 // batchCheckDockerResources 批量检查Docker资源，减少API调用次数
@@ -217,6 +211,20 @@ func SyncServerStatusWithDocker() error {
 		dockerStatus, err := dockerManager.GetContainerStatus(containerName)
 		if err != nil {
 			log.Printf("Warning: Failed to get container status for server %d: %v", server.ID, err)
+			continue
+		}
+
+		// 处理容器不存在的情况
+		if dockerStatus == "not_found" {
+			// 如果容器不存在但数据库状态是运行中，更新为停止状态
+			if server.Status == "running" || server.Status == "starting" {
+				if err := database.DB.Model(&server).Update("status", "stopped").Error; err != nil {
+					log.Printf("Warning: Failed to update status for server %d: %v", server.ID, err)
+				} else {
+					log.Printf("Updated server %d status from %s to stopped (container not found)", server.ID, server.Status)
+					updatedCount++
+				}
+			}
 			continue
 		}
 

@@ -2,7 +2,7 @@
   <div
     v-if="show"
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center"
-    @click="$emit('close')"
+    @click="handleBackgroundClick"
   >
     <div class="relative my-4 mx-2 sm:mx-4 lg:mx-8 xl:mx-12 p-4 sm:p-5 border w-full max-w-6xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto" @click.stop>
       <div class="mb-4">
@@ -22,7 +22,7 @@
               {{ saving ? '保存中...' : (mode === 'create' ? '创建服务器' : '保存更改') }}
             </button>
             <button
-              @click="$emit('close')"
+              @click="handleClose"
               class="bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors"
             >
               取消
@@ -294,8 +294,6 @@ const formData = ref({
   server_args: { query_params: {}, command_line_args: {}, custom_args: [] }
 })
 
-
-
 // 切换密码显示
 const toggleFormPassword = () => {
   showFormPassword.value = !showFormPassword.value
@@ -378,10 +376,21 @@ function ensureServerArgsStruct(val) {
   }
 }
 
-
-
 // 保存服务器
 const saveServer = () => {
   emit('save', { ...formData.value })
+}
+
+// 处理背景点击
+const handleBackgroundClick = () => {
+  // 添加数据变更检测和确认对话框
+  if (confirm('确定要关闭吗？未保存的数据将会丢失。')) {
+    emit('close')
+  }
+}
+
+// 处理关闭
+const handleClose = () => {
+  emit('close')
 }
 </script> 

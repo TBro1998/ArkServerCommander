@@ -35,6 +35,9 @@ type ServerRequest struct {
 	Map           string `json:"map"`
 	GameModIds    string `json:"game_mod_ids"` // 游戏模组ID列表，用逗号分隔
 	AutoRestart   *bool  `json:"auto_restart"` // 是否自动重启（可选）
+	// 配置文件内容（可选）
+	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
+	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
 	// 启动参数（可选）
 	ServerArgs *ServerArgsRequest `json:"server_args,omitempty"`
 }
