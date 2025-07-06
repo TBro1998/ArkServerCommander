@@ -73,6 +73,8 @@ func GetServers(c *gin.Context) {
 		serverResponses = append(serverResponses, models.ServerResponse{
 			ID:            server.ID,
 			Identifier:    server.Identifier,
+			SessionName:   server.SessionName,
+			ClusterID:     server.ClusterID,
 			Port:          server.Port,
 			QueryPort:     server.QueryPort,
 			RCONPort:      server.RCONPort,
@@ -150,6 +152,8 @@ func CreateServer(c *gin.Context) {
 	// 创建服务器
 	server := models.Server{
 		Identifier:    req.Identifier,
+		SessionName:   req.SessionName,
+		ClusterID:     req.ClusterID,
 		Port:          req.Port,
 		QueryPort:     req.QueryPort,
 		RCONPort:      req.RCONPort,
@@ -257,6 +261,8 @@ func CreateServer(c *gin.Context) {
 	response := models.ServerResponse{
 		ID:            server.ID,
 		Identifier:    server.Identifier,
+		SessionName:   server.SessionName,
+		ClusterID:     server.ClusterID,
 		Port:          server.Port,
 		QueryPort:     server.QueryPort,
 		RCONPort:      server.RCONPort,
@@ -333,6 +339,8 @@ func GetServer(c *gin.Context) {
 	response := models.ServerResponse{
 		ID:            server.ID,
 		Identifier:    server.Identifier,
+		SessionName:   server.SessionName,
+		ClusterID:     server.ClusterID,
 		Port:          server.Port,
 		QueryPort:     server.QueryPort,
 		RCONPort:      server.RCONPort,
@@ -539,6 +547,12 @@ func UpdateServer(c *gin.Context) {
 	}
 
 	// 更新字段
+	if req.SessionName != "" {
+		server.SessionName = req.SessionName
+	}
+	if req.ClusterID != "" {
+		server.ClusterID = req.ClusterID
+	}
 	if req.Port > 0 {
 		server.Port = req.Port
 	}
@@ -618,6 +632,8 @@ func UpdateServer(c *gin.Context) {
 	response := models.ServerResponse{
 		ID:            server.ID,
 		Identifier:    server.Identifier,
+		SessionName:   server.SessionName,
+		ClusterID:     server.ClusterID,
 		Port:          server.Port,
 		QueryPort:     server.QueryPort,
 		RCONPort:      server.RCONPort,

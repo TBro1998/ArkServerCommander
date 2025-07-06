@@ -6,6 +6,8 @@ export const queryParams = {
   Port: { name: 'Port', type: 'number', category: 'basic', description: '游戏端口', default: 7777, hidden: true },
   QueryPort: { name: 'QueryPort', type: 'number', category: 'basic', description: '查询端口', default: 27015, hidden: true },
   RCONPort: { name: 'RCONPort', type: 'number', category: 'basic', description: 'RCON端口', default: 32330, hidden: true },
+  ServerAdminPassword: { name: 'ServerAdminPassword', type: 'string', category: 'basic', description: '管理员密码', default: '', hidden: true },
+  SessionName: { name: 'SessionName', type: 'string', category: 'basic', description: '服务器名称', default: '', hidden: true },
   GameModIds: { name: 'GameModIds', type: 'string', category: 'basic', description: '模组ID列表', default: '', hidden: true },
 
   // 核心游戏设置
@@ -77,6 +79,7 @@ export const queryParams = {
 export const commandLineArgs = {
   // 基础服务器设置
   server: { name: 'server', type: 'boolean', category: 'basic', description: '服务器模式', default: true, hidden: true },
+  clusterid: { name: 'clusterid', type: 'string', category: 'basic', description: '集群ID', default: '', hidden: true },
 
   // 性能优化
   allcores: { name: 'allcores', type: 'boolean', category: 'performance', description: '使用所有CPU核心', default: false },

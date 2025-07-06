@@ -222,6 +222,14 @@
                   {{ getStatusText(server.status) }}
                 </span>
               </div>
+              <div v-if="server.session_name" class="flex justify-between">
+                <span class="text-gray-600">服务器名称:</span>
+                <span class="font-medium">{{ server.session_name }}</span>
+              </div>
+              <div v-if="server.cluster_id" class="flex justify-between">
+                <span class="text-gray-600">集群ID:</span>
+                <span class="font-medium">{{ server.cluster_id }}</span>
+              </div>
               <div class="flex justify-between">
                 <span class="text-gray-600">地图:</span>
                 <span class="font-medium">{{ server.map || 'TheIsland' }}</span>

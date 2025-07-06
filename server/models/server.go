@@ -9,6 +9,8 @@ import (
 type Server struct {
 	ID            uint           `json:"id" gorm:"primarykey"`
 	Identifier    string         `json:"identifier" gorm:"not null"`
+	SessionName   string         `json:"session_name" gorm:"default:'ARK Server'"` // 服务器名称
+	ClusterID     string         `json:"cluster_id" gorm:"default:''"`             // 集群ID
 	Port          int            `json:"port" gorm:"not null;default:7777"`
 	QueryPort     int            `json:"query_port" gorm:"not null;default:27015"`
 	RCONPort      int            `json:"rcon_port" gorm:"not null;default:32330"`
@@ -28,6 +30,8 @@ type Server struct {
 
 type ServerRequest struct {
 	Identifier    string `json:"identifier" binding:"required"`
+	SessionName   string `json:"session_name"` // 服务器名称
+	ClusterID     string `json:"cluster_id"`   // 集群ID
 	Port          int    `json:"port" binding:"required,min=1,max=65535"`
 	QueryPort     int    `json:"query_port" binding:"required,min=1,max=65535"`
 	RCONPort      int    `json:"rcon_port" binding:"required,min=1,max=65535"`
@@ -45,6 +49,8 @@ type ServerRequest struct {
 type ServerResponse struct {
 	ID            uint   `json:"id"`
 	Identifier    string `json:"identifier"`
+	SessionName   string `json:"session_name"` // 服务器名称
+	ClusterID     string `json:"cluster_id"`   // 集群ID
 	Port          int    `json:"port"`
 	QueryPort     int    `json:"query_port"`
 	RCONPort      int    `json:"rcon_port"`
@@ -66,6 +72,8 @@ type ServerResponse struct {
 
 type ServerUpdateRequest struct {
 	Identifier    string `json:"identifier"`
+	SessionName   string `json:"session_name"` // 服务器名称
+	ClusterID     string `json:"cluster_id"`   // 集群ID
 	Port          int    `json:"port" binding:"min=1,max=65535"`
 	QueryPort     int    `json:"query_port" binding:"min=1,max=65535"`
 	RCONPort      int    `json:"rcon_port" binding:"min=1,max=65535"`

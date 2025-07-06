@@ -87,6 +87,11 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 	queryParams = append(queryParams, fmt.Sprintf("?RCONPort=%d", server.RCONPort))
 	queryParams = append(queryParams, fmt.Sprintf("?ServerAdminPassword=%s", server.AdminPassword))
 
+	// 添加服务器名称（SessionName）
+	if server.SessionName != "" {
+		queryParams = append(queryParams, fmt.Sprintf("?SessionName=%s", server.SessionName))
+	}
+
 	if server.GameModIds != "" {
 		queryParams = append(queryParams, fmt.Sprintf("?GameModIds=%s", server.GameModIds))
 	}
@@ -127,6 +132,11 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 		default:
 			commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%v", key, v))
 		}
+	}
+
+	// 添加集群ID（ClusterID）
+	if server.ClusterID != "" {
+		commandLineParams = append(commandLineParams, fmt.Sprintf("-clusterid=%s", server.ClusterID))
 	}
 
 	// 添加自定义参数

@@ -103,6 +103,29 @@
                     placeholder="输入服务器标识"
                   />
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">服务器名称</label>
+                  <input
+                    v-model="formData.session_name"
+                    type="text"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="输入服务器名称"
+                  />
+                  <p class="text-xs text-gray-500 mt-1">显示在游戏服务器列表中的名称</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">集群ID</label>
+                  <input
+                    v-model="formData.cluster_id"
+                    type="text"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="输入集群ID（可选）"
+                  />
+                  <p class="text-xs text-gray-500 mt-1">用于集群服务器之间的数据共享</p>
+                </div>
                 <div></div>
               </div>
 
@@ -282,6 +305,8 @@ const showFormPassword = ref(false)
 // 表单数据
 const formData = ref({
   identifier: '',
+  session_name: 'ARK Server',
+  cluster_id: '',
   port: 7777,
   query_port: 27015,
   rcon_port: 27020,
@@ -309,6 +334,8 @@ watch(() => props.show, (newShow) => {
       // 创建模式：重置表单
       formData.value = {
         identifier: '',
+        session_name: 'ARK Server',
+        cluster_id: '',
         port: 7777,
         query_port: 27015,
         rcon_port: 32330,
@@ -324,6 +351,8 @@ watch(() => props.show, (newShow) => {
       // 编辑模式：填充当前服务器数据
       formData.value = {
         identifier: props.server.identifier || '',
+        session_name: props.server.session_name || 'ARK Server',
+        cluster_id: props.server.cluster_id || '',
         port: props.server.port || 7777,
         query_port: props.server.query_port || 27015,
         rcon_port: props.server.rcon_port || 32330,
@@ -344,6 +373,8 @@ watch(() => props.server, (newServer) => {
   if (props.mode === 'edit' && newServer && props.show) {
     formData.value = {
       identifier: newServer.identifier || '',
+      session_name: newServer.session_name || 'ARK Server',
+      cluster_id: newServer.cluster_id || '',
       port: newServer.port || 7777,
       query_port: newServer.query_port || 27015,
       rcon_port: newServer.rcon_port || 32330,
