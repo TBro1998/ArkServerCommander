@@ -99,8 +99,8 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 			continue
 		}
 
-		// 如果查询参数的值为空，则不添加该参数
-		if value == "" {
+		// 如果查询参数的值为空或为"False"，则不添加该参数
+		if value == "" || strings.ToLower(value) == "false" {
 			continue
 		}
 
