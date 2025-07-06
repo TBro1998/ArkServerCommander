@@ -1,5 +1,7 @@
 # ARK 服务器管理器
 
+[English](README.md) | [中文](README-zh.md)
+
 - Linux上的 ARK 生存进化服务器管理工具。
 - ARK 服务器自带 ArkApi 插件系统。
 

@@ -1,5 +1,7 @@
 # ARK Server Manager
 
+[English](README.md) | [中文](README-zh.md)
+
 - ARK Survival Evolved server management tool for Linux.
 - ARK servers come with ArkApi plugin system built-in.
 
