@@ -193,6 +193,21 @@
                   </select>
                 </div>
                 <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">最大玩家数</label>
+                  <input
+                    v-model.number="formData.max_players"
+                    type="number"
+                    min="1"
+                    max="200"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="70"
+                  />
+                  <p class="text-xs text-gray-500 mt-1">服务器最大玩家数量（1-200）</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">模组ID</label>
                   <input
                     v-model="formData.game_mod_ids"
@@ -202,6 +217,7 @@
                   />
                   <p class="text-xs text-gray-500 mt-1">Steam创意工坊模组ID，多个模组用逗号分隔</p>
                 </div>
+                <div></div>
               </div>
 
               <div>
@@ -312,6 +328,7 @@ const formData = ref({
   rcon_port: 27020,
   admin_password: '',
   map: 'TheIsland',
+  max_players: 70,
   game_mod_ids: '',
   game_user_settings: '',
   game_ini: '',
@@ -341,6 +358,7 @@ watch(() => props.show, (newShow) => {
         rcon_port: 32330,
         admin_password: '',
         map: 'TheIsland',
+        max_players: 70,
         game_mod_ids: '',
         game_user_settings: '',
         game_ini: '',
@@ -358,6 +376,7 @@ watch(() => props.show, (newShow) => {
         rcon_port: props.server.rcon_port || 32330,
         admin_password: props.server.admin_password || '',
         map: props.server.map || 'TheIsland',
+        max_players: props.server.max_players || 70,
         game_mod_ids: props.server.game_mod_ids || '',
         game_user_settings: props.server.game_user_settings || '',
         game_ini: props.server.game_ini || '',
@@ -380,6 +399,7 @@ watch(() => props.server, (newServer) => {
       rcon_port: newServer.rcon_port || 32330,
       admin_password: newServer.admin_password || '',
       map: newServer.map || 'TheIsland',
+      max_players: newServer.max_players || 70,
       game_mod_ids: newServer.game_mod_ids || '',
       game_user_settings: newServer.game_user_settings || '',
       game_ini: newServer.game_ini || '',

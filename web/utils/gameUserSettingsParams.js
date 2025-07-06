@@ -4,12 +4,6 @@ export const gameUserSettingsParams = {
   serverBasic: {
     title: '服务器基本设置',
     params: {
-      SessionName: {
-        type: 'text',
-        label: '服务器名称',
-        default: 'ARK Server',
-        description: '在服务器列表中显示的服务器名称'
-      },
       ServerPassword: {
         type: 'password',
         label: '服务器密码',
@@ -21,14 +15,6 @@ export const gameUserSettingsParams = {
         label: '观察者密码',
         default: '',
         description: '非管理员观察模式密码'
-      },
-      MaxPlayers: {
-        type: 'number',
-        label: '最大玩家数',
-        default: 70,
-        min: 1,
-        max: 255,
-        description: '服务器最大玩家数量'
       },
       AdminLogging: {
         type: 'boolean',

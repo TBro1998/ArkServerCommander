@@ -82,7 +82,7 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 	queryParams = append(queryParams, "?listen")
 	queryParams = append(queryParams, fmt.Sprintf("?Port=%d", server.Port))
 	queryParams = append(queryParams, fmt.Sprintf("?QueryPort=%d", server.QueryPort))
-	queryParams = append(queryParams, "?MaxPlayers=70")
+	queryParams = append(queryParams, fmt.Sprintf("?MaxPlayers=%d", server.MaxPlayers))
 	queryParams = append(queryParams, "?RCONEnabled=True")
 	queryParams = append(queryParams, fmt.Sprintf("?RCONPort=%d", server.RCONPort))
 	queryParams = append(queryParams, fmt.Sprintf("?ServerAdminPassword=%s", server.AdminPassword))

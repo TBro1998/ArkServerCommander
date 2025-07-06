@@ -285,24 +285,11 @@ const syncVisualToText = () => {
 
     let content = '[ServerSettings]\n'
     
-    // 添加从服务器基础参数获取的参数
-    if (props.server) {
-      content += `RCONPort=${props.server.rcon_port || 32330}\n`
-      content += `ServerAdminPassword=${props.server.admin_password || 'password'}\n`
-      if (props.server.game_mod_ids) {
-        content += `ActiveMods=${props.server.game_mod_ids}\n`
-      }
-    }
-    
     // 添加可视化配置的参数
     Object.keys(gameUserSettingsParams).forEach(sectionKey => {
       const section = gameUserSettingsParams[sectionKey]
       if (section && section.params) {
         Object.keys(section.params).forEach(paramKey => {
-          // 跳过 SessionName，因为它会在 [SessionSettings] 部分添加
-          if (paramKey === 'SessionName') {
-            return
-          }
           const value = visualConfig.value[paramKey]
           if (value !== undefined && value !== null && value !== '') {
             content += `${paramKey}=${value}\n`
@@ -312,16 +299,7 @@ const syncVisualToText = () => {
     })
     
     content += '\n[SessionSettings]\n'
-    content += `SessionName=${visualConfig.value.SessionName || 'ARK Server'}\n`
-    
-    // 添加从服务器基础参数获取的端口参数
-    if (props.server) {
-      content += `Port=${props.server.port || 7777}\n`
-      content += `QueryPort=${props.server.query_port || 27015}\n`
-    }
-    
-    content += '\n[/Script/Engine.GameSession]\n'
-    content += `MaxPlayers=${visualConfig.value.MaxPlayers || 70}\n`
+    content += `SessionName=${props.server?.identifier || 'ARK Server'}\n`
     
     content += '\n[MessageOfTheDay]\n'
     content += 'Message=欢迎来到 ARK 服务器！\n'
@@ -408,16 +386,11 @@ const resetToDefault = () => {
   const server = props.server
   
   textContent.value = `[ServerSettings]
-RCONPort=${server.rcon_port || 32330}
-ServerAdminPassword=${server.admin_password || 'password'}
-${server.game_mod_ids ? `ActiveMods=${server.game_mod_ids}\n` : ''}ServerPassword=
-MaxPlayers=70
+ServerPassword=
 AdminLogging=True
 
 [SessionSettings]
 SessionName=${server.identifier}
-Port=${server.port || 7777}
-QueryPort=${server.query_port || 27015}
 
 [MessageOfTheDay]
 Message=欢迎来到 ${server.identifier} ARK 服务器！

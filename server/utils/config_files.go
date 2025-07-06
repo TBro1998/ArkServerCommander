@@ -45,9 +45,6 @@ bAllowPlatformSaddleMultiFloors=true
 bPassiveDefensesDamageRiderlessDinos=true
 MaxNumberOfPlayersInTribe=0
 
-[/script/engine.gamesession]
-MaxPlayers=70
-
 [/Script/ShooterGame.ShooterGameMode]
 DifficultyOffset=1.0
 OverrideOfficialDifficulty=5.0

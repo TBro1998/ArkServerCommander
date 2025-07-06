@@ -80,6 +80,7 @@ func GetServers(c *gin.Context) {
 			RCONPort:      server.RCONPort,
 			AdminPassword: server.AdminPassword,
 			Map:           server.Map,
+			MaxPlayers:    server.MaxPlayers,
 			GameModIds:    server.GameModIds,
 			Status:        realTimeStatus,
 			AutoRestart:   server.AutoRestart,
@@ -128,6 +129,10 @@ func CreateServer(c *gin.Context) {
 	if req.Map == "" {
 		req.Map = "TheIsland"
 	}
+	// 设置默认最大玩家数
+	if req.MaxPlayers == 0 {
+		req.MaxPlayers = 70
+	}
 	// 设置默认自动重启值
 	if req.AutoRestart == nil {
 		defaultVal := true
@@ -159,6 +164,7 @@ func CreateServer(c *gin.Context) {
 		RCONPort:      req.RCONPort,
 		AdminPassword: req.AdminPassword,
 		Map:           req.Map,
+		MaxPlayers:    req.MaxPlayers,
 		GameModIds:    req.GameModIds,
 		Status:        "stopped",
 		AutoRestart:   *req.AutoRestart,
@@ -346,6 +352,7 @@ func GetServer(c *gin.Context) {
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
+		MaxPlayers:    server.MaxPlayers,
 		GameModIds:    server.GameModIds,
 		Status:        server.Status,
 		AutoRestart:   server.AutoRestart,
@@ -568,6 +575,9 @@ func UpdateServer(c *gin.Context) {
 	if req.Map != "" {
 		server.Map = req.Map
 	}
+	if req.MaxPlayers > 0 {
+		server.MaxPlayers = req.MaxPlayers
+	}
 	if req.GameModIds != "" {
 		server.GameModIds = req.GameModIds
 	}
@@ -639,6 +649,7 @@ func UpdateServer(c *gin.Context) {
 		RCONPort:      server.RCONPort,
 		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
+		MaxPlayers:    server.MaxPlayers,
 		GameModIds:    server.GameModIds,
 		Status:        server.Status,
 		AutoRestart:   server.AutoRestart,

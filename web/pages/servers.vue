@@ -234,6 +234,10 @@
                 <span class="text-gray-600">地图:</span>
                 <span class="font-medium">{{ server.map || 'TheIsland' }}</span>
               </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">最大玩家数:</span>
+                <span class="font-medium">{{ server.max_players || 70 }}</span>
+              </div>
             </div>
 
             <!-- 端口信息 -->
