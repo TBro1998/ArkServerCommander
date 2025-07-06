@@ -99,11 +99,12 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 			continue
 		}
 
+		// 如果查询参数的值为空，则不添加该参数
 		if value == "" {
-			queryParams = append(queryParams, fmt.Sprintf("?%s", key))
-		} else {
-			queryParams = append(queryParams, fmt.Sprintf("?%s=%s", key, value))
+			continue
 		}
+
+		queryParams = append(queryParams, fmt.Sprintf("?%s=%s", key, value))
 	}
 
 	// 添加命令行参数
