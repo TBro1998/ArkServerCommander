@@ -36,7 +36,7 @@ RUN go mod download
 COPY server/ ./
 
 # 整理依赖并构建后端应用
-RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -trimpath -ldflags="-s -w" -o main .
 
 # 最终运行阶段
 FROM alpine:latest
