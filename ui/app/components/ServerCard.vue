@@ -1,0 +1,282 @@
+<template>
+  <UCard class="h-full hover:shadow-lg transition-all duration-300 group">
+    <!-- 卡片头部 -->
+    <template #header>
+      <div class="flex justify-between items-start">
+        <div class="min-w-0 flex-1">
+          <h3 class="text-lg font-semibold text-gray-900 truncate">{{ server.identifier }}</h3>
+        </div>
+        <div class="flex gap-1 ml-2">
+          <!-- 启动/停止按钮 -->
+          <UButton
+            v-if="server.status === 'stopped'"
+            @click="$emit('start', server)"
+            :disabled="!canStartServer"
+            color="green"
+            variant="ghost"
+            size="xs"
+            :title="canStartServer ? '启动服务器' : '镜像未就绪，无法启动'"
+          >
+            <UIcon name="i-lucide-play" class="w-4 h-4" />
+          </UButton>
+          
+          <UButton
+            v-else-if="server.status === 'running'"
+            @click="$emit('stop', server)"
+            color="red"
+            variant="ghost"
+            size="xs"
+            title="停止服务器"
+          >
+            <UIcon name="i-lucide-square" class="w-4 h-4" />
+          </UButton>
+          
+          <UButton
+            v-else-if="server.status === 'starting'"
+            color="yellow"
+            variant="ghost"
+            size="xs"
+            disabled
+            title="启动中..."
+          >
+            <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+          </UButton>
+          
+          <UButton
+            v-else-if="server.status === 'stopping'"
+            color="yellow"
+            variant="ghost"
+            size="xs"
+            disabled
+            title="停止中..."
+          >
+            <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+          </UButton>
+          
+          <UButton
+            v-else
+            color="gray"
+            variant="ghost"
+            size="xs"
+            disabled
+            title="未知状态"
+          >
+            <UIcon name="i-lucide-help-circle" class="w-4 h-4" />
+          </UButton>
+          
+          <!-- RCON信息按钮 -->
+          <UButton
+            @click="$emit('rcon', server)"
+            color="green"
+            variant="ghost"
+            size="xs"
+            title="RCON信息"
+          >
+            <UIcon name="i-lucide-info" class="w-4 h-4" />
+          </UButton>
+          
+          <!-- 编辑按钮 -->
+          <UButton
+            @click="$emit('edit', server)"
+            color="blue"
+            variant="ghost"
+            size="xs"
+            title="编辑服务器"
+          >
+            <UIcon name="i-lucide-edit" class="w-4 h-4" />
+          </UButton>
+          
+          <!-- 删除按钮 -->
+          <UButton
+            @click="$emit('delete', server)"
+            color="red"
+            variant="ghost"
+            size="xs"
+            title="删除服务器"
+          >
+            <UIcon name="i-lucide-trash-2" class="w-4 h-4" />
+          </UButton>
+        </div>
+      </div>
+    </template>
+
+    <!-- 卡片内容 -->
+    <div class="space-y-6">
+      <!-- 状态徽章 -->
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-600">状态</span>
+        <UBadge
+          :color="getStatusColor(server.status)"
+          :variant="getStatusVariant(server.status)"
+          size="sm"
+        >
+          {{ getStatusText(server.status) }}
+        </UBadge>
+      </div>
+
+      <!-- 基本信息 -->
+      <div class="space-y-3">
+        <div v-if="server.session_name" class="flex justify-between items-center">
+          <span class="text-sm text-gray-600">服务器名称</span>
+          <span class="text-sm font-medium text-gray-900">{{ server.session_name }}</span>
+        </div>
+        <div v-if="server.cluster_id" class="flex justify-between items-center">
+          <span class="text-sm text-gray-600">集群ID</span>
+          <span class="text-sm font-medium text-gray-900">{{ server.cluster_id }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-600">地图</span>
+          <span class="text-sm font-medium text-gray-900">{{ server.map || 'TheIsland' }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-600">最大玩家数</span>
+          <span class="text-sm font-medium text-gray-900">{{ server.max_players || 70 }}</span>
+        </div>
+      </div>
+
+      <!-- 端口配置 -->
+      <div class="border-t border-gray-100 pt-4">
+        <div class="flex items-center space-x-2 mb-3">
+          <UIcon name="i-lucide-wifi" class="w-4 h-4 text-blue-600" />
+          <h4 class="text-sm font-semibold text-gray-700">端口配置</h4>
+        </div>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">游戏端口</span>
+            <span class="font-mono text-blue-600 text-xs">{{ server.port }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">查询端口</span>
+            <span class="font-mono text-blue-600 text-xs">{{ server.query_port }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">RCON端口</span>
+            <span class="font-mono text-blue-600 text-xs">{{ server.rcon_port }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 认证信息 -->
+      <div class="border-t border-gray-100 pt-4">
+        <div class="flex items-center space-x-2 mb-3">
+          <UIcon name="i-lucide-lock" class="w-4 h-4 text-green-600" />
+          <h4 class="text-sm font-semibold text-gray-700">认证信息</h4>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-600">管理员密码</span>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-gray-800 text-xs">
+              {{ showPassword ? server.admin_password : '***' }}
+            </span>
+            <UButton
+              @click="togglePassword"
+              color="gray"
+              variant="ghost"
+              size="xs"
+              :title="showPassword ? '隐藏密码' : '显示密码'"
+            >
+              <UIcon :name="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="w-3 h-3" />
+            </UButton>
+          </div>
+        </div>
+      </div>
+
+      <!-- 时间信息 -->
+      <div class="border-t border-gray-100 pt-4">
+        <div class="flex items-center space-x-2 mb-3">
+          <UIcon name="i-lucide-clock" class="w-4 h-4 text-purple-600" />
+          <h4 class="text-sm font-semibold text-gray-700">时间信息</h4>
+        </div>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">创建时间</span>
+            <span class="text-gray-800">{{ formatDate(server.created_at) }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">更新时间</span>
+            <span class="text-gray-800">{{ formatDate(server.updated_at) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 服务器ID -->
+      <div class="border-t border-gray-100 pt-4">
+        <div class="flex justify-between items-center text-xs text-gray-500">
+          <span>服务器ID</span>
+          <span class="font-mono">#{{ server.id }}</span>
+        </div>
+      </div>
+    </div>
+  </UCard>
+</template>
+
+<script setup>
+// Props
+const props = defineProps({
+  server: {
+    type: Object,
+    required: true
+  },
+  canStartServer: {
+    type: Boolean,
+    default: true
+  }
+})
+
+// Emits
+const emit = defineEmits(['start', 'stop', 'edit', 'delete', 'rcon'])
+
+// 响应式数据
+const showPassword = ref(false)
+
+// 方法
+const togglePassword = () => {
+  showPassword.value = !showPassword.value
+}
+
+const getStatusText = (status) => {
+  switch (status) {
+    case 'running': return '运行中'
+    case 'stopped': return '已停止'
+    case 'starting': return '启动中'
+    case 'stopping': return '停止中'
+    default: return '未知'
+  }
+}
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'running': return 'green'
+    case 'stopped': return 'red'
+    case 'starting':
+    case 'stopping': return 'yellow'
+    default: return 'gray'
+  }
+}
+
+const getStatusVariant = (status) => {
+  switch (status) {
+    case 'running': return 'solid'
+    case 'stopped': return 'solid'
+    case 'starting':
+    case 'stopping': return 'soft'
+    default: return 'soft'
+  }
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return '暂无'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return dateString
+  }
+}
+</script> 

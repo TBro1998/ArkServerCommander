@@ -1,324 +1,119 @@
 <template>
-  <div class="w-full px-2 sm:px-4 py-4 sm:py-8">
-    <div class="bg-white rounded-lg shadow-lg">
-      <div class="p-4 sm:p-6 border-b border-gray-200">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h1 class="text-xl sm:text-2xl font-bold text-gray-900">服务器管理</h1>
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-            <!-- 镜像状态按钮 -->
-            <button
-              @click="showImageStatusModal = true"
-              class="w-full sm:w-auto bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-              </svg>
-              镜像状态
-            </button>
-            <button
-              @click="showCreateForm = true"
-              :disabled="!imageStatus?.can_create_server"
-              class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-              </svg>
-              新增服务器
-            </button>
-            
-            <!-- 镜像状态指示器 -->
-            <div v-if="imageStatus && !imageStatus.can_create_server" class="flex items-center gap-2 text-sm">
-              <div v-if="imageStatus.any_pulling" class="flex items-center gap-1 text-yellow-600">
-                <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                <span>镜像下载中{{ isPollingImageStatus ? ' (轮询中)' : '' }}</span>
-              </div>
-              <div v-else class="flex items-center gap-1 text-red-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                </svg>
-                <span>镜像未就绪{{ isPollingImageStatus ? ' (轮询中)' : '' }}</span>
-              </div>
-            </div>
-          </div>
+  <UContainer class="py-8">
+    <!-- 页面头部 -->
+    <div class="mb-8">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">服务器管理</h1>
+          <p class="text-gray-600">管理您的 ARK 服务器，支持一键启动、停止和配置</p>
         </div>
-      </div>
-
-      <div class="p-4 sm:p-6">
-        <!-- 消息提示 -->
-        <ErrorMessage
-          :show="!!errorMessage"
-          :message="errorMessage"
-          @close="errorMessage = ''"
-        />
-        <SuccessMessage
-          :show="!!successMessage"
-          :message="successMessage"
-          @close="successMessage = ''"
-        />
-
-        <!-- 镜像状态弹窗 -->
-        <ImageStatusModal
-          :show="showImageStatusModal"
-          :image-status="imageStatus"
-          @close="showImageStatusModal = false"
-          @refresh="refreshImageStatus"
-        />
         
-
-        
-
-        
-        <!-- 服务器列表 -->
-        <div v-if="loading" class="text-center py-8">
-          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p class="mt-2 text-gray-600">加载中...</p>
-        </div>
-
-        <div v-else-if="servers.length === 0" class="text-center py-12">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-          </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">暂无服务器</h3>
-          <p class="mt-1 text-sm text-gray-500">开始创建您的第一个ARK服务器</p>
-          <div v-if="imageStatus?.can_create_server" class="mt-6">
-            <button
-              @click="showCreateForm = true"
-              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-            >
-              新增服务器
-            </button>
-          </div>
-          <div v-else-if="imageStatus && !imageStatus.can_create_server" class="mt-6">
-            <div class="flex items-center justify-center gap-2 text-sm">
-              <div v-if="imageStatus.any_pulling" class="flex items-center gap-1 text-yellow-600">
-                <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                <span>镜像下载中{{ isPollingImageStatus ? ' (轮询中)' : '' }}，请稍后创建服务器</span>
-              </div>
-              <div v-else class="flex items-center gap-1 text-red-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                </svg>
-                <span>镜像未就绪{{ isPollingImageStatus ? ' (轮询中)' : '' }}，无法创建服务器</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else class="flex flex-wrap gap-4 sm:gap-6 justify-center sm:justify-start">
-          <div
-            v-for="server in servers"
-            :key="server.id"
-            class="bg-gray-50 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow h-fit w-80"
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          <!-- 镜像状态按钮 -->
+          <UButton
+            @click="showImageStatusModal = true"
+            color="gray"
+            variant="outline"
+            icon="i-lucide-image"
           >
-            <div class="flex justify-between items-start mb-4">
-              <div class="min-w-0 flex-1">
-                <h3 class="text-base sm:text-lg font-semibold text-gray-900 truncate">{{ server.identifier }}</h3>
-              </div>
-              <div class="flex gap-1 sm:gap-2 ml-2">
-                <!-- 启动/停止按钮 -->
-                <button
-                  v-if="server.status === 'stopped'"
-                  @click="startServer(server)"
-                  :disabled="imageStatus && !imageStatus.can_start_server"
-                  :class="[
-                    'p-1',
-                    imageStatus && !imageStatus.can_start_server 
-                      ? 'text-gray-400 cursor-not-allowed' 
-                      : 'text-green-600 hover:text-green-800'
-                  ]"
-                  :title="imageStatus && !imageStatus.can_start_server ? '镜像未就绪，无法启动' : '启动服务器'"
-                >
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </button>
-                <button
-                  v-else-if="server.status === 'running'"
-                  @click="stopServer(server)"
-                  class="text-red-600 hover:text-red-800 p-1"
-                  title="停止服务器"
-                >
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 6h4v12H6zm8-6v18h4V6h-4z"/>
-                  </svg>
-                </button>
-                <button
-                  v-else-if="server.status === 'starting'"
-                  class="text-yellow-600 p-1 cursor-not-allowed"
-                  disabled
-                  title="启动中..."
-                >
-                  <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                  </svg>
-                </button>
-                <button
-                  v-else-if="server.status === 'stopping'"
-                  class="text-yellow-600 p-1 cursor-not-allowed"
-                  disabled
-                  title="停止中..."
-                >
-                  <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                  </svg>
-                </button>
-                <button
-                  v-else
-                  class="text-gray-400 p-1 cursor-not-allowed"
-                  disabled
-                  title="未知状态"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </button>
-                
-                <button
-                  @click="showRCONInfo(server)"
-                  class="text-green-600 hover:text-green-800 p-1"
-                  title="RCON信息"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </button>
-                <button
-                  @click="editServer(server)"
-                  class="text-blue-600 hover:text-blue-800 p-1"
-                  title="编辑服务器"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                  </svg>
-                </button>
-                <button
-                  @click="confirmDelete(server)"
-                  class="text-red-600 hover:text-red-800 p-1"
-                  title="删除"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- 基本信息 -->
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-600">状态:</span>
-                <span
-                  :class="{
-                    'text-green-600': server.status === 'running',
-                    'text-red-600': server.status === 'stopped',
-                    'text-yellow-600': server.status === 'starting' || server.status === 'stopping'
-                  }"
-                  class="font-medium"
-                >
-                  {{ getStatusText(server.status) }}
-                </span>
-              </div>
-              <div v-if="server.session_name" class="flex justify-between">
-                <span class="text-gray-600">服务器名称:</span>
-                <span class="font-medium">{{ server.session_name }}</span>
-              </div>
-              <div v-if="server.cluster_id" class="flex justify-between">
-                <span class="text-gray-600">集群ID:</span>
-                <span class="font-medium">{{ server.cluster_id }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600">地图:</span>
-                <span class="font-medium">{{ server.map || 'TheIsland' }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600">最大玩家数:</span>
-                <span class="font-medium">{{ server.max_players || 70 }}</span>
-              </div>
-            </div>
-
-            <!-- 端口信息 -->
-            <div class="mt-4 mb-4">
-              <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
-                </svg>
-                端口配置
-              </h4>
-              <div class="space-y-1 text-sm pl-5">
-                <div class="flex justify-between">
-                  <span class="text-gray-600">游戏端口:</span>
-                  <span class="font-mono text-blue-600">{{ server.port }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600">查询端口:</span>
-                  <span class="font-mono text-blue-600">{{ server.query_port }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600">RCON端口:</span>
-                  <span class="font-mono text-blue-600">{{ server.rcon_port }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 认证信息 -->
-            <div class="mb-4">
-              <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                </svg>
-                认证信息
-              </h4>
-              <div class="space-y-1 text-sm pl-5">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">管理员密码:</span>
-                  <div class="flex items-center gap-2">
-                    <span class="font-mono text-gray-800 text-xs sm:text-sm">{{ showServerPasswords[server.id] ? server.admin_password : '***' }}</span>
-                    <button
-                      @click="toggleServerPassword(server.id)"
-                      class="text-xs text-gray-500 hover:text-gray-700"
-                      :title="showServerPasswords[server.id] ? '隐藏密码' : '显示密码'"
-                    >
-                      {{ showServerPasswords[server.id] ? '隐藏' : '显示' }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 时间信息 -->
-            <div class="mb-4">
-              <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                时间信息
-              </h4>
-              <div class="space-y-1 text-sm pl-5">
-                <div class="flex justify-between">
-                  <span class="text-gray-600">创建时间:</span>
-                  <span class="text-gray-800 text-xs sm:text-sm">{{ formatDate(server.created_at) }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600">更新时间:</span>
-                  <span class="text-gray-800 text-xs sm:text-sm">{{ formatDate(server.updated_at) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 服务器ID信息 -->
-            <div class="text-xs text-gray-500 border-t pt-2 mt-2">
-              <div class="flex justify-between">
-                <span>服务器ID:</span>
-                <span class="font-mono">#{{ server.id }}</span>
-              </div>
-            </div>
-          </div>
+            镜像状态
+          </UButton>
+          
+          <UButton
+            @click="showCreateForm = true"
+            :disabled="!imageStatus?.can_create_server"
+            color="blue"
+            icon="i-lucide-plus"
+          >
+            新增服务器
+          </UButton>
         </div>
       </div>
+      
+      <!-- 镜像状态指示器 -->
+      <div v-if="imageStatus && !imageStatus.can_create_server" class="mt-4">
+        <UAlert
+          :title="imageStatus.any_pulling ? '镜像下载中' : '镜像未就绪'"
+          :description="imageStatus.any_pulling ? '正在下载镜像，请稍后创建服务器' : '镜像未就绪，无法创建服务器'"
+          :color="imageStatus.any_pulling ? 'yellow' : 'red'"
+          variant="soft"
+          :icon="imageStatus.any_pulling ? 'i-lucide-loader-2' : 'i-lucide-alert-circle'"
+        />
+      </div>
+    </div>
+
+    <!-- 消息提示 -->
+    <UAlert
+      v-if="errorMessage"
+      :title="errorMessage"
+      color="red"
+      variant="soft"
+      icon="i-lucide-alert-circle"
+      @close="errorMessage = ''"
+    />
+    
+    <UAlert
+      v-if="successMessage"
+      :title="successMessage"
+      color="green"
+      variant="soft"
+      icon="i-lucide-check-circle"
+      @close="successMessage = ''"
+    />
+
+    <!-- 镜像状态弹窗 -->
+    <ImageStatusModal
+      :show="showImageStatusModal"
+      :image-status="imageStatus"
+      @close="showImageStatusModal = false"
+      @refresh="refreshImageStatus"
+    />
+
+    <!-- 服务器列表 -->
+    <div v-if="loading" class="text-center py-12">
+      <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+      <p class="text-gray-600">加载中...</p>
+    </div>
+
+    <div v-else-if="servers.length === 0" class="text-center py-12">
+      <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+        <UIcon name="i-lucide-server" class="w-8 h-8 text-gray-400" />
+      </div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">暂无服务器</h3>
+      <p class="text-gray-500 mb-6">开始创建您的第一个ARK服务器</p>
+      
+      <div v-if="imageStatus?.can_create_server">
+        <UButton
+          @click="showCreateForm = true"
+          color="blue"
+          icon="i-lucide-plus"
+        >
+          新增服务器
+        </UButton>
+      </div>
+      <div v-else-if="imageStatus && !imageStatus.can_create_server">
+        <UAlert
+          :title="imageStatus.any_pulling ? '镜像下载中' : '镜像未就绪'"
+          :description="imageStatus.any_pulling ? '请等待镜像下载完成后创建服务器' : '镜像未就绪，无法创建服务器'"
+          :color="imageStatus.any_pulling ? 'yellow' : 'red'"
+          variant="soft"
+          :icon="imageStatus.any_pulling ? 'i-lucide-loader-2' : 'i-lucide-alert-circle'"
+        />
+      </div>
+    </div>
+
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <ServerCard
+        v-for="server in servers"
+        :key="server.id"
+        :server="server"
+        :can-start-server="imageStatus?.can_start_server ?? true"
+        @start="startServer"
+        @stop="stopServer"
+        @edit="editServer"
+        @delete="confirmDelete"
+        @rcon="showRCONInfo"
+      />
     </div>
 
     <!-- 统一的服务器编辑模态框 -->
@@ -332,112 +127,123 @@
       @save="handleServerSave"
     />
 
-
     <!-- 删除确认模态框 -->
     <div
       v-if="showDeleteConfirm"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center"
       @click="showDeleteConfirm = false"
     >
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-        <div class="mt-3 text-center">
-          <svg class="mx-auto mb-4 w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-          </svg>
-          <h3 class="text-lg font-medium text-gray-900">确认删除</h3>
-          <div class="mt-2 px-7 py-3">
-            <p class="text-sm text-gray-500">
-              您确定要删除服务器 "{{ serverToDelete?.identifier }}" 吗？此操作无法撤销。
-            </p>
-          </div>
-          <div class="flex gap-3 mt-4">
-            <button
-              @click="deleteServer"
-              :disabled="deleting"
-              class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {{ deleting ? '删除中...' : '确认删除' }}
-            </button>
-            <button
-              @click="showDeleteConfirm = false"
-              class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors"
-            >
-              取消
-            </button>
-          </div>
-        </div>
+      <div class="relative mx-auto p-6 w-full max-w-md" @click.stop>
+        <UCard>
+          <template #header>
+            <div class="flex items-center space-x-3">
+              <UIcon name="i-lucide-alert-triangle" class="w-6 h-6 text-red-600" />
+              <h3 class="text-lg font-semibold text-gray-900">确认删除</h3>
+            </div>
+          </template>
+          
+          <p class="text-gray-600">
+            您确定要删除服务器 "{{ serverToDelete?.identifier }}" 吗？此操作无法撤销。
+          </p>
+          
+          <template #footer>
+            <div class="flex gap-3">
+              <UButton
+                @click="deleteServer"
+                :loading="deleting"
+                color="red"
+                variant="solid"
+              >
+                {{ deleting ? '删除中...' : '确认删除' }}
+              </UButton>
+              <UButton
+                @click="showDeleteConfirm = false"
+                color="gray"
+                variant="ghost"
+              >
+                取消
+              </UButton>
+            </div>
+          </template>
+        </UCard>
       </div>
     </div>
 
     <!-- RCON信息模态框 -->
     <div
       v-if="showRCONModal"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center"
       @click="showRCONModal = false"
     >
-      <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white" @click.stop>
-        <div class="mb-4">
-          <h3 class="text-lg font-bold text-gray-900">RCON连接信息</h3>
-        </div>
-        
-        <div v-if="rconInfo" class="space-y-3">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">服务器标识</label>
-            <p class="px-3 py-2 bg-gray-50 rounded border text-sm">{{ rconInfo.server_identifier }}</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">RCON端口</label>
-            <div class="flex">
-              <p class="flex-1 px-3 py-2 bg-gray-50 rounded-l border text-sm font-mono">{{ rconInfo.rcon_port }}</p>
-              <button
-                @click="copyToClipboard(rconInfo.rcon_port)"
-                class="px-3 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600 text-sm"
-                title="复制端口"
-              >
-                复制
-              </button>
+      <div class="relative mx-auto p-6 w-full max-w-md" @click.stop>
+        <UCard>
+          <template #header>
+            <div class="flex items-center space-x-3">
+              <UIcon name="i-lucide-info" class="w-6 h-6 text-green-600" />
+              <h3 class="text-lg font-semibold text-gray-900">RCON连接信息</h3>
             </div>
+          </template>
+          
+          <div v-if="rconInfo" class="space-y-4">
+            <UFormGroup label="服务器标识">
+              <UInput :value="rconInfo.server_identifier" readonly />
+            </UFormGroup>
+            
+            <UFormGroup label="RCON端口">
+              <div class="flex gap-2">
+                <UInput :value="rconInfo.rcon_port" readonly class="flex-1" />
+                <UButton
+                  @click="copyToClipboard(rconInfo.rcon_port)"
+                  color="blue"
+                  variant="outline"
+                  size="sm"
+                >
+                  复制
+                </UButton>
+              </div>
+            </UFormGroup>
+            
+            <UFormGroup label="管理员密码（RCON密码）">
+              <div class="flex gap-2">
+                <UInput
+                  :type="showRCONPassword ? 'text' : 'password'"
+                  :value="rconInfo.admin_password"
+                  readonly
+                  class="flex-1"
+                />
+                <UButton
+                  @click="showRCONPassword = !showRCONPassword"
+                  color="gray"
+                  variant="outline"
+                  size="sm"
+                >
+                  <UIcon :name="showRCONPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="w-4 h-4" />
+                </UButton>
+                <UButton
+                  @click="copyToClipboard(rconInfo.admin_password)"
+                  color="blue"
+                  variant="outline"
+                  size="sm"
+                >
+                  复制
+                </UButton>
+              </div>
+            </UFormGroup>
           </div>
-                                <div>
-             <label class="block text-sm font-medium text-gray-700 mb-1">管理员密码（RCON密码）</label>
-             <div class="flex">
-               <input
-                 :type="showRCONPassword ? 'text' : 'password'"
-                 :value="rconInfo.admin_password"
-                 readonly
-                 class="flex-1 px-3 py-2 bg-gray-50 rounded-l border text-sm font-mono"
-               />
-               <button
-                 @click="showRCONPassword = !showRCONPassword"
-                 class="px-3 py-2 bg-gray-500 text-white hover:bg-gray-600 text-sm"
-                 :title="showRCONPassword ? '隐藏密码' : '显示密码'"
-               >
-                 {{ showRCONPassword ? '隐藏' : '显示' }}
-               </button>
-               <button
-                 @click="copyToClipboard(rconInfo.admin_password)"
-                 class="px-3 py-2 bg-blue-500 text-white rounded-r hover:bg-blue-600 text-sm"
-                 title="复制密码"
-               >
-                 复制
-               </button>
-             </div>
-           </div>
-        </div>
-        
-        <div class="flex justify-end mt-6">
-          <button
-            @click="showRCONModal = false"
-            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors"
-          >
-            关闭
-          </button>
-        </div>
+          
+          <template #footer>
+            <UButton
+              @click="showRCONModal = false"
+              color="gray"
+              variant="ghost"
+            >
+              关闭
+            </UButton>
+          </template>
+        </UCard>
       </div>
     </div>
-
-
-  </div>
+  </UContainer>
 </template>
 
 <script setup>
@@ -451,8 +257,6 @@ definePageMeta({
 // 使用 servers store
 const serversStore = useServersStore()
 
-
-
 // 响应式数据
 const submitting = ref(false)
 const deleting = ref(false)
@@ -463,7 +267,6 @@ const showRCONModal = ref(false)
 const serverToDelete = ref(null)
 const rconInfo = ref(null)
 const showRCONPassword = ref(false)
-const showServerPasswords = ref({})
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -678,13 +481,6 @@ const stopServer = async (server) => {
   }
 }
 
-// 切换服务器密码显示
-const toggleServerPassword = (serverId) => {
-  showServerPasswords.value[serverId] = !showServerPasswords.value[serverId]
-}
-
-
-
 // 显示RCON信息
 const showRCONInfo = async (server) => {
   try {
@@ -709,40 +505,6 @@ const copyToClipboard = async (text) => {
     errorMessage.value = '复制失败，请手动复制'
   }
 }
-
-// 获取状态文本
-const getStatusText = (status) => {
-  switch (status) {
-    case 'running': return '运行中'
-    case 'stopped': return '已停止'
-    case 'starting': return '启动中'
-    case 'stopping': return '停止中'
-    default: return '未知'
-  }
-}
-
-
-
-// 格式化日期
-const formatDate = (dateString) => {
-  if (!dateString) return '暂无'
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return dateString
-  }
-}
-
-
-
-
 
 // 页面加载时获取数据
 onMounted(async () => {
