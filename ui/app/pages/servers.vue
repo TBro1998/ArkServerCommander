@@ -112,7 +112,6 @@
         @stop="stopServer"
         @edit="editServer"
         @delete="confirmDelete"
-        @rcon="showRCONInfo"
       />
     </div>
 
@@ -126,123 +125,6 @@
       @close="closeForm"
       @save="handleServerSave"
     />
-
-    <!-- 删除确认模态框 -->
-    <div
-      v-if="showDeleteConfirm"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center"
-      @click="showDeleteConfirm = false"
-    >
-      <div class="relative mx-auto p-6 w-full max-w-md" @click.stop>
-        <UCard>
-          <template #header>
-            <div class="flex items-center space-x-3">
-              <UIcon name="i-lucide-alert-triangle" class="w-6 h-6 text-red-600" />
-              <h3 class="text-lg font-semibold text-gray-900">确认删除</h3>
-            </div>
-          </template>
-          
-          <p class="text-gray-600">
-            您确定要删除服务器 "{{ serverToDelete?.identifier }}" 吗？此操作无法撤销。
-          </p>
-          
-          <template #footer>
-            <div class="flex gap-3">
-              <UButton
-                @click="deleteServer"
-                :loading="deleting"
-                color="red"
-                variant="solid"
-              >
-                {{ deleting ? '删除中...' : '确认删除' }}
-              </UButton>
-              <UButton
-                @click="showDeleteConfirm = false"
-                color="gray"
-                variant="ghost"
-              >
-                取消
-              </UButton>
-            </div>
-          </template>
-        </UCard>
-      </div>
-    </div>
-
-    <!-- RCON信息模态框 -->
-    <div
-      v-if="showRCONModal"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center"
-      @click="showRCONModal = false"
-    >
-      <div class="relative mx-auto p-6 w-full max-w-md" @click.stop>
-        <UCard>
-          <template #header>
-            <div class="flex items-center space-x-3">
-              <UIcon name="i-lucide-info" class="w-6 h-6 text-green-600" />
-              <h3 class="text-lg font-semibold text-gray-900">RCON连接信息</h3>
-            </div>
-          </template>
-          
-          <div v-if="rconInfo" class="space-y-4">
-            <UFormGroup label="服务器标识">
-              <UInput :value="rconInfo.server_identifier" readonly />
-            </UFormGroup>
-            
-            <UFormGroup label="RCON端口">
-              <div class="flex gap-2">
-                <UInput :value="rconInfo.rcon_port" readonly class="flex-1" />
-                <UButton
-                  @click="copyToClipboard(rconInfo.rcon_port)"
-                  color="blue"
-                  variant="outline"
-                  size="sm"
-                >
-                  复制
-                </UButton>
-              </div>
-            </UFormGroup>
-            
-            <UFormGroup label="管理员密码（RCON密码）">
-              <div class="flex gap-2">
-                <UInput
-                  :type="showRCONPassword ? 'text' : 'password'"
-                  :value="rconInfo.admin_password"
-                  readonly
-                  class="flex-1"
-                />
-                <UButton
-                  @click="showRCONPassword = !showRCONPassword"
-                  color="gray"
-                  variant="outline"
-                  size="sm"
-                >
-                  <UIcon :name="showRCONPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="w-4 h-4" />
-                </UButton>
-                <UButton
-                  @click="copyToClipboard(rconInfo.admin_password)"
-                  color="blue"
-                  variant="outline"
-                  size="sm"
-                >
-                  复制
-                </UButton>
-              </div>
-            </UFormGroup>
-          </div>
-          
-          <template #footer>
-            <UButton
-              @click="showRCONModal = false"
-              color="gray"
-              variant="ghost"
-            >
-              关闭
-            </UButton>
-          </template>
-        </UCard>
-      </div>
-    </div>
   </UContainer>
 </template>
 
@@ -262,11 +144,6 @@ const submitting = ref(false)
 const deleting = ref(false)
 const showCreateForm = ref(false)
 const showEditForm = ref(false)
-const showDeleteConfirm = ref(false)
-const showRCONModal = ref(false)
-const serverToDelete = ref(null)
-const rconInfo = ref(null)
-const showRCONPassword = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -427,23 +304,15 @@ const handleServerSave = async (formData) => {
 }
 
 // 确认删除
-const confirmDelete = (server) => {
+const confirmDelete = async (server) => {
   if (server.status === 'running') {
     alert('无法删除正在运行的服务器，请先停止服务器')
     return
   }
-  serverToDelete.value = server
-  showDeleteConfirm.value = true
-}
-
-// 删除服务器
-const deleteServer = async () => {
+  
   deleting.value = true
   try {
-    await serversStore.deleteServer(serverToDelete.value.id)
-    
-    showDeleteConfirm.value = false
-    serverToDelete.value = null
+    await serversStore.deleteServer(server.id)
     successMessage.value = '服务器删除成功'
   } catch (error) {
     console.error('删除失败:', error)
@@ -478,20 +347,6 @@ const stopServer = async (server) => {
   } catch (error) {
     console.error('停止服务器失败:', error)
     errorMessage.value = serversStore.error || '停止服务器失败，请稍后重试'
-  }
-}
-
-// 显示RCON信息
-const showRCONInfo = async (server) => {
-  try {
-    console.log('获取服务器RCON信息:', server.id)
-    const rconData = await serversStore.getServerRCON(server.id)
-    rconInfo.value = rconData
-    showRCONPassword.value = false // 默认隐藏密码
-    showRCONModal.value = true
-  } catch (error) {
-    console.error('获取RCON信息失败:', error)
-    errorMessage.value = '获取RCON信息失败，请稍后重试'
   }
 }
 

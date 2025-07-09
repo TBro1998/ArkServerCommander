@@ -65,15 +65,93 @@
           </UButton>
           
           <!-- RCON信息按钮 -->
-          <UButton
-            @click="$emit('rcon', server)"
-            color="green"
-            variant="ghost"
-            size="xs"
-            title="RCON信息"
-          >
-            <UIcon name="i-lucide-info" class="w-4 h-4" />
-          </UButton>
+          <UPopover>
+            <UButton
+              color="green"
+              variant="ghost"
+              size="xs"
+              title="RCON信息"
+            >
+              <UIcon name="i-lucide-info" class="w-4 h-4" />
+            </UButton>
+            
+            <template #content="{ close }">
+              <div class="p-4 space-y-4">
+                <div class="flex items-center space-x-2 mb-3">
+                  <UIcon name="i-lucide-info" class="w-4 h-4 text-green-600" />
+                  <h4 class="text-sm font-semibold text-gray-700">RCON连接信息</h4>
+                </div>
+                
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">服务器标识</label>
+                    <div class="flex gap-2">
+                      <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded flex-1">{{ server.identifier }}</span>
+                      <UButton
+                        @click="copyToClipboard(server.identifier)"
+                        color="blue"
+                        variant="ghost"
+                        size="xs"
+                      >
+                        复制
+                      </UButton>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">RCON端口</label>
+                    <div class="flex gap-2">
+                      <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded flex-1">{{ server.rcon_port }}</span>
+                      <UButton
+                        @click="copyToClipboard(server.rcon_port)"
+                        color="blue"
+                        variant="ghost"
+                        size="xs"
+                      >
+                        复制
+                      </UButton>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">管理员密码</label>
+                    <div class="flex gap-2">
+                      <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded flex-1">
+                        {{ showPassword ? server.admin_password : '***' }}
+                      </span>
+                      <UButton
+                        @click="togglePassword"
+                        color="gray"
+                        variant="ghost"
+                        size="xs"
+                      >
+                        <UIcon :name="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="w-3 h-3" />
+                      </UButton>
+                      <UButton
+                        @click="copyToClipboard(server.admin_password)"
+                        color="blue"
+                        variant="ghost"
+                        size="xs"
+                      >
+                        复制
+                      </UButton>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex justify-end pt-2 border-t border-gray-100">
+                  <UButton
+                    @click="close"
+                    color="gray"
+                    variant="ghost"
+                    size="xs"
+                  >
+                    关闭
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </UPopover>
           
           <!-- 编辑按钮 -->
           <UButton
@@ -87,15 +165,48 @@
           </UButton>
           
           <!-- 删除按钮 -->
-          <UButton
-            @click="$emit('delete', server)"
-            color="red"
-            variant="ghost"
-            size="xs"
-            title="删除服务器"
-          >
-            <UIcon name="i-lucide-trash-2" class="w-4 h-4" />
-          </UButton>
+          <UPopover>
+            <UButton
+              color="red"
+              variant="ghost"
+              size="xs"
+              title="删除服务器"
+            >
+              <UIcon name="i-lucide-trash-2" class="w-4 h-4" />
+            </UButton>
+            
+            <template #content="{ close }">
+              <div class="p-4 space-y-4">
+                <div class="flex items-center space-x-2 mb-3">
+                  <UIcon name="i-lucide-alert-triangle" class="w-4 h-4 text-red-600" />
+                  <h4 class="text-sm font-semibold text-gray-700">确认删除</h4>
+                </div>
+                
+                <p class="text-xs text-gray-600">
+                  您确定要删除服务器 "{{ server.identifier }}" 吗？此操作无法撤销。
+                </p>
+                
+                <div class="flex gap-2 pt-2 border-t border-gray-100">
+                  <UButton
+                    @click="$emit('delete', server); close()"
+                    color="red"
+                    variant="solid"
+                    size="xs"
+                  >
+                    确认删除
+                  </UButton>
+                  <UButton
+                    @click="close"
+                    color="gray"
+                    variant="ghost"
+                    size="xs"
+                  >
+                    取消
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </UPopover>
         </div>
       </div>
     </template>
@@ -277,6 +388,17 @@ const formatDate = (dateString) => {
     })
   } catch (error) {
     return dateString
+  }
+}
+
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text.toString())
+    // 使用简单的 alert 作为临时解决方案
+    alert('已复制到剪贴板')
+  } catch (error) {
+    console.error('复制失败:', error)
+    alert('复制失败，请手动复制')
   }
 }
 </script> 
