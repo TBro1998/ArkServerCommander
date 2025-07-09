@@ -1,11 +1,27 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  devtools: { enabled: true },
-  compatibilityDate: '2025-06-30',
+  devtools: { enabled: false },
+
   modules: [
-    '@nuxtjs/tailwindcss',
-    '@pinia/nuxt'
+    '@pinia/nuxt',
+    '@nuxt/ui',
+    '@nuxt/eslint',
+    '@nuxt/fonts',
+    '@nuxt/icon'
   ],
+
+  css: ['~/assets/css/main.css'],
+
+  fonts: {
+    provider: 'bunny'
+  },
+
+  future: {
+    compatibilityVersion: 4
+  },
+
+  compatibilityDate: '2024-11-27',
+
   runtimeConfig: {
     public: {
       // 开发环境连接本地后端，生产环境使用相对路径
@@ -32,4 +48,4 @@ export default defineNuxtConfig({
     port: 3000,
     host: 'localhost'
   }
-}) 
+})
