@@ -1,58 +1,82 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50">
+  <div class="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100">
     <div class="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div class="max-w-md w-full space-y-8">
-        <div>
-          <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+      <div class="w-full max-w-md">
+        <!-- Logo 和标题区域 -->
+        <div class="text-center mb-8">
+          <div class="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
+            <UIcon name="i-lucide-server" class="w-8 h-8 text-white" />
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">
             ARK 服务器管理器
-          </h2>
-          <p class="mt-2 text-center text-sm text-gray-600">
-            请登录您的账户
+          </h1>
+          <p class="text-gray-600">
+            安全登录您的管理账户
           </p>
         </div>
         
-        <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
-          <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {{ error }}
-          </div>
-          
-          <div class="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label for="username" class="sr-only">用户名</label>
-              <input
-                id="username"
+        <!-- 登录表单卡片 -->
+        <UCard class="shadow-xl">
+          <form @submit.prevent="handleLogin" class="space-y-6">
+            <!-- 错误提示 -->
+            <UAlert
+              v-if="error"
+              :title="error"
+              color="red"
+              variant="soft"
+              icon="i-lucide-alert-circle"
+            />
+            
+            <!-- 用户名输入 -->
+            <UFormGroup label="用户名" name="username">
+              <UInput
                 v-model="form.username"
-                name="username"
-                type="text"
+                placeholder="请输入用户名"
+                icon="i-lucide-user"
+                size="lg"
                 required
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="用户名"
               />
-            </div>
-            <div>
-              <label for="password" class="sr-only">密码</label>
-              <input
-                id="password"
+            </UFormGroup>
+            
+            <!-- 密码输入 -->
+            <UFormGroup label="密码" name="password">
+              <UInput
                 v-model="form.password"
-                name="password"
                 type="password"
+                placeholder="请输入密码"
+                icon="i-lucide-lock"
+                size="lg"
                 required
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="密码"
               />
-            </div>
-          </div>
+            </UFormGroup>
 
-          <div>
-            <button
+            <!-- 登录按钮 -->
+            <UButton
               type="submit"
+              :loading="authStore.isLoading"
               :disabled="authStore.isLoading"
-              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              color="blue"
+              variant="solid"
+              size="lg"
+              block
+              class="mt-8"
             >
+              <UIcon 
+                v-if="!authStore.isLoading" 
+                name="i-lucide-log-in" 
+                class="w-4 h-4 mr-2" 
+              />
               {{ authStore.isLoading ? '登录中...' : '登录' }}
-            </button>
-          </div>
-        </form>
+            </UButton>
+          </form>
+        </UCard>
+        
+        <!-- 底部提示 -->
+        <div class="text-center mt-6">
+          <p class="text-sm text-gray-500">
+            首次使用？系统将自动引导您完成初始化
+          </p>
+        </div>
       </div>
     </div>
 

@@ -1,75 +1,110 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50">
+  <div class="min-h-screen flex flex-col bg-gradient-to-br from-green-50 to-emerald-100">
     <div class="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div class="max-w-md w-full space-y-8">
-        <div>
-          <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+      <div class="w-full max-w-md">
+        <!-- Logo 和标题区域 -->
+        <div class="text-center mb-8">
+          <div class="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4">
+            <UIcon name="i-lucide-settings" class="w-8 h-8 text-white" />
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">
             系统初始化
-          </h2>
-          <p class="mt-2 text-center text-sm text-gray-600">
+          </h1>
+          <p class="text-gray-600">
             首次使用，请设置管理员账户
           </p>
         </div>
         
-        <form class="mt-8 space-y-6" @submit.prevent="handleInit">
-          <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {{ error }}
-          </div>
-          
-          <div v-if="success" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            {{ success }}
-          </div>
-          
-          <div class="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label for="username" class="sr-only">用户名</label>
-              <input
-                id="username"
+        <!-- 初始化表单卡片 -->
+        <UCard class="shadow-xl">
+          <form @submit.prevent="handleInit" class="space-y-6">
+            <!-- 错误提示 -->
+            <UAlert
+              v-if="error"
+              :title="error"
+              color="red"
+              variant="soft"
+              icon="i-lucide-alert-circle"
+            />
+            
+            <!-- 成功提示 -->
+            <UAlert
+              v-if="success"
+              :title="success"
+              color="green"
+              variant="soft"
+              icon="i-lucide-check-circle"
+            />
+            
+            <!-- 用户名输入 -->
+            <UFormGroup label="管理员用户名" name="username">
+              <UInput
                 v-model="form.username"
-                name="username"
-                type="text"
+                placeholder="请输入管理员用户名"
+                icon="i-lucide-user"
+                size="lg"
                 required
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="管理员用户名"
               />
-            </div>
-            <div>
-              <label for="password" class="sr-only">密码</label>
-              <input
-                id="password"
+            </UFormGroup>
+            
+            <!-- 密码输入 -->
+            <UFormGroup label="密码" name="password">
+              <UInput
                 v-model="form.password"
-                name="password"
                 type="password"
+                placeholder="请输入密码 (至少6位)"
+                icon="i-lucide-lock"
+                size="lg"
                 required
                 minlength="6"
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="密码 (至少6位)"
               />
-            </div>
-            <div>
-              <label for="confirmPassword" class="sr-only">确认密码</label>
-              <input
-                id="confirmPassword"
+              <template #help>
+                <p class="text-xs text-gray-500 mt-1">
+                  密码至少需要6位字符
+                </p>
+              </template>
+            </UFormGroup>
+            
+            <!-- 确认密码输入 -->
+            <UFormGroup label="确认密码" name="confirmPassword">
+              <UInput
                 v-model="form.confirmPassword"
-                name="confirmPassword"
                 type="password"
+                placeholder="请再次输入密码"
+                icon="i-lucide-lock"
+                size="lg"
                 required
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="确认密码"
               />
-            </div>
-          </div>
+            </UFormGroup>
 
-          <div>
-            <button
+            <!-- 初始化按钮 -->
+            <UButton
               type="submit"
+              :loading="authStore.isLoading"
               :disabled="authStore.isLoading"
-              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+              color="green"
+              variant="solid"
+              size="lg"
+              block
+              class="mt-8"
             >
+              <UIcon 
+                v-if="!authStore.isLoading" 
+                name="i-lucide-settings" 
+                class="w-4 h-4 mr-2" 
+              />
               {{ authStore.isLoading ? '初始化中...' : '初始化系统' }}
-            </button>
+            </UButton>
+          </form>
+        </UCard>
+        
+        <!-- 底部提示 -->
+        <div class="text-center mt-6">
+          <div class="flex items-center justify-center space-x-2 text-sm text-gray-500">
+            <UIcon name="i-lucide-info" class="w-4 h-4" />
+            <span>初始化完成后将自动跳转到主页面</span>
           </div>
-        </form>
+        </div>
       </div>
     </div>
 
