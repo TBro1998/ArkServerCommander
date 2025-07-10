@@ -197,7 +197,7 @@
 
 <script setup>
 import { gameUserSettingsParams, getParamsByCategory, getAllCategories } from '../utils/gameUserSettingsParams'
-import { extractConfigValues, formatConfigContent } from '../utils/configParser.js'
+import { extractConfigValues, formatConfigContent, mergeConfigContent } from '../utils/configParser'
 import ToggleSwitch from './ToggleSwitch.vue'
 
 // i18n
@@ -332,30 +332,16 @@ const syncVisualToText = () => {
       return
     }
 
-    let content = '[ServerSettings]\n'
-    
-    // 添加可视化配置的参数
-    getAllCategories().forEach(categoryKey => {
-      const section = gameUserSettingsParams[categoryKey]
-      if (section) {
-        Object.keys(section).forEach(paramKey => {
-          const value = visualConfig.value[paramKey]
-          if (value !== undefined && value !== null && value !== '') {
-            content += `${paramKey}=${value}\n`
-          }
-        })
-      }
-    })
-    
-    content += '\n[SessionSettings]\n'
-    content += `SessionName=${props.server?.identifier || 'ARK Server'}\n`
-    
-    content += '\n[MessageOfTheDay]\n'
-    content += 'Message=欢迎来到 ARK 服务器！\n'
-    content += 'Duration=30\n'
+    // 使用智能合并，保留用户自定义的配置
+    const mergedContent = mergeConfigContent(
+      textContent.value,
+      visualConfig.value,
+      gameUserSettingsParams,
+      ['ServerSettings', 'SessionSettings', 'MessageOfTheDay', '/Script/Engine.GameSession']
+    )
 
-    textContent.value = content
-    emit('update:modelValue', content)
+    textContent.value = mergedContent
+    emit('update:modelValue', mergedContent)
   } catch (error) {
     console.error('同步 GameUserSettings 可视化配置到文本失败:', error)
   }

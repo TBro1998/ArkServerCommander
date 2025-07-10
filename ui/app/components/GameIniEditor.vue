@@ -184,7 +184,7 @@
 
 <script setup>
 import { gameIniParams, getAllCategories } from '../utils/gameIniParams'
-import { extractConfigValues, formatConfigContent } from '../utils/configParser.js'
+import { extractConfigValues, formatConfigContent, mergeConfigContent } from '../utils/configParser'
 import ToggleSwitch from './ToggleSwitch.vue'
 
 // i18n
@@ -295,21 +295,16 @@ const syncVisualToText = () => {
       return
     }
 
-    let content = '[/script/shootergame.shootergamemode]\n'
-    Object.keys(gameIniParams).forEach(sectionKey => {
-      const section = gameIniParams[sectionKey]
-      if (section) {
-        Object.keys(section).forEach(paramKey => {
-          const value = visualConfig.value[paramKey]
-          if (value !== undefined && value !== null && value !== '') {
-            content += `${paramKey}=${value}\n`
-          }
-        })
-      }
-    })
+    // 使用智能合并，保留用户自定义的配置
+    const mergedContent = mergeConfigContent(
+      textContent.value,
+      visualConfig.value,
+      gameIniParams,
+      ['/script/shootergame.shootergamemode', '/script/engine.gamesession']
+    )
 
-    textContent.value = content
-    emit('update:modelValue', content)
+    textContent.value = mergedContent
+    emit('update:modelValue', mergedContent)
   } catch (error) {
     console.error('同步 Game.ini 可视化配置到文本失败:', error)
   }
