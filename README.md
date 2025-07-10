@@ -30,6 +30,7 @@
 - 🖼️ Server image updates
 - ⚡ Optional server files and mod updates
 - 🌐 i18n internationalization support
+- 🔌 MCP (Mod Configuration Protocol) support
 
 ### 🚀 Future Plans
 - ☸️ Multi-host management based on K8S
