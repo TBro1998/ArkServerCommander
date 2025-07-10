@@ -46,6 +46,22 @@ ArkServerManager/
 - Tailwind CSS 进行样式设计
 - 使用 Vue 3 响应式 API (ref, reactive, computed)
 
+### 国际化 (i18n) 规范
+- 使用 Nuxt i18n 模块进行国际化
+- 语言文件位于 `ui/i18n/locales/` 目录
+- 支持中文 (zh) 和英文 (en) 两种语言
+- 使用 `$t()` 函数在模板中访问翻译
+- 使用 `useI18n()` 在 script 中访问翻译
+- 翻译键使用点号分隔的层级结构 (如 `servers.title`)
+- 所有用户可见的文本必须使用翻译键
+- 翻译文件按功能模块组织 (common, auth, servers, home 等)
+- 动态内容使用插值语法 `{variable}` 进行参数替换
+- 语言切换使用 `setLocale()` 方法
+- 翻译键命名使用小写字母和点号分隔
+- 避免在翻译文本中包含 HTML 标签
+- 复数形式使用条件判断处理
+- 日期、数字格式化使用 i18n 提供的格式化函数
+
 ## 开发约定
 
 ### API 设计
@@ -65,11 +81,33 @@ ArkServerManager/
 - 前端：使用 try-catch 处理异步操作
 - 用户友好的错误信息显示
 
+### i18n 错误处理和调试
+- **翻译缺失**：使用 `$t('key', 'fallback')` 提供默认值
+- **调试模式**：在开发环境中启用 i18n 调试模式
+- **键名检查**：定期验证翻译键的存在性和完整性
+- **类型安全**：使用 TypeScript 类型定义翻译键结构
+- **性能优化**：避免在模板中使用复杂的翻译逻辑
+- **缓存策略**：合理使用 i18n 的缓存机制
+- **错误日志**：记录翻译相关的错误信息
+- **回退机制**：为关键翻译提供多级回退策略
+
 ### 安全规范
 - 密码使用 bcrypt 加密
 - JWT token 设置合理的过期时间
 - API 接口进行适当的权限验证
 - 前端不存储敏感信息
+
+### i18n 开发最佳实践
+- **翻译键命名**：使用有意义的层级结构，如 `servers.addServer`、`auth.loginTitle`
+- **翻译完整性**：确保所有语言文件包含相同的翻译键，避免缺失翻译
+- **动态内容**：使用插值语法处理变量，如 `欢迎，{username}`
+- **复数处理**：使用条件判断处理复数形式，如 `{count} 个服务器`
+- **格式化**：使用 i18n 的日期、数字格式化功能
+- **上下文**：为翻译键提供足够的上下文信息
+- **测试**：定期检查翻译的完整性和准确性
+- **命名空间**：按功能模块组织翻译，避免键名冲突
+- **默认语言**：确保中文作为默认语言，英文作为备选
+- **错误处理**：为翻译缺失提供友好的错误提示
 
 ## 代码示例
 
@@ -97,7 +135,7 @@ func GetUser(c *gin.Context) {
 ```vue
 <template>
   <div class="container mx-auto px-4">
-    <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
+    <h1 class="text-2xl font-bold mb-4">{{ $t('page.title') }}</h1>
     <form @submit.prevent="handleSubmit">
       <!-- 表单内容 -->
     </form>
@@ -105,14 +143,63 @@ func GetUser(c *gin.Context) {
 </template>
 
 <script setup>
-const title = ref('页面标题')
+const { t } = useI18n()
 
 const handleSubmit = async () => {
   try {
     // 处理表单提交
   } catch (error) {
-    console.error('提交失败:', error)
+    console.error(t('common.submitError'), error)
   }
+}
+</script>
+```
+
+### i18n 翻译文件示例
+```typescript
+// ui/i18n/locales/zh.ts
+export default {
+  common: {
+    confirm: '确定',
+    cancel: '取消',
+    save: '保存',
+    loading: '加载中...',
+    error: '错误',
+    success: '成功'
+  },
+  page: {
+    title: '页面标题',
+    description: '页面描述'
+  },
+  form: {
+    submit: '提交',
+    reset: '重置',
+    validation: {
+      required: '此字段为必填项',
+      email: '请输入有效的邮箱地址'
+    }
+  }
+}
+```
+
+### 语言切换组件示例
+```vue
+<template>
+  <div class="language-switcher">
+    <button @click="switchLanguage('zh')" :class="{ active: locale === 'zh' }">
+      中文
+    </button>
+    <button @click="switchLanguage('en')" :class="{ active: locale === 'en' }">
+      English
+    </button>
+  </div>
+</template>
+
+<script setup>
+const { locale, setLocale } = useI18n()
+
+const switchLanguage = async (newLocale) => {
+  await setLocale(newLocale)
 }
 </script>
 ```
@@ -173,6 +260,14 @@ export const useExampleStore = defineStore('example', {
 - 可以使用**静态检查**命令（如 `go build`、`npm install` 等不启动服务的命令）
 - **严禁**使用任何可能启动服务或需要用户交互的命令
 
+### i18n 相关工具和命令
+- **翻译检查**：使用 `grep` 命令检查翻译键的使用情况
+- **键名验证**：使用 `jq` 或类似工具验证翻译文件结构
+- **缺失检测**：编写脚本检测翻译键的完整性
+- **格式化**：使用 `prettier` 格式化翻译文件
+- **类型检查**：使用 TypeScript 检查翻译键的类型安全
+- **自动化**：使用 CI/CD 自动检查翻译完整性
+
 这些限制确保了在 Cursor 环境下的稳定开发体验，避免因环境不兼容导致的问题。
 
 ## Git 提交规范
@@ -208,6 +303,7 @@ export const useExampleStore = defineStore('example', {
 - **docker**: Docker 相关
 - **auth**: 认证相关
 - **api**: API 接口相关
+- **i18n**: 国际化相关
 
 ### 提交示例
 ```
@@ -221,6 +317,8 @@ test(backend): 添加用户认证单元测试
 chore: 更新依赖包版本
 ci: 配置 GitHub Actions 自动部署
 build(docker): 优化 Docker 镜像构建过程
+feat(i18n): 添加英文语言支持
+fix(i18n): 修复翻译键缺失问题
 ```
 
 ### 提交规范要求

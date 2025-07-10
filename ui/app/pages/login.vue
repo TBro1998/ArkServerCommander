@@ -8,10 +8,10 @@
             <UIcon name="i-lucide-server" class="w-8 h-8 text-white" />
           </div>
           <h1 class="text-3xl font-bold text-gray-900 mb-2">
-            ARK 服务器管理器
+            {{ $t('auth.loginTitle') }}
           </h1>
           <p class="text-gray-600">
-            安全登录您的管理账户
+            {{ $t('auth.loginSubtitle') }}
           </p>
         </div>
         
@@ -28,10 +28,10 @@
             />
             
             <!-- 用户名输入 -->
-            <UFormGroup label="用户名" name="username">
+            <UFormGroup :label="$t('auth.username')" name="username">
               <UInput
                 v-model="form.username"
-                placeholder="请输入用户名"
+                :placeholder="$t('auth.enterUsername')"
                 icon="i-lucide-user"
                 size="lg"
                 required
@@ -39,11 +39,11 @@
             </UFormGroup>
             
             <!-- 密码输入 -->
-            <UFormGroup label="密码" name="password">
+            <UFormGroup :label="$t('auth.password')" name="password">
               <UInput
                 v-model="form.password"
                 type="password"
-                placeholder="请输入密码"
+                :placeholder="$t('auth.enterPassword')"
                 icon="i-lucide-lock"
                 size="lg"
                 required
@@ -66,7 +66,7 @@
                 name="i-lucide-log-in" 
                 class="w-4 h-4 mr-2" 
               />
-              {{ authStore.isLoading ? '登录中...' : '登录' }}
+              {{ authStore.isLoading ? $t('auth.loginLoading') : $t('auth.loginButton') }}
             </UButton>
           </form>
         </UCard>
@@ -74,7 +74,7 @@
         <!-- 底部提示 -->
         <div class="text-center mt-6">
           <p class="text-sm text-gray-500">
-            首次使用？系统将自动引导您完成初始化
+            {{ $t('auth.firstTimeTip') }}
           </p>
         </div>
       </div>
@@ -84,7 +84,7 @@
     <AppFooter 
       :show-privacy-policy="false"
       :show-terms-of-service="false"
-      page-info="安全登录系统"
+      :page-info="$t('auth.secureLogin')"
     />
   </div>
 </template>

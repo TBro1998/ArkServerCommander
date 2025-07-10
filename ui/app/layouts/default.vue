@@ -5,7 +5,7 @@
         <div class="flex justify-between h-16">
           <div class="flex items-center space-x-8">
             <NuxtLink to="/" class="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors">
-              ARK服务器管理器
+              {{ $t('auth.loginTitle') }}
             </NuxtLink>
             
             <!-- 桌面端导航菜单 -->
@@ -15,20 +15,24 @@
                 class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 :class="{ 'text-blue-600 bg-blue-50': $route.path === '/' }"
               >
-                控制台
+                {{ $t('navigation.dashboard') }}
               </NuxtLink>
               <NuxtLink
                 to="/servers"
                 class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 :class="{ 'text-blue-600 bg-blue-50': $route.path === '/servers' }"
               >
-                服务器管理
+                {{ $t('navigation.servers') }}
               </NuxtLink>
             </nav>
           </div>
           
           <div class="flex items-center space-x-4">
-            <span class="hidden sm:block text-sm text-gray-700">欢迎，{{ authStore.user?.username }}</span>
+            <span class="hidden sm:block text-sm text-gray-700">{{ $t('navigation.welcome') }}，{{ authStore.user?.username }}</span>
+            
+            <!-- 语言切换器 -->
+            <LanguageSwitcher />
+            
             <!-- 移动端菜单按钮 -->
             <button
               @click="mobileMenuOpen = !mobileMenuOpen"
@@ -43,7 +47,7 @@
               @click="logout"
               class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
             >
-              退出登录
+              {{ $t('navigation.logout') }}
             </button>
           </div>
         </div>
@@ -57,7 +61,7 @@
               class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors"
               :class="{ 'text-blue-600 bg-blue-50': $route.path === '/' }"
             >
-              控制台
+              {{ $t('navigation.dashboard') }}
             </NuxtLink>
             <NuxtLink
               to="/servers"
@@ -65,10 +69,10 @@
               class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors"
               :class="{ 'text-blue-600 bg-blue-50': $route.path === '/servers' }"
             >
-              服务器管理
+              {{ $t('navigation.servers') }}
             </NuxtLink>
             <div class="sm:hidden px-3 py-2 text-sm text-gray-500">
-              用户：{{ authStore.user?.username }}
+              {{ $t('navigation.user') }}：{{ authStore.user?.username }}
             </div>
           </div>
         </div>
@@ -89,15 +93,15 @@
     <!-- 隐私政策模态框 -->
     <div v-if="showPrivacyPolicy" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showPrivacyPolicy = false">
       <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
-        <h3 class="text-lg font-semibold mb-4">隐私政策</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ $t('modals.privacyPolicy') }}</h3>
         <p class="text-sm text-gray-600 mb-4">
-          我们重视您的隐私。本应用仅收集必要的服务器管理信息，不会泄露您的个人数据。
+          {{ $t('modals.privacyPolicyContent') }}
         </p>
         <button 
           @click="showPrivacyPolicy = false"
           class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
         >
-          确定
+          {{ $t('common.confirm') }}
         </button>
       </div>
     </div>
@@ -105,15 +109,15 @@
     <!-- 服务条款模态框 -->
     <div v-if="showTermsOfService" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showTermsOfService = false">
       <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
-        <h3 class="text-lg font-semibold mb-4">服务条款</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ $t('modals.termsOfService') }}</h3>
         <p class="text-sm text-gray-600 mb-4">
-          使用本ARK服务器管理器即表示您同意遵守相关使用条款。请合理使用本工具进行服务器管理。
+          {{ $t('modals.termsOfServiceContent') }}
         </p>
         <button 
           @click="showTermsOfService = false"
           class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
         >
-          确定
+          {{ $t('common.confirm') }}
         </button>
       </div>
     </div>

@@ -4,8 +4,8 @@
     <div class="mb-8">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">服务器管理</h1>
-          <p class="text-gray-600">管理您的 ARK 服务器，支持一键启动、停止和配置</p>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ $t('servers.title') }}</h1>
+          <p class="text-gray-600">{{ $t('servers.serverManagementDesc') }}</p>
         </div>
         
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
@@ -16,7 +16,7 @@
             variant="outline"
             icon="i-lucide-image"
           >
-            镜像状态
+            {{ $t('servers.imageStatus') }}
           </UButton>
           
           <UButton
@@ -25,7 +25,7 @@
             color="blue"
             icon="i-lucide-plus"
           >
-            新增服务器
+            {{ $t('servers.addServer') }}
           </UButton>
         </div>
       </div>
@@ -33,8 +33,8 @@
       <!-- 镜像状态指示器 -->
       <div v-if="imageStatus && !imageStatus.can_create_server" class="mt-4">
         <UAlert
-          :title="imageStatus.any_pulling ? '镜像下载中' : '镜像未就绪'"
-          :description="imageStatus.any_pulling ? '正在下载镜像，请稍后创建服务器' : '镜像未就绪，无法创建服务器'"
+          :title="imageStatus.any_pulling ? $t('servers.imageDownloading') : $t('servers.imageNotReady')"
+          :description="imageStatus.any_pulling ? $t('servers.imageDownloadingDesc') : $t('servers.imageNotReadyDesc')"
           :color="imageStatus.any_pulling ? 'yellow' : 'red'"
           variant="soft"
           :icon="imageStatus.any_pulling ? 'i-lucide-loader-2' : 'i-lucide-alert-circle'"
@@ -72,15 +72,15 @@
     <!-- 服务器列表 -->
     <div v-if="loading" class="text-center py-12">
       <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-      <p class="text-gray-600">加载中...</p>
+      <p class="text-gray-600">{{ $t('common.loading') }}</p>
     </div>
 
     <div v-else-if="servers.length === 0" class="text-center py-12">
       <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
         <UIcon name="i-lucide-server" class="w-8 h-8 text-gray-400" />
       </div>
-      <h3 class="text-lg font-medium text-gray-900 mb-2">暂无服务器</h3>
-      <p class="text-gray-500 mb-6">开始创建您的第一个ARK服务器</p>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">{{ $t('servers.noServers') }}</h3>
+      <p class="text-gray-500 mb-6">{{ $t('servers.noServersDesc') }}</p>
       
       <div v-if="imageStatus?.can_create_server">
         <UButton
@@ -88,13 +88,13 @@
           color="blue"
           icon="i-lucide-plus"
         >
-          新增服务器
+          {{ $t('servers.addServer') }}
         </UButton>
       </div>
       <div v-else-if="imageStatus && !imageStatus.can_create_server">
         <UAlert
-          :title="imageStatus.any_pulling ? '镜像下载中' : '镜像未就绪'"
-          :description="imageStatus.any_pulling ? '请等待镜像下载完成后创建服务器' : '镜像未就绪，无法创建服务器'"
+          :title="imageStatus.any_pulling ? $t('servers.imageDownloading') : $t('servers.imageNotReady')"
+          :description="imageStatus.any_pulling ? $t('servers.imageDownloadingDesc') : $t('servers.imageNotReadyDesc')"
           :color="imageStatus.any_pulling ? 'yellow' : 'red'"
           variant="soft"
           :icon="imageStatus.any_pulling ? 'i-lucide-loader-2' : 'i-lucide-alert-circle'"
@@ -232,13 +232,13 @@ const fetchServers = async () => {
     // 检查是否是认证错误
     if (error.status === 401 || error.statusCode === 401) {
       console.log('认证失败，可能需要重新登录')
-      errorMessage.value = '认证失败，请重新登录'
+      errorMessage.value = $t('servers.authenticationFailed')
       // 清除认证状态并重定向到登录页
       const authStore = useAuthStore()
       authStore.logout()
       await navigateTo('/login')
     } else {
-      errorMessage.value = error.data?.error || serversStore.error || '获取服务器列表失败，请稍后重试'
+      errorMessage.value = error.data?.error || serversStore.error || $t('servers.getServerListFailed')
     }
   }
 }
@@ -267,7 +267,7 @@ const editServer = async (server) => {
     console.log('服务器信息加载成功', serverData)
   } catch (error) {
     console.error('加载服务器信息失败:', error)
-    errorMessage.value = '加载服务器信息失败，请稍后重试'
+    errorMessage.value = $t('servers.loadServerInfoFailed')
     closeForm()
   } finally {
     loadingServerData.value = false
@@ -278,7 +278,7 @@ const editServer = async (server) => {
 const handleServerSave = async (formData) => {
   // 检查镜像状态（仅在创建服务器时）
   if (!showEditForm.value && imageStatus.value && !imageStatus.value.can_create_server) {
-    errorMessage.value = '镜像未就绪，无法创建服务器，请等待镜像下载完成'
+    errorMessage.value = $t('servers.imageNotReadyDesc')
     return
   }
   
@@ -287,17 +287,17 @@ const handleServerSave = async (formData) => {
     if (showEditForm.value && currentEditServer.value) {
       // 更新服务器
       await serversStore.updateServer(currentEditServer.value.id, formData)
-      successMessage.value = '服务器更新成功'
+      successMessage.value = $t('servers.serverUpdateSuccess')
     } else {
       // 创建服务器
       await serversStore.createServer(formData)
-      successMessage.value = '服务器创建成功'
+      successMessage.value = $t('servers.serverCreateSuccess')
     }
     
     closeForm()
   } catch (error) {
     console.error('操作失败:', error)
-    errorMessage.value = error.data?.error || serversStore.error || '操作失败，请稍后重试'
+    errorMessage.value = error.data?.error || serversStore.error || $t('servers.operationFailed')
   } finally {
     submitting.value = false
   }
@@ -306,17 +306,17 @@ const handleServerSave = async (formData) => {
 // 确认删除
 const confirmDelete = async (server) => {
   if (server.status === 'running') {
-    alert('无法删除正在运行的服务器，请先停止服务器')
+    alert($t('servers.cannotDeleteRunning'))
     return
   }
   
   deleting.value = true
   try {
     await serversStore.deleteServer(server.id)
-    successMessage.value = '服务器删除成功'
+    successMessage.value = $t('servers.serverDeleteSuccess')
   } catch (error) {
     console.error('删除失败:', error)
-    errorMessage.value = error.data?.error || serversStore.error || '删除失败，请稍后重试'
+    errorMessage.value = error.data?.error || serversStore.error || $t('servers.deleteFailed')
   } finally {
     deleting.value = false
   }
@@ -326,16 +326,16 @@ const confirmDelete = async (server) => {
 const startServer = async (server) => {
   // 检查镜像状态
   if (imageStatus.value && !imageStatus.value.can_start_server) {
-    errorMessage.value = '镜像未就绪，无法启动服务器，请等待镜像下载完成'
+    errorMessage.value = $t('servers.imageNotReadyDesc')
     return
   }
   
   try {
     await serversStore.startServer(server.id)
-    successMessage.value = `服务器 "${server.identifier}" 启动中...`
+    successMessage.value = $t('servers.serverStartInProgress')
   } catch (error) {
     console.error('启动服务器失败:', error)
-    errorMessage.value = serversStore.error || '启动服务器失败，请稍后重试'
+    errorMessage.value = serversStore.error || $t('servers.startServerFailed')
   }
 }
 
@@ -343,10 +343,10 @@ const startServer = async (server) => {
 const stopServer = async (server) => {
   try {
     await serversStore.stopServer(server.id)
-    successMessage.value = `服务器 "${server.identifier}" 停止中...`
+    successMessage.value = $t('servers.serverStopInProgress')
   } catch (error) {
     console.error('停止服务器失败:', error)
-    errorMessage.value = serversStore.error || '停止服务器失败，请稍后重试'
+    errorMessage.value = serversStore.error || $t('servers.stopServerFailed')
   }
 }
 
@@ -354,10 +354,10 @@ const stopServer = async (server) => {
 const copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text.toString())
-    successMessage.value = '已复制到剪贴板'
+    successMessage.value = $t('servers.copyToClipboard')
   } catch (error) {
     console.error('复制失败:', error)
-    errorMessage.value = '复制失败，请手动复制'
+    errorMessage.value = $t('servers.copyFailed')
   }
 }
 

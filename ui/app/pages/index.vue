@@ -7,10 +7,10 @@
           <UIcon name="i-lucide-server" class="w-10 h-10 text-white" />
         </div>
         <h1 class="text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          欢迎使用 ARK 服务器管理器
+          {{ $t('home.title') }}
         </h1>
         <p class="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          您已成功登录系统，可以开始管理您的 ARK 服务器了。
+          {{ $t('home.subtitle') }}
         </p>
       </div>
       
@@ -19,17 +19,17 @@
         <template #header>
           <div class="flex items-center space-x-3">
             <UIcon name="i-lucide-user" class="w-5 h-5 text-blue-600" />
-            <h2 class="text-xl font-semibold">系统信息</h2>
+            <h2 class="text-xl font-semibold">{{ $t('home.systemInfo') }}</h2>
           </div>
         </template>
         
         <div class="space-y-4">
           <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
-            <span class="font-medium text-gray-700">用户名</span>
+            <span class="font-medium text-gray-700">{{ $t('home.username') }}</span>
             <span class="text-gray-900 font-mono">{{ authStore.user?.username }}</span>
           </div>
           <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
-            <span class="font-medium text-gray-700">用户ID</span>
+            <span class="font-medium text-gray-700">{{ $t('home.userID') }}</span>
             <span class="text-gray-900 font-mono">#{{ authStore.user?.id }}</span>
           </div>
         </div>
@@ -37,7 +37,7 @@
       
       <!-- 功能卡片网格 -->
       <div class="space-y-8">
-        <h3 class="text-2xl font-semibold text-gray-900">功能模块</h3>
+        <h3 class="text-2xl font-semibold text-gray-900">{{ $t('home.features') }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           <!-- 服务器管理卡片 -->
           <NuxtLink to="/servers">
@@ -50,8 +50,8 @@
                   />
                 </div>
                 <div>
-                  <h3 class="text-xl font-semibold text-gray-900 mb-2">服务器管理</h3>
-                  <p class="text-gray-600 leading-relaxed">添加、配置和管理您的ARK服务器，支持一键启动、停止和监控</p>
+                  <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $t('home.serverManagement') }}</h3>
+                  <p class="text-gray-600 leading-relaxed">{{ $t('home.serverManagementDesc') }}</p>
                 </div>
                 <UButton 
                   color="blue" 
@@ -59,7 +59,7 @@
                   size="sm"
                   class="group-hover:bg-blue-50"
                 >
-                  开始管理
+                  {{ $t('home.startManage') }}
                   <UIcon name="i-lucide-arrow-right" class="w-4 h-4 ml-1" />
                 </UButton>
               </div>
@@ -76,11 +76,11 @@
                 />
               </div>
               <div>
-                <h3 class="text-xl font-semibold text-gray-500 mb-2">玩家管理</h3>
-                <p class="text-gray-400 leading-relaxed">管理服务器玩家，查看在线状态和权限设置</p>
+                <h3 class="text-xl font-semibold text-gray-500 mb-2">{{ $t('home.playerManagement') }}</h3>
+                <p class="text-gray-400 leading-relaxed">{{ $t('home.playerManagementDesc') }}</p>
               </div>
               <UBadge color="gray" variant="soft" size="sm">
-                即将推出
+                {{ $t('home.comingSoon') }}
               </UBadge>
             </div>
           </UCard>
@@ -95,11 +95,11 @@
                 />
               </div>
               <div>
-                <h3 class="text-xl font-semibold text-gray-500 mb-2">日志监控</h3>
-                <p class="text-gray-400 leading-relaxed">实时监控服务器日志，查看系统状态和性能指标</p>
+                <h3 class="text-xl font-semibold text-gray-500 mb-2">{{ $t('home.logMonitoring') }}</h3>
+                <p class="text-gray-400 leading-relaxed">{{ $t('home.logMonitoringDesc') }}</p>
               </div>
               <UBadge color="gray" variant="soft" size="sm">
-                即将推出
+                {{ $t('home.comingSoon') }}
               </UBadge>
             </div>
           </UCard>
@@ -109,7 +109,7 @@
       <!-- 提示信息 -->
       <div class="flex items-center justify-center space-x-2 text-gray-500">
         <UIcon name="i-lucide-lightbulb" class="w-4 h-4" />
-        <span class="text-sm">点击上方卡片开始管理您的ARK服务器</span>
+        <span class="text-sm">{{ $t('home.tip') }}</span>
       </div>
     </div>
   </UContainer>

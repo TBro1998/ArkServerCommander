@@ -8,10 +8,10 @@
             <UIcon name="i-lucide-settings" class="w-8 h-8 text-white" />
           </div>
           <h1 class="text-3xl font-bold text-gray-900 mb-2">
-            系统初始化
+            {{ $t('auth.initTitle') }}
           </h1>
           <p class="text-gray-600">
-            首次使用，请设置管理员账户
+            {{ $t('auth.initSubtitle') }}
           </p>
         </div>
         
@@ -37,10 +37,10 @@
             />
             
             <!-- 用户名输入 -->
-            <UFormGroup label="管理员用户名" name="username">
+            <UFormGroup :label="$t('auth.adminUsername')" name="username">
               <UInput
                 v-model="form.username"
-                placeholder="请输入管理员用户名"
+                :placeholder="$t('auth.enterAdminUsername')"
                 icon="i-lucide-user"
                 size="lg"
                 required
@@ -48,7 +48,7 @@
             </UFormGroup>
             
             <!-- 密码输入 -->
-            <UFormGroup label="密码" name="password">
+            <UFormGroup :label="$t('auth.password')" name="password">
               <UInput
                 v-model="form.password"
                 type="password"
@@ -60,17 +60,17 @@
               />
               <template #help>
                 <p class="text-xs text-gray-500 mt-1">
-                  密码至少需要6位字符
+                  {{ $t('auth.passwordMinLength') }}
                 </p>
               </template>
             </UFormGroup>
             
             <!-- 确认密码输入 -->
-            <UFormGroup label="确认密码" name="confirmPassword">
+            <UFormGroup :label="$t('auth.confirmPassword')" name="confirmPassword">
               <UInput
                 v-model="form.confirmPassword"
                 type="password"
-                placeholder="请再次输入密码"
+                :placeholder="$t('auth.enterConfirmPassword')"
                 icon="i-lucide-lock"
                 size="lg"
                 required
@@ -93,7 +93,7 @@
                 name="i-lucide-settings" 
                 class="w-4 h-4 mr-2" 
               />
-              {{ authStore.isLoading ? '初始化中...' : '初始化系统' }}
+              {{ authStore.isLoading ? $t('auth.initLoading') : $t('auth.initButton') }}
             </UButton>
           </form>
         </UCard>
@@ -102,7 +102,7 @@
         <div class="text-center mt-6">
           <div class="flex items-center justify-center space-x-2 text-sm text-gray-500">
             <UIcon name="i-lucide-info" class="w-4 h-4" />
-            <span>初始化完成后将自动跳转到主页面</span>
+            <span>{{ $t('auth.initTip') }}</span>
           </div>
         </div>
       </div>
@@ -112,7 +112,7 @@
     <AppFooter 
       :show-privacy-policy="false"
       :show-terms-of-service="false"
-      page-info="系统初始化向导"
+      :page-info="$t('auth.initWizard')"
     />
   </div>
 </template>
@@ -149,12 +149,12 @@ const handleInit = async () => {
   
   // 验证密码
   if (form.password !== form.confirmPassword) {
-    error.value = '两次输入的密码不一致'
+    error.value = $t('auth.passwordMismatch')
     return
   }
   
   if (form.password.length < 6) {
-    error.value = '密码至少需要6位'
+    error.value = $t('auth.passwordMinLengthError')
     return
   }
   

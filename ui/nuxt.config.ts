@@ -7,7 +7,8 @@ export default defineNuxtConfig({
     '@nuxt/ui',
     '@nuxt/eslint',
     '@nuxt/fonts',
-    '@nuxt/icon'
+    '@nuxt/icon',
+    '@nuxtjs/i18n'
   ],
 
   css: ['~/assets/css/main.css'],
@@ -21,7 +22,22 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2024-11-27',
-
+  i18n: {
+    locales: [
+      { code: 'en', language: 'en-US', file: 'en.ts' },
+      { code: 'zh', language: 'zh-CN', file: 'zh.ts' }
+    ],
+    defaultLocale: 'en',
+    lazy: true,
+    strategy: 'prefix_except_default',
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      redirectOn: 'root',
+      alwaysRedirect: true,
+      fallbackLocale: 'en'
+    }
+  },
   runtimeConfig: {
     public: {
       // 开发环境连接本地后端，生产环境使用相对路径
