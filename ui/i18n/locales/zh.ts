@@ -275,6 +275,7 @@ export default {
       description: '此文件包含服务器的基本设置，如端口、密码、最大玩家数等',
       visualEditModeDesc: '可视化编辑模式',
       visualEditModeTip: '通过表单控件修改参数，鼠标悬停在参数名称旁的图标可查看详细说明。修改会自动同步到配置文件，切换到文本模式可查看生成的配置内容。',
+      gameIniTextEditDesc: '直接编辑 Game.ini 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。',
       showPassword: '显示密码',
       hidePassword: '隐藏密码',
       enabled: '启用',
@@ -427,7 +428,355 @@ export default {
       oldsaveformat: '使用旧存档格式',
       StructureDestructionTag: '结构销毁标签',
       culture: '语言代码覆盖'
-    }
+    },
+
+    // Game.ini 参数分类
+    gameIniCategories: {
+      gameBasic: '基础设置',
+      experienceSettings: '经验值和等级',
+      breedingSettings: '繁殖',
+      itemSettings: '物品和资源',
+      dinoSettings: '恐龙',
+      tribeSettings: '部落和玩家',
+      pvpSettings: 'PvP',
+      structureSettings: '建筑和结构',
+      advancedSettings: '高级功能',
+      customSettings: '自定义配置'
+    },
+
+    // GameUserSettings.ini 参数分类
+    gameUserSettingsCategories: {
+      serverBasic: '基本设置',
+      gameMode: '游戏模式',
+      communication: '聊天和通讯',
+      gameMultipliers: '游戏倍率',
+      characterSettings: '角色',
+      dinoSettings: '恐龙',
+      environmentSettings: '环境',
+      structureSettings: '建筑',
+      tribeSettings: '部落和联盟',
+      breedingSettings: '繁殖和印记',
+      itemSettings: '物品和补给',
+      performanceSettings: '服务器性能',
+      diseaseSettings: '疾病和状态',
+      offlineRaidSettings: '离线突袭保护',
+      crossArkSettings: '跨服传输',
+      flyerSettings: '飞行载具',
+      advancedSettings: '高级功能'
+    },
+
+    // Game.ini 参数翻译
+    gameIniParams: {
+      // 基础游戏设置
+      bUseSingleplayerSettings: '使用单人设置',
+      bDisableStructurePlacementCollision: '禁用建筑碰撞',
+      bAllowFlyerCarryPvE: 'PvE飞行载具',
+      bAllowUnlimitedRespecs: '无限重置技能',
+      bPassiveDefensesDamageRiderlessDinos: '防御伤害无骑手恐龙',
+      bOnlyAllowSpecifiedEngrams: '仅允许指定图纸',
+      bAutoUnlockAllEngrams: '自动解锁所有图纸',
+      bShowCreativeMode: '显示创造模式',
+      bUseCorpseLocator: '使用尸体定位器',
+      bDisableLootCrates: '禁用补给箱',
+      bDisableDinoRiding: '禁用骑乘恐龙',
+      bDisableDinoTaming: '禁用驯服恐龙',
+      bAllowCustomRecipes: '允许自定义配方',
+      bHardLimitTurretsInRange: '硬限制范围内炮塔',
+      bPvEAllowTribeWar: 'PvE允许部落战争',
+      bPvEAllowTribeWarCancel: 'PvE允许取消部落战争',
+      bPvEDisableFriendlyFire: 'PvE禁用友军伤害',
+      bDisableFriendlyFire: '禁用友军伤害',
+      bFlyerPlatformAllowUnalignedDinoBasing: '飞行平台允许未对齐恐龙基地',
+      bIncreasePvPRespawnInterval: '增加PvP重生间隔',
+      bAutoPvETimer: '自动PvE计时器',
+      bAutoPvEUseSystemTime: '自动PvE使用系统时间',
+      bIgnoreStructuresPreventionVolumes: '忽略建筑防护体积',
+      bGenesisUseStructuresPreventionVolumes: '创世纪使用建筑防护体积',
+      bAllowFlyerSpeedLeveling: '允许飞行生物速度升级',
+      bUseTameLimitForStructuresOnly: '仅对建筑使用驯服限制',
+
+      // 经验值和等级设置
+      OverrideMaxExperiencePointsPlayer: '覆盖玩家最大经验值',
+      OverrideMaxExperiencePointsDino: '覆盖恐龙最大经验值',
+      OverridePlayerLevelEngramPoints: '覆盖玩家等级图纸点数',
+      KillXPMultiplier: '击杀经验倍率',
+      HarvestXPMultiplier: '采集经验倍率',
+      CraftXPMultiplier: '制作经验倍率',
+      GenericXPMultiplier: '通用经验倍率',
+      SpecialXPMultiplier: '特殊事件经验倍率',
+
+      // 繁殖设置
+      MatingIntervalMultiplier: '交配间隔倍率',
+      MatingSpeedMultiplier: '交配速度倍率',
+      EggHatchSpeedMultiplier: '蛋孵化速度倍率',
+      BabyMatureSpeedMultiplier: '幼体成长速度倍率',
+      BabyCuddleIntervalMultiplier: '幼体关爱间隔倍率',
+      BabyFoodConsumptionSpeedMultiplier: '幼体食物消耗倍率',
+      BabyImprintingStatScaleMultiplier: '幼体印记属性缩放倍率',
+      BabyImprintAmountMultiplier: '幼体印记数量倍率',
+      BabyCuddleGracePeriodMultiplier: '幼体关爱宽限期倍率',
+      BabyCuddleLoseImprintQualitySpeedMultiplier: '幼体关爱失去印记质量速度倍率',
+
+      // 物品和资源设置
+      CropGrowthSpeedMultiplier: '作物生长速度倍率',
+      CropDecaySpeedMultiplier: '作物腐烂速度倍率',
+      GlobalSpoilingTimeMultiplier: '全局腐坏时间倍率',
+      GlobalItemDecompositionTimeMultiplier: '物品消失时间倍率',
+      GlobalCorpseDecompositionTimeMultiplier: '尸体消失时间倍率',
+      UseCorpseLifeSpanMultiplier: '尸体生命周期倍率',
+      SupplyCrateLootQualityMultiplier: '补给箱品质倍率',
+      FishingLootQualityMultiplier: '钓鱼品质倍率',
+      CustomRecipeEffectivenessMultiplier: '自定义配方效果倍率',
+      CustomRecipeSkillMultiplier: '自定义配方技能倍率',
+      CraftingSkillBonusMultiplier: '制作技能奖励倍率',
+      ResourceNoReplenishRadiusPlayers: '玩家资源不重生半径',
+      ResourceNoReplenishRadiusStructures: '建筑资源不重生半径',
+      HarvestResourceItemAmountClassMultipliers: '资源采集数量类别倍率',
+      DinoHarvestingDamageMultiplier: '恐龙采集伤害倍率',
+      PlayerHarvestingDamageMultiplier: '玩家采集伤害倍率',
+
+      // 恐龙设置
+      TamedDinoCharacterFoodDrainMultiplier: '驯服恐龙食物消耗倍率',
+      WildDinoCharacterFoodDrainMultiplier: '野生恐龙食物消耗倍率',
+      WildDinoTorporDrainMultiplier: '野生恐龙昏迷流失倍率',
+      TamedDinoTorporDrainMultiplier: '驯服恐龙昏迷流失倍率',
+      PassiveTameIntervalMultiplier: '被动驯服间隔倍率',
+      DinoTurretDamageMultiplier: '恐龙炮塔伤害倍率',
+      PreventDinoTameClassNames: '禁止驯服恐龙类别',
+      PreventTransferForClassName: '禁止转移类别名称',
+      DinoClassDamageMultipliers: '恐龙类别伤害倍率',
+      TamedDinoClassDamageMultipliers: '驯服恐龙类别伤害倍率',
+      DinoClassResistanceMultipliers: '恐龙类别抗性倍率',
+      TamedDinoClassResistanceMultipliers: '驯服恐龙类别抗性倍率',
+      DestroyTamesOverLevelClamp: '销毁超过等级限制的驯服',
+
+      // 部落和玩家设置
+      MaxNumberOfPlayersInTribe: '部落最大人数',
+      MaxAlliancesPerTribe: '每个部落最大联盟数',
+      MaxTribesPerAlliance: '每个联盟最大部落数',
+      TribeSlotReuseCooldown: '部落槽位重用冷却',
+      MaxTribeLogs: '最大部落日志',
+      KickIdlePlayersPeriod: '踢出空闲玩家周期',
+
+      // PvP设置
+      IncreasePvPRespawnIntervalCheckPeriod: 'PvP重生间隔检查周期',
+      IncreasePvPRespawnIntervalMultiplier: 'PvP重生间隔倍率',
+      IncreasePvPRespawnIntervalBaseAmount: 'PvP重生间隔基础数量',
+      AutoPvEStartTimeSeconds: '自动PvE开始时间（秒）',
+      AutoPvEStopTimeSeconds: '自动PvE停止时间（秒）',
+      PvPZoneStructureDamageMultiplier: 'PvP区域建筑伤害倍率',
+
+      // 建筑和结构设置
+      StructureDamageRepairCooldown: '建筑伤害修复冷却',
+      StructureResistanceMultiplier: '建筑抗性倍率',
+      StructureDamageMultiplier: '建筑伤害倍率',
+      PvEStructureDecayPeriodMultiplier: 'PvE建筑腐烂周期倍率',
+      FastDecayInterval: '快速腐烂间隔',
+
+      // 高级设置
+      HairGrowthSpeedMultiplier: '头发生长速度倍率',
+      PoopIntervalMultiplier: '排便间隔倍率',
+      LayEggIntervalMultiplier: '产蛋间隔倍率',
+      FuelConsumptionIntervalMultiplier: '燃料消耗间隔倍率',
+      GlobalPoweredBatteryDurabilityDecreasePerSecond: '全局供电电池耐久度每秒减少',
+      LimitNonPlayerDroppedItemsRange: '限制非玩家掉落物品范围',
+      LimitNonPlayerDroppedItemsCount: '限制非玩家掉落物品数量',
+      MaxFallSpeedMultiplier: '最大下落速度倍率',
+      PreventOfflinePvPConnectionInvincibleInterval: '离线PvP连接无敌间隔',
+
+      // 自定义配置
+      ConfigOverrideItemMaxQuantity: '配置覆盖物品最大数量',
+      ConfigOverrideItemCraftingCosts: '配置覆盖物品制作成本',
+      ConfigOverrideSupplyCrateItems: '配置覆盖补给箱物品',
+      ExcludeItemIndices: '排除物品索引',
+      LevelExperienceRampOverrides: '等级经验斜坡覆盖',
+      EngramEntryAutoUnlocks: '图纸条目自动解锁',
+      ModIDS: '模组ID'
+    },
+
+    // GameUserSettings.ini 参数翻译
+    gameUserSettingsParams: {
+      // 服务器基本设置
+      ServerPassword: '服务器密码',
+      SpectatorPassword: '观察者密码',
+      AdminLogging: '管理员日志',
+
+      // 游戏模式设置
+      serverPVE: 'PvE模式',
+      serverHardcore: '硬核模式',
+      ShowMapPlayerLocation: '显示玩家位置',
+      allowThirdPersonPlayer: '允许第三人称',
+      ServerCrosshair: '显示准星',
+      EnablePvPGamma: 'PvP伽马调节',
+      DisablePvEGamma: '禁用PvE伽马调节',
+      serverForceNoHud: '强制隐藏HUD',
+      ShowFloatingDamageText: '显示浮动伤害文字',
+      AllowHitMarkers: '允许命中标记',
+
+      // 聊天和通讯设置
+      globalVoiceChat: '全局语音聊天',
+      proximityChat: '附近聊天',
+      alwaysNotifyPlayerJoined: '总是通知玩家加入',
+      alwaysNotifyPlayerLeft: '总是通知玩家离开',
+      DontAlwaysNotifyPlayerJoined: '禁用玩家加入通知',
+
+      // 游戏倍率设置
+      XPMultiplier: '经验倍率',
+      TamingSpeedMultiplier: '驯服速度倍率',
+      HarvestAmountMultiplier: '采集倍率',
+      HarvestHealthMultiplier: '资源血量倍率',
+      ResourcesRespawnPeriodMultiplier: '资源重生倍率',
+      ItemStackSizeMultiplier: '物品堆叠倍率',
+
+      // 角色设置
+      PlayerCharacterHealthRecoveryMultiplier: '玩家回血倍率',
+      PlayerCharacterFoodDrainMultiplier: '玩家饥饿倍率',
+      PlayerCharacterWaterDrainMultiplier: '玩家口渴倍率',
+      PlayerCharacterStaminaDrainMultiplier: '玩家耐力倍率',
+      PlayerDamageMultiplier: '玩家伤害倍率',
+      PlayerResistanceMultiplier: '玩家抗性倍率',
+      OxygenSwimSpeedStatMultiplier: '氧气游泳速度倍率',
+      ImplantSuicideCD: '植入体自杀冷却',
+
+      // 恐龙设置
+      DinoCountMultiplier: '恐龙数量倍率',
+      DinoCharacterHealthRecoveryMultiplier: '恐龙回血倍率',
+      DinoCharacterFoodDrainMultiplier: '恐龙饥饿倍率',
+      DinoCharacterStaminaDrainMultiplier: '恐龙耐力倍率',
+      DinoDamageMultiplier: '恐龙伤害倍率',
+      TamedDinoDamageMultiplier: '驯服恐龙伤害倍率',
+      DinoResistanceMultiplier: '恐龙抗性倍率',
+      TamedDinoResistanceMultiplier: '驯服恐龙抗性倍率',
+      MaxTamedDinos: '最大驯服恐龙数',
+      MaxPersonalTamedDinos: '个人最大驯服数',
+      DisableDinoDecayPvE: '禁用PvE恐龙腐朽',
+      AutoDestroyDecayedDinos: '自动销毁腐朽恐龙',
+      PvEDinoDecayPeriodMultiplier: 'PvE恐龙腐朽倍率',
+      PvPDinoDecay: 'PvP恐龙腐朽',
+      AllowRaidDinoFeeding: '允许突袭恐龙喂食',
+      RaidDinoCharacterFoodDrainMultiplier: '突袭恐龙饥饿倍率',
+      AllowFlyerCarryPvE: 'PvE飞行载具抓取',
+      bForceCanRideFliers: '强制允许骑乘飞行生物',
+
+      // 环境设置
+      DayCycleSpeedScale: '昼夜循环速度',
+      DayTimeSpeedScale: '白天时长倍率',
+      NightTimeSpeedScale: '夜晚时长倍率',
+      DisableWeatherFog: '禁用雾效',
+      DifficultyOffset: '难度偏移',
+      OverrideOfficialDifficulty: '覆盖官方难度',
+      RandomSupplyCratePoints: '随机补给箱位置',
+
+      // 建筑设置
+      StructureDamageMultiplier: '建筑伤害倍率',
+      StructureResistanceMultiplier: '建筑抗性倍率',
+      TheMaxStructuresInRange: '范围内最大建筑数',
+      NewMaxStructuresInRange: '新范围内最大建筑数',
+      MaxStructuresInRange: '最大建筑范围数',
+      DisableStructureDecayPvE: '禁用PvE建筑腐朽',
+      PvEStructureDecayPeriodMultiplier: 'PvE建筑腐朽倍率',
+      PvEStructureDecayDestructionPeriod: 'PvE建筑腐朽销毁期',
+      PvPStructureDecay: 'PvP建筑腐朽',
+      StructurePickupTimeAfterPlacement: '建筑快捷拾取时间',
+      StructurePickupHoldDuration: '拾取按键持续时间',
+      AlwaysAllowStructurePickup: '总是允许拾取建筑',
+      OnlyAutoDestroyCoreStructures: '仅自动销毁核心建筑',
+      OnlyDecayUnsnappedCoreStructures: '仅腐朽未连接核心建筑',
+      FastDecayUnsnappedCoreStructures: '快速腐朽未连接建筑',
+      DestroyUnconnectedWaterPipes: '销毁未连接水管',
+      StructurePreventResourceRadiusMultiplier: '建筑阻止资源半径倍率',
+      MaxPlatformSaddleStructureLimit: '平台鞍最大建筑数',
+      PerPlatformMaxStructuresMultiplier: '平台建筑倍率',
+      PlatformSaddleBuildAreaBoundsMultiplier: '平台建造区域倍率',
+      OverrideStructurePlatformPrevention: '覆盖平台限制',
+      EnableExtraStructurePreventionVolumes: '启用额外建筑限制区域',
+      AllowCaveBuildingPvE: '允许PvE洞穴建造',
+      AllowCaveBuildingPvP: '允许PvP洞穴建造',
+      PvEAllowStructuresAtSupplyDrops: 'PvE允许补给点建造',
+      AllowCrateSpawnsOnTopOfStructures: '允许补给箱生成在建筑上',
+      bAllowPlatformSaddleMultiFloors: '允许平台鞍多层',
+      MaxGateFrameOnSaddles: '鞍座最大门框数',
+
+      // 部落和联盟设置
+      MaxNumberOfPlayersInTribe: '部落最大人数',
+      TribeNameChangeCooldown: '部落改名冷却',
+      PreventTribeAlliances: '防止部落联盟',
+      MaxAlliancesPerTribe: '每个部落最大联盟数',
+      MaxTribesPerAlliance: '每个联盟最大部落数',
+
+      // 繁殖和印记设置
+      AllowAnyoneBabyImprintCuddle: '允许任何人照顾幼体',
+      DisableImprintDinoBuff: '禁用印记恐龙加成',
+      BabyImprintingStatScaleMultiplier: '幼体印记属性倍率',
+
+      // 物品和补给设置
+      ClampItemSpoilingTimes: '限制物品腐坏时间',
+      ClampResourceHarvestDamage: '限制资源采集伤害',
+      UseOptimizedHarvestingHealth: '使用优化采集血量',
+      BanListURL: '封禁列表URL',
+
+      // 服务器性能设置
+      AutoSavePeriodMinutes: '自动保存间隔',
+      KickIdlePlayersPeriod: '踢出空闲玩家时间',
+      ListenServerTetherDistanceMultiplier: '监听服务器距离倍率',
+      RCONServerGameLogBuffer: 'RCON游戏日志缓冲',
+      NPCNetworkStasisRangeScalePlayerCountStart: 'NPC网络停滞范围玩家数起始',
+      NPCNetworkStasisRangeScalePlayerCountEnd: 'NPC网络停滞范围玩家数结束',
+      NPCNetworkStasisRangeScalePercentEnd: 'NPC网络停滞范围缩放百分比结束',
+
+      // 疾病和状态设置
+      PreventDiseases: '防止疾病',
+      NonPermanentDiseases: '非永久性疾病',
+      PreventSpawnAnimations: '防止生成动画',
+
+      // 离线突袭保护设置
+      PreventOfflinePvP: '防止离线PvP',
+      PreventOfflinePvPInterval: '离线保护等待时间',
+
+      // 跨服传输设置
+      NoTributeDownloads: '禁用贡品下载',
+      PreventDownloadSurvivors: '防止下载角色',
+      PreventDownloadItems: '防止下载物品',
+      PreventDownloadDinos: '防止下载恐龙',
+      PreventUploadSurvivors: '防止上传角色',
+      PreventUploadItems: '防止上传物品',
+      PreventUploadDinos: '防止上传恐龙',
+      CrossARKAllowForeignDinoDownloads: '允许外来恐龙下载',
+      MaxTributeDinos: '最大贡品恐龙数',
+      MaxTributeItems: '最大贡品物品数',
+      MinimumDinoReuploadInterval: '最小恐龙重新上传间隔',
+      TributeItemExpirationSeconds: '贡品物品过期时间',
+      TributeDinoExpirationSeconds: '贡品恐龙过期时间',
+      TributeCharacterExpirationSeconds: '贡品角色过期时间',
+
+      // 飞行载具设置
+      AllowFlyingStaminaRecovery: '飞行耐力恢复',
+      ForceFlyerExplosives: '强制飞行器爆炸物',
+
+      // 高级功能设置
+      AllowMultipleAttachedC4: '允许多个C4',
+      AllowIntegratedSPlusStructures: '允许集成S+建筑',
+      AllowHideDamageSourceFromLogs: '隐藏伤害来源日志',
+      AllowSharedConnections: '允许共享连接',
+      bFilterTribeNames: '过滤部落名称',
+      bFilterCharacterNames: '过滤角色名称',
+      bFilterChat: '过滤聊天',
+      EnableCryoSicknessPVE: '启用PvE冷冻舱疾病',
+      EnableCryopodNerf: '启用冷冻舱削弱',
+      CryopodNerfDuration: '冷冻舱削弱持续时间',
+      CryopodNerfDamageMult: '冷冻舱削弱伤害倍率',
+      CryopodNerfIncomingDamageMultPercent: '冷冻舱削弱受到伤害倍率',
+      DisableCryopodEnemyCheck: '禁用冷冻舱敌人检查',
+      DisableCryopodFridgeRequirement: '禁用冷冻舱冰箱需求',
+      AllowCryoFridgeOnSaddle: '允许鞍座冷冻冰箱',
+      MaxTrainCars: '最大火车车厢数',
+      MaxHexagonsPerCharacter: '每角色最大六边形数',
+      AllowTekSuitPowersInGenesis: '允许创世纪TEK套装能力',
+      CustomDynamicConfigUrl: '自定义动态配置URL'
+    },
+
+    // GameUserSettings.ini 编辑器描述
+    gameUserSettingsTextEditDesc: '直接编辑 GameUserSettings.ini 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。'
   },
 
   // 模态框

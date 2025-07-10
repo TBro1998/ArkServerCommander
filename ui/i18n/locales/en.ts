@@ -275,6 +275,7 @@ export default {
       description: 'This file contains basic server settings such as port, password, max players, etc.',
       visualEditModeDesc: 'Visual Edit Mode',
       visualEditModeTip: 'Modify parameters through form controls. Hover over the icon next to parameter names to view detailed descriptions. Changes are automatically synchronized to the configuration file. Switch to text mode to view the generated configuration content.',
+      gameIniTextEditDesc: 'Directly edit Game.ini configuration file content. Changes are automatically parsed and synced to the visual interface. Switch to visual mode to see the parsed parameter settings.',
       showPassword: 'Show Password',
       hidePassword: 'Hide Password',
       enabled: 'Enabled',
@@ -427,7 +428,355 @@ export default {
       oldsaveformat: 'Use Old Save Format',
       StructureDestructionTag: 'Structure Destruction Tag',
       culture: 'Language Code Override'
-    }
+    },
+
+    // Game.ini parameter categories
+    gameIniCategories: {
+      gameBasic: 'Basic Game',
+      experienceSettings: 'Experience and Level',
+      breedingSettings: 'Breeding',
+      itemSettings: 'Item and Resource',
+      dinoSettings: 'Dinosaur',
+      tribeSettings: 'Tribe and Player',
+      pvpSettings: 'PvP',
+      structureSettings: 'Building and Structure',
+      advancedSettings: 'Advanced',
+      customSettings: 'Custom Configuration'
+    },
+
+    // GameUserSettings.ini parameter categories
+    gameUserSettingsCategories: {
+      serverBasic: 'Server Basic',
+      gameMode: 'Game Mode',
+      communication: 'Chat and Communication',
+      gameMultipliers: 'Game Multiplier',
+      characterSettings: 'Character',
+      dinoSettings: 'Dinosaur',
+      environmentSettings: 'Environment',
+      structureSettings: 'Structure',
+      tribeSettings: 'Tribe and Alliance',
+      breedingSettings: 'Breeding and Imprinting',
+      itemSettings: 'Item and Supply',
+      performanceSettings: 'Server Performance',
+      diseaseSettings: 'Disease and Status',
+      offlineRaidSettings: 'Offline Raid Protection',
+      crossArkSettings: 'Cross-ARK Transfer',
+      flyerSettings: 'Flyer',
+      advancedSettings: 'Advanced Feature'
+    },
+
+    // Game.ini parameter translations
+    gameIniParams: {
+      // Basic game settings
+      bUseSingleplayerSettings: 'Use Singleplayer Settings',
+      bDisableStructurePlacementCollision: 'Disable Structure Placement Collision',
+      bAllowFlyerCarryPvE: 'PvE Allow Flyer Carry',
+      bAllowUnlimitedRespecs: 'Allow Unlimited Respecs',
+      bPassiveDefensesDamageRiderlessDinos: 'Passive Defenses Damage Riderless Dinos',
+      bOnlyAllowSpecifiedEngrams: 'Only Allow Specified Engrams',
+      bAutoUnlockAllEngrams: 'Auto Unlock All Engrams',
+      bShowCreativeMode: 'Show Creative Mode',
+      bUseCorpseLocator: 'Use Corpse Locator',
+      bDisableLootCrates: 'Disable Loot Crates',
+      bDisableDinoRiding: 'Disable Dino Riding',
+      bDisableDinoTaming: 'Disable Dino Taming',
+      bAllowCustomRecipes: 'Allow Custom Recipes',
+      bHardLimitTurretsInRange: 'Hard Limit Turrets In Range',
+      bPvEAllowTribeWar: 'PvE Allow Tribe War',
+      bPvEAllowTribeWarCancel: 'PvE Allow Tribe War Cancel',
+      bPvEDisableFriendlyFire: 'PvE Disable Friendly Fire',
+      bDisableFriendlyFire: 'Disable Friendly Fire',
+      bFlyerPlatformAllowUnalignedDinoBasing: 'Flyer Platform Allow Unaligned Dino Basing',
+      bIncreasePvPRespawnInterval: 'Increase PvP Respawn Interval',
+      bAutoPvETimer: 'Auto PvE Timer',
+      bAutoPvEUseSystemTime: 'Auto PvE Use System Time',
+      bIgnoreStructuresPreventionVolumes: 'Ignore Structures Prevention Volumes',
+      bGenesisUseStructuresPreventionVolumes: 'Genesis Use Structures Prevention Volumes',
+      bAllowFlyerSpeedLeveling: 'Allow Flyer Speed Leveling',
+      bUseTameLimitForStructuresOnly: 'Use Tame Limit For Structures Only',
+
+      // Experience and level settings
+      OverrideMaxExperiencePointsPlayer: 'Override Max Experience Points Player',
+      OverrideMaxExperiencePointsDino: 'Override Max Experience Points Dino',
+      OverridePlayerLevelEngramPoints: 'Override Player Level Engram Points',
+      KillXPMultiplier: 'Kill XP Multiplier',
+      HarvestXPMultiplier: 'Harvest XP Multiplier',
+      CraftXPMultiplier: 'Craft XP Multiplier',
+      GenericXPMultiplier: 'Generic XP Multiplier',
+      SpecialXPMultiplier: 'Special XP Multiplier',
+
+      // Breeding settings
+      MatingIntervalMultiplier: 'Mating Interval Multiplier',
+      MatingSpeedMultiplier: 'Mating Speed Multiplier',
+      EggHatchSpeedMultiplier: 'Egg Hatch Speed Multiplier',
+      BabyMatureSpeedMultiplier: 'Baby Mature Speed Multiplier',
+      BabyCuddleIntervalMultiplier: 'Baby Cuddle Interval Multiplier',
+      BabyFoodConsumptionSpeedMultiplier: 'Baby Food Consumption Speed Multiplier',
+      BabyImprintingStatScaleMultiplier: 'Baby Imprinting Stat Scale Multiplier',
+      BabyImprintAmountMultiplier: 'Baby Imprint Amount Multiplier',
+      BabyCuddleGracePeriodMultiplier: 'Baby Cuddle Grace Period Multiplier',
+      BabyCuddleLoseImprintQualitySpeedMultiplier: 'Baby Cuddle Lose Imprint Quality Speed Multiplier',
+
+      // Item and resource settings
+      CropGrowthSpeedMultiplier: 'Crop Growth Speed Multiplier',
+      CropDecaySpeedMultiplier: 'Crop Decay Speed Multiplier',
+      GlobalSpoilingTimeMultiplier: 'Global Spoiling Time Multiplier',
+      GlobalItemDecompositionTimeMultiplier: 'Global Item Decomposition Time Multiplier',
+      GlobalCorpseDecompositionTimeMultiplier: 'Global Corpse Decomposition Time Multiplier',
+      UseCorpseLifeSpanMultiplier: 'Use Corpse Life Span Multiplier',
+      SupplyCrateLootQualityMultiplier: 'Supply Crate Loot Quality Multiplier',
+      FishingLootQualityMultiplier: 'Fishing Loot Quality Multiplier',
+      CustomRecipeEffectivenessMultiplier: 'Custom Recipe Effectiveness Multiplier',
+      CustomRecipeSkillMultiplier: 'Custom Recipe Skill Multiplier',
+      CraftingSkillBonusMultiplier: 'Crafting Skill Bonus Multiplier',
+      ResourceNoReplenishRadiusPlayers: 'Resource No Replenish Radius Players',
+      ResourceNoReplenishRadiusStructures: 'Resource No Replenish Radius Structures',
+      HarvestResourceItemAmountClassMultipliers: 'Harvest Resource Item Amount Class Multipliers',
+      DinoHarvestingDamageMultiplier: 'Dino Harvesting Damage Multiplier',
+      PlayerHarvestingDamageMultiplier: 'Player Harvesting Damage Multiplier',
+
+      // Dinosaur settings
+      TamedDinoCharacterFoodDrainMultiplier: 'Tamed Dino Character Food Drain Multiplier',
+      WildDinoCharacterFoodDrainMultiplier: 'Wild Dino Character Food Drain Multiplier',
+      WildDinoTorporDrainMultiplier: 'Wild Dino Torpor Drain Multiplier',
+      TamedDinoTorporDrainMultiplier: 'Tamed Dino Torpor Drain Multiplier',
+      PassiveTameIntervalMultiplier: 'Passive Tame Interval Multiplier',
+      DinoTurretDamageMultiplier: 'Dino Turret Damage Multiplier',
+      PreventDinoTameClassNames: 'Prevent Dino Tame Class Names',
+      PreventTransferForClassName: 'Prevent Transfer For Class Name',
+      DinoClassDamageMultipliers: 'Dino Class Damage Multipliers',
+      TamedDinoClassDamageMultipliers: 'Tamed Dino Class Damage Multipliers',
+      DinoClassResistanceMultipliers: 'Dino Class Resistance Multipliers',
+      TamedDinoClassResistanceMultipliers: 'Tamed Dino Class Resistance Multipliers',
+      DestroyTamesOverLevelClamp: 'Destroy Tames Over Level Clamp',
+
+      // Tribe and player settings
+      MaxNumberOfPlayersInTribe: 'Max Number Of Players In Tribe',
+      MaxAlliancesPerTribe: 'Max Alliances Per Tribe',
+      MaxTribesPerAlliance: 'Max Tribes Per Alliance',
+      TribeSlotReuseCooldown: 'Tribe Slot Reuse Cooldown',
+      MaxTribeLogs: 'Max Tribe Logs',
+      KickIdlePlayersPeriod: 'Kick Idle Players Period',
+
+      // PvP settings
+      IncreasePvPRespawnIntervalCheckPeriod: 'Increase PvP Respawn Interval Check Period',
+      IncreasePvPRespawnIntervalMultiplier: 'Increase PvP Respawn Interval Multiplier',
+      IncreasePvPRespawnIntervalBaseAmount: 'Increase PvP Respawn Interval Base Amount',
+      AutoPvEStartTimeSeconds: 'Auto PvE Start Time Seconds',
+      AutoPvEStopTimeSeconds: 'Auto PvE Stop Time Seconds',
+      PvPZoneStructureDamageMultiplier: 'PvP Zone Structure Damage Multiplier',
+
+      // Building and structure settings
+      StructureDamageRepairCooldown: 'Structure Damage Repair Cooldown',
+      StructureResistanceMultiplier: 'Structure Resistance Multiplier',
+      StructureDamageMultiplier: 'Structure Damage Multiplier',
+      PvEStructureDecayPeriodMultiplier: 'PvE Structure Decay Period Multiplier',
+      FastDecayInterval: 'Fast Decay Interval',
+
+      // Advanced settings
+      HairGrowthSpeedMultiplier: 'Hair Growth Speed Multiplier',
+      PoopIntervalMultiplier: 'Poop Interval Multiplier',
+      LayEggIntervalMultiplier: 'Lay Egg Interval Multiplier',
+      FuelConsumptionIntervalMultiplier: 'Fuel Consumption Interval Multiplier',
+      GlobalPoweredBatteryDurabilityDecreasePerSecond: 'Global Powered Battery Durability Decrease Per Second',
+      LimitNonPlayerDroppedItemsRange: 'Limit Non Player Dropped Items Range',
+      LimitNonPlayerDroppedItemsCount: 'Limit Non Player Dropped Items Count',
+      MaxFallSpeedMultiplier: 'Max Fall Speed Multiplier',
+      PreventOfflinePvPConnectionInvincibleInterval: 'Prevent Offline PvP Connection Invincible Interval',
+
+      // Custom configuration
+      ConfigOverrideItemMaxQuantity: 'Config Override Item Max Quantity',
+      ConfigOverrideItemCraftingCosts: 'Config Override Item Crafting Costs',
+      ConfigOverrideSupplyCrateItems: 'Config Override Supply Crate Items',
+      ExcludeItemIndices: 'Exclude Item Indices',
+      LevelExperienceRampOverrides: 'Level Experience Ramp Overrides',
+      EngramEntryAutoUnlocks: 'Engram Entry Auto Unlocks',
+      ModIDS: 'Mod IDS'
+    },
+
+    // GameUserSettings.ini parameter translations
+    gameUserSettingsParams: {
+      // Server basic settings
+      ServerPassword: 'Server Password',
+      SpectatorPassword: 'Spectator Password',
+      AdminLogging: 'Admin Logging',
+
+      // Game mode settings
+      serverPVE: 'PvE Mode',
+      serverHardcore: 'Hardcore Mode',
+      ShowMapPlayerLocation: 'Show Player Location',
+      allowThirdPersonPlayer: 'Allow Third Person',
+      ServerCrosshair: 'Show Crosshair',
+      EnablePvPGamma: 'PvP Gamma Adjustment',
+      DisablePvEGamma: 'Disable PvE Gamma Adjustment',
+      serverForceNoHud: 'Force Hide HUD',
+      ShowFloatingDamageText: 'Show Floating Damage Text',
+      AllowHitMarkers: 'Allow Hit Markers',
+
+      // Chat and communication settings
+      globalVoiceChat: 'Global Voice Chat',
+      proximityChat: 'Proximity Chat',
+      alwaysNotifyPlayerJoined: 'Always Notify Player Joined',
+      alwaysNotifyPlayerLeft: 'Always Notify Player Left',
+      DontAlwaysNotifyPlayerJoined: 'Disable Player Join Notification',
+
+      // Game multiplier settings
+      XPMultiplier: 'XP Multiplier',
+      TamingSpeedMultiplier: 'Taming Speed Multiplier',
+      HarvestAmountMultiplier: 'Harvest Amount Multiplier',
+      HarvestHealthMultiplier: 'Harvest Health Multiplier',
+      ResourcesRespawnPeriodMultiplier: 'Resources Respawn Period Multiplier',
+      ItemStackSizeMultiplier: 'Item Stack Size Multiplier',
+
+      // Character settings
+      PlayerCharacterHealthRecoveryMultiplier: 'Player Health Recovery Multiplier',
+      PlayerCharacterFoodDrainMultiplier: 'Player Food Drain Multiplier',
+      PlayerCharacterWaterDrainMultiplier: 'Player Water Drain Multiplier',
+      PlayerCharacterStaminaDrainMultiplier: 'Player Stamina Drain Multiplier',
+      PlayerDamageMultiplier: 'Player Damage Multiplier',
+      PlayerResistanceMultiplier: 'Player Resistance Multiplier',
+      OxygenSwimSpeedStatMultiplier: 'Oxygen Swim Speed Stat Multiplier',
+      ImplantSuicideCD: 'Implant Suicide Cooldown',
+
+      // Dinosaur settings
+      DinoCountMultiplier: 'Dino Count Multiplier',
+      DinoCharacterHealthRecoveryMultiplier: 'Dino Health Recovery Multiplier',
+      DinoCharacterFoodDrainMultiplier: 'Dino Food Drain Multiplier',
+      DinoCharacterStaminaDrainMultiplier: 'Dino Stamina Drain Multiplier',
+      DinoDamageMultiplier: 'Dino Damage Multiplier',
+      TamedDinoDamageMultiplier: 'Tamed Dino Damage Multiplier',
+      DinoResistanceMultiplier: 'Dino Resistance Multiplier',
+      TamedDinoResistanceMultiplier: 'Tamed Dino Resistance Multiplier',
+      MaxTamedDinos: 'Max Tamed Dinos',
+      MaxPersonalTamedDinos: 'Max Personal Tamed Dinos',
+      DisableDinoDecayPvE: 'Disable Dino Decay PvE',
+      AutoDestroyDecayedDinos: 'Auto Destroy Decayed Dinos',
+      PvEDinoDecayPeriodMultiplier: 'PvE Dino Decay Period Multiplier',
+      PvPDinoDecay: 'PvP Dino Decay',
+      AllowRaidDinoFeeding: 'Allow Raid Dino Feeding',
+      RaidDinoCharacterFoodDrainMultiplier: 'Raid Dino Food Drain Multiplier',
+      AllowFlyerCarryPvE: 'PvE Allow Flyer Carry',
+      bForceCanRideFliers: 'Force Can Ride Fliers',
+
+      // Environment settings
+      DayCycleSpeedScale: 'Day Cycle Speed Scale',
+      DayTimeSpeedScale: 'Day Time Speed Scale',
+      NightTimeSpeedScale: 'Night Time Speed Scale',
+      DisableWeatherFog: 'Disable Weather Fog',
+      DifficultyOffset: 'Difficulty Offset',
+      OverrideOfficialDifficulty: 'Override Official Difficulty',
+      RandomSupplyCratePoints: 'Random Supply Crate Points',
+
+      // Structure settings
+      StructureDamageMultiplier: 'Structure Damage Multiplier',
+      StructureResistanceMultiplier: 'Structure Resistance Multiplier',
+      TheMaxStructuresInRange: 'Max Structures In Range',
+      NewMaxStructuresInRange: 'New Max Structures In Range',
+      MaxStructuresInRange: 'Max Structures In Range',
+      DisableStructureDecayPvE: 'Disable Structure Decay PvE',
+      PvEStructureDecayPeriodMultiplier: 'PvE Structure Decay Period Multiplier',
+      PvEStructureDecayDestructionPeriod: 'PvE Structure Decay Destruction Period',
+      PvPStructureDecay: 'PvP Structure Decay',
+      StructurePickupTimeAfterPlacement: 'Structure Pickup Time After Placement',
+      StructurePickupHoldDuration: 'Structure Pickup Hold Duration',
+      AlwaysAllowStructurePickup: 'Always Allow Structure Pickup',
+      OnlyAutoDestroyCoreStructures: 'Only Auto Destroy Core Structures',
+      OnlyDecayUnsnappedCoreStructures: 'Only Decay Unsnapped Core Structures',
+      FastDecayUnsnappedCoreStructures: 'Fast Decay Unsnapped Core Structures',
+      DestroyUnconnectedWaterPipes: 'Destroy Unconnected Water Pipes',
+      StructurePreventResourceRadiusMultiplier: 'Structure Prevent Resource Radius Multiplier',
+      MaxPlatformSaddleStructureLimit: 'Max Platform Saddle Structure Limit',
+      PerPlatformMaxStructuresMultiplier: 'Per Platform Max Structures Multiplier',
+      PlatformSaddleBuildAreaBoundsMultiplier: 'Platform Saddle Build Area Bounds Multiplier',
+      OverrideStructurePlatformPrevention: 'Override Structure Platform Prevention',
+      EnableExtraStructurePreventionVolumes: 'Enable Extra Structure Prevention Volumes',
+      AllowCaveBuildingPvE: 'Allow Cave Building PvE',
+      AllowCaveBuildingPvP: 'Allow Cave Building PvP',
+      PvEAllowStructuresAtSupplyDrops: 'PvE Allow Structures At Supply Drops',
+      AllowCrateSpawnsOnTopOfStructures: 'Allow Crate Spawns On Top Of Structures',
+      bAllowPlatformSaddleMultiFloors: 'Allow Platform Saddle Multi Floors',
+      MaxGateFrameOnSaddles: 'Max Gate Frame On Saddles',
+
+      // Tribe and alliance settings
+      MaxNumberOfPlayersInTribe: 'Max Number Of Players In Tribe',
+      TribeNameChangeCooldown: 'Tribe Name Change Cooldown',
+      PreventTribeAlliances: 'Prevent Tribe Alliances',
+      MaxAlliancesPerTribe: 'Max Alliances Per Tribe',
+      MaxTribesPerAlliance: 'Max Tribes Per Alliance',
+
+      // Breeding and imprinting settings
+      AllowAnyoneBabyImprintCuddle: 'Allow Anyone Baby Imprint Cuddle',
+      DisableImprintDinoBuff: 'Disable Imprint Dino Buff',
+      BabyImprintingStatScaleMultiplier: 'Baby Imprinting Stat Scale Multiplier',
+
+      // Item and supply settings
+      ClampItemSpoilingTimes: 'Clamp Item Spoiling Times',
+      ClampResourceHarvestDamage: 'Clamp Resource Harvest Damage',
+      UseOptimizedHarvestingHealth: 'Use Optimized Harvesting Health',
+      BanListURL: 'Ban List URL',
+
+      // Server performance settings
+      AutoSavePeriodMinutes: 'Auto Save Period Minutes',
+      KickIdlePlayersPeriod: 'Kick Idle Players Period',
+      ListenServerTetherDistanceMultiplier: 'Listen Server Tether Distance Multiplier',
+      RCONServerGameLogBuffer: 'RCON Server Game Log Buffer',
+      NPCNetworkStasisRangeScalePlayerCountStart: 'NPC Network Stasis Range Scale Player Count Start',
+      NPCNetworkStasisRangeScalePlayerCountEnd: 'NPC Network Stasis Range Scale Player Count End',
+      NPCNetworkStasisRangeScalePercentEnd: 'NPC Network Stasis Range Scale Percent End',
+
+      // Disease and status settings
+      PreventDiseases: 'Prevent Diseases',
+      NonPermanentDiseases: 'Non Permanent Diseases',
+      PreventSpawnAnimations: 'Prevent Spawn Animations',
+
+      // Offline raid protection settings
+      PreventOfflinePvP: 'Prevent Offline PvP',
+      PreventOfflinePvPInterval: 'Prevent Offline PvP Interval',
+
+      // Cross-ARK transfer settings
+      NoTributeDownloads: 'No Tribute Downloads',
+      PreventDownloadSurvivors: 'Prevent Download Survivors',
+      PreventDownloadItems: 'Prevent Download Items',
+      PreventDownloadDinos: 'Prevent Download Dinos',
+      PreventUploadSurvivors: 'Prevent Upload Survivors',
+      PreventUploadItems: 'Prevent Upload Items',
+      PreventUploadDinos: 'Prevent Upload Dinos',
+      CrossARKAllowForeignDinoDownloads: 'Cross ARK Allow Foreign Dino Downloads',
+      MaxTributeDinos: 'Max Tribute Dinos',
+      MaxTributeItems: 'Max Tribute Items',
+      MinimumDinoReuploadInterval: 'Minimum Dino Reupload Interval',
+      TributeItemExpirationSeconds: 'Tribute Item Expiration Seconds',
+      TributeDinoExpirationSeconds: 'Tribute Dino Expiration Seconds',
+      TributeCharacterExpirationSeconds: 'Tribute Character Expiration Seconds',
+
+      // Flyer settings
+      AllowFlyingStaminaRecovery: 'Allow Flying Stamina Recovery',
+      ForceFlyerExplosives: 'Force Flyer Explosives',
+
+      // Advanced feature settings
+      AllowMultipleAttachedC4: 'Allow Multiple Attached C4',
+      AllowIntegratedSPlusStructures: 'Allow Integrated S+ Structures',
+      AllowHideDamageSourceFromLogs: 'Allow Hide Damage Source From Logs',
+      AllowSharedConnections: 'Allow Shared Connections',
+      bFilterTribeNames: 'Filter Tribe Names',
+      bFilterCharacterNames: 'Filter Character Names',
+      bFilterChat: 'Filter Chat',
+      EnableCryoSicknessPVE: 'Enable Cryo Sickness PVE',
+      EnableCryopodNerf: 'Enable Cryopod Nerf',
+      CryopodNerfDuration: 'Cryopod Nerf Duration',
+      CryopodNerfDamageMult: 'Cryopod Nerf Damage Multiplier',
+      CryopodNerfIncomingDamageMultPercent: 'Cryopod Nerf Incoming Damage Multiplier Percent',
+      DisableCryopodEnemyCheck: 'Disable Cryopod Enemy Check',
+      DisableCryopodFridgeRequirement: 'Disable Cryopod Fridge Requirement',
+      AllowCryoFridgeOnSaddle: 'Allow Cryo Fridge On Saddle',
+      MaxTrainCars: 'Max Train Cars',
+      MaxHexagonsPerCharacter: 'Max Hexagons Per Character',
+      AllowTekSuitPowersInGenesis: 'Allow Tek Suit Powers In Genesis',
+      CustomDynamicConfigUrl: 'Custom Dynamic Config URL'
+    },
+
+    // GameUserSettings.ini editor description
+    gameUserSettingsTextEditDesc: 'Edit GameUserSettings.ini configuration file content directly. Changes will be automatically parsed and synchronized to the visual interface. Switch to visual mode to see the parsed parameter settings.'
   },
 
   // Modals

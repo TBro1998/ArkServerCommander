@@ -43,66 +43,86 @@
 
     <!-- 可视化编辑模式 -->
     <div v-if="editMode === 'visual'" class="space-y-6">
-      <div 
-        v-for="(section, sectionKey) in gameIniParams" 
-        :key="sectionKey"
-        class="bg-gray-50 rounded-lg p-4"
-      >
-        <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-          {{ section.title }}
-        </h4>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <div 
-            v-for="(param, paramKey) in section.params" 
-            :key="paramKey"
-            class="space-y-2 relative"
+      <!-- 页签导航 -->
+      <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8 overflow-x-auto">
+          <button
+            v-for="category in getAllCategories()"
+            :key="category.key"
+            @click="activeTab = category.key"
+            :class="[
+              'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm',
+              activeTab === category.key
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
           >
-            <label class="block text-sm font-medium text-gray-700">
-              {{ param.label }}
-              <span 
-                class="relative inline-block ml-1"
-                @mouseenter="showTooltip = paramKey"
-                @mouseleave="showTooltip = null"
-              >
-                <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.description"></i>
-                <div 
-                  v-if="showTooltip === paramKey"
-                  class="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
-                  style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
+            {{ getCategoryName(category.key) }}
+          </button>
+        </nav>
+      </div>
+
+      <!-- 页签内容 -->
+      <div class="bg-white rounded-lg border border-gray-200 p-6">
+        <div
+          v-for="category in getAllCategories()"
+          :key="category.key"
+          v-show="activeTab === category.key"
+          class="space-y-4"
+        >
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div 
+              v-for="{ key: paramKey, param } in category.params" 
+              :key="paramKey"
+              class="space-y-2 relative"
+            >
+              <label class="block text-sm font-medium text-gray-700">
+                {{ getParamDisplayName(paramKey) }}
+                <span 
+                  class="relative inline-block ml-1"
+                  @mouseenter="showTooltip = paramKey"
+                  @mouseleave="showTooltip = null"
                 >
-                  {{ param.description }}
-                  <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                </div>
-              </span>
-            </label>
-            
-            <!-- Boolean 类型 -->
-            <div v-if="param.type === 'boolean'">
-              <ToggleSwitch
-                :id="paramKey"
+                  <i class="fas fa-info-circle text-gray-400 cursor-help"></i>
+                  <div 
+                    v-if="showTooltip === paramKey"
+                    class="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
+                    style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
+                  >
+                    {{ getParamDisplayName(paramKey) }}
+                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </span>
+              </label>
+              
+              <!-- Boolean 类型 -->
+              <div v-if="param.type === 'boolean'">
+                <ToggleSwitch
+                  :id="paramKey"
+                  v-model="visualConfig[paramKey]"
+                  :label="visualConfig[paramKey] ? t('servers.editor.enabled') : t('servers.editor.disabled')"
+                />
+              </div>
+              
+              <!-- Number 类型 -->
+              <input
+                v-else-if="param.type === 'number'"
+                v-model.number="visualConfig[paramKey]"
+                type="number"
+                :min="param.min"
+                :max="param.max"
+                :step="param.step || 1"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              
+              <!-- Text 类型 -->
+              <input
+                v-else
                 v-model="visualConfig[paramKey]"
-                :label="visualConfig[paramKey] ? t('servers.editor.enabled') : t('servers.editor.disabled')"
+                type="text"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
-            <!-- Number 类型 -->
-            <input
-              v-else-if="param.type === 'number'"
-              v-model.number="visualConfig[paramKey]"
-              type="number"
-              :min="param.min"
-              :max="param.max"
-              :step="param.step || 1"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            
-            <!-- Text/Password 类型 -->
-            <input
-              v-else
-              v-model="visualConfig[paramKey]"
-              :type="param.type"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
           </div>
         </div>
       </div>
@@ -154,8 +174,8 @@
       <div class="flex flex-col sm:flex-row items-start">
         <i class="fas fa-code text-green-500 mr-0 sm:mr-3 mb-2 sm:mb-0"></i>
         <div class="text-sm text-green-700">
-          <p class="font-medium">文本编辑模式</p>
-          <p>直接编辑 INI 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。</p>
+          <p class="font-medium">{{ t('servers.editor.textEditMode') }}</p>
+          <p>{{ t('servers.editor.gameIniTextEditDesc') }}</p>
         </div>
       </div>
     </div>
@@ -163,7 +183,7 @@
 </template>
 
 <script setup>
-import { gameIniParams } from '../utils/gameIniParams.js'
+import { gameIniParams, getAllCategories } from '../utils/gameIniParams'
 import { extractConfigValues, formatConfigContent } from '../utils/configParser.js'
 import ToggleSwitch from './ToggleSwitch.vue'
 
@@ -192,10 +212,22 @@ const isSyncing = ref(false)
 const textContent = ref('')
 const visualConfig = ref({})
 const isInitialized = ref(false)
+const activeTab = ref('')
 
 // 防抖定时器
 let visualSyncTimer = null
 let textSyncTimer = null
+
+// i18n 相关函数
+const getCategoryName = (categoryKey) => {
+  const translated = t(`servers.gameIniCategories.${categoryKey}`)
+  return translated !== `servers.gameIniCategories.${categoryKey}` ? translated : categoryKey
+}
+
+const getParamDisplayName = (paramKey) => {
+  const translated = t(`servers.gameIniParams.${paramKey}`)
+  return translated !== `servers.gameIniParams.${paramKey}` ? translated : paramKey
+}
 
 // 初始化可视化配置默认值
 const initializeVisualConfig = () => {
@@ -209,9 +241,9 @@ const initializeVisualConfig = () => {
     if (!isInitialized.value) {
       Object.keys(gameIniParams).forEach(sectionKey => {
         const section = gameIniParams[sectionKey]
-        if (section && section.params) {
-          Object.keys(section.params).forEach(paramKey => {
-            const param = section.params[paramKey]
+        if (section) {
+          Object.keys(section).forEach(paramKey => {
+            const param = section[paramKey]
             if (param && param.default !== undefined) {
               visualConfig.value[paramKey] = param.default
             }
@@ -266,8 +298,8 @@ const syncVisualToText = () => {
     let content = '[/script/shootergame.shootergamemode]\n'
     Object.keys(gameIniParams).forEach(sectionKey => {
       const section = gameIniParams[sectionKey]
-      if (section && section.params) {
-        Object.keys(section.params).forEach(paramKey => {
+      if (section) {
+        Object.keys(section).forEach(paramKey => {
           const value = visualConfig.value[paramKey]
           if (value !== undefined && value !== null && value !== '') {
             content += `${paramKey}=${value}\n`
@@ -502,6 +534,12 @@ const formatConfig = () => {
 // 组件挂载时初始化
 onMounted(() => {
   initializeVisualConfig()
+  
+  // 初始化第一个页签
+  const categories = getAllCategories()
+  if (categories.length > 0 && !activeTab.value) {
+    activeTab.value = categories[0].key
+  }
 })
 
 // 组件卸载时清理定时器

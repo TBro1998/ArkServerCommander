@@ -43,89 +43,109 @@
 
     <!-- 可视化编辑模式 -->
     <div v-if="editMode === 'visual'" class="space-y-6">
-      <div 
-        v-for="(section, sectionKey) in gameUserSettingsParams" 
-        :key="sectionKey"
-        class="bg-gray-50 rounded-lg p-4"
-      >
-        <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-          {{ section.title }}
-        </h4>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <div 
-            v-for="(param, paramKey) in section.params" 
-            :key="paramKey"
-            class="space-y-2 relative"
+      <!-- 页签导航 -->
+      <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8 overflow-x-auto">
+          <button
+            v-for="categoryKey in getAllCategories()"
+            :key="categoryKey"
+            @click="activeTab = categoryKey"
+            :class="[
+              'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm',
+              activeTab === categoryKey
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
           >
-            <label class="block text-sm font-medium text-gray-700">
-              {{ param.label }}
-              <span 
-                class="relative inline-block ml-1"
-                @mouseenter="showTooltip = paramKey"
-                @mouseleave="showTooltip = null"
-              >
-                <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.description"></i>
-                <div 
-                  v-if="showTooltip === paramKey"
-                  class="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
-                  style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
+            {{ getCategoryName(categoryKey) }}
+          </button>
+        </nav>
+      </div>
+
+      <!-- 页签内容 -->
+      <div class="bg-white rounded-lg border border-gray-200 p-6">
+        <div
+          v-for="categoryKey in getAllCategories()"
+          :key="categoryKey"
+          v-show="activeTab === categoryKey"
+          class="space-y-4"
+        >
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div 
+              v-for="(param, paramKey) in getParamsByCategory(categoryKey)" 
+              :key="paramKey"
+              class="space-y-2 relative"
+            >
+              <label class="block text-sm font-medium text-gray-700">
+                {{ getParamDisplayName(paramKey) }}
+                <span 
+                  class="relative inline-block ml-1"
+                  @mouseenter="showTooltip = paramKey"
+                  @mouseleave="showTooltip = null"
                 >
-                  {{ param.description }}
-                  <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                </div>
-              </span>
-            </label>
-            
-            <!-- Boolean 类型 -->
-            <div v-if="param.type === 'boolean'">
-              <ToggleSwitch
-                :id="paramKey"
-                v-model="visualConfig[paramKey]"
-                :label="visualConfig[paramKey] ? t('servers.editor.enabled') : t('servers.editor.disabled')"
-              />
-            </div>
-            
-            <!-- Number 类型 -->
-            <input
-              v-else-if="param.type === 'number'"
-              v-model.number="visualConfig[paramKey]"
-              type="number"
-              :min="param.min"
-              :max="param.max"
-              :step="param.step || 1"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            
-            <!-- Text/Password 类型 -->
-            <div v-else-if="param.type === 'password'" class="relative">
+                  <i class="fas fa-info-circle text-gray-400 cursor-help"></i>
+                  <div 
+                    v-if="showTooltip === paramKey"
+                    class="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
+                    style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
+                  >
+                    {{ getParamDisplayName(paramKey) }}
+                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </span>
+              </label>
+              
+              <!-- Boolean 类型 -->
+              <div v-if="param.type === 'boolean'">
+                <ToggleSwitch
+                  :id="paramKey"
+                  v-model="visualConfig[paramKey]"
+                  :label="visualConfig[paramKey] ? t('servers.editor.enabled') : t('servers.editor.disabled')"
+                />
+              </div>
+              
+              <!-- Number 类型 -->
               <input
-                v-model="visualConfig[paramKey]"
-                :type="showPasswords[paramKey] ? 'text' : 'password'"
-                class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                v-else-if="param.type === 'number'"
+                v-model.number="visualConfig[paramKey]"
+                type="number"
+                :min="param.min"
+                :max="param.max"
+                :step="param.step || 1"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <button
-                type="button"
-                @click="togglePasswordVisibility(paramKey)"
-                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
-                :title="showPasswords[paramKey] ? t('servers.editor.hidePassword') : t('servers.editor.showPassword')"
-              >
-                <svg v-if="showPasswords[paramKey]" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
-                </svg>
-                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                </svg>
-              </button>
+              
+              <!-- Text/Password 类型 -->
+              <div v-else-if="param.type === 'password'" class="relative">
+                <input
+                  v-model="visualConfig[paramKey]"
+                  :type="showPasswords[paramKey] ? 'text' : 'password'"
+                  class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  @click="togglePasswordVisibility(paramKey)"
+                  class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                  :title="showPasswords[paramKey] ? t('servers.editor.hidePassword') : t('servers.editor.showPassword')"
+                >
+                  <svg v-if="showPasswords[paramKey]" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                  </svg>
+                  <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                  </svg>
+                </button>
+              </div>
+              
+              <!-- 其他文本类型 -->
+              <input
+                v-else
+                v-model="visualConfig[paramKey]"
+                :type="param.type"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
-            
-            <!-- 其他文本类型 -->
-            <input
-              v-else
-              v-model="visualConfig[paramKey]"
-              :type="param.type"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
           </div>
         </div>
       </div>
@@ -158,7 +178,7 @@
         :placeholder="t('servers.editor.placeholder')"
       ></textarea>
       <p class="text-xs text-gray-500 mt-1">
-        {{ t('servers.editor.description') }}
+        {{ t('servers.gameUserSettingsTextEditDesc') }}
       </p>
     </div>
 
@@ -176,7 +196,7 @@
 </template>
 
 <script setup>
-import { gameUserSettingsParams } from '../utils/gameUserSettingsParams.js'
+import { gameUserSettingsParams, getParamsByCategory, getAllCategories } from '../utils/gameUserSettingsParams'
 import { extractConfigValues, formatConfigContent } from '../utils/configParser.js'
 import ToggleSwitch from './ToggleSwitch.vue'
 
@@ -205,10 +225,36 @@ const isSyncing = ref(false)
 const textContent = ref('')
 const visualConfig = ref({})
 const showPasswords = ref({})
+const activeTab = ref('')
 
 // 防抖定时器
 let visualSyncTimer = null
 let textSyncTimer = null
+
+// 翻译函数
+const getCategoryName = (categoryKey) => {
+  try {
+    const translationKey = `servers.gameUserSettingsCategories.${categoryKey}`
+    const translated = t(translationKey)
+    // 如果翻译键不存在，返回键名而不是翻译键本身
+    return translated === translationKey ? categoryKey : translated
+  } catch (error) {
+    console.warn(`翻译 GameUserSettings 分类失败: ${categoryKey}`, error)
+    return categoryKey
+  }
+}
+
+const getParamDisplayName = (paramKey) => {
+  try {
+    const translationKey = `servers.gameUserSettingsParams.${paramKey}`
+    const translated = t(translationKey)
+    // 如果翻译键不存在，返回键名而不是翻译键本身
+    return translated === translationKey ? paramKey : translated
+  } catch (error) {
+    console.warn(`翻译 GameUserSettings 参数失败: ${paramKey}`, error)
+    return paramKey
+  }
+}
 
 // 初始化可视化配置默认值
 const initializeVisualConfig = () => {
@@ -222,11 +268,11 @@ const initializeVisualConfig = () => {
     const isVisualConfigEmpty = Object.keys(visualConfig.value).length === 0
 
     if (isVisualConfigEmpty) {
-      Object.keys(gameUserSettingsParams).forEach(sectionKey => {
-        const section = gameUserSettingsParams[sectionKey]
-        if (section && section.params) {
-          Object.keys(section.params).forEach(paramKey => {
-            const param = section.params[paramKey]
+      getAllCategories().forEach(categoryKey => {
+        const section = gameUserSettingsParams[categoryKey]
+        if (section) {
+          Object.keys(section).forEach(paramKey => {
+            const param = section[paramKey]
             // 只在参数不存在时才设置默认值
             if (param && param.default !== undefined) {
               visualConfig.value[paramKey] = param.default
@@ -289,10 +335,10 @@ const syncVisualToText = () => {
     let content = '[ServerSettings]\n'
     
     // 添加可视化配置的参数
-    Object.keys(gameUserSettingsParams).forEach(sectionKey => {
-      const section = gameUserSettingsParams[sectionKey]
-      if (section && section.params) {
-        Object.keys(section.params).forEach(paramKey => {
+    getAllCategories().forEach(categoryKey => {
+      const section = gameUserSettingsParams[categoryKey]
+      if (section) {
+        Object.keys(section).forEach(paramKey => {
           const value = visualConfig.value[paramKey]
           if (value !== undefined && value !== null && value !== '') {
             content += `${paramKey}=${value}\n`
@@ -333,6 +379,12 @@ watch(() => gameUserSettingsParams, (newParams) => {
       parseTextToVisual()
     } else {
       initializeVisualConfig()
+    }
+    
+    // 初始化第一个页签
+    const categories = getAllCategories()
+    if (categories.length > 0 && !activeTab.value) {
+      activeTab.value = categories[0]
     }
   }
 }, { immediate: true })
@@ -424,6 +476,12 @@ onMounted(() => {
       parseTextToVisual()
     } else {
       initializeVisualConfig()
+    }
+    
+    // 初始化第一个页签
+    const categories = getAllCategories()
+    if (categories.length > 0 && !activeTab.value) {
+      activeTab.value = categories[0]
     }
   }
 })

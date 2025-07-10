@@ -228,12 +228,12 @@ export function extractConfigValues(content, paramDefs) {
   // 遍历所有参数定义
   Object.keys(paramDefs).forEach(sectionKey => {
     const section = paramDefs[sectionKey]
-    if (!section || !section.params) {
+    if (!section) {
       return
     }
     
-    Object.keys(section.params).forEach(paramKey => {
-      const param = section.params[paramKey]
+    Object.keys(section).forEach(paramKey => {
+      const param = section[paramKey]
       
       // 在解析结果中查找值
       Object.keys(parsed).forEach(parsedSection => {
