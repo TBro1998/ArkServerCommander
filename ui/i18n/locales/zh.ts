@@ -176,6 +176,7 @@ export default {
     deleteFailed: '删除失败，请稍后重试',
     startServerFailed: '启动服务器失败，请稍后重试',
     stopServerFailed: '停止服务器失败，请稍后重试',
+    imageStatusError: '获取镜像状态失败',
     // 服务器卡片相关
     card: {
       startServer: '启动服务器',

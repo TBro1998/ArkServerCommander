@@ -176,6 +176,7 @@ export default {
     deleteFailed: 'Delete failed, please try again later',
     startServerFailed: 'Failed to start server, please try again later',
     stopServerFailed: 'Failed to stop server, please try again later',
+    imageStatusError: 'Failed to get image status',
     // Server card related
     card: {
       startServer: 'Start Server',

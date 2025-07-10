@@ -191,7 +191,7 @@ const fetchImageStatus = async () => {
     }
 
   } catch (error) {
-    console.error('获取镜像状态失败:', error)
+    console.error($t('servers.imageStatusError'), error)
     // 不显示错误消息，因为镜像状态不是关键功能
   }
 }
@@ -227,7 +227,7 @@ const fetchServers = async () => {
     await serversStore.fetchServers()
     console.log('服务器列表获取成功，共', servers.value.length, '个服务器')
   } catch (error) {
-    console.error('获取服务器列表失败:', error)
+    console.error($t('servers.getServerListFailed'), error)
     
     // 检查是否是认证错误
     if (error.status === 401 || error.statusCode === 401) {
@@ -266,7 +266,7 @@ const editServer = async (server) => {
     
     console.log('服务器信息加载成功', serverData)
   } catch (error) {
-    console.error('加载服务器信息失败:', error)
+    console.error($t('servers.loadServerInfoFailed'), error)
     errorMessage.value = $t('servers.loadServerInfoFailed')
     closeForm()
   } finally {
@@ -296,7 +296,7 @@ const handleServerSave = async (formData) => {
     
     closeForm()
   } catch (error) {
-    console.error('操作失败:', error)
+    console.error($t('servers.operationFailed'), error)
     errorMessage.value = error.data?.error || serversStore.error || $t('servers.operationFailed')
   } finally {
     submitting.value = false
@@ -315,7 +315,7 @@ const confirmDelete = async (server) => {
     await serversStore.deleteServer(server.id)
     successMessage.value = $t('servers.serverDeleteSuccess')
   } catch (error) {
-    console.error('删除失败:', error)
+    console.error($t('servers.deleteFailed'), error)
     errorMessage.value = error.data?.error || serversStore.error || $t('servers.deleteFailed')
   } finally {
     deleting.value = false
@@ -334,7 +334,7 @@ const startServer = async (server) => {
     await serversStore.startServer(server.id)
     successMessage.value = $t('servers.serverStartInProgress')
   } catch (error) {
-    console.error('启动服务器失败:', error)
+    console.error($t('servers.startServerFailed'), error)
     errorMessage.value = serversStore.error || $t('servers.startServerFailed')
   }
 }
@@ -345,7 +345,7 @@ const stopServer = async (server) => {
     await serversStore.stopServer(server.id)
     successMessage.value = $t('servers.serverStopInProgress')
   } catch (error) {
-    console.error('停止服务器失败:', error)
+    console.error($t('servers.stopServerFailed'), error)
     errorMessage.value = serversStore.error || $t('servers.stopServerFailed')
   }
 }
@@ -356,7 +356,7 @@ const copyToClipboard = async (text) => {
     await navigator.clipboard.writeText(text.toString())
     successMessage.value = $t('servers.copyToClipboard')
   } catch (error) {
-    console.error('复制失败:', error)
+    console.error($t('servers.copyFailed'), error)
     errorMessage.value = $t('servers.copyFailed')
   }
 }
