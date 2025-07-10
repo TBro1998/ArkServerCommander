@@ -37,8 +37,8 @@
 </template>
 
 <script setup>
-const { locale, locales, setLocale, t } = useI18n()
-const router = useRouter()
+const { locale, locales, setLocale } = useI18n()
+const switchLocalePath = useSwitchLocalePath()
 
 const isOpen = ref(false)
 const currentLanguage = computed(() => locale.value)
@@ -58,16 +58,10 @@ const selectLanguage = async (newLocale) => {
     await setLocale(newLocale)
     isOpen.value = false
     
-    // 更新路由以反映语言变化
-    const currentRoute = router.currentRoute.value
-    const newPath = switchLocalePath(newLocale)
-    
-    if (newPath !== currentRoute.path) {
-      await router.push(newPath)
-    }
-    
-    // 强制重新渲染
+    // 强制重新渲染以确保翻译生效
     await nextTick()
+    
+    console.log('语言切换完成:', newLocale)
   } catch (error) {
     console.error('语言切换失败:', error)
   }
@@ -75,11 +69,17 @@ const selectLanguage = async (newLocale) => {
 
 // 点击外部关闭下拉菜单
 onMounted(() => {
-  document.addEventListener('click', (event) => {
+  const handleClickOutside = (event) => {
     const target = event.target
     if (!target.closest('.relative')) {
       isOpen.value = false
     }
+  }
+  
+  document.addEventListener('click', handleClickOutside)
+  
+  onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside)
   })
 })
 </script> 

@@ -79,7 +79,7 @@
       </div>
     </nav>
     
-    <main class="flex-1 w-full py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+    <main class="flex-1 w-full py-4 sm:py-6 px-4 sm:px-6" :class="{ 'lg:px-8': $route.path !== '/servers', 'lg:px-4': $route.path === '/servers' }">
       <slot />
     </main>
 

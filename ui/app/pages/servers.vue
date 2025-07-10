@@ -1,20 +1,21 @@
 <template>
-  <UContainer class="py-8">
+  <div class="w-full max-w-none py-8">
     <!-- 页面头部 -->
-    <div class="mb-8">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ $t('servers.title') }}</h1>
-          <p class="text-gray-600">{{ $t('servers.serverManagementDesc') }}</p>
+    <div class="mb-6">
+      <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div class="flex-1">
+          <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">{{ $t('servers.title') }}</h1>
+          <p class="text-gray-600 text-sm lg:text-base">{{ $t('servers.serverManagementDesc') }}</p>
         </div>
         
-        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
           <!-- 镜像状态按钮 -->
           <UButton
             @click="showImageStatusModal = true"
             color="gray"
             variant="outline"
             icon="i-lucide-image"
+            size="sm"
           >
             {{ $t('servers.imageStatus') }}
           </UButton>
@@ -24,6 +25,7 @@
             :disabled="!imageStatus?.can_create_server"
             color="blue"
             icon="i-lucide-plus"
+            size="sm"
           >
             {{ $t('servers.addServer') }}
           </UButton>
@@ -43,23 +45,25 @@
     </div>
 
     <!-- 消息提示 -->
-    <UAlert
-      v-if="errorMessage"
-      :title="errorMessage"
-      color="red"
-      variant="soft"
-      icon="i-lucide-alert-circle"
-      @close="errorMessage = ''"
-    />
-    
-    <UAlert
-      v-if="successMessage"
-      :title="successMessage"
-      color="green"
-      variant="soft"
-      icon="i-lucide-check-circle"
-      @close="successMessage = ''"
-    />
+    <div class="space-y-3 mb-6">
+      <UAlert
+        v-if="errorMessage"
+        :title="errorMessage"
+        color="red"
+        variant="soft"
+        icon="i-lucide-alert-circle"
+        @close="errorMessage = ''"
+      />
+      
+      <UAlert
+        v-if="successMessage"
+        :title="successMessage"
+        color="green"
+        variant="soft"
+        icon="i-lucide-check-circle"
+        @close="successMessage = ''"
+      />
+    </div>
 
     <!-- 镜像状态弹窗 -->
     <ImageStatusModal
@@ -75,12 +79,12 @@
       <p class="text-gray-600">{{ $t('common.loading') }}</p>
     </div>
 
-    <div v-else-if="servers.length === 0" class="text-center py-12">
-      <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+    <div v-else-if="servers.length === 0" class="text-center py-16 px-4">
+      <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-6">
         <UIcon name="i-lucide-server" class="w-8 h-8 text-gray-400" />
       </div>
-      <h3 class="text-lg font-medium text-gray-900 mb-2">{{ $t('servers.noServers') }}</h3>
-      <p class="text-gray-500 mb-6">{{ $t('servers.noServersDesc') }}</p>
+      <h3 class="text-xl font-medium text-gray-900 mb-3">{{ $t('servers.noServers') }}</h3>
+      <p class="text-gray-500 mb-8 max-w-md mx-auto">{{ $t('servers.noServersDesc') }}</p>
       
       <div v-if="imageStatus?.can_create_server">
         <UButton
@@ -102,7 +106,7 @@
       </div>
     </div>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 lg:gap-6">
       <ServerCard
         v-for="server in servers"
         :key="server.id"
@@ -125,7 +129,7 @@
       @close="closeForm"
       @save="handleServerSave"
     />
-  </UContainer>
+  </div>
 </template>
 
 <script setup>

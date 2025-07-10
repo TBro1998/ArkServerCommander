@@ -237,7 +237,7 @@
         </div>
         <div class="flex justify-between items-center">
           <span class="text-sm text-gray-600">{{ t('servers.card.map') }}</span>
-          <span class="text-sm font-medium text-gray-900">{{ server.map || 'TheIsland' }}</span>
+          <span class="text-sm font-medium text-gray-900">{{ getMapName(server.map) }}</span>
         </div>
         <div class="flex justify-between items-center">
           <span class="text-sm text-gray-600">{{ t('servers.card.maxPlayers') }}</span>
@@ -391,6 +391,22 @@ const formatDate = (dateString) => {
     })
   } catch (error) {
     return dateString
+  }
+}
+
+const getMapName = (mapKey) => {
+  const defaultMap = 'TheIsland'
+  const map = mapKey || defaultMap
+  
+  // 尝试获取地图翻译，如果不存在则返回原始值
+  const mapTranslationKey = `servers.edit.maps.${map}`
+  
+  try {
+    const translatedName = t(mapTranslationKey)
+    // 如果翻译键不存在，t() 会返回键本身，这种情况下返回原始地图名
+    return translatedName === mapTranslationKey ? map : translatedName
+  } catch (error) {
+    return map
   }
 }
 

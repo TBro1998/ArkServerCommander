@@ -198,6 +198,20 @@ export default {
       serverName: 'Server Name',
       clusterId: 'Cluster ID',
       map: 'Map',
+      maxPlayers: 'Max Players',
+      portConfig: 'Port Configuration',
+      gamePort: 'Game Port',
+      queryPort: 'Query Port',
+      rconPortLabel: 'RCON Port',
+      authInfo: 'Authentication Info',
+      timeInfo: 'Time Information',
+      createdAt: 'Created At',
+      updatedAt: 'Updated At',
+      serverId: 'Server ID',
+      copy: 'Copy',
+      close: 'Close',
+      showPassword: 'Show Password',
+      hidePassword: 'Hide Password'
     },
     // Server edit related
     edit: {
