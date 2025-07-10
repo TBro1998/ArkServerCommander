@@ -297,6 +297,136 @@ export default {
       customArgPlaceholder: 'Enter custom startup argument, e.g. -nosteam',
       enabled: 'Enabled',
       disabled: 'Disabled'
+    },
+    // Startup parameter categories
+    paramCategories: {
+      basic: 'Basic Settings',
+      core: 'Core Game',
+      dinos: 'Dinosaur Management',
+      structures: 'Building System',
+      pvp: 'PvP Settings',
+      mechanics: 'Game Mechanics',
+      transfer: 'Data Transfer',
+      performance: 'Performance Optimization',
+      graphics: 'Graphics Optimization',
+      security: 'Security Settings',
+      logging: 'Logging',
+      mods: 'Mods & Platform',
+      features: 'Game Features',
+      maintenance: 'Maintenance Tools',
+      advanced: 'Advanced Configuration',
+      custom: 'Custom Parameters'
+    },
+    // Query parameters translation
+    queryParams: {
+      // Core game settings
+      OverrideOfficialDifficulty: 'Override Official Difficulty Level',
+      AllowThirdPersonPlayer: 'Enable Third Person View',
+      ServerCrosshair: 'Disable Crosshair',
+      ShowFloatingDamageText: 'Enable RPG Style Floating Damage Text',
+      MapPlayerLocation: 'Show Player Precise Location on Map',
+      DisableWeatherFog: 'Disable Fog Weather',
+      // Dinosaur management
+      MaxPersonalTamedDinos: 'Tamed Dinosaur Limit per Tribe',
+      MaxTamedDinos: 'Server Total Tamed Dinosaur Limit',
+      PersonalTamedDinosSaddleStructureCost: 'Platform Saddle Dinosaur Slot Cost',
+      MinimumDinoReuploadInterval: 'Dinosaur Re-upload Cooldown (seconds)',
+      ServerAutoForceRespawnWildDinosInterval: 'Force Wild Dinosaur Respawn Interval',
+      AllowAnyoneBabyImprintCuddle: 'Allow Anyone to Care for Baby Dinosaurs',
+      DisableImprintDinoBuff: 'Disable Dinosaur Imprint Player Stat Bonus',
+      PreventMateBoost: 'Disable Dinosaur Mate Boost',
+      AllowFlyerCarryPvE: 'PvE Server Allow Flying Creatures to Carry Wild Dinosaurs',
+      AllowFlyingStaminaRecovery: 'Flying Creatures Recover Stamina When Player Standing',
+      ForceFlyerExplosives: 'Allow Flying Creatures to Carry C4 While Flying',
+      AllowMultipleAttachedC4: 'Allow Multiple C4 Attached to Dinosaurs',
+      AutoDestroyDecayedDinos: 'Auto Destroy Decayed Claimable Dinosaurs',
+      // Building system
+      TheMaxStructuresInRange: 'Server Maximum Structure Count',
+      ForceAllStructureLocking: 'Default Lock All Structures',
+      EnableExtraStructurePreventionVolumes: 'Disable Building in Specific Resource-rich Areas',
+      OverrideStructurePlatformPrevention: 'Allow Building Turrets on Platform Saddles',
+      DestroyUnconnectedWaterPipes: 'Auto Destroy Unconnected Water Pipes',
+      FastDecayUnsnappedCoreStructures: 'Fast Decay Unsnapped Core Structures',
+      OnlyAutoDestroyCoreStructures: 'Only Auto Destroy Core Structures',
+      OnlyDecayUnsnappedCoreStructures: 'Only Decay Unsnapped Core Structures',
+      // PvP settings
+      PreventOfflinePvP: 'Enable Offline PvP Protection',
+      PreventOfflinePvPInterval: 'Offline PvP Protection Wait Time (seconds)',
+      PreventTribeAlliances: 'Disable Tribe Alliances',
+      // Game mechanics
+      AllowCrateSpawnsOnTopOfStructures: 'Allow Supply Crates to Spawn on Structures',
+      RandomSupplyCratePoints: 'Random Supply Crate Locations',
+      NonPermanentDiseases: 'Non-permanent Diseases (Disappear After Respawn)',
+      PreventDiseases: 'Completely Disable Diseases',
+      PreventSpawnAnimations: 'Disable Spawn Animations',
+      UseOptimizedHarvestingHealth: 'Optimize Harvesting Health',
+      ClampItemSpoilingTimes: 'Clamp Item Spoiling Times to Maximum',
+      ClampItemStats: 'Enable Item Stat Limits',
+      ExtinctionEventTimeInterval: 'Extinction Event Time Interval (seconds)',
+      OxygenSwimSpeedStatMultiplier: 'Oxygen Swimming Speed Stat Multiplier',
+      // Data transfer control
+      PreventDownloadSurvivors: 'Prevent Download Survivor Data',
+      PreventDownloadItems: 'Prevent Download Item Data',
+      PreventDownloadDinos: 'Prevent Download Dinosaur Data',
+      PreventUploadSurvivors: 'Prevent Upload Survivor Data',
+      PreventUploadItems: 'Prevent Upload Item Data',
+      PreventUploadDinos: 'Prevent Upload Dinosaur Data',
+      // Advanced configuration
+      CustomLiveTuningUrl: 'Custom Live Tuning File URL',
+      customdynamicconfigurl: 'Custom Dynamic Configuration File URL',
+      EnableFullDump: 'Enable Full Server Log Dump',
+      TribeLogDestroyedEnemyStructures: 'Show Enemy Structure Destruction in Tribe Log'
+    },
+    // Command line parameters translation
+    commandLineArgs: {
+      // Performance optimization
+      allcores: 'Use All CPU Cores',
+      USEALLAVAILABLECORES: 'Force Use All Available CPU Cores',
+      lowmemory: 'Low Memory Mode (Save 800MB RAM)',
+      nomemorybias: 'Reduce Memory Usage (About 600MB)',
+      usecache: 'Use Cache (70% Loading Speed Improvement)',
+      high: 'High Priority Process',
+      nocombineclientmoves: 'Disable Client Move Optimization',
+      // Graphics optimization
+      allowansel: 'Enable NVIDIA Ansel Support',
+      d3d10: 'Force Use DX10 (Windows Only)',
+      sm4: 'Force Use Shader Model 4 (Windows Only)',
+      nomansky: 'Disable Sky Details (Clouds, Stars)',
+      noaafonts: 'Remove Font Anti-aliasing',
+      // Security settings
+      NoBattlEye: 'Disable BattleEye Anti-cheat',
+      noantispeedhack: 'Disable Anti-speedhack Detection',
+      insecure: 'Disable VAC System',
+      UseItemDupeCheck: 'Enable Extra Duplication Protection',
+      exclusivejoin: 'Whitelist Mode',
+      // Logging
+      servergamelog: 'Enable Server Game Log',
+      servergamelogincludetribelogs: 'Include Tribe Logs in Game Log',
+      ServerRCONOutputTribeLogs: 'Show Tribe Chat in RCON',
+      gameplaylogging: 'Gameplay Logging',
+      webalarm: 'Enable Web Alerts',
+      // Mods and platform
+      automanagedmods: 'Auto Manage MOD Download/Install/Update',
+      crossplay: 'Enable Crossplay (EPIC and Steam)',
+      epiconly: 'Epic Players Only',
+      UseVivox: 'Enable Vivox Voice',
+      MapModID: 'Custom Map MOD ID',
+      PublicIPForEpic: 'Public IP Address for Epic Clients',
+      // Game features
+      ForceAllowCaveFlyers: 'Force Allow Flying Creatures in Caves',
+      ForceRespawnDinos: 'Destroy All Wild Creatures on Startup',
+      NoBiomeWalls: 'Remove Biome Transition Wall Effects',
+      PreventHibernation: 'Prevent Hibernation (Performance Cost)',
+      StasisKeepControllers: 'Keep AI Controllers in Stasis',
+      EnableIdlePlayerKick: 'Kick Idle Players',
+      nofishloot: 'Disable Fishing Non-meat Loot',
+      ActiveEvent: 'Enable Specified Event',
+      // Maintenance tools
+      ClearOldItems: 'Clear Old Items (One-time)',
+      noninlinesaveload: 'Fix Large Save Corruption Issues',
+      oldsaveformat: 'Use Old Save Format',
+      StructureDestructionTag: 'Structure Destruction Tag',
+      culture: 'Language Code Override'
     }
   },
 

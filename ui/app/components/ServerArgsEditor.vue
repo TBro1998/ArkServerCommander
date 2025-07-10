@@ -54,129 +54,129 @@
         <!-- 预定义参数 -->
         <div v-if="category.key !== 'custom'" class="space-y-6">
           <!-- 布尔值参数组 -->
-          <div v-if="category.params.filter(p => p.type === 'boolean').length > 0" class="space-y-4">
+          <div v-if="category.params.filter(p => p.param.type === 'boolean').length > 0" class="space-y-4">
             <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">{{ t('servers.argsEditor.switchParams') }}</h5>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <div 
-                v-for="param in category.params.filter(p => p.type === 'boolean')" 
-                :key="param.name"
+                v-for="param in category.params.filter(p => p.param.type === 'boolean')" 
+                :key="param.key"
                 class="space-y-2 relative"
               >
                 <label class="block text-sm font-medium text-gray-700">
-                  {{ param.description }}
+                  {{ getParamDisplayName(param.key, param.param) }}
                   <span 
                     class="relative inline-block ml-1"
-                    @mouseenter="showTooltip = param.name"
+                    @mouseenter="showTooltip = param.key"
                     @mouseleave="showTooltip = null"
                   >
-                    <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.name"></i>
+                    <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.key"></i>
                     <div 
-                      v-if="showTooltip === param.name"
+                      v-if="showTooltip === param.key"
                       class="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
                       style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
                     >
-                      <div class="font-medium mb-1">{{ param.name }}</div>
+                      <div class="font-medium mb-1">{{ param.key }}</div>
                       <div class="text-gray-300">{{ t('servers.argsEditor.switchParams') }}</div>
                       <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </span>
                 </label>
                 <ToggleSwitch
-                  :id="param.name"
-                  v-model="paramValues[param.name]"
-                  :label="paramValues[param.name] ? t('servers.argsEditor.enabled') : t('servers.argsEditor.disabled')"
+                  :id="param.key"
+                  v-model="paramValues[param.key]"
+                  :label="paramValues[param.key] ? t('servers.argsEditor.enabled') : t('servers.argsEditor.disabled')"
                 />
               </div>
             </div>
           </div>
 
           <!-- 数值参数组 -->
-          <div v-if="category.params.filter(p => p.type === 'number').length > 0" class="space-y-4">
+          <div v-if="category.params.filter(p => p.param.type === 'number').length > 0" class="space-y-4">
             <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">{{ t('servers.argsEditor.numberParams') }}</h5>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <div 
-                v-for="param in category.params.filter(p => p.type === 'number')" 
-                :key="param.name"
+                v-for="param in category.params.filter(p => p.param.type === 'number')" 
+                :key="param.key"
                 class="space-y-2 relative"
               >
                 <label class="block text-sm font-medium text-gray-700">
-                  {{ param.description }}
+                  {{ getParamDisplayName(param.key, param.param) }}
                   <span 
                     class="relative inline-block ml-1"
-                    @mouseenter="showTooltip = param.name"
+                    @mouseenter="showTooltip = param.key"
                     @mouseleave="showTooltip = null"
                   >
-                    <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.name"></i>
+                    <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.key"></i>
                     <div 
-                      v-if="showTooltip === param.name"
+                      v-if="showTooltip === param.key"
                       class="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
                       style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
                     >
-                      <div class="font-medium mb-1">{{ param.name }}</div>
+                      <div class="font-medium mb-1">{{ param.key }}</div>
                       <div class="text-gray-300">{{ t('servers.argsEditor.numberParams') }}</div>
-                      <div v-if="param.min !== undefined && param.max !== undefined" class="text-gray-300 mt-1">
-                        {{ t('servers.argsEditor.range') }}: {{ param.min }}-{{ param.max }}
+                      <div v-if="param.param.min !== undefined && param.param.max !== undefined" class="text-gray-300 mt-1">
+                        {{ t('servers.argsEditor.range') }}: {{ param.param.min }}-{{ param.param.max }}
                       </div>
                       <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </span>
                 </label>
                 <input
-                  v-model.number="paramValues[param.name]"
+                  v-model.number="paramValues[param.key]"
                   type="number"
-                  :min="param.min"
-                  :max="param.max"
-                  :step="param.step || 1"
+                  :min="param.param.min"
+                  :max="param.param.max"
+                  :step="param.param.step || 1"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  :placeholder="param.default?.toString()"
+                  :placeholder="param.param.default?.toString()"
                 />
               </div>
             </div>
           </div>
 
           <!-- 文本参数组 -->
-          <div v-if="category.params.filter(p => p.type === 'string').length > 0" class="space-y-4">
+          <div v-if="category.params.filter(p => p.param.type === 'string' || p.param.type === 'select').length > 0" class="space-y-4">
             <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">{{ t('servers.argsEditor.textParams') }}</h5>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <div 
-                v-for="param in category.params.filter(p => p.type === 'string')" 
-                :key="param.name"
+                v-for="param in category.params.filter(p => p.param.type === 'string' || p.param.type === 'select')" 
+                :key="param.key"
                 class="space-y-2 relative"
               >
                 <label class="block text-sm font-medium text-gray-700">
-                  {{ param.description }}
+                  {{ getParamDisplayName(param.key, param.param) }}
                   <span 
                     class="relative inline-block ml-1"
-                    @mouseenter="showTooltip = param.name"
+                    @mouseenter="showTooltip = param.key"
                     @mouseleave="showTooltip = null"
                   >
-                    <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.name"></i>
+                    <i class="fas fa-info-circle text-gray-400 cursor-help" :title="param.key"></i>
                     <div 
-                      v-if="showTooltip === param.name"
+                      v-if="showTooltip === param.key"
                       class="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
                       style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
                     >
-                      <div class="font-medium mb-1">{{ param.name }}</div>
-                      <div class="text-gray-300">{{ param.options ? t('servers.argsEditor.selectParams') : t('servers.argsEditor.textParams') }}</div>
+                      <div class="font-medium mb-1">{{ param.key }}</div>
+                      <div class="text-gray-300">{{ param.param.options ? t('servers.argsEditor.selectParams') : t('servers.argsEditor.textParams') }}</div>
                       <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </span>
                 </label>
-                <template v-if="param.options">
+                <template v-if="param.param.options">
                   <select
-                    v-model="paramValues[param.name]"
+                    v-model="paramValues[param.key]"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">{{ param.default || t('servers.argsEditor.pleaseSelect') }}</option>
-                    <option v-for="option in param.options" :key="option" :value="option">{{ option }}</option>
+                    <option value="">{{ param.param.default || t('servers.argsEditor.pleaseSelect') }}</option>
+                    <option v-for="option in param.param.options" :key="option" :value="option">{{ option }}</option>
                   </select>
                 </template>
                 <input
                   v-else
-                  v-model="paramValues[param.name]"
+                  v-model="paramValues[param.key]"
                   type="text"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  :placeholder="param.default || ''"
+                  :placeholder="param.param.default || ''"
                 />
               </div>
             </div>
@@ -262,36 +262,53 @@ const visibleCategories = computed(() => {
 
 // 获取分类名称
 function getCategoryName(key) {
-  return categories[key]?.name || key
+  const translation = t(`servers.paramCategories.${key}`, key)
+  return translation !== `servers.paramCategories.${key}` ? translation : key
 }
 
 // 获取分类描述
 function getCategoryDescription(key) {
-  return categories[key]?.description || ''
+  const translation = t(`servers.paramCategories.${key}`, '')
+  return translation !== `servers.paramCategories.${key}` ? translation : ''
+}
+
+// 获取参数显示名称
+function getParamDisplayName(key, param) {
+  // 首先检查是否是查询参数
+  if (queryParams[key]) {
+    const translation = t(`servers.queryParams.${key}`, key)
+    return translation !== `servers.queryParams.${key}` ? translation : key
+  }
+  // 然后检查是否是命令行参数
+  if (commandLineArgs[key]) {
+    const translation = t(`servers.commandLineArgs.${key}`, key)
+    return translation !== `servers.commandLineArgs.${key}` ? translation : key
+  }
+  return key
 }
 
 // 初始化参数值
 function initializeParamValues() {
   // 初始化查询参数
-  Object.values(queryParams).forEach(param => {
+  Object.entries(queryParams).forEach(([key, param]) => {
     if (!param.hidden) {
-      const value = props.modelValue.query_params[param.name]
+      const value = props.modelValue.query_params[key]
       if (param.type === 'boolean') {
-        paramValues.value[param.name] = value === 'True' || value === true
+        paramValues.value[key] = value === 'True' || value === true
       } else {
-        paramValues.value[param.name] = value || param.default || ''
+        paramValues.value[key] = value || param.default || ''
       }
     }
   })
   
   // 初始化命令行参数
-  Object.values(commandLineArgs).forEach(param => {
+  Object.entries(commandLineArgs).forEach(([key, param]) => {
     if (!param.hidden) {
-      const value = props.modelValue.command_line_args[param.name]
+      const value = props.modelValue.command_line_args[key]
       if (param.type === 'boolean') {
-        paramValues.value[param.name] = value === true || value === 'true'
+        paramValues.value[key] = value === true || value === 'true'
       } else {
-        paramValues.value[param.name] = value || param.default || ''
+        paramValues.value[key] = value || param.default || ''
       }
     }
   })
@@ -305,16 +322,16 @@ function resetToDefaults() {
   paramValues.value = {}
   
   // 重置查询参数
-  Object.values(queryParams).forEach(param => {
+  Object.entries(queryParams).forEach(([key, param]) => {
     if (!param.hidden) {
-      paramValues.value[param.name] = param.default
+      paramValues.value[key] = param.default
     }
   })
   
   // 重置命令行参数
-  Object.values(commandLineArgs).forEach(param => {
+  Object.entries(commandLineArgs).forEach(([key, param]) => {
     if (!param.hidden) {
-      paramValues.value[param.name] = param.default
+      paramValues.value[key] = param.default
     }
   })
   
@@ -346,22 +363,22 @@ function updateModelValue() {
   }
   
   // 更新查询参数
-  Object.values(queryParams).forEach(param => {
+  Object.entries(queryParams).forEach(([key, param]) => {
     if (!param.hidden) {
-      const value = paramValues.value[param.name]
+      const value = paramValues.value[key]
       if (param.type === 'boolean') {
-        newValue.query_params[param.name] = value ? 'True' : 'False'
+        newValue.query_params[key] = value ? 'True' : 'False'
       } else {
-        newValue.query_params[param.name] = String(value || '')
+        newValue.query_params[key] = String(value || '')
       }
     }
   })
   
   // 更新命令行参数
-  Object.values(commandLineArgs).forEach(param => {
+  Object.entries(commandLineArgs).forEach(([key, param]) => {
     if (!param.hidden) {
-      const value = paramValues.value[param.name]
-      newValue.command_line_args[param.name] = value
+      const value = paramValues.value[key]
+      newValue.command_line_args[key] = value
     }
   })
   

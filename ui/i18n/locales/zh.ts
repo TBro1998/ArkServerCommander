@@ -297,6 +297,136 @@ export default {
       customArgPlaceholder: '输入自定义启动参数，如 -nosteam',
       enabled: '启用',
       disabled: '禁用'
+    },
+    // 启动参数分类
+    paramCategories: {
+      basic: '基础设置',
+      core: '核心游戏',
+      dinos: '恐龙管理',
+      structures: '建筑系统',
+      pvp: 'PvP设置',
+      mechanics: '游戏机制',
+      transfer: '数据传输',
+      performance: '性能优化',
+      graphics: '图形优化',
+      security: '安全设置',
+      logging: '日志记录',
+      mods: '模组平台',
+      features: '游戏功能',
+      maintenance: '维护工具',
+      advanced: '高级配置',
+      custom: '自定义参数'
+    },
+    // 查询参数翻译
+    queryParams: {
+      // 核心游戏设置
+      OverrideOfficialDifficulty: '覆盖官方难度等级',
+      AllowThirdPersonPlayer: '启用第三人称视角',
+      ServerCrosshair: '禁用准星',
+      ShowFloatingDamageText: '启用RPG风格伤害弹出文本',
+      MapPlayerLocation: '在地图上显示玩家精确位置',
+      DisableWeatherFog: '禁用雾天',
+      // 恐龙管理
+      MaxPersonalTamedDinos: '每个部落的恐龙驯服上限',
+      MaxTamedDinos: '服务器驯服恐龙总数上限',
+      PersonalTamedDinosSaddleStructureCost: '平台鞍占用恐龙槽位数量',
+      MinimumDinoReuploadInterval: '恐龙重新上传冷却时间（秒）',
+      ServerAutoForceRespawnWildDinosInterval: '强制野生恐龙重生间隔',
+      AllowAnyoneBabyImprintCuddle: '允许任何人照顾幼龙',
+      DisableImprintDinoBuff: '禁用恐龙印记玩家状态加成',
+      PreventMateBoost: '禁用恐龙配偶加成',
+      AllowFlyerCarryPvE: 'PvE服务器允许飞行生物携带野生恐龙',
+      AllowFlyingStaminaRecovery: '飞行生物在玩家站立时恢复耐力',
+      ForceFlyerExplosives: '允许飞行生物携带C4飞行',
+      AllowMultipleAttachedC4: '允许在恐龙上附加多个C4',
+      AutoDestroyDecayedDinos: '自动销毁已腐烂的可认领恐龙',
+      // 建筑系统
+      TheMaxStructuresInRange: '服务器最大建筑数量',
+      ForceAllStructureLocking: '默认锁定所有建筑',
+      EnableExtraStructurePreventionVolumes: '在特定资源丰富区域禁用建筑',
+      OverrideStructurePlatformPrevention: '允许在平台鞍上建造炮塔',
+      DestroyUnconnectedWaterPipes: '自动销毁未连接的水管',
+      FastDecayUnsnappedCoreStructures: '未连接核心建筑快速腐烂',
+      OnlyAutoDestroyCoreStructures: '仅自动销毁核心建筑',
+      OnlyDecayUnsnappedCoreStructures: '仅未连接核心建筑腐烂',
+      // PvP设置
+      PreventOfflinePvP: '启用离线PvP保护',
+      PreventOfflinePvPInterval: '离线PvP保护等待时间（秒）',
+      PreventTribeAlliances: '禁用部落联盟',
+      // 游戏机制
+      AllowCrateSpawnsOnTopOfStructures: '允许空投箱出现在建筑上',
+      RandomSupplyCratePoints: '空投箱随机位置',
+      NonPermanentDiseases: '疾病非永久性（重生后消失）',
+      PreventDiseases: '完全禁用疾病',
+      PreventSpawnAnimations: '禁用重生动画',
+      UseOptimizedHarvestingHealth: '优化收获健康值',
+      ClampItemSpoilingTimes: '限制物品腐烂时间到最大值',
+      ClampItemStats: '启用物品属性限制',
+      ExtinctionEventTimeInterval: '灭绝事件时间间隔（秒）',
+      OxygenSwimSpeedStatMultiplier: '氧气游泳速度倍数',
+      // 数据传输控制
+      PreventDownloadSurvivors: '禁止下载幸存者数据',
+      PreventDownloadItems: '禁止下载物品数据',
+      PreventDownloadDinos: '禁止下载恐龙数据',
+      PreventUploadSurvivors: '禁止上传幸存者数据',
+      PreventUploadItems: '禁止上传物品数据',
+      PreventUploadDinos: '禁止上传恐龙数据',
+      // 高级配置
+      CustomLiveTuningUrl: '自定义实时调优文件URL',
+      customdynamicconfigurl: '自定义动态配置文件URL',
+      EnableFullDump: '启用完整服务器日志转储',
+      TribeLogDestroyedEnemyStructures: '在部落日志中显示敌方建筑破坏'
+    },
+    // 命令行参数翻译
+    commandLineArgs: {
+      // 性能优化
+      allcores: '使用所有CPU核心',
+      USEALLAVAILABLECORES: '强制使用所有可用CPU核心',
+      lowmemory: '低内存模式（节省800MB RAM）',
+      nomemorybias: '减少内存使用（约600MB）',
+      usecache: '使用缓存（提升70%加载速度）',
+      high: '高优先级进程运行',
+      nocombineclientmoves: '禁用客户端移动优化',
+      // 图形优化
+      allowansel: '启用NVIDIA Ansel支持',
+      d3d10: '强制使用DX10（仅Windows）',
+      sm4: '强制使用Shader Model 4（仅Windows）',
+      nomansky: '禁用天空细节（云层、星空）',
+      noaafonts: '移除字体抗锯齿',
+      // 安全设置
+      NoBattlEye: '禁用BattleEye反作弊',
+      noantispeedhack: '禁用反速度黑客检测',
+      insecure: '禁用VAC系统',
+      UseItemDupeCheck: '启用额外复制保护',
+      exclusivejoin: '白名单模式',
+      // 日志记录
+      servergamelog: '启用服务器游戏日志',
+      servergamelogincludetribelogs: '在游戏日志中包含部落日志',
+      ServerRCONOutputTribeLogs: '在RCON中显示部落聊天',
+      gameplaylogging: '游戏玩法日志记录',
+      webalarm: '启用Web警报',
+      // 模组和平台
+      automanagedmods: '自动管理MOD下载/安装/更新',
+      crossplay: '启用跨平台（EPIC和Steam）',
+      epiconly: '仅允许Epic玩家连接',
+      UseVivox: '启用Vivox语音',
+      MapModID: '自定义地图MOD ID',
+      PublicIPForEpic: 'Epic客户端的公共IP地址',
+      // 游戏功能
+      ForceAllowCaveFlyers: '强制允许飞行生物进入洞穴',
+      ForceRespawnDinos: '启动时销毁所有野生生物',
+      NoBiomeWalls: '消除生物群落变化区域墙效果',
+      PreventHibernation: '防止休眠（消耗性能）',
+      StasisKeepControllers: '在静止状态保持AI控制器',
+      EnableIdlePlayerKick: '踢出空闲玩家',
+      nofishloot: '禁用钓鱼非肉类战利品',
+      ActiveEvent: '启用指定事件',
+      // 维护工具
+      ClearOldItems: '清除旧物品（一次性）',
+      noninlinesaveload: '修复大型存档损坏问题',
+      oldsaveformat: '使用旧存档格式',
+      StructureDestructionTag: '结构销毁标签',
+      culture: '语言代码覆盖'
     }
   },
 
