@@ -4,7 +4,7 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div class="flex flex-wrap gap-2 sm:gap-4">
         <div class="text-sm text-gray-500">
-          启动参数配置
+          {{ t('servers.argsEditor.title') }}
         </div>
       </div>
     </div>
@@ -15,7 +15,7 @@
         @click="resetToDefaults"
         class="px-3 py-2 rounded-md text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
       >
-        <i class="fas fa-undo mr-2"></i>重置为默认
+                    <i class="fas fa-undo mr-2"></i>{{ t('servers.argsEditor.resetToDefault') }}
       </button>
     </div>
 
@@ -55,7 +55,7 @@
         <div v-if="category.key !== 'custom'" class="space-y-6">
           <!-- 布尔值参数组 -->
           <div v-if="category.params.filter(p => p.type === 'boolean').length > 0" class="space-y-4">
-            <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">开关参数</h5>
+            <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">{{ t('servers.argsEditor.switchParams') }}</h5>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <div 
                 v-for="param in category.params.filter(p => p.type === 'boolean')" 
@@ -76,7 +76,7 @@
                       style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
                     >
                       <div class="font-medium mb-1">{{ param.name }}</div>
-                      <div class="text-gray-300">开关参数</div>
+                      <div class="text-gray-300">{{ t('servers.argsEditor.switchParams') }}</div>
                       <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </span>
@@ -84,7 +84,7 @@
                 <ToggleSwitch
                   :id="param.name"
                   v-model="paramValues[param.name]"
-                  :label="paramValues[param.name] ? '启用' : '禁用'"
+                  :label="paramValues[param.name] ? t('servers.argsEditor.enabled') : t('servers.argsEditor.disabled')"
                 />
               </div>
             </div>
@@ -92,7 +92,7 @@
 
           <!-- 数值参数组 -->
           <div v-if="category.params.filter(p => p.type === 'number').length > 0" class="space-y-4">
-            <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">数值参数</h5>
+            <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">{{ t('servers.argsEditor.numberParams') }}</h5>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <div 
                 v-for="param in category.params.filter(p => p.type === 'number')" 
@@ -113,9 +113,9 @@
                       style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
                     >
                       <div class="font-medium mb-1">{{ param.name }}</div>
-                      <div class="text-gray-300">数值参数</div>
+                      <div class="text-gray-300">{{ t('servers.argsEditor.numberParams') }}</div>
                       <div v-if="param.min !== undefined && param.max !== undefined" class="text-gray-300 mt-1">
-                        范围: {{ param.min }}-{{ param.max }}
+                        {{ t('servers.argsEditor.range') }}: {{ param.min }}-{{ param.max }}
                       </div>
                       <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                     </div>
@@ -136,7 +136,7 @@
 
           <!-- 文本参数组 -->
           <div v-if="category.params.filter(p => p.type === 'string').length > 0" class="space-y-4">
-            <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">文本参数</h5>
+            <h5 class="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">{{ t('servers.argsEditor.textParams') }}</h5>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               <div 
                 v-for="param in category.params.filter(p => p.type === 'string')" 
@@ -157,7 +157,7 @@
                       style="bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;"
                     >
                       <div class="font-medium mb-1">{{ param.name }}</div>
-                      <div class="text-gray-300">{{ param.options ? '选择参数' : '文本参数' }}</div>
+                      <div class="text-gray-300">{{ param.options ? t('servers.argsEditor.selectParams') : t('servers.argsEditor.textParams') }}</div>
                       <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                     </div>
                   </span>
@@ -167,7 +167,7 @@
                     v-model="paramValues[param.name]"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">{{ param.default || '请选择' }}</option>
+                    <option value="">{{ param.default || t('servers.argsEditor.pleaseSelect') }}</option>
                     <option v-for="option in param.options" :key="option" :value="option">{{ option }}</option>
                   </select>
                 </template>
@@ -186,13 +186,13 @@
         <!-- 自定义参数 -->
         <div v-if="category.key === 'custom'" class="space-y-4">
           <div class="text-sm text-gray-600 mb-3">
-            添加自定义启动参数，这些参数将直接添加到启动命令中
+            {{ t('servers.argsEditor.customArgsDesc') }}
           </div>
           <div v-for="(arg, idx) in customArgs" :key="'custom-'+idx" class="flex gap-2">
             <input 
               v-model="customArgs[idx]" 
               class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-              placeholder="输入自定义参数，如：-MyCustomParam=value" 
+              :placeholder="t('servers.argsEditor.customArgPlaceholder')" 
             />
             <button 
               @click="deleteCustomArg(idx)" 
@@ -206,7 +206,7 @@
             @click="addCustomArg" 
             class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-200"
           >
-            <i class="fas fa-plus mr-1"></i>添加自定义参数
+            <i class="fas fa-plus mr-1"></i>{{ t('servers.argsEditor.addCustomArg') }}
           </button>
         </div>
       </div>
@@ -222,6 +222,9 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import ToggleSwitch from './ToggleSwitch.vue'
 import { queryParams, commandLineArgs, categories, getParamsByCategory, getDefaultValues } from '~/utils/arkServerParams'
+
+// i18n
+const { t } = useI18n()
 
 // Props
 const props = defineProps({

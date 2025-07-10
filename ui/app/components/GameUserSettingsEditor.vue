@@ -12,7 +12,7 @@
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           ]"
         >
-          <i class="fas fa-sliders-h mr-2"></i>可视化编辑
+          <i class="fas fa-sliders-h mr-2"></i>{{ t('servers.editor.visualEdit') }}
         </button>
         <button
           @click="switchToTextMode"
@@ -23,20 +23,20 @@
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           ]"
         >
-          <i class="fas fa-code mr-2"></i>文本编辑
+          <i class="fas fa-code mr-2"></i>{{ t('servers.editor.textEdit') }}
         </button>
       </div>
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
         <div class="text-sm text-gray-500">
-          GameUserSettings.ini - {{ editMode === 'visual' ? '可视化编辑' : '文本编辑' }}
+          GameUserSettings.ini - {{ editMode === 'visual' ? t('servers.editor.visualEditMode') : t('servers.editor.textEditMode') }}
         </div>
         <div v-if="isSyncing" class="flex items-center text-sm text-blue-600">
           <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-          正在同步...
+          {{ t('servers.editor.syncing') }}
         </div>
         <div v-else class="flex items-center text-sm text-green-600">
           <i class="fas fa-check-circle mr-1"></i>
-          已同步
+          {{ t('servers.editor.synced') }}
         </div>
       </div>
     </div>
@@ -81,7 +81,7 @@
               <ToggleSwitch
                 :id="paramKey"
                 v-model="visualConfig[paramKey]"
-                :label="visualConfig[paramKey] ? '启用' : '禁用'"
+                :label="visualConfig[paramKey] ? t('servers.editor.enabled') : t('servers.editor.disabled')"
               />
             </div>
             
@@ -107,7 +107,7 @@
                 type="button"
                 @click="togglePasswordVisibility(paramKey)"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
-                :title="showPasswords[paramKey] ? '隐藏密码' : '显示密码'"
+                :title="showPasswords[paramKey] ? t('servers.editor.hidePassword') : t('servers.editor.showPassword')"
               >
                 <svg v-if="showPasswords[paramKey]" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
@@ -135,30 +135,30 @@
     <div v-else>
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2">
         <label class="block text-sm font-medium text-gray-700">
-          GameUserSettings.ini 内容
+          GameUserSettings.ini {{ t('servers.editor.content') }}
         </label>
         <div class="flex gap-2">
           <button
             @click="resetToDefault"
             class="text-sm text-blue-600 hover:text-blue-800"
           >
-            重置为默认
+            {{ t('servers.editor.resetToDefault') }}
           </button>
           <button
             @click="formatConfig"
             class="text-sm text-green-600 hover:text-green-800"
           >
-            格式化
+            {{ t('servers.editor.format') }}
           </button>
         </div>
       </div>
       <textarea
         v-model="textContent"
         class="w-full h-64 sm:h-96 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-        placeholder="输入 GameUserSettings.ini 配置内容..."
+        :placeholder="t('servers.editor.placeholder')"
       ></textarea>
       <p class="text-xs text-gray-500 mt-1">
-        此文件包含服务器的基本设置，如端口、密码、最大玩家数等
+        {{ t('servers.editor.description') }}
       </p>
     </div>
 
@@ -167,8 +167,8 @@
       <div class="flex flex-col sm:flex-row items-start">
         <i class="fas fa-info-circle text-blue-500 mr-0 sm:mr-3 mb-2 sm:mb-0"></i>
         <div class="text-sm text-blue-700">
-          <p class="font-medium">可视化编辑模式</p>
-          <p>通过表单控件修改参数，鼠标悬停在参数名称旁的 <i class="fas fa-info-circle text-blue-400"></i> 图标可查看详细说明。修改会自动同步到配置文件，切换到文本模式可查看生成的配置内容。</p>
+          <p class="font-medium">{{ t('servers.editor.visualEditModeDesc') }}</p>
+          <p>{{ t('servers.editor.visualEditModeTip') }}</p>
         </div>
       </div>
     </div>
@@ -179,6 +179,9 @@
 import { gameUserSettingsParams } from '../utils/gameUserSettingsParams.js'
 import { extractConfigValues, formatConfigContent } from '../utils/configParser.js'
 import ToggleSwitch from './ToggleSwitch.vue'
+
+// i18n
+const { t } = useI18n()
 
 // Props
 const props = defineProps({

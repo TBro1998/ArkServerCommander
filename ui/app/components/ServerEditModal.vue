@@ -8,7 +8,7 @@
       <div class="mb-4">
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-bold text-gray-900">
-            {{ mode === 'create' ? '新增服务器' : '编辑服务器' }} 
+            {{ mode === 'create' ? t('servers.edit.createTitle') : t('servers.edit.editTitle') }} 
             {{ server && mode === 'edit' ? `- ${server.identifier}` : '' }}
           </h3>
           
@@ -19,13 +19,13 @@
               :disabled="saving"
               class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-              {{ saving ? '保存中...' : (mode === 'create' ? '创建服务器' : '保存更改') }}
+              {{ saving ? t('servers.edit.saving') : (mode === 'create' ? t('servers.edit.createServer') : t('servers.edit.saveChanges')) }}
             </button>
             <button
               @click="handleClose"
               class="bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors"
             >
-              取消
+              {{ t('common.cancel') }}
             </button>
           </div>
         </div>
@@ -33,7 +33,7 @@
 
       <div v-if="loading" class="text-center py-8">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="mt-2 text-gray-600">{{ mode === 'create' ? '准备中...' : '加载服务器信息中...' }}</p>
+        <p class="mt-2 text-gray-600">{{ mode === 'create' ? t('servers.edit.preparing') : t('servers.edit.loadingServerInfo') }}</p>
       </div>
 
       <div v-else class="space-y-6">
@@ -49,7 +49,7 @@
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               ]"
             >
-              基本参数
+              {{ t('servers.edit.basicParams') }}
             </button>
             <button
               @click="activeTab = 'game_user_settings'"
@@ -60,7 +60,7 @@
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               ]"
             >
-              GameUserSettings.ini
+              {{ t('servers.edit.gameUserSettings') }}
             </button>
             <button
               @click="activeTab = 'game_ini'"
@@ -71,7 +71,7 @@
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               ]"
             >
-              Game.ini
+              {{ t('servers.edit.gameIni') }}
             </button>
             <button
               @click="activeTab = 'server_args'"
@@ -82,7 +82,7 @@
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               ]"
             >
-              启动参数（SERVER_ARGS）
+              {{ t('servers.edit.serverArgs') }}
             </button>
           </nav>
         </div>
@@ -94,44 +94,44 @@
             <form @submit.prevent="saveServer" class="space-y-4">
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">服务器标识 *</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.serverIdentifierRequired') }}</label>
                   <input
                     v-model="formData.identifier"
                     type="text"
                     required
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="输入服务器标识"
+                    :placeholder="t('servers.edit.serverIdentifierPlaceholder')"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">服务器名称</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.serverName') }}</label>
                   <input
                     v-model="formData.session_name"
                     type="text"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="输入服务器名称"
+                    :placeholder="t('servers.edit.serverNamePlaceholder')"
                   />
-                  <p class="text-xs text-gray-500 mt-1">显示在游戏服务器列表中的名称</p>
+                  <p class="text-xs text-gray-500 mt-1">{{ t('servers.edit.serverNameDesc') }}</p>
                 </div>
               </div>
 
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">集群ID</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.clusterId') }}</label>
                   <input
                     v-model="formData.cluster_id"
                     type="text"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="输入集群ID（可选）"
+                    :placeholder="t('servers.edit.clusterIdPlaceholder')"
                   />
-                  <p class="text-xs text-gray-500 mt-1">用于集群服务器之间的数据共享</p>
+                  <p class="text-xs text-gray-500 mt-1">{{ t('servers.edit.clusterIdDesc') }}</p>
                 </div>
                 <div></div>
               </div>
 
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">游戏端口 *</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.gamePortRequired') }}</label>
                   <input
                     v-model.number="formData.port"
                     type="number"
@@ -139,7 +139,7 @@
                     min="1"
                     max="65535"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="7777"
+                    :placeholder="t('servers.edit.gamePortPlaceholder')"
                   />
                 </div>
                 <div></div>
@@ -147,7 +147,7 @@
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">查询端口 *</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.queryPortRequired') }}</label>
                   <input
                     v-model.number="formData.query_port"
                     type="number"
@@ -155,11 +155,11 @@
                     min="1"
                     max="65535"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="27015"
+                    :placeholder="t('servers.edit.queryPortPlaceholder')"
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">RCON端口 *</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.rconPortRequired') }}</label>
                   <input
                     v-model.number="formData.rcon_port"
                     type="number"
@@ -167,74 +167,74 @@
                     min="1"
                     max="65535"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="32330"
+                    :placeholder="t('servers.edit.rconPortPlaceholder')"
                   />
                 </div>
               </div>
 
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">地图</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.map') }}</label>
                   <select
                     v-model="formData.map"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="TheIsland">The Island</option>
-                    <option value="TheCenter">The Center</option>
-                    <option value="ScorchedEarth_P">Scorched Earth</option>
-                    <option value="Aberration_P">Aberration</option>
-                    <option value="Extinction">Extinction</option>
-                    <option value="Valguero_P">Valguero</option>
-                    <option value="Genesis">Genesis</option>
-                    <option value="CrystalIsles">Crystal Isles</option>
-                    <option value="Genesis2">Genesis 2</option>
-                    <option value="LostIsland">Lost Island</option>
-                    <option value="Fjordur">Fjordur</option>
+                    <option value="TheIsland">{{ t('servers.edit.maps.TheIsland') }}</option>
+                    <option value="TheCenter">{{ t('servers.edit.maps.TheCenter') }}</option>
+                    <option value="ScorchedEarth_P">{{ t('servers.edit.maps.ScorchedEarth') }}</option>
+                    <option value="Aberration_P">{{ t('servers.edit.maps.Aberration') }}</option>
+                    <option value="Extinction">{{ t('servers.edit.maps.Extinction') }}</option>
+                    <option value="Valguero_P">{{ t('servers.edit.maps.Valguero') }}</option>
+                    <option value="Genesis">{{ t('servers.edit.maps.Genesis') }}</option>
+                    <option value="CrystalIsles">{{ t('servers.edit.maps.CrystalIsles') }}</option>
+                    <option value="Genesis2">{{ t('servers.edit.maps.Genesis2') }}</option>
+                    <option value="LostIsland">{{ t('servers.edit.maps.LostIsland') }}</option>
+                    <option value="Fjordur">{{ t('servers.edit.maps.Fjordur') }}</option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">最大玩家数</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.maxPlayers') }}</label>
                   <input
                     v-model.number="formData.max_players"
                     type="number"
                     min="1"
                     max="200"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="70"
+                    :placeholder="t('servers.edit.maxPlayersPlaceholder')"
                   />
-                  <p class="text-xs text-gray-500 mt-1">服务器最大玩家数量（1-200）</p>
+                  <p class="text-xs text-gray-500 mt-1">{{ t('servers.edit.maxPlayersDesc') }}</p>
                 </div>
               </div>
 
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">模组ID</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.modIds') }}</label>
                   <input
                     v-model="formData.game_mod_ids"
                     type="text"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="输入模组ID，多个用逗号分隔（如：123456,789012）"
+                    :placeholder="t('servers.edit.modIdsPlaceholder')"
                   />
-                  <p class="text-xs text-gray-500 mt-1">Steam创意工坊模组ID，多个模组用逗号分隔</p>
+                  <p class="text-xs text-gray-500 mt-1">{{ t('servers.edit.modIdsDesc') }}</p>
                 </div>
                 <div></div>
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">管理员密码 *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('servers.edit.adminPasswordRequired') }}</label>
                 <div class="relative">
                   <input
                     v-model="formData.admin_password"
                     :type="showFormPassword ? 'text' : 'password'"
                     required
                     class="w-full px-3 py-2 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                    placeholder="输入管理员密码（同时作为RCON密码）"
+                    :placeholder="t('servers.edit.adminPasswordPlaceholder')"
                   />
                   <button
                     type="button"
                     @click="toggleFormPassword"
                     class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-blue-600 transition-colors duration-200"
-                    :title="showFormPassword ? '隐藏密码' : '显示密码'"
+                    :title="showFormPassword ? t('servers.edit.hidePassword') : t('servers.edit.showPassword')"
                   >
                     <svg v-if="showFormPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
@@ -285,6 +285,9 @@ import ServerArgsEditor from './ServerArgsEditor.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
 import { ref, computed, watch } from 'vue'
 import { queryParams, commandLineArgs, categories, getParamsByCategory, getDefaultValues } from '~/utils/arkServerParams'
+
+// i18n
+const { t } = useI18n()
 
 // Props
 const props = defineProps({
@@ -432,13 +435,13 @@ const saveServer = () => {
   emit('save', { ...formData.value })
 }
 
-// 处理背景点击
-const handleBackgroundClick = () => {
-  // 添加数据变更检测和确认对话框
-  if (confirm('确定要关闭吗？未保存的数据将会丢失。')) {
-    emit('close')
+  // 处理背景点击
+  const handleBackgroundClick = () => {
+    // 添加数据变更检测和确认对话框
+    if (confirm(t('servers.edit.closeConfirm'))) {
+      emit('close')
+    }
   }
-}
 
 // 处理关闭
 const handleClose = () => {
