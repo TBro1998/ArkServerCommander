@@ -4,20 +4,16 @@ FROM node:24-alpine AS frontend-builder
 # 设置工作目录
 WORKDIR /app/ui
 
-# 复制前端项目文件
-COPY ui/package*.json ./
-COPY ui/pnpm-lock.yaml ./
-
 # 安装 pnpm 并下载依赖
 RUN npm install -g pnpm
-
-RUN pnpm install
 
 # 复制前端源代码
 COPY ui/ ./
 
+RUN pnpm install
 # 构建前端并生成静态文件
-RUN pnpm build && pnpm generate
+RUN pnpm build 
+RUN pnpm generate
 
 # 后端构建阶段
 FROM golang:1.24-alpine AS backend-builder
