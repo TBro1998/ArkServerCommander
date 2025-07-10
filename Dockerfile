@@ -2,17 +2,17 @@
 FROM node:20-alpine AS frontend-builder
 
 # 设置工作目录
-WORKDIR /app/web
+WORKDIR /app/ui
 
 # 复制前端项目文件
-COPY web/package*.json ./
-COPY web/pnpm-lock.yaml ./
+COPY ui/package*.json ./
+COPY ui/pnpm-lock.yaml ./
 
 # 安装 pnpm 并下载依赖
 RUN npm install -g pnpm && pnpm install
 
 # 复制前端源代码
-COPY web/ ./
+COPY ui/ ./
 
 # 构建前端并生成静态文件
 RUN pnpm build && pnpm generate
@@ -51,7 +51,7 @@ WORKDIR /app
 COPY --from=backend-builder /app/main .
 
 # 从前端构建阶段复制静态文件
-COPY --from=frontend-builder /app/web/.output/public ./static
+COPY --from=frontend-builder /app/ui/.output/public ./static
 
 # 创建数据目录
 RUN mkdir -p /data
