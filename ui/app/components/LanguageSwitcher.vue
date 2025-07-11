@@ -40,6 +40,12 @@
 const { locale, locales, setLocale } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
 
+// 使用useCookie来管理语言设置
+const languageCookie = useCookie('nuxt-i18n', {
+  default: () => 'en',
+  maxAge: 60 * 60 * 24 * 365 // 1年
+})
+
 const isOpen = ref(false)
 const currentLanguage = computed(() => locale.value)
 
@@ -54,12 +60,13 @@ const selectLanguage = async (newLocale) => {
   try {
     console.log('切换语言到:', newLocale)
     
+    // 更新cookie
+    languageCookie.value = newLocale
+    
     // 使用 setLocale 方法确保正确加载语言文件
     await setLocale(newLocale)
-    isOpen.value = false
     
-    // 强制重新渲染以确保翻译生效
-    await nextTick()
+    isOpen.value = false
     
     console.log('语言切换完成:', newLocale)
   } catch (error) {

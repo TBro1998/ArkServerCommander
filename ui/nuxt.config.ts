@@ -35,12 +35,14 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'en',
     lazy: true,
-    strategy: 'prefix_except_default',
+    strategy: 'no_prefix',
     detectBrowserLanguage: {
       useCookie: true,
-      cookieKey: 'i18n_redirected',
+      cookieKey: 'nuxt-i18n',
+      cookieDomain: null,
+      cookieSecure: false,
       redirectOn: 'root',
-      alwaysRedirect: true,
+      alwaysRedirect: false,
       fallbackLocale: 'en'
     },
     bundle: {
