@@ -238,7 +238,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 // 本地状态
-const activeParamCategory = ref('basic')
+const activeParamCategory = ref('')
 const showTooltip = ref(null)
 
 // 参数值存储
@@ -257,7 +257,16 @@ const visibleCategories = computed(() => {
     params: params
   }))
   
-  return categories.filter(cat => cat.params.length > 0 || cat.key === 'custom')
+  const filtered = categories.filter(cat => cat.params.length > 0 || cat.key === 'custom')
+  
+  // 如果当前活动分类为空或不在可见分类中，则设置为第一个可见分类
+  if (!activeParamCategory.value || !filtered.some(cat => cat.key === activeParamCategory.value)) {
+    if (filtered.length > 0) {
+      activeParamCategory.value = filtered[0].key
+    }
+  }
+  
+  return filtered
 })
 
 // 获取分类名称
@@ -398,8 +407,17 @@ watch(() => props.modelValue, (newValue, oldValue) => {
   }
 }, { deep: true })
 
+// 初始化活动分类
+function initializeActiveCategory() {
+  const categories = visibleCategories.value
+  if (!activeParamCategory.value && categories.length > 0) {
+    activeParamCategory.value = categories[0].key
+  }
+}
+
 // 组件挂载时初始化
 onMounted(() => {
   initializeParamValues()
+  initializeActiveCategory()
 })
 </script> 
