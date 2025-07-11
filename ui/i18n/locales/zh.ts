@@ -161,6 +161,33 @@ export default {
     imageNotReady: '镜像未就绪',
     imageDownloadingDesc: '正在下载镜像，请稍后创建服务器',
     imageNotReadyDesc: '镜像未就绪，无法创建服务器',
+    // 镜像状态详细翻译
+    dockerImages: {
+      title: '镜像下载状态',
+      overallStatus: '总体状态',
+      imageReady: '镜像就绪',
+      imageNotReady: '镜像未就绪（无法启动服务器）',
+      downloading: '下载中',
+      ready: '就绪',
+      notReady: '未就绪',
+      waitingDownload: '等待下载',
+      layerProgress: '层级下载进度',
+      totalImages: '镜像总数',
+      downloadingCount: '下载中',
+      refreshStatus: '刷新镜像状态',
+      unknownSize: '未知大小',
+      // 镜像名称
+      arkServer: 'ARK服务器',
+      alpineSystem: 'Alpine系统',
+      // 层级状态
+      layerStatus: {
+        pending: '等待中',
+        downloading: '下载中',
+        extracting: '解压中',
+        verifying: '验证中',
+        complete: '已完成'
+      }
+    },
     cannotDeleteRunning: '无法删除正在运行的服务器，请先停止服务器',
     serverCreateSuccess: '服务器创建成功',
     serverUpdateSuccess: '服务器更新成功',

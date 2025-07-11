@@ -161,6 +161,33 @@ export default {
     imageNotReady: 'Image Not Ready',
     imageDownloadingDesc: 'Downloading image, please wait before creating server',
     imageNotReadyDesc: 'Image not ready, cannot create server',
+    // Docker images detailed translations
+    dockerImages: {
+      title: 'Image Download Status',
+      overallStatus: 'Overall Status',
+      imageReady: 'Images Ready',
+      imageNotReady: 'Images Not Ready (Cannot Start Server)',
+      downloading: 'Downloading',
+      ready: 'Ready',
+      notReady: 'Not Ready',
+      waitingDownload: 'Waiting Download',
+      layerProgress: 'Layer Download Progress',
+      totalImages: 'Total Images',
+      downloadingCount: 'Downloading',
+      refreshStatus: 'Refresh Image Status',
+      unknownSize: 'Unknown Size',
+      // Image names
+      arkServer: 'ARK Server',
+      alpineSystem: 'Alpine System',
+      // Layer status
+      layerStatus: {
+        pending: 'Pending',
+        downloading: 'Downloading',
+        extracting: 'Extracting',
+        verifying: 'Verifying',
+        complete: 'Complete'
+      }
+    },
     cannotDeleteRunning: 'Cannot delete running server, please stop it first',
     serverCreateSuccess: 'Server created successfully',
     serverUpdateSuccess: 'Server updated successfully',
