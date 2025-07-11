@@ -851,11 +851,11 @@ export const gameUserSettingsParams: Record<GameUserSettingsCategoryKey, Record<
   }
 }
 
-// 辅助函数
-export function getParamsByCategory(categoryKey: GameUserSettingsCategoryKey): Record<string, GameUserSettingsParam> {
+// GameUserSettings.ini 辅助函数
+export function getGameUserSettingsParamsByCategory(categoryKey: GameUserSettingsCategoryKey): Record<string, GameUserSettingsParam> {
   return gameUserSettingsParams[categoryKey] || {}
 }
 
-export function getAllCategories(): GameUserSettingsCategoryKey[] {
+export function getAllGameUserSettingsCategories(): GameUserSettingsCategoryKey[] {
   return Object.keys(gameUserSettingsParams) as GameUserSettingsCategoryKey[]
 } 

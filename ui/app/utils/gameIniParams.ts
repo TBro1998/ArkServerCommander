@@ -670,8 +670,8 @@ export const gameIniParams: Record<GameIniCategoryKey, Record<string, GameIniPar
   }
 }
 
-// 根据分类获取参数的辅助函数
-export function getParamsByCategory(category: GameIniCategoryKey): { key: string, param: GameIniParam }[] {
+// 根据分类获取 Game.ini 参数的辅助函数
+export function getGameIniParamsByCategory(category: GameIniCategoryKey): { key: string, param: GameIniParam }[] {
   const categoryParams = gameIniParams[category]
   if (!categoryParams) return []
   
@@ -681,10 +681,10 @@ export function getParamsByCategory(category: GameIniCategoryKey): { key: string
   }))
 }
 
-// 获取所有参数分类的辅助函数
-export function getAllCategories(): { key: GameIniCategoryKey, params: { key: string, param: GameIniParam }[] }[] {
+// 获取所有 Game.ini 参数分类的辅助函数
+export function getAllGameIniCategories(): { key: GameIniCategoryKey, params: { key: string, param: GameIniParam }[] }[] {
   return Object.keys(gameIniParams).map(key => ({
     key: key as GameIniCategoryKey,
-    params: getParamsByCategory(key as GameIniCategoryKey)
+    params: getGameIniParamsByCategory(key as GameIniCategoryKey)
   }))
 } 

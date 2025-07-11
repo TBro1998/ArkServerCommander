@@ -47,7 +47,7 @@
       <div class="border-b border-gray-200">
         <nav class="-mb-px flex space-x-8 overflow-x-auto">
           <button
-            v-for="category in getAllCategories()"
+            v-for="category in getAllGameIniCategories()"
             :key="category.key"
             @click="activeTab = category.key"
             :class="[
@@ -65,7 +65,7 @@
       <!-- 页签内容 -->
       <div class="bg-white rounded-lg border border-gray-200 p-6">
         <div
-          v-for="category in getAllCategories()"
+          v-for="category in getAllGameIniCategories()"
           :key="category.key"
           v-show="activeTab === category.key"
           class="space-y-4"
@@ -183,7 +183,7 @@
 </template>
 
 <script setup>
-import { gameIniParams, getAllCategories } from '../utils/gameIniParams'
+import { gameIniParams, getAllGameIniCategories } from '../utils/gameIniParams'
 import { extractConfigValues, formatConfigContent, mergeConfigContent } from '../utils/configParser'
 import ToggleSwitch from './ToggleSwitch.vue'
 
@@ -531,7 +531,7 @@ onMounted(() => {
   initializeVisualConfig()
   
   // 初始化第一个页签
-  const categories = getAllCategories()
+  const categories = getAllGameIniCategories()
   if (categories.length > 0 && !activeTab.value) {
     activeTab.value = categories[0].key
   }

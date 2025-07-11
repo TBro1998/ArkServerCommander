@@ -221,7 +221,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import ToggleSwitch from './ToggleSwitch.vue'
-import { queryParams, commandLineArgs, categories, getParamsByCategory, getDefaultValues } from '~/utils/arkServerParams'
+import { queryParams, commandLineArgs, categories, getServerParamsByCategory, getDefaultValues } from '~/utils/arkServerParams'
 
 // i18n
 const { t } = useI18n()
@@ -246,7 +246,7 @@ const paramValues = ref({})
 const customArgs = ref([])
 
 // 获取参数分类
-const paramsByCategory = computed(() => getParamsByCategory())
+const paramsByCategory = computed(() => getServerParamsByCategory())
 
 // 可见的分类（显示所有参数）
 const visibleCategories = computed(() => {

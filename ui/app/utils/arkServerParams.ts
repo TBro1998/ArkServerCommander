@@ -176,8 +176,8 @@ export const categories = {
 
 export type CategoryKey = keyof typeof categories
 
-// 获取参数分类
-export function getParamsByCategory() {
+// 获取服务器启动参数分类
+export function getServerParamsByCategory() {
   const result: Record<CategoryKey, Array<{ key: string, param: ServerParam }>> = {
     basic: [],
     core: [],
