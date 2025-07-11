@@ -291,10 +291,10 @@ export default {
       maps: {
         TheIsland: '孤岛',
         TheCenter: '中心岛',
-        ScorchedEarth: '焦土',
-        Aberration: '畸变',
+        ScorchedEarth_P: '焦土',
+        Aberration_P: '畸变',
         Extinction: '灭绝',
-        Valguero: '瓦尔盖罗',
+        Valguero_P: '瓦尔盖罗',
         Genesis: '创世纪',
         Genesis2: '创世纪2',
         CrystalIsles: '水晶群岛',

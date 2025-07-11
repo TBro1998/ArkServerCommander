@@ -291,10 +291,10 @@ export default {
       maps: {
         TheIsland: 'The Island',
         TheCenter: 'The Center',
-        ScorchedEarth: 'Scorched Earth',
-        Aberration: 'Aberration',
+        ScorchedEarth_P: 'Scorched Earth',
+        Aberration_P: 'Aberration',
         Extinction: 'Extinction',
-        Valguero: 'Valguero',
+        Valguero_P: 'Valguero',
         Genesis: 'Genesis',
         Genesis2: 'Genesis 2',
         CrystalIsles: 'Crystal Isles',

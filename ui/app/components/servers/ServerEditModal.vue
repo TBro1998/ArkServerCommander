@@ -181,10 +181,10 @@
                   >
                     <option value="TheIsland">{{ t('servers.edit.maps.TheIsland') }}</option>
                     <option value="TheCenter">{{ t('servers.edit.maps.TheCenter') }}</option>
-                    <option value="ScorchedEarth_P">{{ t('servers.edit.maps.ScorchedEarth') }}</option>
-                    <option value="Aberration_P">{{ t('servers.edit.maps.Aberration') }}</option>
+                    <option value="ScorchedEarth_P">{{ t('servers.edit.maps.ScorchedEarth_P') }}</option>
+                    <option value="Aberration_P">{{ t('servers.edit.maps.Aberration_P') }}</option>
                     <option value="Extinction">{{ t('servers.edit.maps.Extinction') }}</option>
-                    <option value="Valguero_P">{{ t('servers.edit.maps.Valguero') }}</option>
+                    <option value="Valguero_P">{{ t('servers.edit.maps.Valguero_P') }}</option>
                     <option value="Genesis">{{ t('servers.edit.maps.Genesis') }}</option>
                     <option value="CrystalIsles">{{ t('servers.edit.maps.CrystalIsles') }}</option>
                     <option value="Genesis2">{{ t('servers.edit.maps.Genesis2') }}</option>
