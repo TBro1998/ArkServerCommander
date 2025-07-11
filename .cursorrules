@@ -10,22 +10,37 @@
 
 ## 项目结构
 ```
-ArkServerCommander/
-├── server/          # 后端 Go 代码
-│   ├── config/      # 配置
-│   ├── controllers/ # 控制器
-│   ├── database/    # 数据库
-│   ├── middleware/  # 中间件
-│   ├── models/      # 数据模型
-│   ├── routes/      # 路由
-│   └── utils/       # 工具函数
-├── ui/              # 前端 Nuxt.js 代码
-│   ├── layouts/     # 布局
-│   ├── middleware/  # 中间件
-│   ├── pages/       # 页面
-│   └── stores/      # 状态管理
-├── Dockerfile       # 单镜像构建
-└── docker-compose.yml
+ArkServerManager/
+├── server/              # 后端 Go 代码
+│   ├── config/          # 配置管理
+│   ├── controllers/     # 控制器层
+│   ├── database/        # 数据库连接
+│   ├── middleware/      # 中间件
+│   ├── models/          # 数据模型
+│   ├── routes/          # 路由定义
+│   ├── service/         # 业务服务层
+│   │   └── docker_manager/  # Docker 管理服务
+│   └── utils/           # 工具函数
+├── ui/                  # 前端 Nuxt.js 代码
+│   ├── app/             # Nuxt 应用主目录
+│   │   ├── assets/      # 静态资源
+│   │   ├── components/  # Vue 组件
+│   │   │   ├── dockerimages/    # Docker 镜像相关组件
+│   │   │   └── servers/         # 服务器相关组件
+│   │   ├── layouts/     # 页面布局
+│   │   ├── middleware/  # 前端中间件
+│   │   ├── pages/       # 页面组件
+│   │   ├── plugins/     # 插件
+│   │   ├── stores/      # Pinia 状态管理
+│   │   └── utils/       # 前端工具函数
+│   ├── i18n/            # 国际化配置
+│   │   └── locales/     # 语言文件
+│   ├── public/          # 公共静态文件
+│   └── server/          # 服务端渲染配置
+├── docs/                # 项目文档
+├── Dockerfile           # 单镜像构建
+├── docker-compose.yml   # Docker 编排
+└── start-dev-*.bat      # 开发启动脚本
 ```
 
 ## 代码规范
@@ -45,6 +60,22 @@ ArkServerCommander/
 - 使用 Pinia 进行状态管理
 - Tailwind CSS 进行样式设计
 - 使用 Vue 3 响应式 API (ref, reactive, computed)
+
+### 前端页面布局和组件规范
+- **优先使用 Nuxt UI 组件**：尽可能使用 `@nuxt/ui` 提供的预构建组件，减少自定义 HTML 元素的使用
+- **减少 `<div>` 使用**：避免不必要的 `<div>` 包装，使用语义化的 HTML 元素和 Nuxt UI 组件
+- **布局组件优先级**：
+  - 使用 `UContainer` 替代普通的容器 div
+  - 使用 `UCard` 替代自定义卡片布局
+  - 使用 `UButton` 替代原生 button
+  - 使用 `UInput`, `UTextarea`, `USelect` 等表单组件
+  - 使用 `UModal`, `UAlert`, `UNotification` 等交互组件
+  - 使用 `UTable`, `UPagination` 等数据展示组件
+- **栅格系统**：使用 Nuxt UI 的 `UContainer` 和 Tailwind 的 flex/grid 系统进行布局
+- **主题一致性**：统一使用 Nuxt UI 的主题系统，确保视觉风格一致
+- **响应式设计**：结合 Nuxt UI 组件的响应式特性和 Tailwind 的响应式工具类
+- **无障碍访问**：利用 Nuxt UI 组件内置的无障碍访问特性
+- **组件组合**：通过组合 Nuxt UI 的基础组件来构建复杂界面，而不是使用大量 div 嵌套
 
 ### 国际化 (i18n) 规范
 - 使用 Nuxt i18n 模块进行国际化
@@ -107,6 +138,33 @@ ArkServerCommander/
 - **测试**：定期检查翻译的完整性和准确性
 - **命名空间**：按功能模块组织翻译，避免键名冲突
 - **错误处理**：为翻译缺失提供友好的错误提示
+
+### 前端代码质量规范
+- **组件设计原则**：
+  - 单一职责：每个组件只负责一个明确的功能
+  - 可复用性：设计通用组件时考虑不同使用场景
+  - 可测试性：组件逻辑清晰，便于单元测试
+  - 可维护性：代码结构清晰，注释完整
+- **Nuxt UI 组件使用规范**：
+  - 禁止重复造轮子：优先使用 Nuxt UI 现有组件
+  - 组件定制：通过 props 和 slots 定制 Nuxt UI 组件行为
+  - 主题配置：统一在 `nuxt.config.ts` 中配置 UI 主题
+  - 图标使用：使用 Nuxt UI 内置的 Heroicons 图标库
+- **HTML 语义化规范**：
+  - 使用适当的 HTML5 语义标签：`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`
+  - 避免过度使用 `<div>` 和 `<span>`
+  - 表单使用 `<form>`, `<fieldset>`, `<legend>` 等语义标签
+  - 列表使用 `<ul>`, `<ol>`, `<li>` 标签
+- **CSS 和样式规范**：
+  - 优先使用 Tailwind CSS 工具类
+  - 避免内联样式，使用 class 绑定
+  - 组件样式使用 scoped CSS
+  - 响应式设计使用 Tailwind 的响应式前缀
+- **性能优化规范**：
+  - 使用 `v-show` vs `v-if` 的合适场景
+  - 大列表使用虚拟滚动组件
+  - 图片使用 `<NuxtImg>` 组件进行优化
+  - 路由懒加载和组件懒加载
 
 ## 部署规范
 - 使用环境变量管理配置
