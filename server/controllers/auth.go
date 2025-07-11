@@ -3,9 +3,9 @@ package controllers
 import (
 	"net/http"
 
-	"ark-server-manager/database"
-	"ark-server-manager/models"
-	"ark-server-manager/utils"
+	"ark-server-commander/database"
+	"ark-server-commander/models"
+	"ark-server-commander/utils"
 
 	"github.com/gin-gonic/gin"
 )

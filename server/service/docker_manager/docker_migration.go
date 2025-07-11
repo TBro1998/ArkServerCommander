@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"ark-server-manager/database"
-	"ark-server-manager/models"
-	"ark-server-manager/utils"
+	"ark-server-commander/database"
+	"ark-server-commander/models"
+	"ark-server-commander/utils"
 
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"

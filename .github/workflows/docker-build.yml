@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: tbro98
-  IMAGE_NAME: arkservermanager
+  IMAGE_NAME: arkservercommander
 
 jobs:
   build:

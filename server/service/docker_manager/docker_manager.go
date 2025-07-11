@@ -1,9 +1,9 @@
 package docker_manager
 
 import (
-	"ark-server-manager/database"
-	"ark-server-manager/models"
-	"ark-server-manager/utils"
+	"ark-server-commander/database"
+	"ark-server-commander/models"
+	"ark-server-commander/utils"
 	"context"
 	"encoding/json"
 	"fmt"

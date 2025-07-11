@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"ark-server-manager/database"
-	"ark-server-manager/models"
-	"ark-server-manager/service/docker_manager"
-	"ark-server-manager/utils"
+	"ark-server-commander/database"
+	"ark-server-commander/models"
+	"ark-server-commander/service/docker_manager"
+	"ark-server-commander/utils"
 
 	"github.com/gin-gonic/gin"
 )

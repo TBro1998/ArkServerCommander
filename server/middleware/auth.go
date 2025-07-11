@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"ark-server-manager/utils"
+	"ark-server-commander/utils"
 
 	"github.com/gin-gonic/gin"
 )

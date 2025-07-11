@@ -3,7 +3,7 @@ package utils
 import (
 	"time"
 
-	"ark-server-manager/config"
+	"ark-server-commander/config"
 
 	"github.com/golang-jwt/jwt/v5"
 )

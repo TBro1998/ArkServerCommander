@@ -58,7 +58,7 @@ export default {
     logout: 'Logout',
     username: 'Username',
     password: 'Password',
-    loginTitle: 'ARK Server Manager',
+    loginTitle: 'Ark Server Commander',
     loginSubtitle: 'Secure login to your management account',
     loginButton: 'Login',
     loginLoading: 'Logging in...',
@@ -92,7 +92,7 @@ export default {
 
   // Home page
   home: {
-    title: 'Welcome to ARK Server Manager',
+    title: 'Welcome to ARK Server Commander',
     subtitle: 'You have successfully logged in and can start managing your ARK servers.',
     systemInfo: 'System Information',
     username: 'Username',
@@ -798,12 +798,12 @@ export default {
     privacyPolicy: 'Privacy Policy',
     termsOfService: 'Terms of Service',
     privacyPolicyContent: 'We value your privacy. This application only collects necessary server management information and will not leak your personal data.',
-    termsOfServiceContent: 'Using this ARK Server Manager means you agree to comply with the relevant terms of use. Please use this tool reasonably for server management.'
+    termsOfServiceContent: 'Using this Ark Server Commander means you agree to comply with the relevant terms of use. Please use this tool reasonably for server management.'
   },
 
   // Footer
   footer: {
-    copyright: '© {year} ARK Server Manager developed by {company}',
+    copyright: '© {year} Ark Server Commander developed by {company}',
     privacyPolicy: 'Privacy Policy',
     termsOfService: 'Terms of Service',
     support: 'Technical Support',

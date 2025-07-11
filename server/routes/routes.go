@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"ark-server-manager/controllers"
-	"ark-server-manager/middleware"
+	"ark-server-commander/controllers"
+	"ark-server-commander/middleware"
 	"fmt"
 	"net/http"
 	"os"

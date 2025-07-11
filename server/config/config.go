@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	JWTSecret  = []byte("ark-server-manager-secret-key")
+	JWTSecret  = []byte("ark-server-commander-secret-key")
 	DBPath     = "ark_server.db"
 	ServerPort = "8080"
 )

@@ -1,7 +1,7 @@
 package docker_manager
 
 import (
-	"ark-server-manager/utils"
+	"ark-server-commander/utils"
 	"fmt"
 
 	"github.com/containerd/errdefs"

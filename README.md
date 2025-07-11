@@ -1,4 +1,4 @@
-# ARK Server Manager
+# ARK Server Commander
 
 [English](README.md) | [中文](README-zh.md)
 
@@ -51,9 +51,9 @@ version: '3.8'
 
 services:
   # ARK Server Management System (Frontend + Backend)
-  ark-manager:
-    image: tbro98/arkservermanager:latest
-    container_name: ark-manager
+  ark-commander:
+    image: tbro98/arkservercommander:latest
+    container_name: ark-commander
     ports:
       # You can modify the port mapping
       - "8080:8080"

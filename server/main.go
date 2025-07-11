@@ -3,16 +3,16 @@ package main
 import (
 	"log"
 
-	"ark-server-manager/config"
-	"ark-server-manager/database"
-	"ark-server-manager/routes"
-	"ark-server-manager/service/docker_manager"
+	"ark-server-commander/config"
+	"ark-server-commander/database"
+	"ark-server-commander/routes"
+	"ark-server-commander/service/docker_manager"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	_ "ark-server-manager/docs" // 导入生成的docs包
+	_ "ark-server-commander/docs" // 导入生成的docs包
 )
 
 // @title ARK服务器管理器 API

@@ -3,8 +3,8 @@ package database
 import (
 	"log"
 
-	"ark-server-manager/config"
-	"ark-server-manager/models"
+	"ark-server-commander/config"
+	"ark-server-commander/models"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"

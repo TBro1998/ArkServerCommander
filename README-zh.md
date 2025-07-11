@@ -52,9 +52,9 @@ version: '3.8'
 
 services:
   # ARK服务器管理系统 (前后端一体)
-  ark-manager:
-    image: tbro98/arkservermanager:latest
-    container_name: ark-manager
+  ark-commander:
+    image: tbro98/arkservercommander:latest
+    container_name: ark-commander
     ports:
       # 可修改端口映射
       - "8080:8080"
