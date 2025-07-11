@@ -112,6 +112,7 @@ export default {
   // 服务器管理
   servers: {
     title: '服务器管理',
+    serverManagementDesc: '管理和监控您的ARK服务器实例',
     addServer: '添加服务器',
     editServer: '编辑服务器',
     deleteServer: '删除服务器',

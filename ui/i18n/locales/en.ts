@@ -112,6 +112,7 @@ export default {
   // Server management
   servers: {
     title: 'Server Management',
+    serverManagementDesc: 'Manage and monitor your ARK server instances',
     addServer: 'Add Server',
     editServer: 'Edit Server',
     deleteServer: 'Delete Server',
