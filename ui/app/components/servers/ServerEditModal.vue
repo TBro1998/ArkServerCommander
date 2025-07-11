@@ -282,7 +282,6 @@
 import GameUserSettingsEditor from './GameUserSettingsEditor.vue'
 import GameIniEditor from './GameIniEditor.vue'
 import ServerArgsEditor from './ServerArgsEditor.vue'
-import ToggleSwitch from './ToggleSwitch.vue'
 import { ref, computed, watch } from 'vue'
 import { queryParams, commandLineArgs, categories, getServerParamsByCategory, getDefaultValues } from '~/utils/arkServerParams'
 

@@ -13,6 +13,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  components: [
+    '~/components',
+    { path: '~/components/servers', prefix: 'Server' },
+    { path: '~/components/dockerimages', prefix: 'DockerImages' }
+  ],
+
   fonts: {
     provider: 'bunny'
   },

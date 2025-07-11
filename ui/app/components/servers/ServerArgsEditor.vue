@@ -220,7 +220,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import ToggleSwitch from './ToggleSwitch.vue'
+import ToggleSwitch from '../ToggleSwitch.vue'
 import { queryParams, commandLineArgs, categories, getServerParamsByCategory, getDefaultValues } from '~/utils/arkServerParams'
 
 // i18n

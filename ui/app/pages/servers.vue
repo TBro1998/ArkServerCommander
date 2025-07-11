@@ -66,7 +66,7 @@
     </div>
 
     <!-- 镜像状态弹窗 -->
-    <ImageStatusModal
+    <DockerImagesImageStatusModal
       :show="showImageStatusModal"
       :image-status="imageStatus"
       @close="showImageStatusModal = false"

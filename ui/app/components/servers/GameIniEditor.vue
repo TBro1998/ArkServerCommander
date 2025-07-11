@@ -183,9 +183,9 @@
 </template>
 
 <script setup>
-import { gameIniParams, getAllGameIniCategories } from '../utils/gameIniParams'
-import { extractConfigValues, formatConfigContent, mergeConfigContent } from '../utils/configParser'
-import ToggleSwitch from './ToggleSwitch.vue'
+import { gameIniParams, getAllGameIniCategories } from '../../utils/gameIniParams'
+import { extractConfigValues, formatConfigContent, mergeConfigContent } from '../../utils/configParser'
+import ToggleSwitch from '../ToggleSwitch.vue'
 
 // i18n
 const { t } = useI18n()
