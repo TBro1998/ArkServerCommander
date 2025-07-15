@@ -728,14 +728,13 @@ func DeleteServer(c *gin.Context) {
 		return
 	}
 
-	// 删除Docker容器和卷
+	// 删除Docker容器
 	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Docker管理器失败"})
 		return
 	}
 	containerName := utils.GetServerContainerName(server.ID)
-	volumeName := utils.GetServerVolumeName(server.ID)
 
 	// 检查并删除容器（如果存在）
 	containerExists, err := dockerManager.ContainerExists(containerName)
@@ -745,11 +744,6 @@ func DeleteServer(c *gin.Context) {
 		if err := dockerManager.RemoveContainer(containerName); err != nil {
 			fmt.Printf("Warning: Failed to remove Docker container: %v\n", err)
 		}
-	}
-
-	// 删除卷
-	if err := dockerManager.RemoveVolume(volumeName); err != nil {
-		fmt.Printf("Warning: Failed to remove Docker volume: %v\n", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
