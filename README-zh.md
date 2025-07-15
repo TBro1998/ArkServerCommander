@@ -14,14 +14,12 @@
 - ⬆️ 第一次启动时自动更新服务端文件和Mod
 - 💾 自动创建和管理Docker卷存储游戏数据
 - 🖥️ 添加和管理多个 ARK 服务器
-- ⚙️ 配置服务器设置（端口、地图、玩家数量等）
-- ✏️ 在线编辑服务器配置参数
+- ⚙️ 配置服务器设置和配置参数
 - ▶️ 一键启动/停止服务器
-- 🗑️ 安全删除服务器配置和数据
 
 ### 🚧 待实现功能
 - 🎮 RCON 命令执行
-- 📊 服务器是否运行成功状态
+- 📊 服务器运行状态监控
 - 🎨 Mod管理对接steam创意工坊
 - 🔧 ArkApi插件管理
 - 📋 服务器日志查看
@@ -33,12 +31,16 @@
 - 🔌 MCP 支持
   
 ### 🚀 未来计划
-- ☸️ 多主机管理，基于K8S实现
+- ☸️ 多主机管理，可能基于K8S实现
 - 🌍 服务器收录网站，脱离糟糕的steam搜服
 - 👥 玩家使用界面
 
-
 ## 🚀 快速开始
+
+### 🔧 系统要求
+
+- 每个ARK服务器 8GB+ 内存 (推荐)
+- 每个ARK服务器 10GB+ 磁盘空间
 
 ### 📦 安装 1Panel
 推荐在服务器上安装1Panel来管理docker环境
@@ -107,44 +109,11 @@ sudo docker-compose up -d
 
 ## ❓ 常见问题
 
-### ❓ Q: 无法访问管理界面？
-A: 请确保前后端服务都已启动，并检查端口是否被占用。
-
-### ❓ Q: 可以同时管理多少个服务器？
-A: 没有数量限制，您可以根据需要添加任意数量的服务器配置。
-
-### ❓ Q: Docker容器无法启动？
-A: 检查以下几点：
-- Docker服务是否正常运行
-- 是否有足够的磁盘空间
-- 端口是否被占用
-- docker镜像是否能正常拉取
-
 ### ❓ Q: 如何备份ARK服务器数据？
-A: 暂时还没实现服务器数据的备份操作。服务器数据存储在Docker卷中，可以使用以下命令备份：
-```bash
-# 备份卷数据
-docker run --rm -v ark-server-1:/source -v $(pwd):/backup alpine tar czf /backup/ark-server-1-backup.tar.gz -C /source .
-
-# 恢复卷数据
-docker run --rm -v ark-server-1:/target -v $(pwd):/backup alpine tar xzf /backup/ark-server-1-backup.tar.gz -C /target
-```
+A: 暂时还没实现服务器数据的备份操作。服务器数据存储在Docker卷ark-server-<服务器编号>中，可以自行备份。
 
 ### ❓ Q: 如何查看ARK服务器日志？
-A: 使用Docker命令查看容器日志：
-```bash
-# 查看特定服务器的日志
-docker logs ark-server-1
-
-# 实时跟踪日志
-docker logs -f ark-server-1
-```
-
-## 🔧 系统要求
-
-### 💻 Docker容器化部署
-- 每个ARK服务器 8GB+ 内存 (推荐)
-- 每个ARK服务器 10GB+ 磁盘空间
+A: 服务端程序目前无法直接在docker的logs中输出，需要查看服务器的日志文件，后续查看该怎么优化。
 
 
 ### 🖼️ ARK服务器镜像

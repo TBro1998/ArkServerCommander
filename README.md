@@ -14,10 +14,8 @@
 - ⬆️ Automatic server files and mod updates on first startup
 - 💾 Automatic creation and management of Docker volumes for game data storage
 - 🖥️ Add and manage multiple ARK servers
-- ⚙️ Configure server settings (port, map, player count, etc.)
-- ✏️ Online editing of server configuration parameters
+- ⚙️ Configure server settings and configuration parameters
 - ▶️ One-click server start/stop
-- 🗑️ Safe deletion of server configurations and data
 
 ### 🚧 Planned Features
 - 🎮 RCON command execution
@@ -38,6 +36,11 @@
 - 👥 Player user interface
 
 ## 🚀 Quick Start
+
+### 🔧 System Requirements
+
+- 8GB+ memory per ARK server (recommended)
+- 10GB+ disk space per ARK server
 
 ### 📦 Install 1Panel
 We recommend installing 1Panel on your server to manage the Docker environment
@@ -106,44 +109,11 @@ sudo docker-compose up -d
 
 ## ❓ FAQ
 
-### ❓ Q: Cannot access the management interface?
-A: Please ensure both frontend and backend services are running, and check if the port is occupied.
-
-### ❓ Q: How many servers can be managed simultaneously?
-A: There is no limit on the number of servers. You can add as many server configurations as needed.
-
-### ❓ Q: Docker container cannot start?
-A: Check the following points:
-- Is the Docker service running normally?
-- Is there sufficient disk space?
-- Is the port occupied?
-- Can the Docker image be pulled normally?
-
 ### ❓ Q: How to backup ARK server data?
-A: Server data backup operations are not yet implemented. Server data is stored in Docker volumes. You can use the following commands to backup:
-```bash
-# Backup volume data
-docker run --rm -v ark-server-1:/source -v $(pwd):/backup alpine tar czf /backup/ark-server-1-backup.tar.gz -C /source .
-
-# Restore volume data
-docker run --rm -v ark-server-1:/target -v $(pwd):/backup alpine tar xzf /backup/ark-server-1-backup.tar.gz -C /target
-```
+A: Server data backup operations are not yet implemented. Server data is stored in Docker volumes ark-server-<server_number>, you can backup manually.
 
 ### ❓ Q: How to view ARK server logs?
-A: Use Docker commands to view container logs:
-```bash
-# View logs for a specific server
-docker logs ark-server-1
-
-# Real-time log tracking
-docker logs -f ark-server-1
-```
-
-## 🔧 System Requirements
-
-### 💻 Docker Containerized Deployment
-- 8GB+ memory per ARK server (recommended)
-- 10GB+ disk space per ARK server
+A: The server program currently cannot output logs directly in docker logs, you need to view the server log files, and we'll see how to optimize this later.
 
 ### 🖼️ ARK Server Image
 - This system uses the `tbro98/ase-server:latest` image to run ARK servers
