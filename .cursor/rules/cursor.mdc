@@ -1,12 +1,20 @@
-# ARK 服务器管理器 - Cursor 规则文件
+---
+description: ARK 服务器管理器 - 基于 Nuxt.js + Gin + Gorm 的前后端分离 ARK 服务器管理系统
+globs: ["**/*"]
+alwaysApply: true
+---
+# ARK 服务器管理器 - Cursor AI 助手配置
 
 ## 项目概述
-基于 Nuxt.js + Gin + Gorm 的前后端分离 ARK 服务器管理系统，部署在单一 Docker 镜像中。
-- 前端：Nuxt.js 3 + Pinia + Tailwind CSS
-- 后端：Gin + Gorm + SQLite + JWT
-- 数据库：SQLite
-- 认证：JWT + bcrypt
-- 部署：Docker 单镜像部署
+这是一个基于 Nuxt.js 3 + Gin + Gorm 的前后端分离 ARK 服务器管理系统，部署在单一 Docker 镜像中。
+
+### 技术栈
+- **前端**: Nuxt.js 3 + Pinia + Tailwind CSS + Nuxt UI
+- **后端**: Gin + Gorm + SQLite + JWT
+- **数据库**: SQLite
+- **认证**: JWT + bcrypt
+- **部署**: Docker 单镜像部署
+- **国际化**: Nuxt i18n (中文/英文)
 
 ## 项目结构
 ```
@@ -278,4 +286,5 @@ fix(i18n): 修复翻译键缺失问题
 2. 在分支上进行开发和测试
 3. 提交时遵循 Conventional Commits 规范
 4. 创建 Pull Request 进行代码审查
-5. 合并到 `main` 分支并删除功能分支 
+5. 合并到 `main` 分支并删除功能分支
+
