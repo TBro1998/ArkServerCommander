@@ -61,6 +61,179 @@ ArkServerManager/
 - 控制器函数接收 `*gin.Context` 参数
 - 数据库模型使用 gorm 标签
 
+### 后端架构分层规范
+
+#### 控制层（Controllers）职责
+控制层位于 `server/controllers/` 目录，专注于 HTTP 请求和响应处理：
+
+- **主要职责**：
+  - HTTP 请求参数解析和验证
+  - 调用业务层服务方法
+  - HTTP 响应格式化和状态码设置
+  - 路由处理和中间件集成
+  - 请求上下文传递（用户认证信息等）
+
+- **代码规范**：
+  - 控制器函数必须接收 `*gin.Context` 参数
+  - 使用 `ShouldBindJSON()` 进行请求体绑定
+  - 使用 `c.GetUint("user_id")` 获取用户身份信息
+  - 统一使用 `gin.H` 构建响应 JSON
+  - 根据业务层返回的错误类型设置合适的 HTTP 状态码
+
+- **禁止行为**：
+  - 不得直接操作数据库
+  - 不得包含复杂的业务逻辑
+  - 不得直接调用第三方服务
+  - 不得进行数据转换和处理（除基本的请求响应格式化）
+
+- **错误处理模式**：
+```go
+func ExampleController(c *gin.Context) {
+    userID := c.GetUint("user_id")
+    
+    var req RequestModel
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+        return
+    }
+    
+    result, err := service.ExampleMethod(userID, req)
+    if err != nil {
+        // 根据错误类型返回不同状态码
+        if err.Error() == "记录不存在" {
+            c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+            return
+        }
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    
+    c.JSON(http.StatusOK, gin.H{
+        "message": "操作成功",
+        "data": result,
+    })
+}
+```
+
+#### 业务层（Service）职责
+业务层位于 `server/service/` 目录，专注于业务逻辑处理：
+
+- **主要职责**：
+  - 核心业务逻辑实现
+  - 数据验证和处理
+  - 数据库事务管理
+  - 第三方服务集成
+  - 数据转换和格式化
+  - 异步任务处理
+
+- **代码规范**：
+  - 服务结构体使用 `Service` 后缀命名
+  - 提供 `New{Service}()` 构造函数
+  - 方法返回值包含错误信息：`(result, error)`
+  - 使用有意义的错误消息，便于控制层判断
+  - 复杂操作使用数据库事务
+
+- **目录结构**：
+```
+service/
+├── server/
+│   └── server_service.go    # 服务器管理业务逻辑
+├── docker_manager/
+│   └── docker_manager.go    # Docker 管理服务
+└── user/
+    └── user_service.go      # 用户管理业务逻辑
+```
+
+- **服务层模式**：
+```go
+type ExampleService struct{}
+
+func NewExampleService() *ExampleService {
+    return &ExampleService{}
+}
+
+func (s *ExampleService) ExampleMethod(userID uint, req RequestModel) (*ResponseModel, error) {
+    // 参数验证
+    if req.RequiredField == "" {
+        return nil, fmt.Errorf("必填参数不能为空")
+    }
+    
+    // 业务逻辑处理
+    // ...
+    
+    // 数据库操作
+    tx := database.DB.Begin()
+    if tx.Error != nil {
+        return nil, fmt.Errorf("数据库事务启动失败: %w", tx.Error)
+    }
+    
+    // 业务处理
+    if err := tx.Create(&model).Error; err != nil {
+        tx.Rollback()
+        return nil, fmt.Errorf("数据创建失败: %w", err)
+    }
+    
+    if err := tx.Commit().Error; err != nil {
+        return nil, fmt.Errorf("事务提交失败: %w", err)
+    }
+    
+    return &result, nil
+}
+```
+
+#### 层间交互规范
+
+- **依赖方向**：
+  - 控制层 → 业务层 → 数据层
+  - 上层可以调用下层，下层不得直接调用上层
+  - 同层之间可以相互调用，但要避免循环依赖
+
+- **数据传递**：
+  - 使用模型（models）进行层间数据传递
+  - 控制层传递请求模型给业务层
+  - 业务层返回响应模型给控制层
+
+- **错误传递**：
+  - 业务层返回有意义的错误信息
+  - 控制层根据错误信息判断 HTTP 状态码
+  - 使用 `fmt.Errorf` 包装错误，保留调用栈
+
+- **事务管理**：
+  - 数据库事务在业务层管理
+  - 控制层不直接操作数据库事务
+  - 复杂业务操作必须使用事务确保数据一致性
+
+#### 服务初始化规范
+
+- **全局服务实例**：
+```go
+// 在控制器包中初始化服务实例
+var serverService = server.NewServerService()
+var userService = user.NewUserService()
+```
+
+- **服务依赖注入**：
+  - 服务层可以依赖其他服务
+  - 通过构造函数传递依赖的服务实例
+  - 避免在方法内部创建服务实例
+
+- **单例模式**：
+  - 服务实例通常使用单例模式
+  - 避免频繁创建和销毁服务实例
+  - 确保服务实例的线程安全
+
+#### 异步处理规范
+
+- **后台任务**：
+  - 使用 goroutine 处理长时间运行的任务
+  - 在业务层实现异步逻辑
+  - 确保异步任务的错误处理和日志记录
+
+- **状态管理**：
+  - 异步任务的状态更新在业务层处理
+  - 使用数据库记录任务状态
+  - 提供任务状态查询接口
+
 ### Vue/JavaScript 前端规范
 - 使用 Composition API (setup script)
 - 组件文件名使用 PascalCase (MyComponent.vue)
