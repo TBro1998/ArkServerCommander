@@ -30,12 +30,6 @@
             {{ $t('footer.termsOfService') }}
           </a>
           <a 
-            :href="supportEmail" 
-            class="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            {{ $t('footer.support') }}
-          </a>
-          <a 
             v-if="githubUrl"
             :href="githubUrl" 
             target="_blank"
@@ -62,10 +56,6 @@ const props = defineProps({
   appVersion: {
     type: String,
     default: '1.0.0'
-  },
-  supportEmail: {
-    type: String,
-    default: 'mailto:support@yourcompany.com'
   },
   githubUrl: {
     type: String,

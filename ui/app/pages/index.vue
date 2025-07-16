@@ -17,29 +17,6 @@
         </p>
       </header>
       
-      <!-- 系统信息卡片 -->
-      <section>
-        <UCard class="max-w-lg mx-auto">
-          <template #header>
-            <header class="flex items-center space-x-3">
-              <UIcon name="i-lucide-user" class="w-5 h-5 text-blue-600" />
-              <h2 class="text-xl font-semibold">{{ $t('home.systemInfo') }}</h2>
-            </header>
-          </template>
-          
-          <dl class="space-y-4">
-            <div class="flex justify-between items-center py-2 border-b border-gray-100">
-              <dt class="font-medium text-gray-700">{{ $t('home.username') }}</dt>
-              <dd class="text-gray-900 font-mono">{{ authStore.user?.username }}</dd>
-            </div>
-            <div class="flex justify-between items-center py-2">
-              <dt class="font-medium text-gray-700">{{ $t('home.userID') }}</dt>
-              <dd class="text-gray-900 font-mono">#{{ authStore.user?.id }}</dd>
-            </div>
-          </dl>
-        </UCard>
-      </section>
-      
       <!-- 功能卡片网格 -->
       <section class="space-y-8">
         <h2 class="text-2xl font-semibold text-gray-900">{{ $t('home.features') }}</h2>
