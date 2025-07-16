@@ -8,23 +8,13 @@
               {{ $t('auth.loginTitle') }}
             </NuxtLink>
             
-            <!-- 桌面端导航菜单 -->
-            <nav class="hidden md:flex space-x-6">
-              <NuxtLink
-                to="/"
-                class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                :class="{ 'text-blue-600 bg-blue-50': $route.path === '/' }"
-              >
-                {{ $t('navigation.dashboard') }}
-              </NuxtLink>
-              <NuxtLink
-                to="/servers"
-                class="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                :class="{ 'text-blue-600 bg-blue-50': $route.path === '/servers' }"
-              >
-                {{ $t('navigation.servers') }}
-              </NuxtLink>
-            </nav>
+            <!-- 桌面端导航菜单 - 使用 Nuxt UI NavigationMenu -->
+            <UNavigationMenu 
+              :items="navigationItems" 
+              class="hidden md:flex"
+              orientation="horizontal"
+              variant="pill"
+            />
           </div>
           
           <div class="flex items-center space-x-4">
@@ -34,48 +24,38 @@
             <LanguageSwitcher />
             
             <!-- 移动端菜单按钮 -->
-            <button
+            <UButton
               @click="mobileMenuOpen = !mobileMenuOpen"
-              class="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-            <button
+              variant="ghost"
+              size="sm"
+              class="md:hidden"
+              :icon="mobileMenuOpen ? 'i-heroicons-x-mark' : 'i-heroicons-bars-3'"
+            />
+            
+            <UButton
               @click="logout"
-              class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {{ $t('navigation.logout') }}
-            </button>
+              color="red"
+              variant="solid"
+              size="sm"
+              :label="$t('navigation.logout')"
+            />
           </div>
         </div>
         
-        <!-- 移动端导航菜单 -->
-        <div v-if="mobileMenuOpen" class="md:hidden py-4 border-t border-gray-200">
-          <div class="space-y-2">
-            <NuxtLink
-              to="/"
-              @click="mobileMenuOpen = false"
-              class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors"
-              :class="{ 'text-blue-600 bg-blue-50': $route.path === '/' }"
-            >
-              {{ $t('navigation.dashboard') }}
-            </NuxtLink>
-            <NuxtLink
-              to="/servers"
-              @click="mobileMenuOpen = false"
-              class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors"
-              :class="{ 'text-blue-600 bg-blue-50': $route.path === '/servers' }"
-            >
-              {{ $t('navigation.servers') }}
-            </NuxtLink>
-            <div class="sm:hidden px-3 py-2 text-sm text-gray-500">
+        <!-- 移动端导航菜单 - 使用 Nuxt UI NavigationMenu 垂直布局 -->
+        <UCollapsible v-model:open="mobileMenuOpen" class="md:hidden">
+          <div class="py-4 border-t border-gray-200">
+            <UNavigationMenu 
+              :items="mobileNavigationItems" 
+              orientation="vertical"
+              variant="link"
+              class="space-y-1"
+            />
+            <div class="sm:hidden px-3 py-2 text-sm text-gray-500 mt-2">
               {{ $t('navigation.user') }}：{{ authStore.user?.username }}
             </div>
           </div>
-        </div>
+        </UCollapsible>
       </div>
     </nav>
     
@@ -91,7 +71,10 @@
     />
 
     <!-- 隐私政策模态框 -->
-    <UModal v-model:open="showPrivacyPolicy" :title="$t('modals.privacyPolicy')">
+    <UModal 
+      v-model:open="showPrivacyPolicy" 
+      :title="$t('modals.privacyPolicy')"
+    >
       <template #body>
         <p class="text-sm text-gray-600">
           {{ $t('modals.privacyPolicyContent') }}
@@ -99,16 +82,21 @@
       </template>
       
       <template #footer>
-        <UButton 
-          color="primary" 
-          :label="$t('common.confirm')"
-          @click="showPrivacyPolicy = false"
-        />
+        <div class="flex justify-end">
+          <UButton 
+            color="primary" 
+            :label="$t('common.confirm')"
+            @click="showPrivacyPolicy = false"
+          />
+        </div>
       </template>
     </UModal>
 
     <!-- 服务条款模态框 -->
-    <UModal v-model:open="showTermsOfService" :title="$t('modals.termsOfService')">
+    <UModal 
+      v-model:open="showTermsOfService" 
+      :title="$t('modals.termsOfService')"
+    >
       <template #body>
         <p class="text-sm text-gray-600">
           {{ $t('modals.termsOfServiceContent') }}
@@ -116,11 +104,13 @@
       </template>
       
       <template #footer>
-        <UButton 
-          color="primary" 
-          :label="$t('common.confirm')"
-          @click="showTermsOfService = false"
-        />
+        <div class="flex justify-end">
+          <UButton 
+            color="primary" 
+            :label="$t('common.confirm')"
+            @click="showTermsOfService = false"
+          />
+        </div>
       </template>
     </UModal>
   </div>
@@ -130,10 +120,52 @@
 import { useAuthStore } from '~/stores/auth'
 
 const authStore = useAuthStore()
+const route = useRoute()
+const { t } = useI18n()
 const mobileMenuOpen = ref(false)
 const showPrivacyPolicy = ref(false)
 const showTermsOfService = ref(false)
 const appVersion = ref('1.0.0')
+
+// 桌面端导航菜单配置
+const navigationItems = computed(() => [
+  {
+    label: t('navigation.dashboard'),
+    to: '/',
+    icon: 'i-heroicons-home',
+    active: route.path === '/'
+  },
+  {
+    label: t('navigation.servers'),
+    to: '/servers',
+    icon: 'i-heroicons-server',
+    active: route.path === '/servers'
+  }
+])
+
+// 移动端导航菜单配置
+const mobileNavigationItems = computed(() => [
+  {
+    label: t('navigation.dashboard'),
+    to: '/',
+    icon: 'i-heroicons-home',
+    active: route.path === '/',
+    onSelect: () => {
+      mobileMenuOpen.value = false
+      navigateTo('/')
+    }
+  },
+  {
+    label: t('navigation.servers'),
+    to: '/servers',
+    icon: 'i-heroicons-server',
+    active: route.path === '/servers',
+    onSelect: () => {
+      mobileMenuOpen.value = false
+      navigateTo('/servers')
+    }
+  }
+])
 
 // 在客户端初始化时从cookie恢复登录状态
 onMounted(() => {
