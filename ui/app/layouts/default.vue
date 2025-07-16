@@ -64,55 +64,7 @@
     </main>
 
     <!-- 固定底部商标信息 -->
-    <AppFooter 
-      :app-version="appVersion"
-      @show-privacy-policy="showPrivacyPolicy = true"
-      @show-terms-of-service="showTermsOfService = true"
-    />
-
-    <!-- 隐私政策模态框 -->
-    <UModal 
-      v-model:open="showPrivacyPolicy" 
-      :title="$t('modals.privacyPolicy')"
-    >
-      <template #body>
-        <p class="text-sm text-gray-600">
-          {{ $t('modals.privacyPolicyContent') }}
-        </p>
-      </template>
-      
-      <template #footer>
-        <div class="flex justify-end">
-          <UButton 
-            color="primary" 
-            :label="$t('common.confirm')"
-            @click="showPrivacyPolicy = false"
-          />
-        </div>
-      </template>
-    </UModal>
-
-    <!-- 服务条款模态框 -->
-    <UModal 
-      v-model:open="showTermsOfService" 
-      :title="$t('modals.termsOfService')"
-    >
-      <template #body>
-        <p class="text-sm text-gray-600">
-          {{ $t('modals.termsOfServiceContent') }}
-        </p>
-      </template>
-      
-      <template #footer>
-        <div class="flex justify-end">
-          <UButton 
-            color="primary" 
-            :label="$t('common.confirm')"
-            @click="showTermsOfService = false"
-          />
-        </div>
-      </template>
-    </UModal>
+    <AppFooter :app-version="appVersion" />
   </div>
 </template>
 
@@ -123,8 +75,6 @@ const authStore = useAuthStore()
 const route = useRoute()
 const { t } = useI18n()
 const mobileMenuOpen = ref(false)
-const showPrivacyPolicy = ref(false)
-const showTermsOfService = ref(false)
 const appVersion = ref('1.0.0')
 
 // 桌面端导航菜单配置

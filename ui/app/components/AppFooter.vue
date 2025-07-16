@@ -17,7 +17,7 @@
             v-if="showPrivacyPolicy"
             href="#" 
             class="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-            @click.prevent="$emit('show-privacy-policy')"
+            @click.prevent="showPrivacyPolicyModal = true"
           >
             {{ $t('footer.privacyPolicy') }}
           </a>
@@ -25,7 +25,7 @@
             v-if="showTermsOfService"
             href="#" 
             class="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-            @click.prevent="$emit('show-terms-of-service')"
+            @click.prevent="showTermsOfServiceModal = true"
           >
             {{ $t('footer.termsOfService') }}
           </a>
@@ -43,6 +43,50 @@
         </div>
       </div>
     </div>
+
+    <!-- 隐私政策模态框 -->
+    <UModal 
+      v-model:open="showPrivacyPolicyModal" 
+      :title="$t('modals.privacyPolicy')"
+    >
+      <template #body>
+        <p class="text-sm text-gray-600">
+          {{ $t('modals.privacyPolicyContent') }}
+        </p>
+      </template>
+      
+      <template #footer>
+        <div class="flex justify-end">
+          <UButton 
+            color="primary" 
+            :label="$t('common.confirm')"
+            @click="showPrivacyPolicyModal = false"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <!-- 服务条款模态框 -->
+    <UModal 
+      v-model:open="showTermsOfServiceModal" 
+      :title="$t('modals.termsOfService')"
+    >
+      <template #body>
+        <p class="text-sm text-gray-600">
+          {{ $t('modals.termsOfServiceContent') }}
+        </p>
+      </template>
+      
+      <template #footer>
+        <div class="flex justify-end">
+          <UButton 
+            color="primary" 
+            :label="$t('common.confirm')"
+            @click="showTermsOfServiceModal = false"
+          />
+        </div>
+      </template>
+    </UModal>
   </footer>
 </template>
 
@@ -75,6 +119,7 @@ const props = defineProps({
   }
 })
 
-// Events定义
-defineEmits(['show-privacy-policy', 'show-terms-of-service'])
+// 模态框状态
+const showPrivacyPolicyModal = ref(false)
+const showTermsOfServiceModal = ref(false)
 </script> 
