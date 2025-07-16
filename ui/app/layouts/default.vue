@@ -91,36 +91,38 @@
     />
 
     <!-- 隐私政策模态框 -->
-    <div v-if="showPrivacyPolicy" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showPrivacyPolicy = false">
-      <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
-        <h3 class="text-lg font-semibold mb-4">{{ $t('modals.privacyPolicy') }}</h3>
-        <p class="text-sm text-gray-600 mb-4">
+    <UModal v-model:open="showPrivacyPolicy" :title="$t('modals.privacyPolicy')">
+      <template #body>
+        <p class="text-sm text-gray-600">
           {{ $t('modals.privacyPolicyContent') }}
         </p>
-        <button 
+      </template>
+      
+      <template #footer>
+        <UButton 
+          color="primary" 
+          :label="$t('common.confirm')"
           @click="showPrivacyPolicy = false"
-          class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          {{ $t('common.confirm') }}
-        </button>
-      </div>
-    </div>
+        />
+      </template>
+    </UModal>
 
     <!-- 服务条款模态框 -->
-    <div v-if="showTermsOfService" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showTermsOfService = false">
-      <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
-        <h3 class="text-lg font-semibold mb-4">{{ $t('modals.termsOfService') }}</h3>
-        <p class="text-sm text-gray-600 mb-4">
+    <UModal v-model:open="showTermsOfService" :title="$t('modals.termsOfService')">
+      <template #body>
+        <p class="text-sm text-gray-600">
           {{ $t('modals.termsOfServiceContent') }}
         </p>
-        <button 
+      </template>
+      
+      <template #footer>
+        <UButton 
+          color="primary" 
+          :label="$t('common.confirm')"
           @click="showTermsOfService = false"
-          class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          {{ $t('common.confirm') }}
-        </button>
-      </div>
-    </div>
+        />
+      </template>
+    </UModal>
   </div>
 </template>
 
