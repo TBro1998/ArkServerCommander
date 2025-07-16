@@ -116,12 +116,6 @@
           </UCard>
         </div>
       </section>
-      
-      <!-- 提示信息 -->
-      <footer class="flex items-center justify-center space-x-2 text-gray-500">
-        <UIcon name="i-lucide-lightbulb" class="w-4 h-4" />
-        <span class="text-sm">{{ $t('home.tip') }}</span>
-      </footer>
     </main>
   </UContainer>
 </template>
