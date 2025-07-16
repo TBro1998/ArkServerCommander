@@ -13,30 +13,31 @@
         
         <!-- 附加链接 -->
         <div class="flex justify-center sm:justify-start space-x-6 mt-3 pt-3 border-t border-gray-100">
-          <a 
+          <ULink 
             v-if="showPrivacyPolicy"
-            href="#" 
+            as="button"
             class="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-            @click.prevent="showPrivacyPolicyModal = true"
+            @click="showPrivacyPolicyModal = true"
           >
             {{ $t('footer.privacyPolicy') }}
-          </a>
-          <a 
+          </ULink>
+          <ULink 
             v-if="showTermsOfService"
-            href="#" 
+            as="button"
             class="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-            @click.prevent="showTermsOfServiceModal = true"
+            @click="showTermsOfServiceModal = true"
           >
             {{ $t('footer.termsOfService') }}
-          </a>
-          <a 
+          </ULink>
+          <ULink 
             v-if="githubUrl"
-            :href="githubUrl" 
+            :to="githubUrl" 
             target="_blank"
+            external
             class="text-xs text-gray-500 hover:text-gray-700 transition-colors"
           >
             {{ $t('footer.github') }}
-          </a>
+          </ULink>
           <span v-if="pageInfo" class="text-xs text-gray-400">
             {{ pageInfo }}
           </span>
