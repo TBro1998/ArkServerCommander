@@ -20,6 +20,7 @@
 - ▶️ 一键启动/停止服务器
 
 ### 🚧 待实现功能
+- 🖼️ 服务器镜像更新
 - 🎮 RCON 命令执行
 - 📊 服务器运行状态监控
 - 🎨 Mod管理对接steam创意工坊
@@ -27,7 +28,6 @@
 - 📋 服务器日志查看
 - 💾 服务器存档及配置备份
 - 🔍 工具版本更新检查
-- 🖼️ 服务器镜像更新
 - ⚡ 可选更新服务端文件和Mod
 - 🌐 i18n 国际化支持
 - 🔌 MCP 支持
@@ -123,8 +123,8 @@ A: 服务端程序目前无法直接在docker的logs中输出，需要查看服�
 - 镜像源地址: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
 ## 📸 界面展示
-![](./docs/imgs/img_servers.png)
-![](./docs/imgs/ima_base.png)
-![](./docs/imgs/img_GameUserSettings.png)
-![](./docs/imgs/img_GameIni.png)
-![](./docs/imgs/img_args.png)
+![](./docs/zh/images/img_servers.png)
+![](./docs/zh/images/ima_base.png)
+![](./docs/zh/images/img_GameUserSettings.png)
+![](./docs/zh/images/img_GameIni.png)
+![](./docs/zh/images/img_args.png) 

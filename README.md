@@ -20,6 +20,7 @@
 - ▶️ One-click server start/stop
 
 ### 🚧 Planned Features
+- 🖼️ Server image updates
 - 🎮 RCON command execution
 - 📊 Server running status monitoring
 - 🎨 Mod management integration with Steam Workshop
@@ -27,7 +28,6 @@
 - 📋 Server log viewing
 - 💾 Server save and configuration backup
 - 🔍 Tool version update checking
-- 🖼️ Server image updates
 - ⚡ Optional server files and mod updates
 - 🌐 i18n internationalization support
 - 🔌 MCP (Mod Configuration Protocol) support
@@ -122,8 +122,8 @@ A: The server program currently cannot output logs directly in docker logs, you 
 - Image source: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
 ## 📸 Interface Screenshots
-![](./docs/imgs/img_servers.png)
-![](./docs/imgs/ima_base.png)
-![](./docs/imgs/img_GameUserSettings.png)
-![](./docs/imgs/img_GameIni.png)
-![](./docs/imgs/img_args.png) 
+![](./docs/zh/images/img_servers.png)
+![](./docs/zh/images/ima_base.png)
+![](./docs/zh/images/img_GameUserSettings.png)
+![](./docs/zh/images/img_GameIni.png)
+![](./docs/zh/images/img_args.png) 
