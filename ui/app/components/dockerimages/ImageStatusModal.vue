@@ -33,25 +33,25 @@
         </button>
       </div>
 
-      <!-- 镜像横向排列 -->
-      <div v-if="imageStatus.images" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div 
-          v-for="(status, imageName) in imageStatus.images" 
+      <!-- 镜像横向排列 - 使用flex布局实现水平方向排序 -->
+      <div v-if="imageStatus.images" class="flex flex-wrap gap-4">
+        <div
+          v-for="(status, imageName) in imageStatus.images"
           :key="imageName"
-          class="bg-gray-50 p-4 rounded-lg border-l-4"
+          class="bg-gray-50 p-4 rounded-lg border-l-4 flex-1 min-w-[300px] max-w-[400px]"
           :class="{
-            'border-l-green-500': status.ready,
-            'border-l-yellow-500': status.pulling,
+            'border-l-green-500': status.ready && !status.has_update,
+            'border-l-yellow-500': status.has_update || status.pulling,
             'border-l-red-500': !status.ready && !status.pulling
           }"
         >
           <!-- 镜像标题和状态 -->
           <div class="flex justify-between items-center mb-3">
             <h3 class="text-sm font-semibold text-gray-900">{{ getImageDisplayName(imageName) }}</h3>
-            <span 
+            <span
               :class="{
-                'text-green-600 bg-green-100': status.ready,
-                'text-yellow-600 bg-yellow-100': status.pulling,
+                'text-green-600 bg-green-100': status.ready && !status.has_update,
+                'text-yellow-600 bg-yellow-100': status.has_update || status.pulling,
                 'text-red-600 bg-red-100': !status.ready && !status.pulling
               }"
               class="text-sm font-medium px-2 py-1 rounded-full"
@@ -112,11 +112,16 @@
 
           <!-- 镜像就绪状态 -->
           <div v-else-if="status.ready" class="text-center py-4">
-            <svg class="w-8 h-8 text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="!status.has_update" class="w-8 h-8 text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
-            <p class="text-sm text-green-600 font-medium">{{ $t('servers.dockerImages.ready') }}</p>
+            <svg v-else class="w-8 h-8 text-yellow-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            <p v-if="!status.has_update" class="text-sm text-green-600 font-medium">{{ $t('servers.dockerImages.ready') }}</p>
+            <p v-else class="text-sm text-yellow-600 font-medium">{{ $t('servers.dockerImages.updateAvailable') }}</p>
             <UButton
+              v-if="status.has_update"
               color="purple"
               variant="ghost"
               size="xs"

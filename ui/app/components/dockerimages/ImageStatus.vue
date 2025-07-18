@@ -44,15 +44,15 @@
     
 
     
-    <!-- 详细镜像状态 -->
-    <div v-if="imageStatus.images" class="space-y-2">
+    <!-- 详细镜像状态 - 水平方向排序 -->
+    <div v-if="imageStatus.images" class="flex flex-wrap gap-2">
       <div
         v-for="(status, imageName) in imageStatus.images"
         :key="imageName"
-        class="text-xs bg-white p-2 rounded border-l-4"
+        class="text-xs bg-white p-2 rounded border-l-4 flex-1 min-w-[200px]"
         :class="{
-          'border-l-green-500': status.ready,
-          'border-l-yellow-500': status.pulling,
+          'border-l-green-500': status.ready && !status.has_update,
+          'border-l-yellow-500': status.has_update || status.pulling,
           'border-l-red-500': !status.ready && !status.pulling
         }"
       >
@@ -61,8 +61,8 @@
           <div class="flex items-center gap-2">
             <span
               :class="{
-                'text-green-600': status.ready,
-                'text-yellow-600': status.pulling,
+                'text-green-600': status.ready && !status.has_update,
+                'text-yellow-600': status.has_update || status.pulling,
                 'text-red-600': !status.ready && !status.pulling
               }"
               class="ml-2 font-semibold"
@@ -82,7 +82,7 @@
             />
             
             <UButton
-              v-if="status.ready && !status.pulling"
+              v-if="status.ready && !status.pulling && status.has_update"
               @click="$emit('update-image', imageName)"
               color="purple"
               variant="ghost"
