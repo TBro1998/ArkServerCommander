@@ -198,6 +198,9 @@ export default {
       // 镜像名称
       arkServer: 'ARK服务器',
       alpineSystem: 'Alpine系统',
+      // 层级信息
+      layerDetails: '层级详情',
+      layers: '层级',
       // 层级状态
       layerStatus: {
         pending: '等待中',

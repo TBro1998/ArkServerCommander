@@ -198,6 +198,9 @@ export default {
       // Image names
       arkServer: 'ARK Server',
       alpineSystem: 'Alpine System',
+      // Layer information
+      layerDetails: 'Layer Details',
+      layers: 'Layers',
       // Layer status
       layerStatus: {
         pending: 'Pending',
