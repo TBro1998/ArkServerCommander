@@ -20,7 +20,7 @@
       <!-- 镜像管理区域 -->
       <section class="space-y-6">
         <h2 class="text-2xl font-semibold text-gray-900">{{ $t('home.imageManagement') }}</h2>
-        <div class="max-w-4xl mx-auto">
+        <div class="max-w-6xl mx-auto">
           <UCard>
             <template #header>
               <div class="flex items-center gap-3">
@@ -35,18 +35,6 @@
             
             <ImageStatus
               :imageStatus="imageStatus"
-              @refresh="refreshImageStatus"
-              @manual-download="handleManualDownload"
-              @check-updates="handleCheckUpdates"
-              @download-image="handleDownloadImage"
-              @update-image="handleUpdateImage"
-            />
-            
-            <!-- 镜像状态详细模态框 -->
-            <ImageStatusModal
-              :show="showImageModal"
-              :imageStatus="imageStatus"
-              @close="showImageModal = false"
               @refresh="refreshImageStatus"
               @manual-download="handleManualDownload"
               @check-updates="handleCheckUpdates"
@@ -149,7 +137,6 @@
 <script setup>
 import { useAuthStore } from '~/stores/auth'
 import ImageStatus from '~/components/dockerimages/ImageStatus.vue'
-import ImageStatusModal from '~/components/dockerimages/ImageStatusModal.vue'
 import ImageUpdateConfirmModal from '~/components/dockerimages/ImageUpdateConfirmModal.vue'
 
 definePageMeta({
@@ -171,7 +158,6 @@ const imageStatus = ref({
   total_images: 2
 })
 
-const showImageModal = ref(false)
 const showUpdateModal = ref(false)
 const selectedImageName = ref('')
 const affectedServers = ref([])
