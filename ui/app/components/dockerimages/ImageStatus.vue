@@ -80,54 +80,73 @@
           </span>
         </div>
 
-        <!-- 层级信息 -->
+        <!-- 层级信息 - 使用 UPopover 展示 -->
         <div v-if="status.pulling && status.layers" class="space-y-2">
-          <div class="text-xs font-medium text-gray-700 mb-2">{{ $t('servers.dockerImages.layerProgress') }}:</div>
-          <div 
-            v-for="(layer, layerId) in status.layers" 
-            :key="layerId"
-            class="bg-white p-3 rounded border"
-          >
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-gray-600 font-mono text-xs">
-                {{ layer.id.substring(0, 12) }}...
-              </span>
-              <span 
-                :class="{
-                  'text-blue-600': layer.status === 'downloading',
-                  'text-yellow-600': layer.status === 'extracting',
-                  'text-purple-600': layer.status === 'verifying',
-                  'text-green-600': layer.status === 'complete',
-                  'text-gray-500': layer.status === 'pending'
-                }"
-                class="text-xs font-medium"
-              >
-                {{ $t(`servers.dockerImages.layerStatus.${layer.status}`, layer.status) }}
-              </span>
-            </div>
-            
-            <div v-if="layer.size > 0" class="text-xs text-gray-500 mb-2">
-              {{ formatBytes(layer.progress) }} / {{ formatBytes(layer.size) }}
-            </div>
-            <div v-else class="text-xs text-gray-500 mb-2">
-              {{ formatBytes(layer.progress) }} / {{ $t('servers.dockerImages.unknownSize') }}
-            </div>
-            
-            <!-- 层级进度条 -->
-            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-              <div 
-                :class="{
-                  'bg-blue-500': layer.status === 'downloading',
-                  'bg-yellow-500': layer.status === 'extracting',
-                  'bg-purple-500': layer.status === 'verifying',
-                  'bg-green-500': layer.status === 'complete',
-                  'bg-gray-400': layer.status === 'pending'
-                }"
-                class="h-2 rounded-full transition-all duration-300"
-                :style="{ width: layer.size > 0 ? Math.min((layer.progress / layer.size) * 100, 100) + '%' : (layer.status === 'complete' ? '100%' : '0%') }"
-              ></div>
-            </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-gray-700">{{ $t('servers.dockerImages.layerProgress') }}:</span>
+            <UPopover>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :label="`${Object.keys(status.layers).length} ${$t('servers.dockerImages.layers')}`"
+                icon="i-lucide-eye"
+              />
+              <template #content>
+                <div class="p-4 max-h-96 overflow-y-auto">
+                  <div class="text-sm font-medium mb-3">{{ $t('servers.dockerImages.layerDetails') }}</div>
+                  <div class="space-y-3">
+                    <div
+                      v-for="(layer, layerId) in status.layers"
+                      :key="layerId"
+                      class="bg-white p-3 rounded border"
+                    >
+                      <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-600 font-mono text-xs">
+                          {{ layer.id.substring(0, 12) }}...
+                        </span>
+                        <span
+                          :class="{
+                            'text-blue-600': layer.status === 'downloading',
+                            'text-yellow-600': layer.status === 'extracting',
+                            'text-purple-600': layer.status === 'verifying',
+                            'text-green-600': layer.status === 'complete',
+                            'text-gray-500': layer.status === 'pending'
+                          }"
+                          class="text-xs font-medium"
+                        >
+                          {{ $t(`servers.dockerImages.layerStatus.${layer.status}`, layer.status) }}
+                        </span>
+                      </div>
+                      
+                      <div v-if="layer.size > 0" class="text-xs text-gray-500 mb-2">
+                        {{ formatBytes(layer.progress) }} / {{ formatBytes(layer.size) }}
+                      </div>
+                      <div v-else class="text-xs text-gray-500 mb-2">
+                        {{ formatBytes(layer.progress) }} / {{ $t('servers.dockerImages.unknownSize') }}
+                      </div>
+                      
+                      <!-- 层级进度条 -->
+                      <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          :class="{
+                            'bg-blue-500': layer.status === 'downloading',
+                            'bg-yellow-500': layer.status === 'extracting',
+                            'bg-purple-500': layer.status === 'verifying',
+                            'bg-green-500': layer.status === 'complete',
+                            'bg-gray-400': layer.status === 'pending'
+                          }"
+                          class="h-2 rounded-full transition-all duration-300"
+                          :style="{ width: layer.size > 0 ? Math.min((layer.progress / layer.size) * 100, 100) + '%' : (layer.status === 'complete' ? '100%' : '0%') }"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </UPopover>
           </div>
+          
         </div>
 
         <!-- 镜像就绪状态 -->
@@ -226,4 +245,19 @@ const getStatusText = (status) => {
     return t('servers.dockerImages.notReady')
   }
 }
+
+// 计算总体进度 - 已移除，不再显示总体进度
+// const calculateOverallProgress = (layers) => {
+//   if (!layers || Object.keys(layers).length === 0) return 0
+//
+//   let totalProgress = 0
+//   let totalSize = 0
+//
+//   Object.values(layers).forEach(layer => {
+//     totalProgress += layer.progress || 0
+//     totalSize += layer.size || 0
+//   })
+//
+//   return totalSize > 0 ? Math.min((totalProgress / totalSize) * 100, 100) : 0
+// }
 </script>
