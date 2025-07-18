@@ -13,7 +13,7 @@
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
           </svg>
-          <span class="font-medium">{{ $t('servers.dockerImages.imageNotReady') }}</span>
+          <span class="font-medium">{{ $t('servers.dockerImages.imageMissingManualDownload') }}</span>
         </div>
         <div v-else class="flex items-center gap-2 text-green-600">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,11 +140,33 @@
     </template>
 
     <template #footer>
-      <UButton 
-        color="neutral" 
-        :label="$t('common.close')"
-        @click="handleClose"
-      />
+      <div class="flex justify-between items-center w-full">
+        <div class="flex gap-2">
+          <!-- 手动下载按钮 -->
+          <UButton
+            v-if="!imageStatus.can_start_server && !imageStatus.any_pulling"
+            color="green"
+            icon="i-heroicons-arrow-down-tray"
+            :label="$t('servers.dockerImages.manualDownload')"
+            @click="$emit('manual-download')"
+          />
+          
+          <!-- 检查更新按钮 -->
+          <UButton
+            v-if="imageStatus.can_start_server"
+            color="purple"
+            icon="i-heroicons-arrow-path"
+            :label="$t('servers.dockerImages.checkUpdates')"
+            @click="$emit('check-updates')"
+          />
+        </div>
+        
+        <UButton
+          color="neutral"
+          :label="$t('common.close')"
+          @click="handleClose"
+        />
+      </div>
     </template>
   </UModal>
 </template>
@@ -163,7 +185,7 @@ const props = defineProps({
 })
 
 // 定义emits
-const emit = defineEmits(['close', 'refresh'])
+const emit = defineEmits(['close', 'refresh', 'manual-download', 'check-updates'])
 
 // 国际化
 const { t } = useI18n()

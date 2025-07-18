@@ -63,68 +63,45 @@ func CloseDockerManager() error {
 	return nil
 }
 
-// EnsureRequiredImages 确保必要的镜像已拉取（仅在启动时调用）
-func (dm *DockerManager) EnsureRequiredImages() error {
+// ValidateRequiredImages 验证必要的镜像是否存在（不自动下载）
+func (dm *DockerManager) ValidateRequiredImages() ([]string, error) {
 	requiredImages := []string{
 		"tbro98/ase-server:latest", // ARK服务器镜像
 		"alpine:latest",            // Alpine镜像（用于配置文件操作）
 	}
 
-	log.Println("🔍 检查必要的Docker镜像...")
-
-	// 检查哪些镜像需要下载
-	var imagesToPull []string
+	var missingImages []string
 	for _, imageName := range requiredImages {
 		exists, err := dm.ImageExists(imageName)
 		if err != nil {
 			log.Printf("⚠️  检查镜像 %s 失败: %v", imageName, err)
-			continue
+			return nil, fmt.Errorf("检查镜像 %s 失败: %v", imageName, err)
 		}
 
 		if !exists {
-			imagesToPull = append(imagesToPull, imageName)
-			log.Printf("📥 需要拉取镜像: %s", imageName)
+			missingImages = append(missingImages, imageName)
+			log.Printf("❌ 镜像缺失: %s", imageName)
 		} else {
 			log.Printf("✅ 镜像 %s 已存在", imageName)
 		}
 	}
 
-	// 如果没有需要下载的镜像，直接返回
-	if len(imagesToPull) == 0 {
-		log.Println("✅ 所有必要镜像已存在")
-		return nil
-	}
+	return missingImages, nil
+}
 
-	// 并发下载镜像
-	log.Printf("🚀 开始并发下载 %d 个镜像...", len(imagesToPull))
-
-	var wg sync.WaitGroup
-	errorChan := make(chan error, len(imagesToPull))
-
-	for _, imageName := range imagesToPull {
-		wg.Add(1)
-		go func(name string) {
-			defer wg.Done()
-			log.Printf("📥 开始拉取镜像: %s", name)
-			if err := dm.PullImageWithProgress(name); err != nil {
-				log.Printf("❌ 拉取镜像 %s 失败: %v", name, err)
-				errorChan <- fmt.Errorf("拉取镜像 %s 失败: %v", name, err)
-			} else {
-				log.Printf("✅ 镜像 %s 拉取完成", name)
-			}
-		}(imageName)
-	}
-
-	// 等待所有下载完成
-	wg.Wait()
-	close(errorChan)
-
-	// 检查是否有错误
-	for err := range errorChan {
+// EnsureRequiredImages 确保必要的镜像已拉取（已废弃，请使用ValidateRequiredImages）
+// 保留此方法以维持向后兼容性，但不再自动下载镜像
+func (dm *DockerManager) EnsureRequiredImages() error {
+	missingImages, err := dm.ValidateRequiredImages()
+	if err != nil {
 		return err
 	}
 
-	log.Println("✅ 所有必要镜像下载完成")
+	if len(missingImages) > 0 {
+		return fmt.Errorf("缺失必要镜像: %v，请手动下载", missingImages)
+	}
+
+	log.Println("✅ 所有必要镜像已存在")
 	return nil
 }
 

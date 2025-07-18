@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/errdefs"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 )
 
@@ -292,6 +293,146 @@ func parseSizeFromProgress(progress string) int64 {
 	// 解析总大小部分
 	totalStr := strings.TrimSpace(parts[1])
 	return parseSizeString(totalStr)
+}
+
+// CheckImageUpdate 检查镜像是否有更新
+// imageName: 镜像名称
+// 返回: 是否有更新和错误信息
+func (dm *DockerManager) CheckImageUpdate(imageName string) (bool, error) {
+	// 获取本地镜像信息
+	localImageInfo, err := dm.GetImageInfo(imageName)
+	if err != nil {
+		// 如果本地镜像不存在，认为有更新（需要下载）
+		if errdefs.IsNotFound(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("获取本地镜像信息失败: %v", err)
+	}
+
+	// 尝试拉取最新镜像信息（不实际下载）
+	// 这里简化实现，实际应该比较镜像的digest
+	// 由于Docker API限制，我们暂时返回false（没有更新）
+	// 在实际生产环境中，可以通过比较镜像的创建时间或digest来判断
+	_ = localImageInfo
+	
+	// TODO: 实现真正的镜像更新检查逻辑
+	// 可以通过Docker Registry API来获取远程镜像信息并比较
+	return false, nil
+}
+
+// GetImageInfo 获取本地镜像详细信息
+// imageName: 镜像名称
+// 返回: 镜像信息和错误信息
+func (dm *DockerManager) GetImageInfo(imageName string) (*ImageInfo, error) {
+	imageInspect, err := dm.client.ImageInspect(dm.ctx, imageName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ImageInfo{
+		ID:      imageInspect.ID,
+		Tags:    imageInspect.RepoTags,
+		Size:    imageInspect.Size,
+		Created: imageInspect.Created,
+	}, nil
+}
+
+// ImageInfo 镜像信息结构体
+type ImageInfo struct {
+	ID      string   `json:"id"`      // 镜像ID
+	Tags    []string `json:"tags"`    // 镜像标签
+	Size    int64    `json:"size"`    // 镜像大小
+	Created string   `json:"created"` // 创建时间
+}
+
+// RemoveOldImage 删除旧版本镜像
+// imageName: 镜像名称
+// keepLatest: 是否保留最新版本
+// 返回: 错误信息
+func (dm *DockerManager) RemoveOldImage(imageName string, keepLatest bool) error {
+	if !keepLatest {
+		// 删除指定镜像
+		_, err := dm.client.ImageRemove(dm.ctx, imageName, image.RemoveOptions{
+			Force:         true,
+			PruneChildren: true,
+		})
+		if err != nil {
+			return fmt.Errorf("删除镜像失败: %v", err)
+		}
+		fmt.Printf("镜像 %s 已删除\n", imageName)
+	} else {
+		fmt.Println("保留最新镜像，跳过删除")
+	}
+	
+	return nil
+}
+
+// GetContainersByImage 获取使用指定镜像的所有容器
+// imageName: 镜像名称
+// 返回: 容器信息列表和错误信息
+func (dm *DockerManager) GetContainersByImage(imageName string) ([]ContainerInfo, error) {
+	containers, err := dm.client.ContainerList(dm.ctx, container.ListOptions{
+		All: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("获取容器列表失败: %v", err)
+	}
+
+	var result []ContainerInfo
+	for _, c := range containers {
+		if c.Image == imageName {
+			result = append(result, ContainerInfo{
+				ID:     c.ID,
+				Name:   c.Names[0],
+				Image:  c.Image,
+				Status: c.Status,
+				State:  c.State,
+			})
+		}
+	}
+
+	return result, nil
+}
+
+// ContainerInfo 容器信息结构体
+type ContainerInfo struct {
+	ID     string `json:"id"`     // 容器ID
+	Name   string `json:"name"`   // 容器名称
+	Image  string `json:"image"`  // 镜像名称
+	Status string `json:"status"` // 容器状态
+	State  string `json:"state"`  // 容器状态
+}
+
+// GetImageHistory 获取镜像历史信息
+// imageName: 镜像名称
+// 返回: 历史信息和错误信息
+func (dm *DockerManager) GetImageHistory(imageName string) ([]ImageHistoryEntry, error) {
+	history, err := dm.client.ImageHistory(dm.ctx, imageName)
+	if err != nil {
+		return nil, fmt.Errorf("获取镜像历史失败: %v", err)
+	}
+
+	var result []ImageHistoryEntry
+	for _, h := range history {
+		result = append(result, ImageHistoryEntry{
+			ID:        h.ID,
+			Created:   h.Created,
+			CreatedBy: h.CreatedBy,
+			Size:      h.Size,
+			Comment:   h.Comment,
+		})
+	}
+
+	return result, nil
+}
+
+// ImageHistoryEntry 镜像历史条目
+type ImageHistoryEntry struct {
+	ID        string `json:"id"`         // 层ID
+	Created   int64  `json:"created"`    // 创建时间
+	CreatedBy string `json:"created_by"` // 创建命令
+	Size      int64  `json:"size"`       // 层大小
+	Comment   string `json:"comment"`    // 注释
 }
 
 // parseSizeString 解析大小字符串

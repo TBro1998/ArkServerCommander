@@ -67,6 +67,10 @@ func RegisterRoutes(r *gin.Engine) {
 			// 服务器管理路由 - 直接在 protected 组下定义
 			protected.GET("/servers", controllers.GetServers)
 			protected.GET("/servers/images/status", controllers.GetImageStatus)
+			protected.POST("/servers/images/pull", controllers.PullImage)
+			protected.GET("/servers/images/check-updates", controllers.CheckImageUpdates)
+			protected.POST("/servers/images/update", controllers.UpdateImage)
+			protected.GET("/servers/images/affected", controllers.GetAffectedServers)
 			protected.POST("/servers", controllers.CreateServer)
 			protected.GET("/servers/:id", controllers.GetServer)
 			protected.GET("/servers/:id/rcon", controllers.GetServerRCON)
@@ -76,6 +80,7 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.DELETE("/servers/:id", controllers.DeleteServer)
 			protected.POST("/servers/:id/start", controllers.StartServer)
 			protected.POST("/servers/:id/stop", controllers.StopServer)
+			protected.POST("/servers/:id/recreate", controllers.RecreateContainer)
 		}
 	}
 }

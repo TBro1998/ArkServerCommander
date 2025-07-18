@@ -570,14 +570,13 @@ func (s *ServerService) StartServer(userID uint, serverID string) error {
 
 // startServerAsync 异步启动服务器
 func (s *ServerService) startServerAsync(server models.Server, dockerManager *docker_manager.DockerManager, containerName string) error {
-	// 检查镜像是否存在
-	imageName := "tbro98/ase-server:latest"
-	exists, err := dockerManager.ImageExists(imageName)
+	// 严格验证必要镜像是否存在
+	missingImages, err := dockerManager.ValidateRequiredImages()
 	if err != nil {
-		return fmt.Errorf("检查镜像是否存在失败: %w", err)
+		return fmt.Errorf("验证镜像失败: %w", err)
 	}
-	if !exists {
-		return fmt.Errorf("镜像 %s 不存在", imageName)
+	if len(missingImages) > 0 {
+		return fmt.Errorf("无法启动服务器，缺失必要镜像: %v。请手动下载镜像后再启动服务器", missingImages)
 	}
 
 	// 检查容器是否存在
@@ -792,6 +791,207 @@ func (s *ServerService) GetServerFolderInfo(userID uint, serverID string) (map[s
 	}, nil
 }
 
+// ValidateRequiredImages 验证启动服务器所需的镜像是否存在
+func (s *ServerService) ValidateRequiredImages() (missing []string, err error) {
+	dockerManager, err := docker_manager.GetDockerManager()
+	if err != nil {
+		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
+	}
+
+	return dockerManager.ValidateRequiredImages()
+}
+
+// CheckImageUpdates 检查所有管理的镜像更新
+func (s *ServerService) CheckImageUpdates() (map[string]bool, error) {
+	dockerManager, err := docker_manager.GetDockerManager()
+	if err != nil {
+		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
+	}
+
+	requiredImages := []string{
+		"tbro98/ase-server:latest",
+		"alpine:latest",
+	}
+
+	updateStatus := make(map[string]bool)
+	for _, imageName := range requiredImages {
+		hasUpdate, err := dockerManager.CheckImageUpdate(imageName)
+		if err != nil {
+			// 如果检查失败，假设没有更新
+			updateStatus[imageName] = false
+		} else {
+			updateStatus[imageName] = hasUpdate
+		}
+	}
+
+	return updateStatus, nil
+}
+
+// PullImage 手动拉取指定镜像
+func (s *ServerService) PullImage(imageName string) error {
+	dockerManager, err := docker_manager.GetDockerManager()
+	if err != nil {
+		return fmt.Errorf("获取Docker管理器失败: %w", err)
+	}
+
+	// 验证镜像名称是否在允许的列表中
+	allowedImages := []string{
+		"tbro98/ase-server:latest",
+		"alpine:latest",
+	}
+
+	allowed := false
+	for _, allowedImage := range allowedImages {
+		if imageName == allowedImage {
+			allowed = true
+			break
+		}
+	}
+
+	if !allowed {
+		return fmt.Errorf("不允许拉取镜像: %s", imageName)
+	}
+
+	// 异步拉取镜像
+	go func() {
+		if err := dockerManager.PullImageWithProgress(imageName); err != nil {
+			fmt.Printf("拉取镜像 %s 失败: %v\n", imageName, err)
+		} else {
+			fmt.Printf("镜像 %s 拉取完成\n", imageName)
+		}
+	}()
+
+	return nil
+}
+
+// UpdateImage 更新指定镜像及相关容器
+func (s *ServerService) UpdateImage(imageName string, userID uint) ([]models.ServerResponse, error) {
+	// 验证镜像名称
+	allowedImages := []string{
+		"tbro98/ase-server:latest",
+		"alpine:latest",
+	}
+
+	allowed := false
+	for _, allowedImage := range allowedImages {
+		if imageName == allowedImage {
+			allowed = true
+			break
+		}
+	}
+
+	if !allowed {
+		return nil, fmt.Errorf("不允许更新镜像: %s", imageName)
+	}
+
+	// 获取受影响的服务器
+	affectedServers, err := s.GetAffectedServers(imageName, userID)
+	if err != nil {
+		return nil, fmt.Errorf("获取受影响服务器失败: %w", err)
+	}
+
+	// 异步更新镜像
+	go func() {
+		dockerManager, err := docker_manager.GetDockerManager()
+		if err != nil {
+			fmt.Printf("获取Docker管理器失败: %v\n", err)
+			return
+		}
+
+		// 拉取新镜像
+		fmt.Printf("开始更新镜像: %s\n", imageName)
+		if err := dockerManager.PullImageWithProgress(imageName); err != nil {
+			fmt.Printf("更新镜像 %s 失败: %v\n", imageName, err)
+			return
+		}
+
+		fmt.Printf("镜像 %s 更新完成\n", imageName)
+		
+		// 这里可以添加通知逻辑，告知用户镜像更新完成
+		// 用户可以选择重建受影响的容器
+	}()
+
+	return affectedServers, nil
+}
+
+// GetAffectedServers 获取使用指定镜像的服务器列表
+func (s *ServerService) GetAffectedServers(imageName string, userID uint) ([]models.ServerResponse, error) {
+	// 目前所有ARK服务器都使用相同的镜像
+	if imageName == "tbro98/ase-server:latest" {
+		return s.GetServers(userID)
+	}
+
+	// 对于其他镜像，返回空列表
+	return []models.ServerResponse{}, nil
+}
+
+// RecreateContainer 重建指定服务器的容器
+func (s *ServerService) RecreateContainer(userID uint, serverID string) error {
+	id, err := strconv.ParseUint(serverID, 10, 32)
+	if err != nil {
+		return fmt.Errorf("无效的服务器ID")
+	}
+
+	var server models.Server
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+		return fmt.Errorf("服务器不存在")
+	}
+
+	// 检查服务器状态，如果正在运行则先停止
+	if server.Status == "running" {
+		if err := s.StopServer(userID, serverID); err != nil {
+			return fmt.Errorf("停止服务器失败: %w", err)
+		}
+
+		// 等待服务器停止
+		for i := 0; i < 30; i++ {
+			time.Sleep(1 * time.Second)
+			if err := database.DB.Where("id = ?", id).First(&server).Error; err == nil {
+				if server.Status == "stopped" {
+					break
+				}
+			}
+		}
+	}
+
+	// 异步重建容器
+	go func() {
+		dockerManager, err := docker_manager.GetDockerManager()
+		if err != nil {
+			fmt.Printf("获取Docker管理器失败: %v\n", err)
+			return
+		}
+
+		containerName := utils.GetServerContainerName(server.ID)
+		
+		// 删除现有容器
+		if err := dockerManager.RemoveContainer(containerName); err != nil {
+			fmt.Printf("删除容器失败: %v\n", err)
+		}
+
+		// 重新创建容器
+		_, err = dockerManager.CreateContainer(
+			server.ID,
+			server.Identifier,
+			server.Port,
+			server.QueryPort,
+			server.RCONPort,
+			server.AdminPassword,
+			server.Map,
+			server.GameModIds,
+			server.AutoRestart,
+		)
+		if err != nil {
+			fmt.Printf("重建容器失败: %v\n", err)
+			return
+		}
+
+		fmt.Printf("服务器 %s 容器重建完成\n", server.Identifier)
+	}()
+
+	return nil
+}
+
 // GetImageStatus 获取镜像状态
 func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 	dockerManager, err := docker_manager.GetDockerManager()
@@ -830,7 +1030,7 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 	} else if anyPulling {
 		overallStatus = "正在下载镜像"
 	} else {
-		overallStatus = "镜像未就绪，等待下载"
+		overallStatus = "镜像未就绪，请手动下载"
 	}
 
 	return map[string]interface{}{

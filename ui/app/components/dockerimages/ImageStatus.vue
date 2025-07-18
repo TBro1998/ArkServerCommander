@@ -12,7 +12,7 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
         </svg>
-        {{ $t('servers.dockerImages.imageNotReady') }}
+        {{ $t('servers.dockerImages.imageMissingManualDownload') }}
       </div>
       <div v-else class="flex items-center gap-1 text-green-600">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,15 +20,36 @@
         </svg>
         {{ $t('servers.dockerImages.imageReady') }}
       </div>
-      <button
+      <UButton
         @click="$emit('refresh')"
-        class="text-blue-600 hover:text-blue-800 p-1 transition-colors"
+        color="blue"
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-refresh-cw"
         :title="$t('servers.dockerImages.refreshStatus')"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-        </svg>
-      </button>
+      />
+      
+      <!-- 手动下载按钮 -->
+      <UButton
+        v-if="!imageStatus.can_start_server && !imageStatus.any_pulling"
+        @click="$emit('manual-download')"
+        color="green"
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-download"
+        :title="$t('servers.dockerImages.manualDownload')"
+      />
+      
+      <!-- 检查更新按钮 -->
+      <UButton
+        v-if="imageStatus.can_start_server"
+        @click="$emit('check-updates')"
+        color="purple"
+        variant="ghost"
+        size="xs"
+        icon="i-lucide-refresh-ccw"
+        :title="$t('servers.dockerImages.checkUpdates')"
+      />
 
     </div>
     
@@ -132,7 +153,7 @@ const props = defineProps({
 })
 
 // 定义emits
-const emit = defineEmits(['refresh'])
+const emit = defineEmits(['refresh', 'manual-download', 'check-updates'])
 
 // 国际化
 const { t } = useI18n()
