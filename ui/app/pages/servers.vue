@@ -9,18 +9,7 @@
         </div>
         
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
-          <!-- 镜像状态按钮 -->
-          <UButton
-            @click="showImageStatusModal = true"
-            color="gray"
-            variant="outline"
-            icon="i-lucide-image"
-            size="sm"
-          >
-            {{ $t('servers.imageStatus') }}
-          </UButton>
-          
-          <UButton
+         <UButton
             @click="showCreateForm = true"
             :disabled="!imageStatus?.can_create_server"
             color="blue"
@@ -64,14 +53,6 @@
         @close="successMessage = ''"
       />
     </div>
-
-    <!-- 镜像状态弹窗 -->
-    <DockerImagesImageStatusModal
-      :show="showImageStatusModal"
-      :image-status="imageStatus"
-      @close="showImageStatusModal = false"
-      @refresh="refreshImageStatus"
-    />
 
     <!-- 服务器列表 -->
     <div v-if="loading" class="text-center py-12">
@@ -154,7 +135,6 @@ const successMessage = ref('')
 // 镜像状态相关
 const imageStatus = ref(null)
 const imageStatusInterval = ref(null)
-const showImageStatusModal = ref(false)
 const imageStatusReady = ref(false) // 标记镜像是否已就绪
 
 // 统一编辑器相关
