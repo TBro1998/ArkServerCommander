@@ -29,17 +29,6 @@
         :title="$t('servers.dockerImages.refreshStatus')"
       />
       
-      <!-- 手动下载按钮 -->
-      <UButton
-        v-if="!imageStatus.can_start_server && !imageStatus.any_pulling"
-        @click="$emit('manual-download')"
-        color="green"
-        variant="ghost"
-        size="xs"
-        icon="i-lucide-download"
-        :title="$t('servers.dockerImages.manualDownload')"
-      />
-      
       <!-- 检查更新按钮 -->
       <UButton
         v-if="imageStatus.can_start_server"
@@ -57,8 +46,8 @@
     
     <!-- 详细镜像状态 -->
     <div v-if="imageStatus.images" class="space-y-2">
-      <div 
-        v-for="(status, imageName) in imageStatus.images" 
+      <div
+        v-for="(status, imageName) in imageStatus.images"
         :key="imageName"
         class="text-xs bg-white p-2 rounded border-l-4"
         :class="{
@@ -69,23 +58,46 @@
       >
         <div class="flex justify-between items-center">
           <span class="text-gray-700 font-medium truncate max-w-32">{{ getImageDisplayName(imageName) }}</span>
-          <span 
-            :class="{
-              'text-green-600': status.ready,
-              'text-yellow-600': status.pulling,
-              'text-red-600': !status.ready && !status.pulling
-            }"
-            class="ml-2 font-semibold"
-          >
-            {{ getStatusText(status) }}
-          </span>
+          <div class="flex items-center gap-2">
+            <span
+              :class="{
+                'text-green-600': status.ready,
+                'text-yellow-600': status.pulling,
+                'text-red-600': !status.ready && !status.pulling
+              }"
+              class="ml-2 font-semibold"
+            >
+              {{ getStatusText(status) }}
+            </span>
+            
+            <!-- 下载/更新按钮 -->
+            <UButton
+              v-if="!status.ready && !status.pulling"
+              @click="$emit('download-image', imageName)"
+              color="green"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-download"
+              :title="$t('servers.dockerImages.download')"
+            />
+            
+            <UButton
+              v-if="status.ready && !status.pulling"
+              @click="$emit('update-image', imageName)"
+              color="purple"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-refresh-ccw"
+              :title="$t('servers.dockerImages.update')"
+            />
+          </div>
         </div>
 
         <!-- 层级信息 -->
         <div v-if="status.pulling && status.layers" class="text-xs text-gray-600 mt-2 space-y-1">
           <div class="font-medium text-gray-700">{{ $t('servers.dockerImages.layerProgress') }}:</div>
-          <div 
-            v-for="(layer, layerId) in status.layers" 
+          <div
+            v-for="(layer, layerId) in status.layers"
             :key="layerId"
             class="bg-gray-50 p-2 rounded border"
           >
@@ -93,7 +105,7 @@
               <span class="text-gray-600 font-mono text-xs">
                 {{ layer.id.substring(0, 12) }}...
               </span>
-              <span 
+              <span
                 :class="{
                   'text-blue-600': layer.status === 'downloading',
                   'text-yellow-600': layer.status === 'extracting',
@@ -116,7 +128,7 @@
             
             <!-- 层级进度条 -->
             <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-              <div 
+              <div
                 :class="{
                   'bg-blue-500': layer.status === 'downloading',
                   'bg-yellow-500': layer.status === 'extracting',
@@ -153,7 +165,7 @@ const props = defineProps({
 })
 
 // 定义emits
-const emit = defineEmits(['refresh', 'manual-download', 'check-updates'])
+const emit = defineEmits(['refresh', 'manual-download', 'check-updates', 'download-image', 'update-image'])
 
 // 国际化
 const { t } = useI18n()

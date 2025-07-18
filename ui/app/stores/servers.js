@@ -277,6 +277,44 @@ export const useServersStore = defineStore('servers', {
       }
     },
 
+    // 下载单个镜像
+    async downloadImage(imageName) {
+      try {
+        console.log('开始下载镜像:', imageName)
+        
+        const response = await this.makeRequest('/servers/images/pull', {
+          method: 'POST',
+          body: { image_name: imageName }
+        })
+        
+        console.log('镜像下载请求已发送:', response)
+        return response
+      } catch (error) {
+        this.error = '下载镜像失败'
+        console.error('下载镜像失败:', error)
+        throw error
+      }
+    },
+
+    // 更新单个镜像
+    async updateImage(imageName) {
+      try {
+        console.log('开始更新镜像:', imageName)
+        
+        const response = await this.makeRequest('/servers/images/update', {
+          method: 'POST',
+          body: { image_name: imageName }
+        })
+        
+        console.log('镜像更新请求已发送:', response)
+        return response
+      } catch (error) {
+        this.error = '更新镜像失败'
+        console.error('更新镜像失败:', error)
+        throw error
+      }
+    },
+
     // 清除错误
     clearError() {
       this.error = null

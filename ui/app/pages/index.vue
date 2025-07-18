@@ -38,6 +38,8 @@
               @refresh="refreshImageStatus"
               @manual-download="handleManualDownload"
               @check-updates="handleCheckUpdates"
+              @download-image="handleDownloadImage"
+              @update-image="handleUpdateImage"
             />
             
             <!-- 镜像状态详细模态框 -->
@@ -48,6 +50,8 @@
               @refresh="refreshImageStatus"
               @manual-download="handleManualDownload"
               @check-updates="handleCheckUpdates"
+              @download-image="handleDownloadImage"
+              @update-image="handleUpdateImage"
             />
             
             <!-- 镜像更新确认模态框 -->
@@ -194,22 +198,8 @@ const refreshImageStatus = async () => {
   }
 }
 
-// 处理手动下载
-const handleManualDownload = async () => {
-  // 找到第一个未就绪的镜像
-  const notReadyImage = Object.entries(imageStatus.value.images).find(([_, status]) => !status.ready)
-  
-  if (!notReadyImage) {
-    toast.add({
-      title: '提示',
-      description: '所有镜像都已就绪',
-      color: 'blue'
-    })
-    return
-  }
-
-  const imageName = notReadyImage[0]
-  
+// 处理单个镜像下载
+const handleDownloadImage = async (imageName) => {
   try {
     await $fetch('/api/servers/images/pull', {
       method: 'POST',
@@ -238,6 +228,56 @@ const handleManualDownload = async () => {
       color: 'red'
     })
   }
+}
+
+// 处理单个镜像更新
+const handleUpdateImage = async (imageName) => {
+  try {
+    await $fetch('/api/servers/images/update', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        image_name: imageName
+      }
+    })
+    
+    toast.add({
+      title: '成功',
+      description: `镜像 ${imageName} 开始更新`,
+      color: 'green'
+    })
+    
+    // 开始轮询状态
+    startPolling()
+  } catch (error) {
+    console.error('更新镜像失败:', error)
+    toast.add({
+      title: '错误',
+      description: '更新镜像失败',
+      color: 'red'
+    })
+  }
+}
+
+// 处理手动下载（兼容旧版本）
+const handleManualDownload = async () => {
+  // 找到第一个未就绪的镜像
+  const notReadyImage = Object.entries(imageStatus.value.images).find(([_, status]) => !status.ready)
+  
+  if (!notReadyImage) {
+    toast.add({
+      title: '提示',
+      description: '所有镜像都已就绪',
+      color: 'blue'
+    })
+    return
+  }
+
+  const imageName = notReadyImage[0]
+  await handleDownloadImage(imageName)
 }
 
 // 处理检查更新

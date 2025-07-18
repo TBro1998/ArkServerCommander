@@ -116,6 +116,15 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
             <p class="text-sm text-green-600 font-medium">{{ $t('servers.dockerImages.ready') }}</p>
+            <UButton
+              color="purple"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-refresh-ccw"
+              :title="$t('servers.dockerImages.update')"
+              @click="$emit('update-image', imageName)"
+              class="mt-2"
+            />
           </div>
 
           <!-- 镜像未就绪状态 -->
@@ -124,6 +133,15 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
             </svg>
             <p class="text-sm text-gray-600">{{ $t('servers.dockerImages.waitingDownload') }}</p>
+            <UButton
+              color="green"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-download"
+              :title="$t('servers.dockerImages.download')"
+              @click="$emit('download-image', imageName)"
+              class="mt-2"
+            />
           </div>
         </div>
       </div>
@@ -185,7 +203,7 @@ const props = defineProps({
 })
 
 // 定义emits
-const emit = defineEmits(['close', 'refresh', 'manual-download', 'check-updates'])
+const emit = defineEmits(['close', 'refresh', 'manual-download', 'check-updates', 'download-image', 'update-image'])
 
 // 国际化
 const { t } = useI18n()
