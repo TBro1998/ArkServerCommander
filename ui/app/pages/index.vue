@@ -22,17 +22,6 @@
         <h2 class="text-2xl font-semibold text-gray-900">{{ $t('home.imageManagement') }}</h2>
         <div class="max-w-6xl mx-auto">
           <UCard>
-            <template #header>
-              <div class="flex items-center gap-3">
-                <UAvatar
-                  size="sm"
-                  icon="i-lucide-download"
-                  :ui="{ background: 'bg-green-100' }"
-                />
-                <h3 class="text-lg font-semibold text-gray-900">{{ $t('servers.dockerImages.title') }}</h3>
-              </div>
-            </template>
-            
             <ImageStatus
               :imageStatus="imageStatus"
               @refresh="refreshImageStatus"
