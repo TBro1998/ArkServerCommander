@@ -314,7 +314,7 @@ func (dm *DockerManager) CheckImageUpdate(imageName string) (bool, error) {
 	// 由于Docker API限制，我们暂时返回false（没有更新）
 	// 在实际生产环境中，可以通过比较镜像的创建时间或digest来判断
 	_ = localImageInfo
-	
+
 	// TODO: 实现真正的镜像更新检查逻辑
 	// 可以通过Docker Registry API来获取远程镜像信息并比较
 	return false, nil
@@ -363,7 +363,7 @@ func (dm *DockerManager) RemoveOldImage(imageName string, keepLatest bool) error
 	} else {
 		fmt.Println("保留最新镜像，跳过删除")
 	}
-	
+
 	return nil
 }
 

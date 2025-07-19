@@ -906,7 +906,7 @@ func (s *ServerService) UpdateImage(imageName string, userID uint) ([]models.Ser
 		}
 
 		fmt.Printf("镜像 %s 更新完成\n", imageName)
-		
+
 		// 这里可以添加通知逻辑，告知用户镜像更新完成
 		// 用户可以选择重建受影响的容器
 	}()
@@ -963,7 +963,7 @@ func (s *ServerService) RecreateContainer(userID uint, serverID string) error {
 		}
 
 		containerName := utils.GetServerContainerName(server.ID)
-		
+
 		// 删除现有容器
 		if err := dockerManager.RemoveContainer(containerName); err != nil {
 			fmt.Printf("删除容器失败: %v\n", err)

@@ -492,7 +492,7 @@ func CheckImageUpdates(c *gin.Context) {
 // @Router /servers/images/update [post]
 func UpdateImage(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	
+
 	var req struct {
 		ImageName string `json:"image_name" binding:"required"`
 	}
@@ -510,8 +510,8 @@ func UpdateImage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "镜像更新已开始",
 		"data": map[string]interface{}{
-			"image_name":        req.ImageName,
-			"affected_servers":  affectedServers,
+			"image_name":       req.ImageName,
+			"affected_servers": affectedServers,
 			"status":           "updating",
 		},
 	})
@@ -570,7 +570,7 @@ func RecreateContainer(c *gin.Context) {
 func GetAffectedServers(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	imageName := c.Query("image_name")
-	
+
 	if imageName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "镜像名称不能为空"})
 		return
