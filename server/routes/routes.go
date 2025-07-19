@@ -19,16 +19,16 @@ func RegisterRoutes(r *gin.Engine) {
 	// 静态文件服务 - 服务前端文件
 	// 检查静态文件目录是否存在
 	if _, err := os.Stat("./static"); err == nil {
-		// 服务 Nuxt.js 生成的静态资源
-		r.Static("/assets", "./static/assets")
-		r.Static("/_nuxt", "./static/_nuxt")
-		r.StaticFile("/favicon.ico", "./static/favicon.ico")
+		// 服务 Next.js 生成的静态资源
+		r.Static("/_next", "./static/_next")
+		r.Static("/public", "./static/public")
+		r.StaticFile("/favicon.ico", "./static/public/favicon.ico")
 
 		// 处理 SPA 路由 - 所有非 API 和静态资源的请求都返回 index.html
 		r.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
 			// 如果是 API 请求，返回 404
-			if len(path) >= 4 && path[:4] == "/api" {
+			if len(path) >= 5 && path[:5] == "/api/" {
 				c.JSON(http.StatusNotFound, gin.H{"error": "API 路由不存在"})
 				return
 			}

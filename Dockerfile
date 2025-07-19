@@ -1,25 +1,16 @@
-# 多阶段构建 - 前端构建阶段
+# 前端构建阶段
 FROM node:24-alpine AS frontend-builder
 
-# 设置工作目录
-WORKDIR /app/ui
+WORKDIR /app/next-ui
 
-# 安装 pnpm 并下载依赖
-RUN npm install -g pnpm
+COPY next-ui/package.json next-ui/package-lock.json ./
+RUN npm install
 
-# 复制前端源代码
-COPY ui/ ./
-
-RUN pnpm install
-# 构建前端并生成静态文件
-RUN pnpm build 
-RUN pnpm generate
+COPY next-ui/ ./
+RUN npm run build
 
 # 后端构建阶段
 FROM golang:1.24-alpine AS backend-builder
-
-# 安装必要的包（纯 Go 构建不需要 git）
-# RUN apk add --no-cache git
 
 # 设置工作目录
 WORKDIR /app
@@ -49,7 +40,9 @@ WORKDIR /app
 COPY --from=backend-builder /app/main .
 
 # 从前端构建阶段复制静态文件
-COPY --from=frontend-builder /app/ui/.output/public ./static
+COPY --from=frontend-builder /app/next-ui/public ./static/public
+COPY --from=frontend-builder /app/next-ui/.next/standalone ./static/.next/standalone
+COPY --from=frontend-builder /app/next-ui/.next/static ./static/.next/static
 
 # 创建数据目录
 RUN mkdir -p /data
@@ -61,6 +54,5 @@ EXPOSE 8080
 ENV GIN_MODE=release
 ENV DB_PATH=/data/ark_server.db
 
-
 # 启动应用
-CMD ["./main"] 
+CMD ["./main"]
