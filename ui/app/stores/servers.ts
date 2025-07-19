@@ -1,23 +1,38 @@
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
 
+// 定义服务器对象类型
+interface Server {
+  id: string;
+  name: string;
+  status: 'running' | 'stopped' | 'starting' | 'stopping';
+  // 根据需要添加更多服务器属性
+}
+
+// 定义服务器状态类型
+interface ServersState {
+  servers: Server[];
+  isLoading: boolean;
+  error: string | null;
+}
+
 export const useServersStore = defineStore('servers', {
-  state: () => ({
+  state: (): ServersState => ({
     servers: [],
     isLoading: false,
     error: null
   }),
 
   getters: {
-    serverCount: (state) => state.servers.length,
-    runningServers: (state) => state.servers.filter(server => server.status === 'running'),
-    stoppedServers: (state) => state.servers.filter(server => server.status === 'stopped'),
-    getServerById: (state) => (id) => state.servers.find(server => server.id === id)
+    serverCount: (state): number => state.servers.length,
+    runningServers: (state): Server[] => state.servers.filter(server => server.status === 'running'),
+    stoppedServers: (state): Server[] => state.servers.filter(server => server.status === 'stopped'),
+    getServerById: (state) => (id: string): Server | undefined => state.servers.find(server => server.id === id)
   },
 
   actions: {
     // 获取认证token
-    getAuthToken() {
+    getAuthToken(): string | null {
       const authStore = useAuthStore()
       const tokenCookie = useCookie('auth-token')
       
@@ -25,11 +40,11 @@ export const useServersStore = defineStore('servers', {
       const token = authStore.token || tokenCookie.value
       
       console.log('获取到的token:', token ? '存在' : '不存在')
-      return token
+      return token || null
     },
 
     // 获取认证头
-    getAuthHeaders() {
+    getAuthHeaders(): Record<string, string> {
       const token = this.getAuthToken()
       if (!token) {
         throw new Error('未找到认证token')
@@ -42,7 +57,7 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 执行API请求的通用方法
-    async makeRequest(url, options = {}) {
+    async makeRequest<T>(url: string, options: any = {}): Promise<T> {
       const config = useRuntimeConfig()
       const fullUrl = `${config.public.apiBase}${url}`
       
@@ -60,7 +75,7 @@ export const useServersStore = defineStore('servers', {
 
       try {
         // 使用全局的$fetch函数
-        const response = await $fetch(fullUrl, defaultOptions)
+        const response = await $fetch<T>(fullUrl, defaultOptions)
         console.log('API响应:', response)
         return response
       } catch (error) {
@@ -70,19 +85,19 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 获取服务器列表
-    async fetchServers() {
+    async fetchServers(): Promise<void> {
       this.isLoading = true
       this.error = null
       
       try {
         console.log('正在请求服务器列表...')
         
-        const response = await this.makeRequest('/servers')
+        const response = await this.makeRequest<{ data: Server[] }>('/servers')
         
         console.log('服务器列表响应:', response)
         
         this.servers = response.data || []
-      } catch (error) {
+      } catch (error: any) {
         this.error = '获取服务器列表失败'
         console.error('获取服务器列表失败:', error)
         console.error('错误详情:', error.data)
@@ -93,13 +108,13 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 创建服务器
-    async createServer(serverData) {
+    async createServer(serverData: Partial<Server>): Promise<Server> {
       try {
         console.log('正在创建服务器:', serverData)
         
-        const response = await this.makeRequest('/servers', {
+        const response = await this.makeRequest<{ data: Server }>('/servers', {
           method: 'POST',
-          body: serverData
+          body: JSON.stringify(serverData)
         })
         
         console.log('创建服务器响应:', response)
@@ -107,7 +122,7 @@ export const useServersStore = defineStore('servers', {
         // 添加到本地状态
         this.servers.push(response.data)
         return response.data
-      } catch (error) {
+      } catch (error: any) {
         this.error = '创建服务器失败'
         console.error('创建服务器失败:', error)
         console.error('错误详情:', error.data)
@@ -116,13 +131,13 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 更新服务器
-    async updateServer(serverId, updateData) {
+    async updateServer(serverId: string, updateData: Partial<Server>): Promise<Server> {
       try {
         console.log('正在更新服务器:', serverId, updateData)
         
-        const response = await this.makeRequest(`/servers/${serverId}`, {
+        const response = await this.makeRequest<{ data: Server }>(`/servers/${serverId}`, {
           method: 'PUT',
-          body: updateData
+          body: JSON.stringify(updateData)
         })
         
         console.log('更新服务器响应:', response)
@@ -134,7 +149,7 @@ export const useServersStore = defineStore('servers', {
         }
         
         return response.data
-      } catch (error) {
+      } catch (error: any) {
         this.error = '更新服务器失败'
         console.error('更新服务器失败:', error)
         console.error('错误详情:', error.data)
@@ -143,7 +158,7 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 删除服务器
-    async deleteServer(serverId) {
+    async deleteServer(serverId: string): Promise<void> {
       try {
         console.log('正在删除服务器:', serverId)
         
@@ -155,7 +170,7 @@ export const useServersStore = defineStore('servers', {
         
         // 从本地状态移除
         this.servers = this.servers.filter(server => server.id !== serverId)
-      } catch (error) {
+      } catch (error: any) {
         this.error = '删除服务器失败'
         console.error('删除服务器失败:', error)
         console.error('错误详情:', error.data)
@@ -164,16 +179,16 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 获取单个服务器信息
-    async getServer(serverId) {
+    async getServer(serverId: string): Promise<Server> {
       try {
         console.log('正在获取服务器信息:', serverId)
         
-        const response = await this.makeRequest(`/servers/${serverId}`)
+        const response = await this.makeRequest<{ data: Server }>(`/servers/${serverId}`)
         
         console.log('获取服务器信息响应:', response)
         
         return response.data
-      } catch (error) {
+      } catch (error: any) {
         this.error = '获取服务器信息失败'
         console.error('获取服务器信息失败:', error)
         console.error('错误详情:', error.data)
@@ -182,16 +197,16 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 获取服务器RCON信息
-    async getServerRCON(serverId) {
+    async getServerRCON(serverId: string): Promise<any> {
       try {
         console.log('正在获取服务器RCON信息:', serverId)
         
-        const response = await this.makeRequest(`/servers/${serverId}/rcon`)
+        const response = await this.makeRequest<{ data: any }>(`/servers/${serverId}/rcon`)
         
         console.log('获取服务器RCON信息响应:', response)
         
         return response.data
-      } catch (error) {
+      } catch (error: any) {
         this.error = '获取服务器RCON信息失败'
         console.error('获取服务器RCON信息失败:', error)
         console.error('错误详情:', error.data)
@@ -200,16 +215,16 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 获取镜像状态
-    async getImageStatus() {
+    async getImageStatus(): Promise<any> {
       try {
         console.log('正在获取镜像状态...')
         
-        const response = await this.makeRequest('/servers/images/status')
+        const response = await this.makeRequest<{ data: any }>('/servers/images/status')
         
         console.log('获取镜像状态响应:', response)
         
         return response.data
-      } catch (error) {
+      } catch (error: any) {
         this.error = '获取镜像状态失败'
         console.error('获取镜像状态失败:', error)
         console.error('错误详情:', error.data)
@@ -218,7 +233,7 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 启动服务器
-    async startServer(serverId) {
+    async startServer(serverId: string): Promise<void> {
       try {
         console.log('正在启动服务器:', serverId)
         
@@ -235,7 +250,7 @@ export const useServersStore = defineStore('servers', {
         setTimeout(() => {
           this.updateServerStatus(serverId, 'running')
         }, 3000)
-      } catch (error) {
+      } catch (error: any) {
         this.error = '启动服务器失败'
         console.error('启动服务器失败:', error)
         console.error('错误详情:', error.data)
@@ -244,7 +259,7 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 停止服务器
-    async stopServer(serverId) {
+    async stopServer(serverId: string): Promise<void> {
       try {
         console.log('正在停止服务器:', serverId)
         
@@ -261,7 +276,7 @@ export const useServersStore = defineStore('servers', {
         setTimeout(() => {
           this.updateServerStatus(serverId, 'stopped')
         }, 2000)
-      } catch (error) {
+      } catch (error: any) {
         this.error = '停止服务器失败'
         console.error('停止服务器失败:', error)
         console.error('错误详情:', error.data)
@@ -270,7 +285,7 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 更新服务器状态
-    updateServerStatus(serverId, status) {
+    updateServerStatus(serverId: string, status: Server['status']): void {
       const server = this.servers.find(s => s.id === serverId)
       if (server) {
         server.status = status
@@ -278,18 +293,18 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 下载单个镜像
-    async downloadImage(imageName) {
+    async downloadImage(imageName: string): Promise<any> {
       try {
         console.log('开始下载镜像:', imageName)
         
         const response = await this.makeRequest('/servers/images/pull', {
           method: 'POST',
-          body: { image_name: imageName }
+          body: JSON.stringify({ image_name: imageName })
         })
         
         console.log('镜像下载请求已发送:', response)
         return response
-      } catch (error) {
+      } catch (error: any) {
         this.error = '下载镜像失败'
         console.error('下载镜像失败:', error)
         throw error
@@ -297,18 +312,18 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 更新单个镜像
-    async updateImage(imageName) {
+    async updateImage(imageName: string): Promise<any> {
       try {
         console.log('开始更新镜像:', imageName)
         
         const response = await this.makeRequest('/servers/images/update', {
           method: 'POST',
-          body: { image_name: imageName }
+          body: JSON.stringify({ image_name: imageName })
         })
         
         console.log('镜像更新请求已发送:', response)
         return response
-      } catch (error) {
+      } catch (error: any) {
         this.error = '更新镜像失败'
         console.error('更新镜像失败:', error)
         throw error
@@ -316,8 +331,8 @@ export const useServersStore = defineStore('servers', {
     },
 
     // 清除错误
-    clearError() {
+    clearError(): void {
       this.error = null
     }
   }
-}) 
+})
