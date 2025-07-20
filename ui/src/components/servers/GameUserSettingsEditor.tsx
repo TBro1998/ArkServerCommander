@@ -44,6 +44,7 @@ type GameUserSettingsCategoryKey =
 const gameUserSettingsParams: Record<GameUserSettingsCategoryKey, Record<string, GameUserSettingsParam>> = {
   serverBasic: {
     ServerPassword: { type: 'password', default: '' },
+    ServerAdminPassword: { type: 'password', default: '' },
     SpectatorPassword: { type: 'password', default: '' },
     AdminLogging: { type: 'boolean', default: true }
   },
@@ -318,6 +319,12 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
         });
       }
     });
+    
+    // Add SessionSettings and MessageOfTheDay defaults
+    defaultConfig.SessionName = 'My ARK Server';
+    defaultConfig.Message = '欢迎来到ARK服务器！';
+    defaultConfig.Duration = 30;
+    
     setVisualConfig(prev => ({ ...prev, ...defaultConfig }));
   }, []);
 
@@ -327,7 +334,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     
     lines.forEach(line => {
       line = line.trim();
-      if (line && !line.startsWith('[') && line.includes('=')) {
+      if (line && !line.startsWith('[') && !line.startsWith(';') && line.includes('=')) {
         const [key, value] = line.split('=').map(s => s.trim());
         if (key && value !== undefined) {
           // Try to parse as boolean
@@ -349,45 +356,173 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
   const syncVisualToText = useCallback(() => {
     try {
-      const sections: Record<string, Record<string, any>> = {};
+      // Build INI content matching GameUserSettings.ini format
+      let iniContent = '';
       
-      // Group parameters by category
-      getAllGameUserSettingsCategories().forEach(categoryKey => {
-        const params = getGameUserSettingsParamsByCategory(categoryKey);
-        const section: Record<string, any> = {};
-        
-        Object.keys(params).forEach(paramKey => {
-          const param = params[paramKey];
-          const value = visualConfig[paramKey];
-          
-          // 只有当值不为false时才写入（对于boolean类型）
-          // 对于非boolean类型，只要值不为undefined就写入
-          if (value !== undefined) {
-            if (param.type === 'boolean') {
-              if (value !== false) {
-                section[paramKey] = value;
-              }
-            } else {
-              section[paramKey] = value;
-            }
-          }
-        });
-        
-        if (Object.keys(section).length > 0) {
-          sections[categoryKey] = section;
+      // ServerSettings section
+      iniContent += '[ServerSettings]\n';
+      const serverBasicParams = getGameUserSettingsParamsByCategory('serverBasic');
+      Object.keys(serverBasicParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined && value !== '') {
+          iniContent += `${key}=${value}\n`;
         }
       });
 
-      // Build INI content
-      let iniContent = '';
-      Object.keys(sections).forEach(sectionName => {
-        iniContent += `[${sectionName}]\n`;
-        Object.keys(sections[sectionName]).forEach(key => {
-          const value = sections[sectionName][key];
+      // Game mode settings
+      const gameModeParams = getGameUserSettingsParamsByCategory('gameMode');
+      Object.keys(gameModeParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
-        });
-        iniContent += '\n';
+        }
       });
+
+      // Communication settings
+      const communicationParams = getGameUserSettingsParamsByCategory('communication');
+      Object.keys(communicationParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Game multipliers
+      const gameMultipliersParams = getGameUserSettingsParamsByCategory('gameMultipliers');
+      Object.keys(gameMultipliersParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Character settings
+      const characterSettingsParams = getGameUserSettingsParamsByCategory('characterSettings');
+      Object.keys(characterSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Dino settings
+      const dinoSettingsParams = getGameUserSettingsParamsByCategory('dinoSettings');
+      Object.keys(dinoSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Environment settings
+      const environmentSettingsParams = getGameUserSettingsParamsByCategory('environmentSettings');
+      Object.keys(environmentSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Structure settings
+      const structureSettingsParams = getGameUserSettingsParamsByCategory('structureSettings');
+      Object.keys(structureSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Tribe settings
+      const tribeSettingsParams = getGameUserSettingsParamsByCategory('tribeSettings');
+      Object.keys(tribeSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Breeding settings
+      const breedingSettingsParams = getGameUserSettingsParamsByCategory('breedingSettings');
+      Object.keys(breedingSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Item settings
+      const itemSettingsParams = getGameUserSettingsParamsByCategory('itemSettings');
+      Object.keys(itemSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Performance settings
+      const performanceSettingsParams = getGameUserSettingsParamsByCategory('performanceSettings');
+      Object.keys(performanceSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Disease settings
+      const diseaseSettingsParams = getGameUserSettingsParamsByCategory('diseaseSettings');
+      Object.keys(diseaseSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Offline raid settings
+      const offlineRaidSettingsParams = getGameUserSettingsParamsByCategory('offlineRaidSettings');
+      Object.keys(offlineRaidSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Cross ARK settings
+      const crossArkSettingsParams = getGameUserSettingsParamsByCategory('crossArkSettings');
+      Object.keys(crossArkSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Flyer settings
+      const flyerSettingsParams = getGameUserSettingsParamsByCategory('flyerSettings');
+      Object.keys(flyerSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Advanced settings
+      const advancedSettingsParams = getGameUserSettingsParamsByCategory('advancedSettings');
+      Object.keys(advancedSettingsParams).forEach(key => {
+        const value = visualConfig[key];
+        if (value !== undefined) {
+          iniContent += `${key}=${value}\n`;
+        }
+      });
+
+      // Add other required sections
+      iniContent += '\n[/Script/Engine.GameSession]\n';
+      iniContent += 'MaxPlayers=70\n\n';
+
+      iniContent += '[SessionSettings]\n';
+      iniContent += `SessionName=${visualConfig.SessionName || 'My ARK Server'}\n\n`;
+
+      iniContent += '[MessageOfTheDay]\n';
+      iniContent += `Message=${visualConfig.Message || '欢迎来到ARK服务器！'}\n`;
+      iniContent += `Duration=${visualConfig.Duration || 30}\n`;
 
       setTextContent(iniContent);
       onChange?.(iniContent);
@@ -422,16 +557,159 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const resetToDefault = () => {
     const defaultContent = `[ServerSettings]
 ServerPassword=
+ServerAdminPassword=
+SpectatorPassword=
 AdminLogging=True
+serverPVE=False
+serverHardcore=False
+ShowMapPlayerLocation=False
+allowThirdPersonPlayer=False
+ServerCrosshair=True
+EnablePvPGamma=False
+DisablePvEGamma=False
+serverForceNoHud=False
+ShowFloatingDamageText=False
+AllowHitMarkers=True
+globalVoiceChat=False
+proximityChat=False
+alwaysNotifyPlayerJoined=False
+alwaysNotifyPlayerLeft=False
+DontAlwaysNotifyPlayerJoined=False
+XPMultiplier=1.0
+TamingSpeedMultiplier=1.0
+HarvestAmountMultiplier=1.0
+HarvestHealthMultiplier=1.0
+ResourcesRespawnPeriodMultiplier=1.0
+ItemStackSizeMultiplier=1.0
+PlayerCharacterHealthRecoveryMultiplier=1.0
+PlayerCharacterFoodDrainMultiplier=1.0
+PlayerCharacterWaterDrainMultiplier=1.0
+PlayerCharacterStaminaDrainMultiplier=1.0
+PlayerDamageMultiplier=1.0
+PlayerResistanceMultiplier=1.0
+OxygenSwimSpeedStatMultiplier=1.0
+ImplantSuicideCD=28800
+DinoCountMultiplier=1.0
+DinoCharacterHealthRecoveryMultiplier=1.0
+DinoCharacterFoodDrainMultiplier=1.0
+DinoCharacterStaminaDrainMultiplier=1.0
+DinoDamageMultiplier=1.0
+TamedDinoDamageMultiplier=1.0
+DinoResistanceMultiplier=1.0
+TamedDinoResistanceMultiplier=1.0
+MaxTamedDinos=4000
+MaxPersonalTamedDinos=0
+DisableDinoDecayPvE=False
+AutoDestroyDecayedDinos=False
+PvEDinoDecayPeriodMultiplier=1.0
+PvPDinoDecay=False
+AllowRaidDinoFeeding=False
+RaidDinoCharacterFoodDrainMultiplier=1.0
+AllowFlyerCarryPvE=False
+bForceCanRideFliers=False
+DayCycleSpeedScale=1.0
+DayTimeSpeedScale=1.0
+NightTimeSpeedScale=1.0
+DisableWeatherFog=False
+DifficultyOffset=0.2
+OverrideOfficialDifficulty=5.0
+RandomSupplyCratePoints=False
+StructureDamageMultiplier=1.0
+StructureResistanceMultiplier=1.0
+TheMaxStructuresInRange=10500
+NewMaxStructuresInRange=6000
+MaxStructuresInRange=1300
+DisableStructureDecayPvE=False
+PvEStructureDecayPeriodMultiplier=1.0
+PvPStructureDecay=False
+StructurePickupTimeAfterPlacement=30
+StructurePickupHoldDuration=0.5
+AlwaysAllowStructurePickup=False
+OnlyAutoDestroyCoreStructures=False
+OnlyDecayUnsnappedCoreStructures=False
+FastDecayUnsnappedCoreStructures=False
+DestroyUnconnectedWaterPipes=False
+StructurePreventResourceRadiusMultiplier=1.0
+MaxPlatformSaddleStructureLimit=25
+PerPlatformMaxStructuresMultiplier=1.0
+PlatformSaddleBuildAreaBoundsMultiplier=1.0
+OverrideStructurePlatformPrevention=False
+EnableExtraStructurePreventionVolumes=False
+AllowCaveBuildingPvE=False
+AllowCaveBuildingPvP=False
+PvEAllowStructuresAtSupplyDrops=False
+AllowCrateSpawnsOnTopOfStructures=False
+bAllowPlatformSaddleMultiFloors=False
+MaxGateFrameOnSaddles=0
+MaxNumberOfPlayersInTribe=0
+TribeNameChangeCooldown=15
+PreventTribeAlliances=False
+MaxAlliancesPerTribe=10
+MaxTribesPerAlliance=10
+AllowAnyoneBabyImprintCuddle=False
+DisableImprintDinoBuff=False
+BabyImprintingStatScaleMultiplier=1.0
+ClampItemSpoilingTimes=False
+ClampResourceHarvestDamage=False
+UseOptimizedHarvestingHealth=True
+BanListURL=http://arkdedicated.com/banlist.txt
+AutoSavePeriodMinutes=15.0
+KickIdlePlayersPeriod=3600
+ListenServerTetherDistanceMultiplier=1.0
+RCONServerGameLogBuffer=600
+NPCNetworkStasisRangeScalePlayerCountStart=0
+NPCNetworkStasisRangeScalePlayerCountEnd=0
+NPCNetworkStasisRangeScalePercentEnd=0
+PreventDiseases=False
+NonPermanentDiseases=False
+PreventSpawnAnimations=False
+PreventOfflinePvP=False
+PreventOfflinePvPInterval=900
+NoTributeDownloads=False
+PreventDownloadSurvivors=False
+PreventDownloadItems=False
+PreventDownloadDinos=False
+PreventUploadSurvivors=False
+PreventUploadItems=False
+PreventUploadDinos=False
+CrossARKAllowForeignDinoDownloads=False
+MaxTributeDinos=20
+MaxTributeItems=50
+MinimumDinoReuploadInterval=0
+TributeItemExpirationSeconds=86400
+TributeDinoExpirationSeconds=86400
+TributeCharacterExpirationSeconds=86400
+AllowFlyingStaminaRecovery=True
+ForceFlyerExplosives=False
+AllowMultipleAttachedC4=False
+AllowIntegratedSPlusStructures=True
+AllowHideDamageSourceFromLogs=False
+AllowSharedConnections=False
+bFilterTribeNames=False
+bFilterCharacterNames=False
+bFilterChat=False
+EnableCryoSicknessPVE=True
+EnableCryopodNerf=False
+CryopodNerfDuration=10
+CryopodNerfDamageMult=0.01
+CryopodNerfIncomingDamageMultPercent=0.25
+DisableCryopodEnemyCheck=False
+DisableCryopodFridgeRequirement=False
+AllowCryoFridgeOnSaddle=False
+MaxTrainCars=8
+MaxHexagonsPerCharacter=2000000000
+AllowTekSuitPowersInGenesis=False
+CustomDynamicConfigUrl=
+
+[/Script/Engine.GameSession]
+MaxPlayers=70
 
 [SessionSettings]
 SessionName=My ARK Server
 
 [MessageOfTheDay]
 Message=欢迎来到ARK服务器！
-
-[/Script/Engine.GameSession]
-MaxPlayers=70`;
+Duration=30`;
     
     setTextContent(defaultContent);
     onChange?.(defaultContent);
