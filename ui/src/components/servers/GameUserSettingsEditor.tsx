@@ -276,10 +276,13 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<GameUserSettingsCategoryKey>('serverBasic');
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
+  const [lastSyncSource, setLastSyncSource] = useState<'visual' | 'text' | null>(null);
 
   useEffect(() => {
     setTextContent(value || '');
-    parseTextToVisual(value || '');
+    if (lastSyncSource !== 'text') {
+      parseTextToVisual(value || '');
+    }
   }, [value]);
 
   const parseTextToVisual = useCallback((content: string) => {
@@ -291,18 +294,23 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     try {
       const values = extractConfigValues(content);
       if (values && Object.keys(values).length > 0) {
-        initializeVisualConfig();
-        Object.keys(values).forEach(key => {
-          if (values[key] !== undefined && values[key] !== null) {
-            setVisualConfig(prev => ({ ...prev, [key]: values[key] }));
-          }
+        // 只更新实际发生变化的值，避免覆盖用户输入
+        setVisualConfig(prev => {
+          const newConfig = { ...prev };
+          let hasChanges = false;
+          
+          Object.entries(values).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && newConfig[key] !== value) {
+              newConfig[key] = value;
+              hasChanges = true;
+            }
+          });
+          
+          return hasChanges ? newConfig : prev;
         });
-      } else {
-        initializeVisualConfig();
       }
     } catch (error) {
       console.error('解析配置文件失败:', error);
-      initializeVisualConfig();
     }
   }, []);
 
@@ -331,22 +339,36 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const extractConfigValues = (content: string): Record<string, any> => {
     const values: Record<string, any> = {};
     const lines = content.split('\n');
+    let currentSection = '';
     
     lines.forEach(line => {
       line = line.trim();
-      if (line && !line.startsWith('[') && !line.startsWith(';') && line.includes('=')) {
-        const [key, value] = line.split('=').map(s => s.trim());
-        if (key && value !== undefined) {
-          // Try to parse as boolean
-          if (value.toLowerCase() === 'true') {
-            values[key] = true;
-          } else if (value.toLowerCase() === 'false') {
-            values[key] = false;
-          } else if (!isNaN(Number(value))) {
-            values[key] = Number(value);
-          } else {
-            values[key] = value;
-          }
+      
+      // 处理section
+      if (line.startsWith('[') && line.endsWith(']')) {
+        currentSection = line.slice(1, -1);
+        return;
+      }
+      
+      // 跳过注释和空行
+      if (!line || line.startsWith(';') || !line.includes('=')) {
+        return;
+      }
+      
+      const [key, ...valueParts] = line.split('=');
+      const value = valueParts.join('=').trim();
+      const keyName = key.trim();
+      
+      if (keyName && value !== undefined) {
+        // 尝试解析为布尔值
+        if (value.toLowerCase() === 'true') {
+          values[keyName] = true;
+        } else if (value.toLowerCase() === 'false') {
+          values[keyName] = false;
+        } else if (!isNaN(Number(value)) && value !== '') {
+          values[keyName] = Number(value);
+        } else {
+          values[keyName] = value;
         }
       }
     });
@@ -533,21 +555,31 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
   const handleTextChange = (newContent: string) => {
     setTextContent(newContent);
+    setLastSyncSource('text');
     onChange?.(newContent);
     setIsSyncing(true);
-    setTimeout(() => {
+    // 使用防抖机制避免快速连续修改
+    if ((window as any).__textSyncTimeout) {
+      clearTimeout((window as any).__textSyncTimeout);
+    }
+    (window as any).__textSyncTimeout = setTimeout(() => {
       parseTextToVisual(newContent);
       setIsSyncing(false);
-    }, 800);
+    }, 500);
   };
 
   const handleVisualChange = (paramKey: string, value: any) => {
     setVisualConfig(prev => ({ ...prev, [paramKey]: value }));
+    setLastSyncSource('visual');
     setIsSyncing(true);
-    setTimeout(() => {
+    // 使用防抖机制避免快速连续修改
+    if ((window as any).__visualSyncTimeout) {
+      clearTimeout((window as any).__visualSyncTimeout);
+    }
+    (window as any).__visualSyncTimeout = setTimeout(() => {
       syncVisualToText();
       setIsSyncing(false);
-    }, 500);
+    }, 300);
   };
 
   const togglePasswordVisibility = (paramKey: string) => {
