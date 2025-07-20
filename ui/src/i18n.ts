@@ -1,14 +1,15 @@
-import { notFound } from 'next/navigation';
 import { getRequestConfig } from 'next-intl/server';
+import { getLocale, locales } from './lib/locale-server';
 
-export const locales = ['en', 'zh'];
+// 导出locales以保持兼容性
+export { locales };
 
-export default getRequestConfig(async ({ locale }) => {
-  // Validate that the incoming `locale` parameter is valid
-  if (!locales.includes(locale as any)) notFound();
+export default getRequestConfig(async () => {
+  // 从cookie获取语言设置
+  const locale = await getLocale();
 
   return {
-    locale: locale!,
-    messages: (await import(`../../messages/${locale}.ts`)).default
+    locale,
+    messages: (await import(`../messages/${locale}.ts`)).default
   };
 });

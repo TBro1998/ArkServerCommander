@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/navigation';
 import { useIsAuthenticated, useAuthActions } from '@/stores/auth';
 
 export default function HomePage() {

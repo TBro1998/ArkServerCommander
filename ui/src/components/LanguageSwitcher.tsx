@@ -1,7 +1,8 @@
 "use client";
 
 import { useLocale } from 'next-intl';
-import { useRouter, usePathname } from '@/navigation';
+import { useRouter } from '@/navigation';
+import { setClientLocale, getClientLocale, type Locale } from '@/lib/locale';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,14 +11,28 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Languages } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export function LanguageSwitcher() {
   const router = useRouter();
-  const pathname = usePathname();
-  const locale = useLocale();
+  const serverLocale = useLocale();
+  const [currentLocale, setCurrentLocale] = useState<Locale>(serverLocale as Locale);
 
-  const changeLocale = (nextLocale: string) => {
-    router.replace(pathname, { locale: nextLocale });
+  useEffect(() => {
+    // 同步客户端和服务端的语言设置
+    const clientLocale = getClientLocale();
+    if (clientLocale !== serverLocale) {
+      setCurrentLocale(clientLocale);
+    }
+  }, [serverLocale]);
+
+  const changeLocale = (nextLocale: Locale) => {
+    // 设置cookie
+    setClientLocale(nextLocale);
+    setCurrentLocale(nextLocale);
+    
+    // 刷新页面以应用新语言
+    window.location.reload();
   };
 
   return (
@@ -28,10 +43,10 @@ export function LanguageSwitcher() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => changeLocale('en')} disabled={locale === 'en'}>
+        <DropdownMenuItem onClick={() => changeLocale('en')} disabled={currentLocale === 'en'}>
           English
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeLocale('zh')} disabled={locale === 'zh'}>
+        <DropdownMenuItem onClick={() => changeLocale('zh')} disabled={currentLocale === 'zh'}>
           简体中文
         </DropdownMenuItem>
       </DropdownMenuContent>

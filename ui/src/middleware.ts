@@ -1,26 +1,40 @@
-import createMiddleware from 'next-intl/middleware';
-import { locales } from './i18n';
+import { NextRequest, NextResponse } from 'next/server';
+import { getLocale, setServerLocale, defaultLocale } from './lib/locale-server';
 
-export default createMiddleware({
-  // A list of all locales that are supported
-  locales,
+export async function middleware(request: NextRequest) {
+  // 检查是否有语言切换请求
+  const searchParams = request.nextUrl.searchParams;
+  const localeParam = searchParams.get('locale');
+  
+  if (localeParam && ['en', 'zh'].includes(localeParam)) {
+    // 设置新的语言cookie
+    const response = NextResponse.redirect(new URL(request.nextUrl.pathname, request.url));
+    response.cookies.set('NEXT_LOCALE', localeParam, {
+      maxAge: 365 * 24 * 60 * 60, // 1年
+      path: '/',
+      sameSite: 'lax'
+    });
+    return response;
+  }
 
-  // Used when no locale matches
-  defaultLocale: 'en'
-});
+  // 确保有语言cookie
+  const currentLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  if (!currentLocale || !['en', 'zh'].includes(currentLocale)) {
+    const response = NextResponse.next();
+    response.cookies.set('NEXT_LOCALE', defaultLocale, {
+      maxAge: 365 * 24 * 60 * 60, // 1年
+      path: '/',
+      sameSite: 'lax'
+    });
+    return response;
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
-  // Match only internationalized pathnames
+  // 匹配所有路径，但排除静态文件和API路由
   matcher: [
-    // Enable a redirect to a matching locale at the root
-    '/',
-
-    // Set a cookie to remember the previous locale for
-    // all requests that have a locale prefix
-    '/(zh|en)/:path*',
-
-    // Enable redirects that add missing locales
-    // (e.g. `/pathnames` -> `/en/pathnames`)
-    '/((?!_next|.*\\..*).*)'
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ]
 };
