@@ -13,6 +13,9 @@ export interface Server {
   admin_password: string;
   map: string;
   max_players: number;
+  game_user_settings?: string;
+  game_ini?: string;
+  server_args?: any;
   created_at: string;
   updated_at: string;
 }

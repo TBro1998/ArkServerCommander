@@ -127,7 +127,10 @@ export function ServerEditModal({
                     </form>
                 </TabsContent>
                 <TabsContent value="game_user_settings">
-                    <GameUserSettingsEditor />
+                    <GameUserSettingsEditor
+                        value={formData.game_user_settings}
+                        onChange={(v) => setFormData(p => ({...p, game_user_settings: v}))}
+                    />
                 </TabsContent>
                 <TabsContent value="game_ini">
                     <GameIniEditor />
