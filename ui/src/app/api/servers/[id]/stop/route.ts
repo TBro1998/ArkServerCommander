@@ -4,7 +4,8 @@ import { headers } from 'next/headers';
 
 const getApiBase = () => process.env.NEXT_PUBLIC_API_BASE;
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const headersList = await headers();
   const authorization = headersList.get('authorization');
 
@@ -17,7 +18,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   };
 
   try {
-    const url = `${getApiBase()}/servers/${params.id}/stop`;
+    const url = `${getApiBase()}/servers/${id}/stop`;
     const response = await axios.post(url, {}, config);
     return NextResponse.json(response.data);
   } catch (error: any) {

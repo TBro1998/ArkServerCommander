@@ -19,7 +19,7 @@ async function proxyRequest(request: Request, method: 'GET' | 'PUT' | 'DELETE', 
   try {
     let response;
     const url = `${getApiBase()}/servers/${id}`;
-    
+
     if (method === 'GET') {
       response = await axios.get(url, config);
     } else if (method === 'PUT') {
@@ -28,21 +28,24 @@ async function proxyRequest(request: Request, method: 'GET' | 'PUT' | 'DELETE', 
     } else { // DELETE
       response = await axios.delete(url, config);
     }
-    
+
     return NextResponse.json(response.data);
   } catch (error: any) {
     return NextResponse.json({ error: error.response?.data?.error || '请求失败' }, { status: error.response?.status || 500 });
   }
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  return proxyRequest(request, 'GET', params.id);
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyRequest(request, 'GET', id);
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  return proxyRequest(request, 'PUT', params.id);
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyRequest(request, 'PUT', id);
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  return proxyRequest(request, 'DELETE', params.id);
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyRequest(request, 'DELETE', id);
 }
