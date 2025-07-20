@@ -277,13 +277,17 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [activeTab, setActiveTab] = useState<GameUserSettingsCategoryKey>('serverBasic');
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const [lastSyncSource, setLastSyncSource] = useState<'visual' | 'text' | null>(null);
+  const [isUserEditing, setIsUserEditing] = useState(false);
+  const [lastUserEditTime, setLastUserEditTime] = useState(0);
 
   useEffect(() => {
     setTextContent(value || '');
-    if (lastSyncSource !== 'text') {
+    // 只有在用户没有正在编辑时才更新可视化配置
+    const now = Date.now();
+    if (now - lastUserEditTime > 1000 && !isUserEditing) {
       parseTextToVisual(value || '');
     }
-  }, [value]);
+  }, [value, lastUserEditTime, isUserEditing]);
 
   const parseTextToVisual = useCallback((content: string) => {
     if (!content) {
@@ -556,8 +560,11 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const handleTextChange = (newContent: string) => {
     setTextContent(newContent);
     setLastSyncSource('text');
+    setIsUserEditing(true);
+    setLastUserEditTime(Date.now());
     onChange?.(newContent);
     setIsSyncing(true);
+    
     // 使用防抖机制避免快速连续修改
     if ((window as any).__textSyncTimeout) {
       clearTimeout((window as any).__textSyncTimeout);
@@ -565,13 +572,17 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     (window as any).__textSyncTimeout = setTimeout(() => {
       parseTextToVisual(newContent);
       setIsSyncing(false);
+      setIsUserEditing(false);
     }, 500);
   };
 
   const handleVisualChange = (paramKey: string, value: any) => {
     setVisualConfig(prev => ({ ...prev, [paramKey]: value }));
     setLastSyncSource('visual');
+    setIsUserEditing(true);
+    setLastUserEditTime(Date.now());
     setIsSyncing(true);
+    
     // 使用防抖机制避免快速连续修改
     if ((window as any).__visualSyncTimeout) {
       clearTimeout((window as any).__visualSyncTimeout);
@@ -579,7 +590,8 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     (window as any).__visualSyncTimeout = setTimeout(() => {
       syncVisualToText();
       setIsSyncing(false);
-    }, 300);
+      setIsUserEditing(false);
+    }, 500);
   };
 
   const togglePasswordVisibility = (paramKey: string) => {
