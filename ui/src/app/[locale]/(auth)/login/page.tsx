@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthActions, useAuthIsLoading, useIsAuthenticated } from '@/stores/auth';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Server, User, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations('auth');
   const { login, checkInit } = useAuthActions();
   const isAuthenticated = useIsAuthenticated();
   const isLoading = useAuthIsLoading();
@@ -55,29 +57,29 @@ export default function LoginPage() {
               <Server className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              登录到您的账户
+              {t('loginTitle')}
             </h1>
             <p className="text-gray-600">
-              管理您的 ARK 服务器
+              {t('loginSubtitle')}
             </p>
           </div>
 
           <Card className="shadow-xl">
             <CardHeader>
-              <CardTitle>登录</CardTitle>
-              <CardDescription>请输入您的凭据以继续</CardDescription>
+              <CardTitle>{t('login')}</CardTitle>
+              <CardDescription>{t('enterUsername')}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="space-y-6">
                 {error && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>错误</AlertTitle>
+                    <AlertTitle>{t('loginError')}</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="username">用户名</Label>
+                  <Label htmlFor="username">{t('username')}</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <Input
@@ -85,14 +87,14 @@ export default function LoginPage() {
                       name="username"
                       value={form.username}
                       onChange={handleChange}
-                      placeholder="输入您的用户名"
+                      placeholder={t('enterUsername')}
                       required
                       className="pl-10"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">密码</Label>
+                  <Label htmlFor="password">{t('password')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <Input
@@ -101,7 +103,7 @@ export default function LoginPage() {
                       type="password"
                       value={form.password}
                       onChange={handleChange}
-                      placeholder="输入您的密码"
+                      placeholder={t('enterPassword')}
                       required
                       className="pl-10"
                     />
@@ -109,11 +111,11 @@ export default function LoginPage() {
                 </div>
                 <Button type="submit" disabled={isLoading} className="w-full mt-8">
                   {isLoading ? (
-                    '登录中...'
+                    t('loginLoading')
                   ) : (
                     <>
                       <LogIn className="w-4 h-4 mr-2" />
-                      登录
+                      {t('loginButton')}
                     </>
                   )}
                 </Button>
@@ -123,7 +125,7 @@ export default function LoginPage() {
 
           <div className="text-center mt-6">
             <p className="text-sm text-gray-500">
-              首次使用？系统将使用您在此处输入的凭据创建管理员帐户。
+              {t('firstTimeTip')}
             </p>
           </div>
         </div>

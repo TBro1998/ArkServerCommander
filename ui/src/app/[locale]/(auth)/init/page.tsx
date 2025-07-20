@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthActions, useAuthIsLoading } from '@/stores/auth';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClosableAlert } from "@/components/ui/closable-alert";
 import { Settings, User, Lock, Info } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/navigation';
 
 export default function InitPage() {
   const router = useRouter();
+  const t = useTranslations('auth');
   const { init, checkInit } = useAuthActions();
   const isLoading = useAuthIsLoading();
 
@@ -35,11 +37,11 @@ export default function InitPage() {
     setSuccess('');
 
     if (form.password !== form.confirmPassword) {
-      setError('密码不匹配');
+      setError(t('passwordMismatch'));
       return;
     }
     if (form.password.length < 6) {
-      setError('密码长度至少为6位');
+      setError(t('passwordMinLengthError'));
       return;
     }
 
@@ -65,24 +67,24 @@ export default function InitPage() {
               <Settings className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              系统初始化
+              {t('initTitle')}
             </h1>
             <p className="text-gray-600">
-              首次使用，请设置管理员账户
+              {t('initSubtitle')}
             </p>
           </div>
 
           <Card className="shadow-xl">
             <CardHeader>
-              <CardTitle>创建管理员</CardTitle>
+              <CardTitle>{t('adminUsername')}</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleInit} className="space-y-6">
-                {error && <ClosableAlert variant="destructive" title="错误" onClose={() => setError('')}>{error}</ClosableAlert>}
-                {success && <ClosableAlert title="成功" onClose={() => setSuccess('')}>{success}</ClosableAlert>}
+                {error && <ClosableAlert variant="destructive" title={t('loginError')} onClose={() => setError('')}>{error}</ClosableAlert>}
+                {success && <ClosableAlert title={t('loginSuccess')} onClose={() => setSuccess('')}>{success}</ClosableAlert>}
 
                 <div className="space-y-2">
-                  <Label htmlFor="username">管理员用户名</Label>
+                  <Label htmlFor="username">{t('adminUsername')}</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <Input
@@ -90,14 +92,14 @@ export default function InitPage() {
                       name="username"
                       value={form.username}
                       onChange={handleChange}
-                      placeholder="输入管理员用户名"
+                      placeholder={t('enterAdminUsername')}
                       required
                       className="pl-10"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">密码</Label>
+                  <Label htmlFor="password">{t('password')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <Input
@@ -106,14 +108,14 @@ export default function InitPage() {
                       type="password"
                       value={form.password}
                       onChange={handleChange}
-                      placeholder="输入密码 (至少6位)"
+                      placeholder={t('passwordMinLength')}
                       required
                       className="pl-10"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">确认密码</Label>
+                  <Label htmlFor="confirmPassword">{t('confirmPassword')}</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <Input
@@ -122,14 +124,14 @@ export default function InitPage() {
                       type="password"
                       value={form.confirmPassword}
                       onChange={handleChange}
-                      placeholder="再次输入密码"
+                      placeholder={t('enterConfirmPassword')}
                       required
                       className="pl-10"
                     />
                   </div>
                 </div>
                 <Button type="submit" disabled={isLoading} className="w-full mt-8" variant="default">
-                  {isLoading ? '初始化中...' : '完成初始化'}
+                  {isLoading ? t('initLoading') : t('initButton')}
                 </Button>
               </form>
             </CardContent>
@@ -138,7 +140,7 @@ export default function InitPage() {
           <div className="text-center mt-6">
             <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
                 <Info className="w-4 h-4" />
-                <span>此操作只需执行一次，用于创建第一个管理员帐户。</span>
+                <span>{t('initTip')}</span>
             </div>
           </div>
         </div>

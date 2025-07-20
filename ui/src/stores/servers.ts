@@ -7,6 +7,14 @@ export interface Server {
   id: string;
   name: string;
   status: 'running' | 'stopped' | 'starting' | 'stopping';
+  port: number;
+  query_port: number;
+  rcon_port: number;
+  admin_password: string;
+  map: string;
+  max_players: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // 定义服务器状态类型
