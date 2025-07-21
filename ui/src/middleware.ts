@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getLocale, setServerLocale, defaultLocale } from './lib/locale-server';
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
   // 检查是否有语言切换请求
   const searchParams = request.nextUrl.searchParams;
   const localeParam = searchParams.get('locale');
@@ -27,6 +29,32 @@ export async function middleware(request: NextRequest) {
       sameSite: 'lax'
     });
     return response;
+  }
+
+  // 认证检查
+  const token = request.cookies.get('auth-token')?.value;
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/init');
+  const isProtectedPage = pathname.startsWith('/home') || pathname.startsWith('/servers');
+  const isRootPage = pathname === '/';
+
+  // 如果访问受保护页面但没有token，重定向到登录页
+  if (isProtectedPage && !token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // 如果访问根页面且有token，重定向到home页面
+  if (isRootPage && token) {
+    return NextResponse.redirect(new URL('/home', request.url));
+  }
+
+  // 如果访问根页面且没有token，重定向到登录页
+  if (isRootPage && !token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // 如果已登录但访问认证页面，重定向到home页面
+  if (isAuthPage && token) {
+    return NextResponse.redirect(new URL('/home', request.url));
   }
 
   return NextResponse.next();

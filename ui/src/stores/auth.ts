@@ -16,6 +16,7 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isInitialized: boolean; // 添加初始化状态
   actions: AuthActions;
 }
 
@@ -47,6 +48,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: false,
   isAuthenticated: false,
+  isInitialized: false, // 初始化为false
   actions: {
     checkInit: async () => {
       try {
@@ -106,11 +108,13 @@ const useAuthStore = create<AuthState>((set, get) => ({
       const token = Cookies.get('auth-token');
       if (token) {
         const currentState = get();
-        set({ token, isAuthenticated: true });
+        set({ token, isAuthenticated: true, isInitialized: true });
         // 只有在用户信息不存在时才调用 getProfile
         if (!currentState.user) {
           get().actions.getProfile();
         }
+      } else {
+        set({ isInitialized: true });
       }
     },
   },
@@ -120,5 +124,6 @@ export const useAuthActions = () => useAuthStore((state) => state.actions);
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 export const useAuthUser = () => useAuthStore((state) => state.user);
 export const useAuthIsLoading = () => useAuthStore((state) => state.isLoading);
+export const useAuthIsInitialized = () => useAuthStore((state) => state.isInitialized);
 
 export default useAuthStore;

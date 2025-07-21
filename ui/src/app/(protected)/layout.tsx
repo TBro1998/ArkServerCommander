@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/navigation';
-import { useIsAuthenticated, useAuthActions } from '@/stores/auth';
+import { useIsAuthenticated, useAuthActions, useAuthIsInitialized } from '@/stores/auth';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function ProtectedLayout({
@@ -13,20 +13,37 @@ export default function ProtectedLayout({
 }) {
   const router = useRouter();
   const isAuthenticated = useIsAuthenticated();
+  const isInitialized = useAuthIsInitialized();
   const { initFromStorage, logout } = useAuthActions();
   const t = useTranslations('navigation');
   const pathname = usePathname();
 
   useEffect(() => {
-    initFromStorage();
-  }, [initFromStorage]);
+    if (!isInitialized) {
+      initFromStorage();
+    }
+  }, [initFromStorage, isInitialized]);
 
   useEffect(() => {
-    if (isAuthenticated === false) {
+    // 只有在初始化完成且未认证时才跳转
+    if (isInitialized && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isInitialized, router]);
 
+  // 如果还未初始化，显示加载状态
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>初始化中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果初始化完成但未认证，显示验证状态（很快会跳转）
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
