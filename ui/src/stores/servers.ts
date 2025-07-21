@@ -33,6 +33,25 @@ export interface ImageStatus {
     can_create_server: boolean;
     can_start_server: boolean;
     any_pulling: boolean;
+    any_not_ready: boolean;
+    overall_status: string;
+    pulling_count: number;
+    total_images: number;
+    images: {
+        [imageName: string]: {
+            ready: boolean;
+            pulling: boolean;
+            has_update?: boolean;
+            layers?: {
+                [layerId: string]: {
+                    id: string;
+                    status: 'pending' | 'downloading' | 'extracting' | 'verifying' | 'complete';
+                    progress: number;
+                    size: number;
+                };
+            };
+        };
+    };
 }
 
 // 定义服务器操作类型
