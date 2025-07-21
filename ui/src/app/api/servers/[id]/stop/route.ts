@@ -21,7 +21,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const url = `${getApiBase()}/servers/${id}/stop`;
     const response = await axios.post(url, {}, config);
     return NextResponse.json(response.data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.response?.data?.error || '请求失败' }, { status: error.response?.status || 500 });
+  } catch (error: unknown) {
+    const axiosError = error as { response?: { data?: { error?: string }, status?: number } };
+    return NextResponse.json({ error: axiosError.response?.data?.error || '请求失败' }, { status: axiosError.response?.status || 500 });
   }
 }

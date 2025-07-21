@@ -7,34 +7,32 @@ import { Link } from '@/navigation';
 import { useAuthUser } from '@/stores/auth';
 import { useImageStatus, useServersActions } from '@/stores/servers';
 import { ImageStatus } from '@/components/docker/ImageStatus';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Server } from 'lucide-react';
 
 export default function HomePage() {
     const t = useTranslations('home');
-    const tServers = useTranslations('servers');
     const profile = useAuthUser();
     const imageStatus = useImageStatus();
     const { getImageStatus } = useServersActions();
-    const [isPolling, setIsPolling] = useState(false);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // 获取镜像状态
-    const refreshImageStatus = async () => {
+    const refreshImageStatus = useCallback(async () => {
         try {
             await getImageStatus();
         } catch (error) {
             console.error('获取镜像状态失败:', error);
         }
-    };
+    }, [getImageStatus]);
 
     // 处理手动下载
     const handleManualDownload = async () => {
         if (!imageStatus?.images) return;
-        
+
         // 找到第一个未就绪的镜像
-        const notReadyImage = Object.entries(imageStatus.images).find(([_, status]) => !status.ready);
-        
+        const notReadyImage = Object.entries(imageStatus.images).find(([, status]) => !status.ready);
+
         if (!notReadyImage) {
             console.log('所有镜像都已就绪');
             return;
@@ -100,7 +98,7 @@ export default function HomePage() {
     const handleCheckUpdates = async () => {
         try {
             const response = await fetch('/api/servers/images/check-updates');
-            
+
             if (!response.ok) {
                 throw new Error('检查更新失败');
             }
@@ -116,11 +114,10 @@ export default function HomePage() {
         if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
         }
-        
-        setIsPolling(true);
+
         pollingIntervalRef.current = setInterval(async () => {
             await refreshImageStatus();
-            
+
             // 如果没有镜像在拉取中，停止轮询
             if (!imageStatus?.any_pulling) {
                 stopPolling();
@@ -134,16 +131,15 @@ export default function HomePage() {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
         }
-        setIsPolling(false);
     };
 
     useEffect(() => {
         refreshImageStatus();
-        
+
         return () => {
             stopPolling();
         };
-    }, []);
+    }, [refreshImageStatus]);
 
     return (
         <div className="w-full max-w-none py-8 space-y-8">

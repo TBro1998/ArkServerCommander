@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const headersList = await headers();
     const authorization = headersList.get('authorization');
-    
+
     if (!authorization) {
       return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
@@ -17,7 +17,10 @@ export async function GET() {
       },
     });
     return NextResponse.json(response.data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.response?.data?.error || '获取用户信息失败' }, { status: error.response?.status || 500 });
+  } catch (error: unknown) {
+    const axiosError = error as { response?: { data?: { error?: string }, status?: number } };
+    return NextResponse.json({
+      error: axiosError.response?.data?.error || '获取用户信息失败'
+    }, { status: axiosError.response?.status || 500 });
   }
 }

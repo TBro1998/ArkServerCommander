@@ -2,7 +2,7 @@
 export interface ServerParam {
   type: 'boolean' | 'number' | 'string' | 'select';
   category: string;
-  default?: any;
+  default?: string | number | boolean;
   min?: number;
   max?: number;
   step?: number;
@@ -145,11 +145,11 @@ export const commandLineArgs: Record<string, ServerParam> = {
   noninlinesaveload: { type: 'boolean', category: 'maintenance', default: false },
   oldsaveformat: { type: 'boolean', category: 'maintenance', default: false },
   StructureDestructionTag: { type: 'string', category: 'maintenance', default: '' },
-  culture: { 
-    type: 'select', 
-    category: 'maintenance', 
-    default: '', 
-    options: ['ca', 'cs', 'da', 'de', 'en', 'es', 'eu', 'fi', 'fr', 'hu', 'it', 'ja', 'ka', 'ko', 'nl', 'pl', 'pt_BR', 'ru', 'sv', 'th', 'tr', 'zh', 'zh-Hans-CN', 'zh-TW'] 
+  culture: {
+    type: 'select',
+    category: 'maintenance',
+    default: '',
+    options: ['ca', 'cs', 'da', 'de', 'en', 'es', 'eu', 'fi', 'fr', 'hu', 'it', 'ja', 'ka', 'ko', 'nl', 'pl', 'pt_BR', 'ru', 'sv', 'th', 'tr', 'zh', 'zh-Hans-CN', 'zh-TW']
   }
 };
 
@@ -195,21 +195,21 @@ export function getServerParamsByCategory() {
     advanced: [],
     custom: []
   };
-  
+
   // Categorize query parameters
   Object.entries(queryParams).forEach(([key, param]) => {
     if (!param.hidden) {
       result[param.category as CategoryKey].push({ key, param });
     }
   });
-  
+
   // Categorize command line arguments
   Object.entries(commandLineArgs).forEach(([key, param]) => {
     if (!param.hidden) {
       result[param.category as CategoryKey].push({ key, param });
     }
   });
-  
+
   return result;
 }
 
@@ -217,10 +217,10 @@ export function getServerParamsByCategory() {
 export function getDefaultValues() {
   const defaults = {
     query_params: {} as Record<string, string>,
-    command_line_args: {} as Record<string, any>,
+    command_line_args: {} as Record<string, string | number | boolean | undefined>,
     custom_args: [] as string[]
   };
-  
+
   Object.entries(queryParams).forEach(([key, param]) => {
     if (!param.hidden) {
       // Query parameter values must be strings
@@ -231,13 +231,13 @@ export function getDefaultValues() {
       }
     }
   });
-  
+
   Object.entries(commandLineArgs).forEach(([key, param]) => {
     if (!param.hidden) {
       // Command line arguments can keep their original type
       defaults.command_line_args[key] = param.default;
     }
   });
-  
+
   return defaults;
 }

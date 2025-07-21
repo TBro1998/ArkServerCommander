@@ -15,7 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, checkInit } = useAuthActions();
   const isAuthenticated = useIsAuthenticated();
-  
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,12 +45,12 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username.trim()) {
       setError(t('enterUsername'));
       return;
     }
-    
+
     if (!password.trim()) {
       setError(t('enterPassword'));
       return;
@@ -66,8 +66,9 @@ export default function LoginPage() {
       } else {
         setError(result.message || t('loginError'));
       }
-    } catch (error: any) {
-      setError(error.message || t('loginError'));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : t('loginError');
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +96,7 @@ export default function LoginPage() {
         <div className="flex justify-end">
           <LanguageSwitcher />
         </div>
-        
+
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">{t('loginTitle')}</CardTitle>
@@ -116,7 +117,7 @@ export default function LoginPage() {
                   disabled={isLoading}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">{t('password')}</Label>
                 <Input
@@ -135,15 +136,15 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? t('loginLoading') : t('loginButton')}
               </Button>
             </form>
-            
+
             <div className="mt-4 text-center text-sm text-gray-600">
               {t('firstTimeTip')}
             </div>

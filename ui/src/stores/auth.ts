@@ -67,8 +67,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
         set({ token, user, isAuthenticated: true });
         Cookies.set('auth-token', token, { expires: 7 });
         return { success: true, message };
-      } catch (error: any) {
-        return { success: false, message: error.response?.data?.error || '初始化失败' };
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+          return { success: false, message: error.response.data?.error || '初始化失败' };
+        }
+        return { success: false, message: '初始化失败' };
       } finally {
         set({ isLoading: false });
       }
@@ -81,8 +84,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
         set({ token, user, isAuthenticated: true });
         Cookies.set('auth-token', token, { expires: 7 });
         return { success: true, message };
-      } catch (error: any) {
-        return { success: false, message: error.response?.data?.error || '登录失败' };
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+          return { success: false, message: error.response.data?.error || '登录失败' };
+        }
+        return { success: false, message: '登录失败' };
       } finally {
         set({ isLoading: false });
       }

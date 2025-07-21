@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, CheckCircle, RefreshCw, Code, Eye, EyeOff } from 'lucide-react';
+import { Info, CheckCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,7 +22,7 @@ interface GameUserSettingsParam {
   step?: number;
 }
 
-type GameUserSettingsCategoryKey = 
+type GameUserSettingsCategoryKey =
   | 'serverBasic'
   | 'gameMode'
   | 'communication'
@@ -272,22 +272,34 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [editMode, setEditMode] = useState<'visual' | 'text'>('visual');
   const [isSyncing, setIsSyncing] = useState(false);
   const [textContent, setTextContent] = useState('');
-  const [visualConfig, setVisualConfig] = useState<Record<string, any>>({});
+  const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<GameUserSettingsCategoryKey>('serverBasic');
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
-  const [lastSyncSource, setLastSyncSource] = useState<'visual' | 'text' | null>(null);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastUserEditTime, setLastUserEditTime] = useState(0);
 
-  useEffect(() => {
-    setTextContent(value || '');
-    // 只有在用户没有正在编辑时才更新可视化配置
-    const now = Date.now();
-    if (now - lastUserEditTime > 1000 && !isUserEditing) {
-      parseTextToVisual(value || '');
-    }
-  }, [value, lastUserEditTime, isUserEditing]);
+  const initializeVisualConfig = useCallback(() => {
+    const defaultConfig: Record<string, string | number | boolean> = {};
+    getAllGameUserSettingsCategories().forEach(categoryKey => {
+      const section = gameUserSettingsParams[categoryKey];
+      if (section) {
+        Object.keys(section).forEach(paramKey => {
+          const param = section[paramKey];
+          if (param && param.default !== undefined) {
+            defaultConfig[paramKey] = param.default;
+          }
+        });
+      }
+    });
+
+    // Add SessionSettings and MessageOfTheDay defaults
+    defaultConfig.SessionName = 'My ARK Server';
+    defaultConfig.Message = '欢迎来到ARK服务器！';
+    defaultConfig.Duration = 30;
+
+    setVisualConfig(prev => ({ ...prev, ...defaultConfig }));
+  }, []);
 
   const parseTextToVisual = useCallback((content: string) => {
     if (!content) {
@@ -302,67 +314,52 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
         setVisualConfig(prev => {
           const newConfig = { ...prev };
           let hasChanges = false;
-          
+
           Object.entries(values).forEach(([key, value]) => {
             if (value !== undefined && value !== null && newConfig[key] !== value) {
               newConfig[key] = value;
               hasChanges = true;
             }
           });
-          
+
           return hasChanges ? newConfig : prev;
         });
       }
     } catch (error) {
       console.error('解析配置文件失败:', error);
     }
-  }, []);
+  }, [initializeVisualConfig]);
 
-  const initializeVisualConfig = useCallback(() => {
-    const defaultConfig: Record<string, any> = {};
-    getAllGameUserSettingsCategories().forEach(categoryKey => {
-      const section = gameUserSettingsParams[categoryKey];
-      if (section) {
-        Object.keys(section).forEach(paramKey => {
-          const param = section[paramKey];
-          if (param && param.default !== undefined) {
-            defaultConfig[paramKey] = param.default;
-          }
-        });
-      }
-    });
-    
-    // Add SessionSettings and MessageOfTheDay defaults
-    defaultConfig.SessionName = 'My ARK Server';
-    defaultConfig.Message = '欢迎来到ARK服务器！';
-    defaultConfig.Duration = 30;
-    
-    setVisualConfig(prev => ({ ...prev, ...defaultConfig }));
-  }, []);
+  useEffect(() => {
+    setTextContent(value || '');
+    // 只有在用户没有正在编辑时才更新可视化配置
+    const now = Date.now();
+    if (now - lastUserEditTime > 1000 && !isUserEditing) {
+      parseTextToVisual(value || '');
+    }
+  }, [value, lastUserEditTime, isUserEditing, parseTextToVisual]);
 
-  const extractConfigValues = (content: string): Record<string, any> => {
-    const values: Record<string, any> = {};
+  const extractConfigValues = (content: string): Record<string, string | number | boolean> => {
+    const values: Record<string, string | number | boolean> = {};
     const lines = content.split('\n');
-    let currentSection = '';
-    
+
     lines.forEach(line => {
       line = line.trim();
-      
+
       // 处理section
       if (line.startsWith('[') && line.endsWith(']')) {
-        currentSection = line.slice(1, -1);
         return;
       }
-      
+
       // 跳过注释和空行
       if (!line || line.startsWith(';') || !line.includes('=')) {
         return;
       }
-      
+
       const [key, ...valueParts] = line.split('=');
       const value = valueParts.join('=').trim();
       const keyName = key.trim();
-      
+
       if (keyName && value !== undefined) {
         // 尝试解析为布尔值
         if (value.toLowerCase() === 'true') {
@@ -376,7 +373,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
         }
       }
     });
-    
+
     return values;
   };
 
@@ -384,7 +381,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     try {
       // Build INI content matching GameUserSettings.ini format
       let iniContent = '';
-      
+
       // ServerSettings section
       iniContent += '[ServerSettings]\n';
       const serverBasicParams = getGameUserSettingsParamsByCategory('serverBasic');
@@ -559,35 +556,33 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
   const handleTextChange = (newContent: string) => {
     setTextContent(newContent);
-    setLastSyncSource('text');
     setIsUserEditing(true);
     setLastUserEditTime(Date.now());
     onChange?.(newContent);
     setIsSyncing(true);
-    
+
     // 使用防抖机制避免快速连续修改
-    if ((window as any).__textSyncTimeout) {
-      clearTimeout((window as any).__textSyncTimeout);
+    if ((window as Window & { __textSyncTimeout?: NodeJS.Timeout }).__textSyncTimeout) {
+      clearTimeout((window as Window & { __textSyncTimeout?: NodeJS.Timeout }).__textSyncTimeout);
     }
-    (window as any).__textSyncTimeout = setTimeout(() => {
+    (window as Window & { __textSyncTimeout?: NodeJS.Timeout }).__textSyncTimeout = setTimeout(() => {
       parseTextToVisual(newContent);
       setIsSyncing(false);
       setIsUserEditing(false);
     }, 500);
   };
 
-  const handleVisualChange = (paramKey: string, value: any) => {
+  const handleVisualChange = (paramKey: string, value: string | number | boolean) => {
     setVisualConfig(prev => ({ ...prev, [paramKey]: value }));
-    setLastSyncSource('visual');
     setIsUserEditing(true);
     setLastUserEditTime(Date.now());
     setIsSyncing(true);
-    
+
     // 使用防抖机制避免快速连续修改
-    if ((window as any).__visualSyncTimeout) {
-      clearTimeout((window as any).__visualSyncTimeout);
+    if ((window as Window & { __visualSyncTimeout?: NodeJS.Timeout }).__visualSyncTimeout) {
+      clearTimeout((window as Window & { __visualSyncTimeout?: NodeJS.Timeout }).__visualSyncTimeout);
     }
-    (window as any).__visualSyncTimeout = setTimeout(() => {
+    (window as Window & { __visualSyncTimeout?: NodeJS.Timeout }).__visualSyncTimeout = setTimeout(() => {
       syncVisualToText();
       setIsSyncing(false);
       setIsUserEditing(false);
@@ -629,7 +624,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
             {t('textEdit')}
           </Button>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
           <div className="text-sm text-gray-500">
             GameUserSettings.ini - {editMode === 'visual' ? t('visualEditMode') : t('textEditMode')}
@@ -661,7 +656,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
                 </TabsTrigger>
               ))}
             </TabsList>
-            
+
             {getAllCategories().map((categoryKey) => (
               <TabsContent key={categoryKey} value={categoryKey} className="mt-4">
                 <Card>
@@ -672,20 +667,20 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
                           <Label className="text-sm font-medium">
                             {getParamDisplayName(paramKey)}
                             <div className="relative inline-block ml-1">
-                              <Info 
-                                className="h-3 w-3 text-gray-400 cursor-help" 
+                              <Info
+                                className="h-3 w-3 text-gray-400 cursor-help"
                                 onMouseEnter={() => setShowTooltip(paramKey)}
                                 onMouseLeave={() => setShowTooltip(null)}
                               />
                               {showTooltip === paramKey && (
                                 <div className="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
-                                     style={{ bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '8px' }}>
+                                  style={{ bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '8px' }}>
                                   {getParamDisplayName(paramKey)}
                                 </div>
                               )}
                             </div>
                           </Label>
-                          
+
                           {param.type === 'boolean' && (
                             <div className="flex items-center space-x-2">
                               <Switch
@@ -697,11 +692,11 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
                               </span>
                             </div>
                           )}
-                          
+
                           {param.type === 'number' && (
                             <Input
                               type="number"
-                              value={visualConfig[paramKey] || ''}
+                              value={(visualConfig[paramKey]?.toString() || '')}
                               onChange={(e) => handleVisualChange(paramKey, parseFloat(e.target.value) || 0)}
                               min={param.min}
                               max={param.max}
@@ -709,13 +704,13 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
                               className="w-full"
                             />
                           )}
-                          
-                          
+
+
                           {(param.type === 'text' || param.type === 'password') && (
                             <div className="relative">
                               <Input
                                 type={param.type === 'password' && !showPasswords[paramKey] ? 'password' : 'text'}
-                                value={visualConfig[paramKey] || ''}
+                                value={visualConfig[paramKey]?.toString() || ''}
                                 onChange={(e) => handleVisualChange(paramKey, e.target.value)}
                                 className="w-full"
                               />

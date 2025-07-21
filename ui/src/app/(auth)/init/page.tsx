@@ -15,7 +15,7 @@ export default function InitPage() {
   const router = useRouter();
   const { init, checkInit } = useAuthActions();
   const isAuthenticated = useIsAuthenticated();
-  
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,12 +48,12 @@ export default function InitPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username.trim()) {
       setError(t('enterAdminUsername'));
       return;
     }
-    
+
     if (!password.trim()) {
       setError(t('enterPassword'));
       return;
@@ -63,7 +63,7 @@ export default function InitPage() {
       setError(t('passwordMinLengthError'));
       return;
     }
-    
+
     if (password !== confirmPassword) {
       setError(t('passwordMismatch'));
       return;
@@ -79,8 +79,9 @@ export default function InitPage() {
       } else {
         setError(result.message || t('initError'));
       }
-    } catch (error: any) {
-      setError(error.message || t('initError'));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : t('initError');
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +104,7 @@ export default function InitPage() {
         <div className="flex justify-end">
           <LanguageSwitcher />
         </div>
-        
+
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">{t('initTitle')}</CardTitle>
@@ -124,7 +125,7 @@ export default function InitPage() {
                   disabled={isLoading}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">{t('password')}</Label>
                 <Input
@@ -156,15 +157,15 @@ export default function InitPage() {
                 </div>
               )}
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? t('initLoading') : t('initButton')}
               </Button>
             </form>
-            
+
             <div className="mt-4 text-center text-sm text-gray-600">
               {t('initTip')}
             </div>

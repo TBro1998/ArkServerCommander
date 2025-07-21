@@ -27,7 +27,7 @@ export default function ServersPage() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    fetchServers().catch((err) => setError(t('getServerListFailed')));
+    fetchServers().catch(() => setError(t('getServerListFailed')));
     const statusInterval = setInterval(() => getImageStatus(), 2000);
     return () => clearInterval(statusInterval);
   }, [fetchServers, getImageStatus, t]);
@@ -44,13 +44,13 @@ export default function ServersPage() {
     setEditMode('edit');
     setShowEditModal(true);
     try {
-        const serverData = await getServer(server.id);
-        setCurrentServer(serverData);
+      const serverData = await getServer(server.id);
+      setCurrentServer(serverData);
     } catch {
-        setError(t('loadServerInfoFailed'));
-        setShowEditModal(false);
+      setError(t('loadServerInfoFailed'));
+      setShowEditModal(false);
     } finally {
-        setIsModalLoading(false);
+      setIsModalLoading(false);
     }
   };
 
@@ -94,20 +94,20 @@ export default function ServersPage() {
     <div className="w-full max-w-none py-8">
       <div className="mb-6">
         <div className="flex justify-between items-center">
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{t('title')}</h1>
-            <Button onClick={handleAddServer} disabled={!imageStatus?.can_create_server}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t('addServer')}
-            </Button>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{t('title')}</h1>
+          <Button onClick={handleAddServer} disabled={!imageStatus?.can_create_server}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('addServer')}
+          </Button>
         </div>
         {imageStatus && !imageStatus.can_create_server && (
-            <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>{imageStatus.any_pulling ? t('imageDownloading') : t('imageNotReady')}</AlertTitle>
-                <AlertDescription>
-                    {imageStatus.any_pulling ? t('imageDownloadingDesc') : t('imageNotReadyDesc')}
-                </AlertDescription>
-            </Alert>
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{imageStatus.any_pulling ? t('imageDownloading') : t('imageNotReady')}</AlertTitle>
+            <AlertDescription>
+              {imageStatus.any_pulling ? t('imageDownloadingDesc') : t('imageNotReadyDesc')}
+            </AlertDescription>
+          </Alert>
         )}
       </div>
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useLocale } from 'next-intl';
-import { useRouter } from '@/navigation';
 import { setClientLocale, getClientLocale, type Locale } from '@/lib/locale';
 import {
   DropdownMenu,
@@ -14,7 +13,6 @@ import { Languages } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export function LanguageSwitcher() {
-  const router = useRouter();
   const serverLocale = useLocale();
   const [currentLocale, setCurrentLocale] = useState<Locale>(serverLocale as Locale);
 
@@ -30,7 +28,7 @@ export function LanguageSwitcher() {
     // 设置cookie
     setClientLocale(nextLocale);
     setCurrentLocale(nextLocale);
-    
+
     // 刷新页面以应用新语言
     window.location.reload();
   };
