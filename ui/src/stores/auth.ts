@@ -105,8 +105,12 @@ const useAuthStore = create<AuthState>((set, get) => ({
     initFromStorage: () => {
       const token = Cookies.get('auth-token');
       if (token) {
+        const currentState = get();
         set({ token, isAuthenticated: true });
-        get().actions.getProfile();
+        // 只有在用户信息不存在时才调用 getProfile
+        if (!currentState.user) {
+          get().actions.getProfile();
+        }
       }
     },
   },
