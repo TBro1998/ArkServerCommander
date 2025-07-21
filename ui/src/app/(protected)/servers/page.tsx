@@ -93,24 +93,21 @@ export default function ServersPage() {
   return (
     <div className="w-full max-w-none py-8">
       <div className="mb-6">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">{t('title')}</h1>
-            <p className="text-gray-600 text-sm lg:text-base">{t('serverManagementDesc')}</p>
-          </div>
-          <Button onClick={handleAddServer} disabled={!imageStatus?.can_create_server}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('addServer')}
-          </Button>
+        <div className="flex justify-between items-center">
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{t('title')}</h1>
+            <Button onClick={handleAddServer} disabled={!imageStatus?.can_create_server}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t('addServer')}
+            </Button>
         </div>
         {imageStatus && !imageStatus.can_create_server && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{imageStatus.any_pulling ? t('imageDownloading') : t('imageNotReady')}</AlertTitle>
-            <AlertDescription>
-              {imageStatus.any_pulling ? t('imageDownloadingDesc') : t('imageNotReadyDesc')}
-            </AlertDescription>
-          </Alert>
+            <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{imageStatus.any_pulling ? t('imageDownloading') : t('imageNotReady')}</AlertTitle>
+                <AlertDescription>
+                    {imageStatus.any_pulling ? t('imageDownloadingDesc') : t('imageNotReadyDesc')}
+                </AlertDescription>
+            </Alert>
         )}
       </div>
 

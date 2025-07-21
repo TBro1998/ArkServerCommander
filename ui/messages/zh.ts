@@ -42,6 +42,7 @@ export default {
 
   // 导航
   navigation: {
+    home: '首页',
     dashboard: '控制台',
     servers: '服务器管理',
     players: '玩家管理',

@@ -42,6 +42,7 @@ export default {
 
   // Navigation
   navigation: {
+    home: 'Home',
     dashboard: 'Dashboard',
     servers: 'Server Management',
     players: 'Player Management',

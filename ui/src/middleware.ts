@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   // 检查是否有语言切换请求
   const searchParams = request.nextUrl.searchParams;
   const localeParam = searchParams.get('locale');
-  
+
   if (localeParam && ['en', 'zh'].includes(localeParam)) {
     // 设置新的语言cookie
     const response = NextResponse.redirect(new URL(request.nextUrl.pathname, request.url));

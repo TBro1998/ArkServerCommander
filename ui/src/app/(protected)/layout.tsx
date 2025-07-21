@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useRouter } from '@/navigation';
+import { useTranslations } from 'next-intl';
+import { Link, usePathname, useRouter } from '@/navigation';
 import { useIsAuthenticated, useAuthActions } from '@/stores/auth';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
@@ -13,6 +14,8 @@ export default function ProtectedLayout({
   const router = useRouter();
   const isAuthenticated = useIsAuthenticated();
   const { initFromStorage, logout } = useAuthActions();
+  const t = useTranslations('navigation');
+  const pathname = usePathname();
 
   useEffect(() => {
     initFromStorage();
@@ -44,6 +47,26 @@ export default function ProtectedLayout({
               <h1 className="text-xl font-semibold text-gray-900">
                 ARK Server Manager
               </h1>
+              <nav className="ml-10 flex items-baseline space-x-4">
+                <Link
+                  href="/"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${pathname === '/'
+                      ? 'bg-gray-200 text-gray-900'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  {t('home')}
+                </Link>
+                <Link
+                  href="/servers"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${pathname.startsWith('/servers')
+                      ? 'bg-gray-200 text-gray-900'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  {t('servers')}
+                </Link>
+              </nav>
             </div>
             <div className="flex items-center space-x-4">
               <LanguageSwitcher />
