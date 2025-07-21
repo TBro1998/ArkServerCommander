@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
 
 const getApiBase = () => process.env.NEXT_PUBLIC_API_BASE;
 
 export async function GET() {
-  const headersList = await headers();
-  const authorization = headersList.get('authorization');
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth-token');
 
-  if (!authorization) {
+  if (!token) {
     return NextResponse.json({ error: '未授权' }, { status: 401 });
   }
 
   const config = {
-    headers: { Authorization: authorization, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token.value}`, 'Content-Type': 'application/json' },
   };
 
   try {
