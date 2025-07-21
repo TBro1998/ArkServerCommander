@@ -31,8 +31,8 @@ export default function LoginPage() {
 
     const checkInitStatus = async () => {
       try {
-        const initRequired = await checkInit();
-        setNeedsInit(initRequired);
+        const isInitialized = await checkInit();
+        setNeedsInit(!isInitialized); // 如果未初始化，则需要初始化
       } catch (error) {
         console.error('Failed to check init status:', error);
       } finally {

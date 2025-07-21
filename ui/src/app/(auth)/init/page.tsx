@@ -31,8 +31,8 @@ export default function InitPage() {
 
     const checkInitStatus = async () => {
       try {
-        const initRequired = await checkInit();
-        if (!initRequired) {
+        const isInitialized = await checkInit();
+        if (isInitialized) { // 如果已经初始化，跳转到登录页面
           router.replace('/login');
           return;
         }
