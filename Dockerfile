@@ -1,12 +1,11 @@
 # 前端构建阶段
 FROM node:24-alpine AS frontend-builder
 
-WORKDIR /app/next-ui
+WORKDIR /app/ui
 
-COPY next-ui/package.json next-ui/package-lock.json ./
+COPY ui/ ./
 RUN npm install
 
-COPY next-ui/ ./
 RUN npm run build
 
 # 后端构建阶段
@@ -40,9 +39,9 @@ WORKDIR /app
 COPY --from=backend-builder /app/main .
 
 # 从前端构建阶段复制静态文件
-COPY --from=frontend-builder /app/next-ui/public ./static/public
-COPY --from=frontend-builder /app/next-ui/.next/standalone ./static/.next/standalone
-COPY --from=frontend-builder /app/next-ui/.next/static ./static/.next/static
+COPY --from=frontend-builder /app/ui/public ./static/public
+COPY --from=frontend-builder /app/ui/.next/standalone ./static/.next/standalone
+COPY --from=frontend-builder /app/ui/.next/static ./static/.next/static
 
 # 创建数据目录
 RUN mkdir -p /data
