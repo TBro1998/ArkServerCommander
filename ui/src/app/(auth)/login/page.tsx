@@ -25,7 +25,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/servers');
+      router.replace('/home');
       return;
     }
 
@@ -62,7 +62,7 @@ export default function LoginPage() {
     try {
       const result = await login({ username, password });
       if (result.success) {
-        router.replace('/servers');
+        router.replace('/home');
       } else {
         setError(result.message || t('loginError'));
       }

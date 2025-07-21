@@ -25,7 +25,7 @@ export default function InitPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/servers');
+      router.replace('/home');
       return;
     }
 
@@ -75,7 +75,7 @@ export default function InitPage() {
     try {
       const result = await init({ username, password });
       if (result.success) {
-        router.replace('/servers');
+        router.replace('/home');
       } else {
         setError(result.message || t('initError'));
       }
