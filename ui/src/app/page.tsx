@@ -23,7 +23,7 @@ export default function HomePage() {
   // 这样用户会看到首页内容，但没有导航菜单
   // 我们需要修改这个逻辑来包含导航菜单
   if (isAuthenticated === true) {
-    // 重定向到一个包含导航菜单的页面
+    // 重定向到 /home
     router.replace('/home');
     return (
       <div className="min-h-screen flex items-center justify-center">

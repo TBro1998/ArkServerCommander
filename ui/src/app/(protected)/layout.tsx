@@ -22,7 +22,7 @@ export default function ProtectedLayout({
   }, [initFromStorage]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isAuthenticated === false) {
       router.replace('/login');
     }
   }, [isAuthenticated, router]);
