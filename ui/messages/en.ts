@@ -850,7 +850,30 @@ export default {
     },
 
     // GameUserSettings.ini editor description
-    gameUserSettingsTextEditDesc: 'Edit GameUserSettings.ini configuration file content directly. Changes will be automatically parsed and synchronized to the visual interface. Switch to visual mode to see the parsed parameter settings.'
+    gameUserSettingsTextEditDesc: 'Edit GameUserSettings.ini configuration file content directly. Changes will be automatically parsed and synchronized to the visual interface. Switch to visual mode to see the parsed parameter settings.',
+
+    // Default values for GameUserSettings parameters
+    defaultValues: {
+      sessionName: 'My ARK Server',
+      message: 'Welcome to ARK Server!'
+    },
+
+    // Placeholders
+    placeholders: {
+      gameUserSettings: `[ServerSettings]
+SessionName=My ARK Server
+ServerPassword=
+MaxPlayers=70
+
+[SessionSettings]
+SessionName=My ARK Server
+
+[MessageOfTheDay]
+Message=Welcome to ARK Server!
+
+[/Script/Engine.GameSession]
+MaxPlayers=70`
+    }
   },
 
   // Modals

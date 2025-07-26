@@ -850,7 +850,30 @@ export default {
     },
 
     // GameUserSettings.ini editor description
-    gameUserSettingsTextEditDesc: '直接编辑 GameUserSettings.ini 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。'
+    gameUserSettingsTextEditDesc: '直接编辑 GameUserSettings.ini 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。',
+
+    // Default values for GameUserSettings parameters
+    defaultValues: {
+      sessionName: '我的ARK服务器',
+      message: '欢迎来到ARK服务器！'
+    },
+
+    // Placeholders
+    placeholders: {
+      gameUserSettings: `[ServerSettings]
+SessionName=我的ARK服务器
+ServerPassword=
+MaxPlayers=70
+
+[SessionSettings]
+SessionName=我的ARK服务器
+
+[MessageOfTheDay]
+Message=欢迎来到ARK服务器！
+
+[/Script/Engine.GameSession]
+MaxPlayers=70`
+    }
   },
 
   // Modals

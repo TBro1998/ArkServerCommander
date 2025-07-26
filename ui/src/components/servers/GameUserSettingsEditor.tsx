@@ -288,8 +288,8 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     });
 
     // Add SessionSettings and MessageOfTheDay defaults
-    defaultConfig.SessionName = 'My ARK Server';
-    defaultConfig.Message = '欢迎来到ARK服务器！';
+    defaultConfig.SessionName = t('defaultValues.sessionName');
+    defaultConfig.Message = t('defaultValues.message');
     defaultConfig.Duration = 30;
 
     setVisualConfig(prev => ({ ...prev, ...defaultConfig }));
@@ -535,10 +535,10 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       iniContent += 'MaxPlayers=70\n\n';
 
       iniContent += '[SessionSettings]\n';
-      iniContent += `SessionName=${visualConfig.SessionName || 'My ARK Server'}\n\n`;
+      iniContent += `SessionName=${visualConfig.SessionName || t('defaultValues.sessionName')}\n\n`;
 
       iniContent += '[MessageOfTheDay]\n';
-      iniContent += `Message=${visualConfig.Message || '欢迎来到ARK服务器！'}\n`;
+      iniContent += `Message=${visualConfig.Message || t('defaultValues.message')}\n`;
       iniContent += `Duration=${visualConfig.Duration || 30}\n`;
 
       setTextContent(iniContent);
@@ -746,19 +746,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
             <Textarea
               value={textContent}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleTextChange(e.target.value)}
-              placeholder="[ServerSettings]
-SessionName=My ARK Server
-ServerPassword=
-MaxPlayers=70
-
-[SessionSettings]
-SessionName=My ARK Server
-
-[MessageOfTheDay]
-Message=欢迎来到ARK服务器！
-
-[/Script/Engine.GameSession]
-MaxPlayers=70"
+              placeholder={t('placeholders.gameUserSettings')}
               className="h-96 font-mono text-sm overflow-y-auto"
             />
             <p className="text-xs text-gray-500 mt-2">

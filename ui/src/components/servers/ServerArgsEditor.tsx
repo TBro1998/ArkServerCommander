@@ -64,6 +64,13 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
   const renderParam = (type: 'query' | 'cmd', key: string, param: ServerParam) => {
     const id = `${type}-${key}`;
     const currentValue = type === 'query' ? value.query_params[key] : value.command_line_args[key];
+    
+    // 获取参数的翻译名称
+    const tQueryParams = useTranslations('servers.queryParams');
+    const tCommandLineArgs = useTranslations('servers.commandLineArgs');
+    const paramDisplayName = type === 'query' 
+      ? (tQueryParams.has(key) ? tQueryParams(key) : key)
+      : (tCommandLineArgs.has(key) ? tCommandLineArgs(key) : key);
 
     switch (param.type) {
       case 'boolean':
@@ -80,13 +87,13 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
                 )
               }
             />
-            <Label htmlFor={id}>{key}</Label>
+            <Label htmlFor={id}>{paramDisplayName}</Label>
           </div>
         );
       case 'number':
         return (
           <div key={id}>
-            <Label htmlFor={id}>{key}</Label>
+            <Label htmlFor={id}>{paramDisplayName}</Label>
             <Input
               id={id}
               type="number"
@@ -107,7 +114,7 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
       case 'string':
         return (
           <div key={id}>
-            <Label htmlFor={id}>{key}</Label>
+            <Label htmlFor={id}>{paramDisplayName}</Label>
             <Input
               id={id}
               type="text"
@@ -125,7 +132,7 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
       case 'select':
         return (
           <div key={id}>
-            <Label htmlFor={id}>{key}</Label>
+            <Label htmlFor={id}>{paramDisplayName}</Label>
             <Select 
               value={String(currentValue || '')} 
               onValueChange={(val: string) => 
