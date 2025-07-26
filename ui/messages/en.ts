@@ -671,6 +671,7 @@ export default {
     gameUserSettingsParams: {
       // Server basic settings
       ServerPassword: 'Server Password',
+      ServerAdminPassword: 'Server Admin Password',
       SpectatorPassword: 'Spectator Password',
       AdminLogging: 'Admin Logging',
 

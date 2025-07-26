@@ -231,36 +231,7 @@ function getAllGameUserSettingsCategories(): GameUserSettingsCategoryKey[] {
   return Object.keys(gameUserSettingsParams) as GameUserSettingsCategoryKey[];
 }
 
-function getCategoryName(categoryKey: GameUserSettingsCategoryKey): string {
-  const categoryNames: Record<GameUserSettingsCategoryKey, string> = {
-    serverBasic: '服务器基本设置',
-    gameMode: '游戏模式设置',
-    communication: '聊天和通讯设置',
-    gameMultipliers: '游戏倍率设置',
-    characterSettings: '角色设置',
-    dinoSettings: '恐龙设置',
-    environmentSettings: '环境设置',
-    structureSettings: '建筑设置',
-    tribeSettings: '部落和联盟设置',
-    breedingSettings: '繁殖和印记设置',
-    itemSettings: '物品和补给设置',
-    performanceSettings: '服务器性能设置',
-    diseaseSettings: '疾病和状态设置',
-    offlineRaidSettings: '离线突袭保护设置',
-    crossArkSettings: '跨服传输设置',
-    flyerSettings: '飞行载具设置',
-    advancedSettings: '高级功能设置'
-  };
-  return categoryNames[categoryKey] || categoryKey;
-}
-
-function getParamDisplayName(paramKey: string): string {
-  // Convert camelCase to readable format
-  return paramKey
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, str => str.toUpperCase())
-    .trim();
-}
+// Helper functions moved inside component to access translations
 
 interface GameUserSettingsEditorProps {
   value?: string;
@@ -269,6 +240,8 @@ interface GameUserSettingsEditorProps {
 
 export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEditorProps) {
   const t = useTranslations('servers.editor');
+  const tCategories = useTranslations('servers.gameUserSettingsCategories');
+  const tParams = useTranslations('servers.gameUserSettingsParams');
   const [editMode, setEditMode] = useState<'visual' | 'text'>('visual');
   const [isSyncing, setIsSyncing] = useState(false);
   const [textContent, setTextContent] = useState('');
@@ -278,6 +251,27 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastUserEditTime, setLastUserEditTime] = useState(0);
+
+  // Helper functions with i18n support
+  const getCategoryName = (categoryKey: GameUserSettingsCategoryKey): string => {
+    try {
+      return tCategories(categoryKey);
+    } catch {
+      return categoryKey;
+    }
+  };
+
+  const getParamDisplayName = (paramKey: string): string => {
+    try {
+      return tParams(paramKey);
+    } catch {
+      // Fallback to converting camelCase to readable format
+      return paramKey
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
+    }
+  };
 
   const initializeVisualConfig = useCallback(() => {
     const defaultConfig: Record<string, string | number | boolean> = {};
