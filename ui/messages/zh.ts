@@ -268,6 +268,7 @@ export default {
       title: '服务器编辑',
       createTitle: '新增服务器',
       editTitle: '编辑服务器',
+      createServerDesc: '配置并创建一个新的ARK服务器实例',
       basicParams: '基本参数',
       gameUserSettings: 'GameUserSettings.ini',
       gameIni: 'Game.ini',

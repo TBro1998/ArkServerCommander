@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useServers, serversActions, useServersIsLoading, useImageStatus } from '@/stores/servers';
 import { ServerCard } from '@/components/servers/ServerCard';
-import { ServerEditModal } from '@/components/servers/ServerEditModal';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ClosableAlert } from '@/components/ui/closable-alert';
@@ -13,16 +13,12 @@ import { useTranslations } from 'next-intl';
 
 export default function ServersPage() {
   const t = useTranslations('servers');
+  const router = useRouter();
   const servers = useServers();
-  const { fetchServers, getImageStatus, startServer, stopServer, createServer, updateServer, deleteServer, getServer } = serversActions;
+  const { fetchServers, getImageStatus, startServer, stopServer, deleteServer } = serversActions;
   const isLoading = useServersIsLoading();
   const imageStatus = useImageStatus();
 
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
-  const [currentServer, setCurrentServer] = useState<Partial<Server> | null>(null);
-  const [isModalLoading, setIsModalLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -32,25 +28,11 @@ export default function ServersPage() {
   }, [fetchServers, getImageStatus, t]);
 
   const handleAddServer = () => {
-    setCurrentServer(null);
-    setEditMode('create');
-    setShowEditModal(true);
+    router.push('/servers/new');
   };
 
-  const handleEditServer = async (server: Server) => {
-    setIsModalLoading(true);
-    setCurrentServer(null);
-    setEditMode('edit');
-    setShowEditModal(true);
-    try {
-      const serverData = await getServer(server.id);
-      setCurrentServer(serverData);
-    } catch {
-      setError(t('loadServerInfoFailed'));
-      setShowEditModal(false);
-    } finally {
-      setIsModalLoading(false);
-    }
+  const handleEditServer = (server: Server) => {
+    router.push(`/servers/${server.id}/edit`);
   };
 
   const handleDeleteServer = async (server: Server) => {
@@ -68,23 +50,7 @@ export default function ServersPage() {
     }
   };
 
-  const handleSaveServer = async (data: Partial<Server>) => {
-    setIsSaving(true);
-    try {
-      if (editMode === 'create') {
-        await createServer(data);
-        setSuccess(t('serverCreateSuccess'));
-      } else if (currentServer?.id) {
-        await updateServer(currentServer.id, data);
-        setSuccess(t('serverUpdateSuccess'));
-      }
-      setShowEditModal(false);
-    } catch {
-      setError(editMode === 'create' ? t('serverCreateError') : t('serverUpdateError'));
-    } finally {
-      setIsSaving(false);
-    }
-  };
+
 
   const handleStartServer = (server: Server) => startServer(server.id);
   const handleStopServer = (server: Server) => stopServer(server.id);
@@ -146,15 +112,7 @@ export default function ServersPage() {
         </div>
       )}
 
-      <ServerEditModal
-        show={showEditModal}
-        mode={editMode}
-        server={currentServer}
-        loading={isModalLoading}
-        saving={isSaving}
-        onClose={() => setShowEditModal(false)}
-        onSave={handleSaveServer}
-      />
+
     </div>
   );
 }

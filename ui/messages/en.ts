@@ -268,6 +268,7 @@ export default {
       title: 'Server Edit',
       createTitle: 'Add Server',
       editTitle: 'Edit Server',
+      createServerDesc: 'Configure and create a new ARK server instance',
       basicParams: 'Basic Parameters',
       gameUserSettings: 'GameUserSettings.ini',
       gameIni: 'Game.ini',
