@@ -17,7 +17,7 @@ export async function GET() {
   };
 
   try {
-    const url = `${getApiBase()}/servers/images/check-updates`;
+    const url = `${getApiBase()}/images/check-updates`;
     const response = await axios.get(url, config);
     return NextResponse.json(response.data);
   } catch (error: unknown) {

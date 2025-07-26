@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       headers: { Authorization: authorization, 'Content-Type': 'application/json' },
     };
 
-    const url = `${getApiBase()}/servers/images/pull`;
+    const url = `${getApiBase()}/images/pull`;
     const response = await axios.post(url, { image_name }, config);
     return NextResponse.json(response.data);
   } catch (error: unknown) {

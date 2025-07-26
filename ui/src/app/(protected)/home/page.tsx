@@ -45,7 +45,7 @@ export default function HomePage() {
     // 处理单个镜像下载
     const handleDownloadImage = async (imageName: string) => {
         try {
-            const response = await fetch('/api/servers/images/pull', {
+            const response = await fetch('/api/images/pull', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export default function HomePage() {
     // 处理单个镜像更新
     const handleUpdateImage = async (imageName: string) => {
         try {
-            const response = await fetch('/api/servers/images/update', {
+            const response = await fetch('/api/images/update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -97,7 +97,7 @@ export default function HomePage() {
     // 处理检查更新
     const handleCheckUpdates = async () => {
         try {
-            const response = await fetch('/api/servers/images/check-updates');
+            const response = await fetch('/api/images/check-updates');
 
             if (!response.ok) {
                 throw new Error('检查更新失败');
