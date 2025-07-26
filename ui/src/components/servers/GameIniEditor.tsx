@@ -25,7 +25,6 @@ interface GameIniParam {
   min?: number;
   max?: number;
   step?: number;
-  description?: string;
 }
 
 type GameIniCategoryKey =
@@ -42,96 +41,98 @@ type GameIniCategoryKey =
 
 const gameIniParams: Record<GameIniCategoryKey, Record<string, GameIniParam>> = {
   gameBasic: {
-    bUseSingleplayerSettings: { type: 'boolean', default: false, description: '使用单人游戏设置' },
-    bDisableStructurePlacementCollision: { type: 'boolean', default: false, description: '禁用建筑放置碰撞检测' },
-    bAllowFlyerCarryPvE: { type: 'boolean', default: true, description: 'PvE模式下允许飞行载具抓取' },
-    bDisableStructureDecayPvE: { type: 'boolean', default: false, description: 'PvE模式下禁用建筑衰减' },
-    bAllowUnlimitedRespecs: { type: 'boolean', default: true, description: '允许无限重置技能点' },
-    bAllowPlatformSaddleMultiFloors: { type: 'boolean', default: true, description: '允许平台鞍座多层建筑' },
-    bPassiveDefensesDamageRiderlessDinos: { type: 'boolean', default: true, description: '被动防御伤害无骑手恐龙' },
-    bPvEDisableFriendlyFire: { type: 'boolean', default: false, description: 'PvE模式禁用友军伤害' },
-    bDisableFriendlyFire: { type: 'boolean', default: false, description: '禁用友军伤害' },
-    bEnablePvPGamma: { type: 'boolean', default: false, description: '启用PvP伽马调节' },
-    DifficultyOffset: { type: 'number', default: 1.0, min: 0.0, max: 1.0, step: 0.1, description: '难度偏移值' },
-    OverrideOfficialDifficulty: { type: 'number', default: 5.0, min: 1.0, max: 10.0, step: 0.1, description: '覆盖官方难度' }
+    bUseSingleplayerSettings: { type: 'boolean', default: false },
+    bDisableStructurePlacementCollision: { type: 'boolean', default: false },
+    bAllowFlyerCarryPvE: { type: 'boolean', default: true },
+    bDisableStructureDecayPvE: { type: 'boolean', default: false },
+    bAllowUnlimitedRespecs: { type: 'boolean', default: true },
+    bAllowPlatformSaddleMultiFloors: { type: 'boolean', default: true },
+    bPassiveDefensesDamageRiderlessDinos: { type: 'boolean', default: true },
+    bPvEDisableFriendlyFire: { type: 'boolean', default: false },
+    bDisableFriendlyFire: { type: 'boolean', default: false },
+    bEnablePvPGamma: { type: 'boolean', default: false },
+    DifficultyOffset: { type: 'number', default: 1.0, min: 0.0, max: 1.0, step: 0.1 },
+    OverrideOfficialDifficulty: { type: 'number', default: 5.0, min: 1.0, max: 10.0, step: 0.1 }
   },
   experienceSettings: {
-    XPMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '经验值倍率' },
-    PlayerCharacterWaterDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '玩家水分消耗倍率' },
-    PlayerCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '玩家食物消耗倍率' },
-    PlayerCharacterStaminaDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '玩家耐力消耗倍率' },
-    PlayerCharacterHealthRecoveryMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '玩家生命恢复倍率' }
+    XPMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    PlayerCharacterWaterDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    PlayerCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    PlayerCharacterStaminaDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    PlayerCharacterHealthRecoveryMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   },
   breedingSettings: {
-    MatingIntervalMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '交配间隔倍率' },
-    EggHatchSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 50.0, step: 0.1, description: '蛋孵化速度倍率' },
-    BabyMatureSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 50.0, step: 0.1, description: '幼体成长速度倍率' },
-    BabyFoodConsumptionSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '幼体食物消耗速度倍率' },
-    BabyCuddleIntervalMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '幼体印记间隔倍率' },
-    BabyCuddleGracePeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '幼体印记宽限期倍率' },
-    BabyCuddleLoseImprintQualitySpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '幼体印记质量丢失速度倍率' }
+    MatingIntervalMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    EggHatchSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 50.0, step: 0.1 },
+    BabyMatureSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 50.0, step: 0.1 },
+    BabyFoodConsumptionSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    BabyCuddleIntervalMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    BabyCuddleGracePeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    BabyCuddleLoseImprintQualitySpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   },
   itemSettings: {
-    HarvestAmountMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '收获量倍率' },
-    HarvestHealthMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '收获生命值倍率' },
-    ResourcesRespawnPeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '资源重生周期倍率' },
-    ItemStackSizeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '物品堆叠大小倍率' },
-    GlobalSpoilingTimeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '全局腐败时间倍率' },
-    GlobalItemDecompositionTimeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '全局物品分解时间倍率' },
-    GlobalCorpseDecompositionTimeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '全局尸体分解时间倍率' }
+    HarvestAmountMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    HarvestHealthMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    ResourcesRespawnPeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    ItemStackSizeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    CropGrowthSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    GlobalItemDecompositionTimeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    GlobalCorpseDecompositionTimeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   },
   dinoSettings: {
-    TamingSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 50.0, step: 0.1, description: '驯服速度倍率' },
-    DinoCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '恐龙食物消耗倍率' },
-    DinoCharacterStaminaDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '恐龙耐力消耗倍率' },
-    DinoCharacterHealthRecoveryMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '恐龙生命恢复倍率' },
-    DinoCountMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '恐龙数量倍率' },
-    WildDinoCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '野生恐龙食物消耗倍率' },
-    WildDinoTorporDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '野生恐龙眩晕值消耗倍率' }
+    TamingSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 50.0, step: 0.1 },
+    DinoCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    DinoCharacterStaminaDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    DinoCharacterHealthRecoveryMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    DinoCountMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    WildDinoCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    WildDinoTorporDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   },
   tribeSettings: {
-    MaxNumberOfPlayersInTribe: { type: 'number', default: 0, min: 0, max: 100, step: 1, description: '部落最大玩家数量（0为无限制）' },
-    TribeNameChangeCooldown: { type: 'number', default: 15, min: 0, max: 1440, step: 1, description: '部落名称更改冷却时间（分钟）' },
-    bPvEAllowTribeWar: { type: 'boolean', default: false, description: 'PvE模式允许部落战争' },
-    bPvEAllowTribeWarCancel: { type: 'boolean', default: false, description: 'PvE模式允许取消部落战争' }
+    MaxNumberOfPlayersInTribe: { type: 'number', default: 0, min: 0, max: 100, step: 1 },
+    TribeNameChangeCooldown: { type: 'number', default: 15, min: 0, max: 1440, step: 1 },
+    bPvEAllowTribeWar: { type: 'boolean', default: false },
+    bPvEAllowTribeWarCancel: { type: 'boolean', default: false }
   },
   pvpSettings: {
-    bIncreasePvPRespawnInterval: { type: 'boolean', default: false, description: '增加PvP重生间隔' },
-    IncreasePvPRespawnIntervalCheckPeriod: { type: 'number', default: 300, min: 60, max: 3600, step: 60, description: 'PvP重生间隔检查周期（秒）' },
-    IncreasePvPRespawnIntervalMultiplier: { type: 'number', default: 1.0, min: 1.0, max: 5.0, step: 0.1, description: 'PvP重生间隔倍率' },
-    IncreasePvPRespawnIntervalBaseAmount: { type: 'number', default: 60, min: 30, max: 600, step: 30, description: 'PvP重生间隔基础时间（秒）' }
+    bIncreasePvPRespawnInterval: { type: 'boolean', default: false },
+    IncreasePvPRespawnIntervalCheckPeriod: { type: 'number', default: 300, min: 60, max: 3600, step: 60 },
+    IncreasePvPRespawnIntervalMultiplier: { type: 'number', default: 1.0, min: 1.0, max: 5.0, step: 0.1 },
+    IncreasePvPRespawnIntervalBaseAmount: { type: 'number', default: 60, min: 30, max: 600, step: 30 }
   },
   structureSettings: {
-    StructureDamageMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '建筑伤害倍率' },
-    StructureResistanceMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '建筑抗性倍率' },
-    StructureDamageRepairCooldown: { type: 'number', default: 180, min: 0, max: 3600, step: 60, description: '建筑伤害修复冷却时间（秒）' },
-    PvEStructureDecayPeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: 'PvE建筑衰减周期倍率' },
-    MaxStructuresInRange: { type: 'number', default: 1300, min: 100, max: 10000, step: 100, description: '范围内最大建筑数量' }
+    StructureDamageMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    StructureResistanceMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    StructureDamageRepairCooldown: { type: 'number', default: 180, min: 0, max: 3600, step: 60 },
+    PvEStructureDecayPeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    MaxStructuresInRange: { type: 'number', default: 1300, min: 100, max: 10000, step: 100 }
   },
   advancedSettings: {
-    bAutoPvETimer: { type: 'boolean', default: false, description: '自动PvE计时器' },
-    bAutoPvEUseSystemTime: { type: 'boolean', default: false, description: '自动PvE使用系统时间' },
-    AutoPvEStartTimeSeconds: { type: 'number', default: 0, min: 0, max: 86400, step: 3600, description: '自动PvE开始时间（秒）' },
-    AutoPvEStopTimeSeconds: { type: 'number', default: 0, min: 0, max: 86400, step: 3600, description: '自动PvE结束时间（秒）' },
-    bOnlyAllowSpecifiedEngrams: { type: 'boolean', default: false, description: '仅允许指定图纸' },
-    bAutoUnlockAllEngrams: { type: 'boolean', default: false, description: '自动解锁所有图纸' },
-    bShowCreativeMode: { type: 'boolean', default: false, description: '显示创造模式' },
-    bUseCorpseLocator: { type: 'boolean', default: false, description: '使用尸体定位器' },
-    bDisableLootCrates: { type: 'boolean', default: false, description: '禁用补给箱' },
-    bDisableDinoRiding: { type: 'boolean', default: false, description: '禁用骑乘恐龙' },
-    bDisableDinoTaming: { type: 'boolean', default: false, description: '禁用驯服恐龙' },
-    bAllowCustomRecipes: { type: 'boolean', default: true, description: '允许自定义配方' }
+    bAutoPvETimer: { type: 'boolean', default: false },
+    bAutoPvEUseSystemTime: { type: 'boolean', default: false },
+    AutoPvEStartTimeSeconds: { type: 'number', default: 0, min: 0, max: 86400, step: 3600 },
+    AutoPvEStopTimeSeconds: { type: 'number', default: 0, min: 0, max: 86400, step: 3600 },
+    bOnlyAllowSpecifiedEngrams: { type: 'boolean', default: false },
+    bAutoUnlockAllEngrams: { type: 'boolean', default: false },
+    bShowCreativeMode: { type: 'boolean', default: false },
+    bUseCorpseLocator: { type: 'boolean', default: false },
+    bDisableLootCrates: { type: 'boolean', default: false },
+    bDisableDinoRiding: { type: 'boolean', default: false },
+    bDisableDinoTaming: { type: 'boolean', default: false },
+    bAllowCustomRecipes: { type: 'boolean', default: true }
   },
   customSettings: {
-    DayCycleSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '昼夜循环速度倍率' },
-    NightTimeSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '夜晚时间流逝速度倍率' },
-    DayTimeSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1, description: '白天时间流逝速度倍率' }
+    DayCycleSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    NightTimeSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    DayTimeSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   }
 };
 
 function getGameIniParamsByCategory(category: GameIniCategoryKey): Record<string, GameIniParam> {
   return gameIniParams[category] || {};
 }
+
+
 
 interface GameIniEditorProps {
   value?: string;
@@ -150,6 +151,15 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastUserEditTime, setLastUserEditTime] = useState(0);
+
+  // Get parameter display name from translations
+  const getParamDisplayName = (paramKey: string): string => {
+    try {
+      return tParams(paramKey);
+    } catch {
+      return paramKey; // Fallback to parameter key if translation not found
+    }
+  };
 
   // Initialize with default values
   useEffect(() => {
@@ -173,14 +183,14 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     try {
       const config: Record<string, string | number | boolean> = {};
       const lines = text.split('\n');
-      
+
       for (const line of lines) {
         const trimmedLine = line.trim();
         if (trimmedLine && !trimmedLine.startsWith(';') && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('[')) {
           const [key, ...valueParts] = trimmedLine.split('=');
           if (key && valueParts.length > 0) {
             const value = valueParts.join('=').trim();
-            
+
             // Find parameter definition
             let paramDef: GameIniParam | undefined;
             for (const categoryKey of Object.keys(gameIniParams)) {
@@ -191,7 +201,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
                 break;
               }
             }
-            
+
             if (paramDef) {
               if (paramDef.type === 'boolean') {
                 config[key.trim()] = value.toLowerCase() === 'true';
@@ -205,20 +215,20 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           }
         }
       }
-      
+
       setVisualConfig(config);
     } catch (error) {
-      console.error('解析Game.ini文本失败:', error);
+      console.error(t('parseGameIniError') + ':', error);
     }
   }, []);
 
   const syncVisualToText = useCallback(() => {
     try {
       let iniContent = '';
-      
+
       // Add sections based on categories
       iniContent += '[/script/shootergame.shootergamemode]\n';
-      
+
       // Basic game settings
       const gameBasicParams = getGameIniParamsByCategory('gameBasic');
       Object.keys(gameBasicParams).forEach(key => {
@@ -227,7 +237,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // Tribe settings
       const tribeParams = getGameIniParamsByCategory('tribeSettings');
       Object.keys(tribeParams).forEach(key => {
@@ -236,9 +246,9 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       iniContent += '\n[/Script/ShooterGame.ShooterGameMode]\n';
-      
+
       // Experience settings
       const expParams = getGameIniParamsByCategory('experienceSettings');
       Object.keys(expParams).forEach(key => {
@@ -247,7 +257,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // Item settings
       const itemParams = getGameIniParamsByCategory('itemSettings');
       Object.keys(itemParams).forEach(key => {
@@ -256,7 +266,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // Dino settings
       const dinoParams = getGameIniParamsByCategory('dinoSettings');
       Object.keys(dinoParams).forEach(key => {
@@ -265,7 +275,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // Breeding settings
       const breedingParams = getGameIniParamsByCategory('breedingSettings');
       Object.keys(breedingParams).forEach(key => {
@@ -274,7 +284,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // PvP settings
       const pvpParams = getGameIniParamsByCategory('pvpSettings');
       Object.keys(pvpParams).forEach(key => {
@@ -283,7 +293,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // Structure settings
       const structureParams = getGameIniParamsByCategory('structureSettings');
       Object.keys(structureParams).forEach(key => {
@@ -292,7 +302,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // Advanced settings
       const advancedParams = getGameIniParamsByCategory('advancedSettings');
       Object.keys(advancedParams).forEach(key => {
@@ -301,7 +311,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       // Custom settings
       const customParams = getGameIniParamsByCategory('customSettings');
       Object.keys(customParams).forEach(key => {
@@ -310,11 +320,11 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           iniContent += `${key}=${value}\n`;
         }
       });
-      
+
       setTextContent(iniContent);
       onChange?.(iniContent);
     } catch (error) {
-      console.error('同步可视化配置到文本失败:', error);
+      console.error(t('syncVisualToTextError') + ':', error);
     }
   }, [visualConfig, onChange]);
 
@@ -338,7 +348,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
   const handleTextChange = (newText: string) => {
     setTextContent(newText);
     onChange?.(newText);
-    
+
     // Parse text to visual with debounce
     setTimeout(() => {
       parseTextToVisual(newText);
@@ -366,20 +376,14 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     setVisualConfig(defaultConfig);
   };
 
-  const getParamDisplayName = (paramKey: string): string => {
-    const translated = tParams(paramKey as any);
-    return translated !== paramKey ? translated : paramKey;
-  };
-
   const getCategoryDisplayName = (categoryKey: GameIniCategoryKey): string => {
-    const translationKey = `servers.gameIniCategories.${categoryKey}`;
-    const translated = tCategories(translationKey as any);
-    return translated !== translationKey ? translated : categoryKey;
+    const translated = tCategories(categoryKey as any);
+    return translated !== categoryKey ? translated : categoryKey;
   };
 
   const renderParamControl = (paramKey: string, param: GameIniParam) => {
     const currentValue = visualConfig[paramKey] ?? param.default;
-    
+
     switch (param.type) {
       case 'boolean':
         return (
@@ -393,7 +397,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
             </span>
           </div>
         );
-      
+
       case 'number':
         return (
           <div className="space-y-1">
@@ -418,7 +422,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
             )}
           </div>
         );
-      
+
       case 'text':
         return (
           <Input
@@ -428,7 +432,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
             className="w-full"
           />
         );
-      
+
       default:
         return null;
     }
@@ -456,7 +460,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
             {t('textEditMode')}
           </Button>
         </div>
-        
+
         {editMode === 'visual' && (
           <Button variant="outline" size="sm" onClick={resetToDefault}>
             <RotateCcw className="w-4 h-4 mr-1" />
@@ -479,11 +483,11 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
               </TabsTrigger>
             ))}
           </TabsList>
-          
+
           {Object.keys(gameIniParams).map((categoryKey) => {
             const category = categoryKey as GameIniCategoryKey;
             const params = getGameIniParamsByCategory(category);
-            
+
             return (
               <TabsContent key={categoryKey} value={categoryKey} className="space-y-4">
                 <Card>
@@ -492,7 +496,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
                       {getCategoryDisplayName(category)}
                     </CardTitle>
                     <CardDescription>
-                      {Object.keys(params).length} 个参数
+                      {Object.keys(params).length}{t('parametersCount')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -511,11 +515,9 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
                                   <TooltipContent>
                                     <div className="max-w-xs">
                                       <p className="font-medium">{paramKey}</p>
-                                      {param.description && (
-                                        <p className="text-sm mt-1">{param.description}</p>
-                                      )}
+                                      <p className="text-sm mt-1">{getParamDisplayName(paramKey)}</p>
                                       <p className="text-xs mt-1 text-muted-foreground">
-                                        默认值: {String(param.default)}
+                                        {t('defaultValue')}: {String(param.default)}
                                       </p>
                                     </div>
                                   </TooltipContent>

@@ -344,7 +344,11 @@ export default {
       showPassword: '显示密码',
       hidePassword: '隐藏密码',
       enabled: '启用',
-      disabled: '禁用'
+      disabled: '禁用',
+      parametersCount: '个参数',
+      defaultValue: '默认值',
+      parseGameIniError: '解析Game.ini文本失败',
+      syncVisualToTextError: '同步可视化配置到文本失败'
     },
     // 启动参数编辑器相关
     argsEditor: {

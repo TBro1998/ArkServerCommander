@@ -344,7 +344,11 @@ export default {
       showPassword: 'Show Password',
       hidePassword: 'Hide Password',
       enabled: 'Enabled',
-      disabled: 'Disabled'
+      disabled: 'Disabled',
+      parametersCount: ' parameters',
+      defaultValue: 'Default',
+      parseGameIniError: 'Failed to parse Game.ini text',
+      syncVisualToTextError: 'Failed to sync visual config to text'
     },
     // Server args editor related
     argsEditor: {
