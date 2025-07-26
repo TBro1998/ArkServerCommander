@@ -159,6 +159,307 @@
                 }
             }
         },
+        "/images/affected": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取使用指定镜像的服务器列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "镜像管理"
+                ],
+                "summary": "获取影响的服务器列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "镜像名称",
+                        "name": "image_name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "服务器列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/images/check-updates": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "检查所有管理的镜像是否有新版本",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "镜像管理"
+                ],
+                "summary": "检查镜像是否有更新",
+                "responses": {
+                    "200": {
+                        "description": "镜像更新状态映射",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/images/pull": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "用户主动触发镜像下载操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "镜像管理"
+                ],
+                "summary": "手动拉取Docker镜像",
+                "parameters": [
+                    {
+                        "description": "镜像信息 {\\",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "拉取状态",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/images/status": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取ARK服务器镜像的状态信息（镜像在后台异步拉取）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "获取镜像状态",
+                "responses": {
+                    "200": {
+                        "description": "镜像状态信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/images/update": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "更新指定镜像并处理相关容器",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "镜像管理"
+                ],
+                "summary": "更新Docker镜像",
+                "parameters": [
+                    {
+                        "description": "镜像信息 {\\",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新状态",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/profile": {
             "get": {
                 "security": [
@@ -672,6 +973,170 @@
                 }
             }
         },
+        "/servers/{id}/rcon/execute": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "在指定服务器上执行RCON命令",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "执行RCON命令",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "RCON命令 {\\",
+                        "name": "command",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "命令执行结果",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "服务器不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/recreate": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "使用新镜像重建指定服务器的容器",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "重建服务器容器",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "重建状态",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "服务器不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/servers/{id}/start": {
             "post": {
                 "security": [
@@ -826,12 +1291,56 @@
         }
     },
     "definitions": {
+        "models.ServerArgs": {
+            "type": "object",
+            "properties": {
+                "command_line_args": {
+                    "description": "命令行参数（以-开头的参数）",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "custom_args": {
+                    "description": "自定义参数（用户添加的其他参数）",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "query_params": {
+                    "description": "查询参数（以?开头的参数，不包含基础参数）",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.ServerArgsRequest": {
+            "type": "object",
+            "properties": {
+                "command_line_args": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "custom_args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "query_params": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "models.ServerRequest": {
             "type": "object",
             "required": [
                 "admin_password",
-                "max_players",
-                "name",
+                "identifier",
                 "port",
                 "query_port",
                 "rcon_port"
@@ -840,19 +1349,37 @@
                 "admin_password": {
                     "type": "string"
                 },
-                "description": {
+                "auto_restart": {
+                    "description": "是否自动重启（可选）",
+                    "type": "boolean"
+                },
+                "cluster_id": {
+                    "description": "集群ID",
+                    "type": "string"
+                },
+                "game_ini": {
+                    "description": "Game.ini 文件内容",
+                    "type": "string"
+                },
+                "game_mod_ids": {
+                    "description": "游戏模组ID列表，用逗号分隔",
+                    "type": "string"
+                },
+                "game_user_settings": {
+                    "description": "配置文件内容（可选）",
+                    "type": "string"
+                },
+                "identifier": {
                     "type": "string"
                 },
                 "map": {
                     "type": "string"
                 },
                 "max_players": {
+                    "description": "最大玩家数",
                     "type": "integer",
                     "maximum": 200,
                     "minimum": 1
-                },
-                "name": {
-                    "type": "string"
                 },
                 "port": {
                     "type": "integer",
@@ -868,6 +1395,18 @@
                     "type": "integer",
                     "maximum": 65535,
                     "minimum": 1
+                },
+                "server_args": {
+                    "description": "启动参数（可选）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ServerArgsRequest"
+                        }
+                    ]
+                },
+                "session_name": {
+                    "description": "服务器名称",
+                    "type": "string"
                 }
             }
         },
@@ -877,31 +1416,43 @@
                 "admin_password": {
                     "type": "string"
                 },
-                "created_at": {
+                "auto_restart": {
+                    "type": "boolean"
+                },
+                "cluster_id": {
+                    "description": "集群ID",
                     "type": "string"
                 },
-                "description": {
+                "created_at": {
                     "type": "string"
                 },
                 "game_ini": {
                     "description": "Game.ini 文件内容",
                     "type": "string"
                 },
+                "game_mod_ids": {
+                    "type": "string"
+                },
                 "game_user_settings": {
                     "description": "配置文件内容",
+                    "type": "string"
+                },
+                "generated_args": {
+                    "description": "生成的完整启动参数字符串",
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
+                "identifier": {
+                    "type": "string"
+                },
                 "map": {
                     "type": "string"
                 },
                 "max_players": {
+                    "description": "最大玩家数",
                     "type": "integer"
-                },
-                "name": {
-                    "type": "string"
                 },
                 "port": {
                     "type": "integer"
@@ -911,6 +1462,18 @@
                 },
                 "rcon_port": {
                     "type": "integer"
+                },
+                "server_args": {
+                    "description": "启动参数",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ServerArgs"
+                        }
+                    ]
+                },
+                "session_name": {
+                    "description": "服务器名称",
+                    "type": "string"
                 },
                 "status": {
                     "type": "string"
@@ -929,27 +1492,36 @@
                 "admin_password": {
                     "type": "string"
                 },
-                "description": {
+                "auto_restart": {
+                    "type": "boolean"
+                },
+                "cluster_id": {
+                    "description": "集群ID",
                     "type": "string"
                 },
                 "game_ini": {
                     "description": "Game.ini 文件内容",
                     "type": "string"
                 },
+                "game_mod_ids": {
+                    "description": "游戏模组ID列表，用逗号分隔",
+                    "type": "string"
+                },
                 "game_user_settings": {
                     "description": "配置文件内容（可选）",
+                    "type": "string"
+                },
+                "identifier": {
                     "type": "string"
                 },
                 "map": {
                     "type": "string"
                 },
                 "max_players": {
+                    "description": "最大玩家数",
                     "type": "integer",
                     "maximum": 200,
                     "minimum": 1
-                },
-                "name": {
-                    "type": "string"
                 },
                 "port": {
                     "type": "integer",
@@ -965,6 +1537,18 @@
                     "type": "integer",
                     "maximum": 65535,
                     "minimum": 1
+                },
+                "server_args": {
+                    "description": "启动参数（可选）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ServerArgsRequest"
+                        }
+                    ]
+                },
+                "session_name": {
+                    "description": "服务器名称",
+                    "type": "string"
                 }
             }
         },
