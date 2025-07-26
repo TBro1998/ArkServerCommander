@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ServerParam, getServerParamsByCategory } from '@/lib/ark-settings';
+import { ServerParam, getServerParamsByCategory, CategoryKey } from '@/lib/ark-settings';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
 import { Trash2 } from 'lucide-react';
 
 interface ServerArgsEditorProps {
@@ -20,8 +23,14 @@ interface ServerArgsEditorProps {
 
 export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
   const t = useTranslations('servers.argsEditor');
-  const tParams = useTranslations('servers'); // 添加这行
+  const tParams = useTranslations('servers.paramCategories');
   const paramCategories = getServerParamsByCategory();
+  const [activeTab, setActiveTab] = useState<CategoryKey>('basic');
+
+  // 获取有参数的分类
+  const availableCategories = Object.entries(paramCategories)
+    .filter(([_, params]) => params.length > 0)
+    .map(([category]) => category as CategoryKey);
 
   const handleParamChange = (
     type: 'query_params' | 'command_line_args' | 'custom_args',
@@ -59,24 +68,36 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
     switch (param.type) {
       case 'boolean':
         return (
-          <div className="flex items-center space-x-2">
+          <div key={id} className="flex items-center space-x-2">
             <Switch
               id={id}
               checked={type === 'query' ? currentValue === 'True' : Boolean(currentValue)}
-              onCheckedChange={(checked: boolean) => handleParamChange(type === 'query' ? 'query_params' : 'command_line_args', key, type === 'query' ? (checked ? 'True' : 'False') : checked)}
+              onCheckedChange={(checked: boolean) => 
+                handleParamChange(
+                  type === 'query' ? 'query_params' : 'command_line_args', 
+                  key, 
+                  type === 'query' ? (checked ? 'True' : 'False') : checked
+                )
+              }
             />
-            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
+            <Label htmlFor={id}>{key}</Label>
           </div>
         );
       case 'number':
         return (
-          <div>
-            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
+          <div key={id}>
+            <Label htmlFor={id}>{key}</Label>
             <Input
               id={id}
               type="number"
               value={String(currentValue || '')}
-              onChange={(e) => handleParamChange(type === 'query' ? 'query_params' : 'command_line_args', key, e.target.value)}
+              onChange={(e) => 
+                handleParamChange(
+                  type === 'query' ? 'query_params' : 'command_line_args', 
+                  key, 
+                  e.target.value
+                )
+              }
               min={param.min}
               max={param.max}
               step={param.step}
@@ -85,26 +106,43 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
         );
       case 'string':
         return (
-          <div>
-            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
+          <div key={id}>
+            <Label htmlFor={id}>{key}</Label>
             <Input
               id={id}
               type="text"
               value={String(currentValue || '')}
-              onChange={(e) => handleParamChange(type === 'query' ? 'query_params' : 'command_line_args', key, e.target.value)}
+              onChange={(e) => 
+                handleParamChange(
+                  type === 'query' ? 'query_params' : 'command_line_args', 
+                  key, 
+                  e.target.value
+                )
+              }
             />
           </div>
         );
       case 'select':
         return (
-          <div>
-            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
-            <Select value={String(currentValue || '')} onValueChange={(val: string) => handleParamChange(type === 'query' ? 'query_params' : 'command_line_args', key, val)}>
+          <div key={id}>
+            <Label htmlFor={id}>{key}</Label>
+            <Select 
+              value={String(currentValue || '')} 
+              onValueChange={(val: string) => 
+                handleParamChange(
+                  type === 'query' ? 'query_params' : 'command_line_args', 
+                  key, 
+                  val
+                )
+              }
+            >
               <SelectTrigger>
                 <SelectValue placeholder={t('pleaseSelect')} />
               </SelectTrigger>
               <SelectContent>
-                {param.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                {param.options?.map(opt => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -116,31 +154,57 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
 
   return (
     <div className="space-y-6">
-      {Object.entries(paramCategories).map(([category, params]) => (
-        <div key={category}>
-          <h3 className="text-lg font-semibold mb-2">{t(`paramCategories.${category}`)}</h3>
-          <div className="space-y-4">
-            {params.map(({ key, param }) => {
-              const type = key in value.query_params ? 'query' : 'cmd';
-              return renderParam(type, key, param)
-            })}
-          </div>
-        </div>
-      ))}
-      <div>
-        <h3 className="text-lg font-semibold mb-2">{t('customArgs')}</h3>
-        <div className="space-y-2">
-          {value.custom_args.map((arg, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <Input value={arg} onChange={(e) => handleCustomArgChange(index, e.target.value)} />
-              <Button variant="ghost" size="icon" onClick={() => removeCustomArg(index)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as CategoryKey)}>
+        <TabsList className="flex flex-wrap h-auto">
+          {availableCategories.map((category) => (
+            <TabsTrigger key={category} value={category} className="text-sm">
+              {tParams(category)}
+            </TabsTrigger>
           ))}
-          <Button onClick={addCustomArg}>{t('addCustomArg')}</Button>
-        </div>
-      </div>
+          <TabsTrigger value="custom" className="text-sm">
+            {t('customArgs')}
+          </TabsTrigger>
+        </TabsList>
+
+        {availableCategories.map((category) => (
+          <TabsContent key={category} value={category} className="mt-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {paramCategories[category].map(({ key, param }) => {
+                    const type = key in value.query_params ? 'query' : 'cmd';
+                    return renderParam(type, key, param);
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+
+        <TabsContent value="custom" className="mt-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  {value.custom_args.map((arg, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input 
+                        value={arg} 
+                        onChange={(e) => handleCustomArgChange(index, e.target.value)}
+                        placeholder={t('customArgPlaceholder')}
+                      />
+                      <Button variant="ghost" size="icon" onClick={() => removeCustomArg(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button onClick={addCustomArg}>{t('addCustomArg')}</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

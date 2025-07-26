@@ -380,7 +380,15 @@ export default {
       features: '游戏功能',
       maintenance: '维护工具',
       advanced: '高级配置',
-      custom: '自定义参数'
+      custom: '自定义参数',
+      // 新增缺失的分类
+      events: '事件设置',
+      network: '网络设置',
+      compatibility: '兼容性设置',
+      localization: '本地化设置',
+      notifications: '通知设置',
+      voice: '语音设置',
+      gameplay: '游戏玩法'
     },
     // 查询参数翻译
     queryParams: {

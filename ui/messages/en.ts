@@ -380,7 +380,15 @@ export default {
       features: 'Game Features',
       maintenance: 'Maintenance Tools',
       advanced: 'Advanced Configuration',
-      custom: 'Custom Parameters'
+      custom: 'Custom Parameters',
+      // Add missing categories
+      events: 'Event Settings',
+      network: 'Network Settings',
+      compatibility: 'Compatibility Settings',
+      localization: 'Localization Settings',
+      notifications: 'Notification Settings',
+      voice: 'Voice Settings',
+      gameplay: 'Gameplay Settings'
     },
     // Query parameters translation
     queryParams: {
