@@ -1,7 +1,9 @@
 package routes
 
 import (
-	"ark-server-commander/controllers"
+	"ark-server-commander/controllers/auth"
+	"ark-server-commander/controllers/images"
+	"ark-server-commander/controllers/servers"
 	"ark-server-commander/middleware"
 	"fmt"
 	"net/http"
@@ -51,36 +53,44 @@ func RegisterRoutes(r *gin.Engine) {
 	}))
 	{
 		// 认证相关路由
-		auth := api.Group("/auth")
+		authRoutes := api.Group("/auth")
 		{
-			auth.GET("/check-init", controllers.CheckInit)
-			auth.POST("/init", controllers.InitUser)
-			auth.POST("/login", controllers.Login)
+			authRoutes.GET("/check-init", auth.CheckInit)
+			authRoutes.POST("/init", auth.InitUser)
+			authRoutes.POST("/login", auth.Login)
 		}
 
 		// 需要认证的路由
 		protected := api.Group("") // 改为空字符串，避免双斜杠
 		protected.Use(middleware.AuthMiddleware())
 		{
-			protected.GET("/profile", controllers.GetProfile)
+			protected.GET("/profile", auth.GetProfile)
 
-			// 服务器管理路由 - 直接在 protected 组下定义
-			protected.GET("/servers", controllers.GetServers)
-			protected.GET("/servers/images/status", controllers.GetImageStatus)
-			protected.POST("/servers/images/pull", controllers.PullImage)
-			protected.GET("/servers/images/check-updates", controllers.CheckImageUpdates)
-			protected.POST("/servers/images/update", controllers.UpdateImage)
-			protected.GET("/servers/images/affected", controllers.GetAffectedServers)
-			protected.POST("/servers", controllers.CreateServer)
-			protected.GET("/servers/:id", controllers.GetServer)
-			protected.GET("/servers/:id/rcon", controllers.GetServerRCON)
-			protected.POST("/servers/:id/rcon/execute", controllers.ExecuteRCONCommand)
-			protected.GET("/servers/:id/folder", controllers.GetServerFolderInfo)
-			protected.PUT("/servers/:id", controllers.UpdateServer)
-			protected.DELETE("/servers/:id", controllers.DeleteServer)
-			protected.POST("/servers/:id/start", controllers.StartServer)
-			protected.POST("/servers/:id/stop", controllers.StopServer)
-			protected.POST("/servers/:id/recreate", controllers.RecreateContainer)
+			// 服务器管理路由
+			serverRoutes := protected.Group("/servers")
+			{
+				serverRoutes.GET("", servers.GetServers)
+				serverRoutes.POST("", servers.CreateServer)
+				serverRoutes.GET("/:id", servers.GetServer)
+				serverRoutes.PUT("/:id", servers.UpdateServer)
+				serverRoutes.DELETE("/:id", servers.DeleteServer)
+				serverRoutes.POST("/:id/start", servers.StartServer)
+				serverRoutes.POST("/:id/stop", servers.StopServer)
+				serverRoutes.POST("/:id/recreate", servers.RecreateContainer)
+				serverRoutes.GET("/:id/rcon", servers.GetServerRCON)
+				serverRoutes.POST("/:id/rcon/execute", servers.ExecuteRCONCommand)
+				serverRoutes.GET("/:id/folder", servers.GetServerFolderInfo)
+			}
+
+			// 镜像管理路由
+			imageRoutes := protected.Group("/images")
+			{
+				imageRoutes.GET("/status", images.GetImageStatus)
+				imageRoutes.POST("/pull", images.PullImage)
+				imageRoutes.GET("/check-updates", images.CheckImageUpdates)
+				imageRoutes.POST("/update", images.UpdateImage)
+				imageRoutes.GET("/affected", images.GetAffectedServers)
+			}
 		}
 	}
 }

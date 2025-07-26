@@ -142,7 +142,7 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         getImageStatus: async () => {
             try {
-                const response = await axios.get('/api/servers/images/status', { headers: getAuthHeaders() });
+                const response = await axios.get('/api/images/status', { headers: getAuthHeaders() });
                 set({ imageStatus: response.data.data });
             } catch (error) {
                 set({ error: '获取镜像状态失败' });
