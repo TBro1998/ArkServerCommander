@@ -133,7 +133,10 @@ export function ServerEditModal({
               />
             </TabsContent>
             <TabsContent value="game_ini">
-              <GameIniEditor />
+              <GameIniEditor
+                value={formData.game_ini}
+                onChange={(v) => setFormData(p => ({ ...p, game_ini: v }))}
+              />
             </TabsContent>
             <TabsContent value="server_args">
               {/* @ts-expect-error: Prop 'value' is not available on type 'IntrinsicAttributes' */}

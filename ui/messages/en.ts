@@ -349,7 +349,6 @@ export default {
     // Server args editor related
     argsEditor: {
       title: 'Startup Arguments Configuration',
-      resetToDefault: 'Reset to Default',
       switchParams: 'Switch Parameters',
       numberParams: 'Number Parameters',
       textParams: 'Text Parameters',
@@ -872,7 +871,32 @@ SessionName=My ARK Server
 Message=Welcome to ARK Server!
 
 [/Script/Engine.GameSession]
-MaxPlayers=70`
+MaxPlayers=70`,
+      gameIni: `[/Script/ShooterGame.ShooterGameMode]
+DifficultyOffset=0.2
+OverrideOfficialDifficulty=5.0
+XPMultiplier=1.0
+TamingSpeedMultiplier=1.0
+HarvestAmountMultiplier=1.0
+ResourcesRespawnPeriodMultiplier=1.0
+PlayerCharacterWaterDrainMultiplier=1.0
+PlayerCharacterFoodDrainMultiplier=1.0
+DinoCharacterFoodDrainMultiplier=1.0
+PlayerCharacterStaminaDrainMultiplier=1.0
+DinoCharacterStaminaDrainMultiplier=1.0
+PlayerCharacterHealthRecoveryMultiplier=1.0
+DinoCharacterHealthRecoveryMultiplier=1.0
+DinoCountMultiplier=1.0
+AllowFlyerCarryPvE=False
+MaxTamedDinos=4000
+StructureDamageMultiplier=1.0
+StructureResistanceMultiplier=1.0
+TheMaxStructuresInRange=10500
+BabyMatureSpeedMultiplier=1.0
+EggHatchSpeedMultiplier=1.0
+BabyCuddleIntervalMultiplier=1.0
+BabyCuddleGracePeriodMultiplier=1.0
+BabyImprintAmountMultiplier=1.0`
     }
   },
 

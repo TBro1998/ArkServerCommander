@@ -349,7 +349,6 @@ export default {
     // 启动参数编辑器相关
     argsEditor: {
       title: '启动参数配置',
-      resetToDefault: '重置为默认',
       switchParams: '开关参数',
       numberParams: '数值参数',
       textParams: '文本参数',
@@ -872,7 +871,32 @@ SessionName=我的ARK服务器
 Message=欢迎来到ARK服务器！
 
 [/Script/Engine.GameSession]
-MaxPlayers=70`
+MaxPlayers=70`,
+      gameIni: `[/Script/ShooterGame.ShooterGameMode]
+DifficultyOffset=0.2
+OverrideOfficialDifficulty=5.0
+XPMultiplier=1.0
+TamingSpeedMultiplier=1.0
+HarvestAmountMultiplier=1.0
+ResourcesRespawnPeriodMultiplier=1.0
+PlayerCharacterWaterDrainMultiplier=1.0
+PlayerCharacterFoodDrainMultiplier=1.0
+DinoCharacterFoodDrainMultiplier=1.0
+PlayerCharacterStaminaDrainMultiplier=1.0
+DinoCharacterStaminaDrainMultiplier=1.0
+PlayerCharacterHealthRecoveryMultiplier=1.0
+DinoCharacterHealthRecoveryMultiplier=1.0
+DinoCountMultiplier=1.0
+AllowFlyerCarryPvE=False
+MaxTamedDinos=4000
+StructureDamageMultiplier=1.0
+StructureResistanceMultiplier=1.0
+TheMaxStructuresInRange=10500
+BabyMatureSpeedMultiplier=1.0
+EggHatchSpeedMultiplier=1.0
+BabyCuddleIntervalMultiplier=1.0
+BabyCuddleGracePeriodMultiplier=1.0
+BabyImprintAmountMultiplier=1.0`
     }
   },
 
