@@ -20,6 +20,7 @@ interface ServerArgsEditorProps {
 
 export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
   const t = useTranslations('servers.argsEditor');
+  const tParams = useTranslations('servers'); // 添加这行
   const paramCategories = getServerParamsByCategory();
 
   const handleParamChange = (
@@ -64,13 +65,13 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
               checked={type === 'query' ? currentValue === 'True' : Boolean(currentValue)}
               onCheckedChange={(checked: boolean) => handleParamChange(type === 'query' ? 'query_params' : 'command_line_args', key, type === 'query' ? (checked ? 'True' : 'False') : checked)}
             />
-            <Label htmlFor={id}>{t(`queryParams.${key}`) || t(`commandLineArgs.${key}`)}</Label>
+            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
           </div>
         );
       case 'number':
         return (
           <div>
-            <Label htmlFor={id}>{t(`queryParams.${key}`) || t(`commandLineArgs.${key}`)}</Label>
+            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
             <Input
               id={id}
               type="number"
@@ -85,7 +86,7 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
       case 'string':
         return (
           <div>
-            <Label htmlFor={id}>{t(`queryParams.${key}`) || t(`commandLineArgs.${key}`)}</Label>
+            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
             <Input
               id={id}
               type="text"
@@ -97,7 +98,7 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
       case 'select':
         return (
           <div>
-            <Label htmlFor={id}>{t(`queryParams.${key}`) || t(`commandLineArgs.${key}`)}</Label>
+            <Label htmlFor={id}>{tParams(`queryParams.${key}`) || tParams(`commandLineArgs.${key}`)}</Label>
             <Select value={String(currentValue || '')} onValueChange={(val: string) => handleParamChange(type === 'query' ? 'query_params' : 'command_line_args', key, val)}>
               <SelectTrigger>
                 <SelectValue placeholder={t('pleaseSelect')} />

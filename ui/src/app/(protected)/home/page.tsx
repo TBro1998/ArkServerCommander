@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/navigation';
 import { useAuthUser } from '@/stores/auth';
-import { useImageStatus, useServersActions } from '@/stores/servers';
+import { useImageStatus, serversActions } from '@/stores/servers';
 import { ImageStatus } from '@/components/docker/ImageStatus';
 import { useEffect, useRef, useCallback } from 'react';
 import { Server } from 'lucide-react';
@@ -14,7 +14,7 @@ export default function HomePage() {
     const t = useTranslations('home');
     const profile = useAuthUser();
     const imageStatus = useImageStatus();
-    const { getImageStatus } = useServersActions();
+    const { getImageStatus } = serversActions;
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // 获取镜像状态
