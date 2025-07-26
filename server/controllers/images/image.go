@@ -22,7 +22,7 @@ var serverService = server.NewServerService()
 // @Failure 400 {object} map[string]string "请求错误"
 // @Failure 401 {object} map[string]string "未授权"
 // @Failure 500 {object} map[string]string "服务器错误"
-// @Router /servers/images/pull [post]
+// @Router /images/pull [post]
 func PullImage(c *gin.Context) {
 	var req struct {
 		ImageName string `json:"image_name" binding:"required"`
@@ -57,7 +57,7 @@ func PullImage(c *gin.Context) {
 // @Success 200 {object} map[string]bool "镜像更新状态映射"
 // @Failure 401 {object} map[string]string "未授权"
 // @Failure 500 {object} map[string]string "服务器错误"
-// @Router /servers/images/check-updates [get]
+// @Router /images/check-updates [get]
 func CheckImageUpdates(c *gin.Context) {
 	data, err := serverService.CheckImageUpdates()
 	if err != nil {
@@ -83,7 +83,7 @@ func CheckImageUpdates(c *gin.Context) {
 // @Failure 400 {object} map[string]string "请求错误"
 // @Failure 401 {object} map[string]string "未授权"
 // @Failure 500 {object} map[string]string "服务器错误"
-// @Router /servers/images/update [post]
+// @Router /images/update [post]
 func UpdateImage(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
@@ -123,7 +123,7 @@ func UpdateImage(c *gin.Context) {
 // @Failure 400 {object} map[string]string "请求错误"
 // @Failure 401 {object} map[string]string "未授权"
 // @Failure 500 {object} map[string]string "服务器错误"
-// @Router /servers/images/affected [get]
+// @Router /images/affected [get]
 func GetAffectedServers(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	imageName := c.Query("image_name")
@@ -158,7 +158,7 @@ func GetAffectedServers(c *gin.Context) {
 // @Success 200 {object} map[string]interface{} "镜像状态信息"
 // @Failure 401 {object} map[string]string "未授权"
 // @Failure 500 {object} map[string]string "服务器错误"
-// @Router /servers/images/status [get]
+// @Router /images/status [get]
 func GetImageStatus(c *gin.Context) {
 	data, err := serverService.GetImageStatus()
 	if err != nil {

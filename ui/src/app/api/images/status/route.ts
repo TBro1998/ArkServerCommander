@@ -17,7 +17,7 @@ export async function GET() {
   };
 
   try {
-    const url = `${getApiBase()}/servers/images/status`;
+    const url = `${getApiBase()}/images/status`;
     const response = await axios.get(url, config);
     return NextResponse.json(response.data);
   } catch (error: unknown) {
