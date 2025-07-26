@@ -85,6 +85,7 @@ const useServersStore = create<ServersState>((set, get) => ({
     imageStatus: null,
     actions: {
         fetchServers: async () => {
+            if (get().isLoading) return;
             set({ isLoading: true, error: null });
             try {
                 const response = await axios.get('/api/servers', { headers: getAuthHeaders() });
@@ -141,12 +142,17 @@ const useServersStore = create<ServersState>((set, get) => ({
             }
         },
         getImageStatus: async () => {
+            if (get().isLoading) return; // 如果正在加载，则不执行任何操作
+
+            set({ isLoading: true, error: null });
             try {
                 const response = await axios.get('/api/images/status', { headers: getAuthHeaders() });
                 set({ imageStatus: response.data.data });
             } catch (error) {
                 set({ error: '获取镜像状态失败' });
                 throw error;
+            } finally {
+                set({ isLoading: false });
             }
         },
         startServer: async (serverId) => {
@@ -181,6 +187,6 @@ export const useServers = () => useServersStore((state) => state.servers);
 export const useServersIsLoading = () => useServersStore((state) => state.isLoading);
 export const useServersError = () => useServersStore((state) => state.error);
 export const useImageStatus = () => useServersStore((state) => state.imageStatus);
-export const useServersActions = () => useServersStore((state) => state.actions);
+export const serversActions = useServersStore.getState().actions;
 
 export default useServersStore;

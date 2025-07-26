@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useServers, useServersActions, useServersIsLoading, useImageStatus } from '@/stores/servers';
+import { useServers, serversActions, useServersIsLoading, useImageStatus } from '@/stores/servers';
 import { ServerCard } from '@/components/servers/ServerCard';
 import { ServerEditModal } from '@/components/servers/ServerEditModal';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { useTranslations } from 'next-intl';
 export default function ServersPage() {
   const t = useTranslations('servers');
   const servers = useServers();
-  const { fetchServers, getImageStatus, startServer, stopServer, createServer, updateServer, deleteServer, getServer } = useServersActions();
+  const { fetchServers, getImageStatus, startServer, stopServer, createServer, updateServer, deleteServer, getServer } = serversActions;
   const isLoading = useServersIsLoading();
   const imageStatus = useImageStatus();
 
@@ -28,8 +28,7 @@ export default function ServersPage() {
 
   useEffect(() => {
     fetchServers().catch(() => setError(t('getServerListFailed')));
-    const statusInterval = setInterval(() => getImageStatus(), 2000);
-    return () => clearInterval(statusInterval);
+    getImageStatus();
   }, [fetchServers, getImageStatus, t]);
 
   const handleAddServer = () => {
