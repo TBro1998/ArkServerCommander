@@ -27,6 +27,13 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
   const paramCategories = getServerParamsByCategory();
   const [activeTab, setActiveTab] = useState<CategoryKey>('basic');
 
+  // 确保 value 有默认值
+  const safeValue = value || {
+    query_params: {},
+    command_line_args: {},
+    custom_args: []
+  };
+
   // 获取有参数的分类
   const availableCategories = Object.entries(paramCategories)
     .filter(([_, params]) => params.length > 0)
@@ -38,32 +45,32 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
     val: string | number | boolean
   ) => {
     onChange({
-      ...value,
+      ...safeValue,
       [type]: {
-        ...value[type],
+        ...safeValue[type],
         [key]: val,
       },
     });
   };
 
   const handleCustomArgChange = (index: number, val: string) => {
-    const newCustomArgs = [...value.custom_args];
+    const newCustomArgs = [...safeValue.custom_args];
     newCustomArgs[index] = val;
-    onChange({ ...value, custom_args: newCustomArgs });
+    onChange({ ...safeValue, custom_args: newCustomArgs });
   };
 
   const addCustomArg = () => {
-    onChange({ ...value, custom_args: [...value.custom_args, ''] });
+    onChange({ ...safeValue, custom_args: [...safeValue.custom_args, ''] });
   };
 
   const removeCustomArg = (index: number) => {
-    const newCustomArgs = value.custom_args.filter((_, i) => i !== index);
-    onChange({ ...value, custom_args: newCustomArgs });
+    const newCustomArgs = safeValue.custom_args.filter((_, i) => i !== index);
+    onChange({ ...safeValue, custom_args: newCustomArgs });
   };
 
   const renderParam = (type: 'query' | 'cmd', key: string, param: ServerParam) => {
     const id = `${type}-${key}`;
-    const currentValue = type === 'query' ? value.query_params[key] : value.command_line_args[key];
+    const currentValue = type === 'query' ? safeValue.query_params[key] : safeValue.command_line_args[key];
     
     // 获取参数的翻译名称
     const tQueryParams = useTranslations('servers.queryParams');
@@ -179,7 +186,7 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {paramCategories[category].map(({ key, param }) => {
-                    const type = key in value.query_params ? 'query' : 'cmd';
+                    const type = key in safeValue.query_params ? 'query' : 'cmd';
                     return renderParam(type, key, param);
                   })}
                 </div>
@@ -193,7 +200,7 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
             <CardContent className="pt-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  {value.custom_args.map((arg, index) => (
+                  {safeValue.custom_args.map((arg, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <Input 
                         value={arg} 

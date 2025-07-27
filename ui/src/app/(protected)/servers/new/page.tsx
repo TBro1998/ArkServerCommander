@@ -30,6 +30,11 @@ export default function ServerNewPage() {
     rcon_port: 27020,
     map: 'TheIsland',
     max_players: 70,
+    server_args: {
+      query_params: {},
+      command_line_args: {},
+      custom_args: []
+    },
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
