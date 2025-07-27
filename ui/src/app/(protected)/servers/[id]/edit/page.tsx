@@ -17,7 +17,8 @@ import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ServerEditPage() {
-  const t = useTranslations('servers.edit');
+  const tServers = useTranslations('servers');
+  const tServersEdit = useTranslations('servers.edit');
   const tCommon = useTranslations('common');
   const router = useRouter();
   const params = useParams();
@@ -40,7 +41,7 @@ export default function ServerEditPage() {
         setServer(serverData);
         setFormData(serverData);
       } catch (err) {
-        setError(t('loadServerInfoFailed'));
+        setError(tServersEdit('loadServerInfoFailed'));
       } finally {
         setLoading(false);
       }
@@ -49,7 +50,7 @@ export default function ServerEditPage() {
     if (serverId) {
       loadServer();
     }
-  }, [serverId, getServer, t]);
+  }, [serverId, getServer, tServersEdit]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -62,11 +63,11 @@ export default function ServerEditPage() {
     try {
       setSaving(true);
       await updateServer(serverId, formData);
-      setSuccess(t('serverUpdateSuccess'));
+      setSuccess(tServers('serverUpdateSuccess'));
       // 可选：保存成功后跳转回服务器列表
       // router.push('/servers');
     } catch (err) {
-      setError(t('serverUpdateError'));
+      setError(tServers('serverUpdateError'));
     } finally {
       setSaving(false);
     }
@@ -110,7 +111,7 @@ export default function ServerEditPage() {
             {tCommon('back')}
           </Button>
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{t('editTitle')}</h1>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{tServersEdit('editTitle')}</h1>
             <p className="text-gray-600">{server?.name}</p>
           </div>
         </div>
@@ -130,49 +131,49 @@ export default function ServerEditPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t('editTitle')}</CardTitle>
+          <CardTitle>{tServersEdit('editTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="basic">
             <TabsList>
-              <TabsTrigger value="basic">{t('basicParams')}</TabsTrigger>
-              <TabsTrigger value="game_user_settings">{t('gameUserSettings')}</TabsTrigger>
-              <TabsTrigger value="game_ini">{t('gameIni')}</TabsTrigger>
-              <TabsTrigger value="server_args">{t('serverArgs')}</TabsTrigger>
+              <TabsTrigger value="basic">{tServersEdit('basicParams')}</TabsTrigger>
+              <TabsTrigger value="game_user_settings">{tServersEdit('gameUserSettings')}</TabsTrigger>
+              <TabsTrigger value="game_ini">{tServersEdit('gameIni')}</TabsTrigger>
+              <TabsTrigger value="server_args">{tServersEdit('serverArgs')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">{t('serverName')}</Label>
+                    <Label htmlFor="name">{tServersEdit('serverName')}</Label>
                     <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} />
                   </div>
                   <div>
-                    <Label htmlFor="map">{t('map')}</Label>
+                    <Label htmlFor="map">{tServersEdit('map')}</Label>
                     <Input id="map" name="map" value={formData.map || ''} onChange={handleChange} />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="port">{t('gamePort')}</Label>
+                    <Label htmlFor="port">{tServersEdit('gamePort')}</Label>
                     <Input id="port" name="port" type="number" value={formData.port || ''} onChange={handleChange} />
                   </div>
                   <div>
-                    <Label htmlFor="query_port">{t('queryPort')}</Label>
+                    <Label htmlFor="query_port">{tServersEdit('queryPort')}</Label>
                     <Input id="query_port" name="query_port" type="number" value={formData.query_port || ''} onChange={handleChange} />
                   </div>
                   <div>
-                    <Label htmlFor="rcon_port">{t('rconPort')}</Label>
+                    <Label htmlFor="rcon_port">{tServersEdit('rconPort')}</Label>
                     <Input id="rcon_port" name="rcon_port" type="number" value={formData.rcon_port || ''} onChange={handleChange} />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="admin_password">{t('adminPassword')}</Label>
+                  <Label htmlFor="admin_password">{tServersEdit('adminPassword')}</Label>
                   <Input id="admin_password" name="admin_password" type="password" value={formData.admin_password || ''} onChange={handleChange} />
                 </div>
                 <div>
-                  <Label htmlFor="max_players">{t('maxPlayers')}</Label>
+                  <Label htmlFor="max_players">{tServersEdit('maxPlayers')}</Label>
                   <Input id="max_players" name="max_players" type="number" value={formData.max_players || ''} onChange={handleChange} />
                 </div>
               </form>
@@ -202,7 +203,7 @@ export default function ServerEditPage() {
             <Button onClick={handleSubmit} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Save className="mr-2 h-4 w-4" />
-              {t('saveChanges')}
+              {tServersEdit('saveChanges')}
             </Button>
           </div>
         </CardContent>
