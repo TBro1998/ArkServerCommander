@@ -329,7 +329,7 @@ export default {
     editor: {
       visualEdit: '可视化编辑',
       textEdit: '文本编辑',
-      visualEditMode: '可视化编辑',
+      visualEditMode: '可视化编辑模式',
       textEditMode: '文本编辑',
       syncing: '正在同步...',
       synced: '已同步',
@@ -339,7 +339,7 @@ export default {
       content: '内容',
       placeholder: '输入配置内容...',
       description: '此文件包含服务器的基本设置，如端口、密码、最大玩家数等',
-      visualEditModeDesc: '可视化编辑模式',
+      visualEditModeDesc: '可视化编辑模式Desc',
       visualEditModeTip: '通过表单控件修改参数，鼠标悬停在参数名称旁的图标可查看详细说明。',
       gameIniTextEditDesc: '直接编辑 Game.ini 配置文件内容。',
       showPassword: '显示密码',

@@ -454,11 +454,6 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
 
       </div>
 
-      {/* Mode Description */}
-      <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
-        {editMode === 'visual' ? t('visualEditModeTip') : t('gameIniTextEditDesc')}
-      </div>
-
       {editMode === 'visual' ? (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as GameIniCategoryKey)}>
           <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">

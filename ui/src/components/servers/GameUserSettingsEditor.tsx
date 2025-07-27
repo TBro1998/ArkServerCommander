@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Info, CheckCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Info, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -249,7 +249,6 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<GameUserSettingsCategoryKey>('serverBasic');
-  const [pendingSync, setPendingSync] = useState(false);
 
   // Helper functions with i18n support
   const getCategoryName = (categoryKey: GameUserSettingsCategoryKey): string => {
@@ -549,14 +548,13 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const handleTextChange = (newContent: string) => {
     setTextContent(newContent);
     onChange?.(newContent);
-    setPendingSync(true);
   };
 
   const handleModeSwitch = async (mode: 'visual' | 'text') => {
     if (mode === editMode) return;
 
     setIsSyncing(true);
-    
+
     try {
       if (mode === 'text' && editMode === 'visual') {
         // 从可视化模式切换到文本模式：将可视化配置同步到文本
@@ -565,9 +563,8 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
         // 从文本模式切换到可视化模式：将文本解析到可视化配置
         parseTextToVisual(textContent);
       }
-      
+
       setEditMode(mode);
-      setPendingSync(false);
     } catch (error) {
       console.error('模式切换同步失败:', error);
     } finally {
@@ -575,18 +572,15 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     }
   };
 
-
-
   const handleVisualChange = (paramKey: string, value: string | number | boolean) => {
     setVisualConfig(prev => {
       const newConfig = { ...prev, [paramKey]: value };
-      // 立即同步到文本内容并通知父组件
+      // 自动同步到文本内容并通知父组件
       setTimeout(() => {
         syncVisualToTextWithConfig(newConfig);
       }, 0);
       return newConfig;
     });
-    setPendingSync(true);
   };
 
   const togglePasswordVisibility = (paramKey: string) => {
@@ -702,31 +696,6 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
             <i className="fas fa-code mr-2"></i>
             {t('textEdit')}
           </Button>
-
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-          <div className="text-sm text-gray-500">
-            GameUserSettings.ini - {editMode === 'visual' ? t('visualEditMode') : t('textEditMode')}
-          </div>
-          <div className="flex items-center text-sm">
-            {isSyncing ? (
-              <div className="flex items-center text-blue-600">
-                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                {t('syncing')}
-              </div>
-            ) : pendingSync ? (
-              <div className="flex items-center text-yellow-600">
-                <Info className="h-4 w-4 mr-1" />
-                {t('pendingSync')}
-              </div>
-            ) : (
-              <div className="flex items-center text-green-600">
-                <CheckCircle className="h-4 w-4 mr-1" />
-                {t('synced')}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -762,7 +731,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
           {getAllCategories().map((categoryKey) => {
             const params = getGameUserSettingsParamsByCategory(categoryKey);
-            
+
             return (
               <TabsContent key={categoryKey} value={categoryKey} className="space-y-4">
                 <Card>
