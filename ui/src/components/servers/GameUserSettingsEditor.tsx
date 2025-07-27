@@ -240,6 +240,7 @@ interface GameUserSettingsEditorProps {
 
 export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEditorProps) {
   const t = useTranslations('servers.editor');
+  const tDefaultValues = useTranslations('servers.defaultValues');
   const tCategories = useTranslations('servers.gameUserSettingsCategories');
   const tParams = useTranslations('servers.gameUserSettingsParams');
   const [editMode, setEditMode] = useState<'visual' | 'text'>('visual');
@@ -288,8 +289,8 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     });
 
     // Add SessionSettings and MessageOfTheDay defaults
-    defaultConfig.SessionName = t('defaultValues.sessionName');
-    defaultConfig.Message = t('defaultValues.message');
+    defaultConfig.SessionName = tDefaultValues('sessionName');
+    defaultConfig.Message = tDefaultValues('message');
     defaultConfig.Duration = 30;
 
     setVisualConfig(prev => ({ ...prev, ...defaultConfig }));
@@ -535,10 +536,10 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       iniContent += 'MaxPlayers=70\n\n';
 
       iniContent += '[SessionSettings]\n';
-      iniContent += `SessionName=${visualConfig.SessionName || t('defaultValues.sessionName')}\n\n`;
+      iniContent += `SessionName=${visualConfig.SessionName || tDefaultValues('sessionName')}\n\n`;
 
       iniContent += '[MessageOfTheDay]\n';
-      iniContent += `Message=${visualConfig.Message || t('defaultValues.message')}\n`;
+      iniContent += `Message=${visualConfig.Message || tDefaultValues('message')}\n`;
       iniContent += `Duration=${visualConfig.Duration || 30}\n`;
 
       setTextContent(iniContent);
