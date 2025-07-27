@@ -348,7 +348,8 @@ export default {
       parametersCount: '个参数',
       defaultValue: '默认值',
       parseGameIniError: '解析Game.ini文本失败',
-      syncVisualToTextError: '同步可视化配置到文本失败'
+      syncVisualToTextError: '同步可视化配置到文本失败',
+      range: '范围',
     },
     // 启动参数编辑器相关
     argsEditor: {

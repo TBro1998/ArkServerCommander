@@ -310,6 +310,7 @@ export default {
       preparing: 'Preparing...',
       loadingServerInfo: 'Loading server information...',
       closeConfirm: 'Are you sure you want to close? Unsaved data will be lost.',
+      range: 'Range',
       // Map options
       maps: {
         TheIsland: 'The Island',
