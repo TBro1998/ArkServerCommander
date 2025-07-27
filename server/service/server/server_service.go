@@ -141,12 +141,6 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		return nil, fmt.Errorf("服务器创建失败: %w", err)
 	}
 
-	// 检查Docker环境
-	if err := docker_manager.CheckDockerStatus(); err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("Docker环境检查失败: %w", err)
-	}
-
 	// 创建Docker卷
 	dockerManager, err := docker_manager.GetDockerManager()
 	if err != nil {

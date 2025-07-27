@@ -49,32 +49,11 @@ func main() {
 	log.Println("✅ Docker环境检查通过")
 
 	// 获取Docker管理器单例实例
-	dockerManager, err := docker_manager.GetDockerManager()
+	_, err := docker_manager.GetDockerManager()
 	if err != nil {
 		log.Fatalf("获取Docker管理器失败: %v", err)
 	}
 	defer docker_manager.CloseDockerManager()
-
-	// 验证必要的Docker镜像是否存在（不自动下载）
-	log.Println("🔍 检查必要的Docker镜像...")
-	missingImages, err := dockerManager.ValidateRequiredImages()
-	if err != nil {
-		log.Printf("⚠️  镜像检查失败: %v", err)
-	} else if len(missingImages) > 0 {
-		log.Printf("⚠️  缺失镜像: %v\n请手动下载镜像后再启动服务器", missingImages)
-	} else {
-		log.Println("✅ 所有必要镜像已存在")
-	}
-
-	// 为现有服务器初始化Docker卷和配置文件（不创建容器）
-	if err := docker_manager.InitializeDockerForExistingServers(); err != nil {
-		log.Printf("Warning: Failed to initialize Docker volumes and config files for existing servers: %v", err)
-	}
-
-	// 同步服务器状态与Docker容器状态
-	if err := docker_manager.SyncServerStatusWithDocker(); err != nil {
-		log.Printf("Warning: Failed to sync server status with Docker: %v", err)
-	}
 
 	// 创建Gin实例
 	r := gin.Default()
