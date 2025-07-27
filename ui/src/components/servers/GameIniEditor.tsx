@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Info, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { Info, Eye, EyeOff } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -364,17 +364,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     setEditMode(mode);
   };
 
-  const resetToDefault = () => {
-    const defaultConfig: Record<string, string | number | boolean> = {};
-    Object.keys(gameIniParams).forEach(categoryKey => {
-      const category = categoryKey as GameIniCategoryKey;
-      const params = getGameIniParamsByCategory(category);
-      Object.keys(params).forEach(paramKey => {
-        defaultConfig[paramKey] = params[paramKey].default;
-      });
-    });
-    setVisualConfig(defaultConfig);
-  };
+
 
   const getCategoryDisplayName = (categoryKey: GameIniCategoryKey): string => {
     const translated = tCategories(categoryKey as any);
@@ -461,12 +451,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
           </Button>
         </div>
 
-        {editMode === 'visual' && (
-          <Button variant="outline" size="sm" onClick={resetToDefault}>
-            <RotateCcw className="w-4 h-4 mr-1" />
-            {t('resetToDefault')}
-          </Button>
-        )}
+
       </div>
 
       {/* Mode Description */}

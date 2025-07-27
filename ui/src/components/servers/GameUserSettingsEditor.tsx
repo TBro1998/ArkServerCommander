@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Info, CheckCircle, RefreshCw, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { Info, CheckCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -575,22 +575,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     setEditMode(mode);
   };
 
-  const resetToDefault = () => {
-    const defaultConfig: Record<string, string | number | boolean> = {};
-    getAllGameUserSettingsCategories().forEach(categoryKey => {
-      const params = getGameUserSettingsParamsByCategory(categoryKey);
-      Object.keys(params).forEach(paramKey => {
-        defaultConfig[paramKey] = params[paramKey].default;
-      });
-    });
-    
-    // Add SessionSettings and MessageOfTheDay defaults
-    defaultConfig.SessionName = tDefaultValues('sessionName');
-    defaultConfig.Message = tDefaultValues('message');
-    defaultConfig.Duration = 30;
-    
-    setVisualConfig(defaultConfig);
-  };
+
 
   const handleVisualChange = (paramKey: string, value: string | number | boolean) => {
     setVisualConfig(prev => ({ ...prev, [paramKey]: value }));
@@ -722,15 +707,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
             <i className="fas fa-code mr-2"></i>
             {t('textEdit')}
           </Button>
-          <Button
-            onClick={resetToDefault}
-            variant="outline"
-            size="sm"
-            className="text-orange-600 hover:text-orange-700"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            {t('resetToDefault')}
-          </Button>
+
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
