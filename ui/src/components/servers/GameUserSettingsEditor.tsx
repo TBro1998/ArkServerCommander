@@ -671,51 +671,26 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
   return (
     <div className="space-y-4">
-      {/* Header with mode switch */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-wrap gap-2 sm:gap-4">
+      {/* Mode Switch */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
           <Button
-            onClick={() => handleModeSwitch('visual')}
             variant={editMode === 'visual' ? 'default' : 'outline'}
             size="sm"
-            className={cn(
-              editMode === 'visual' && 'bg-blue-600 hover:bg-blue-700 text-white'
-            )}
+            onClick={() => handleModeSwitch('visual')}
           >
-            <i className="fas fa-sliders-h mr-2"></i>
-            {t('visualEdit')}
+            <Eye className="w-4 h-4 mr-1" />
+            {t('visualEditMode')}
           </Button>
           <Button
-            onClick={() => handleModeSwitch('text')}
             variant={editMode === 'text' ? 'default' : 'outline'}
             size="sm"
-            className={cn(
-              editMode === 'text' && 'bg-blue-600 hover:bg-blue-700 text-white'
-            )}
+            onClick={() => handleModeSwitch('text')}
           >
-            <i className="fas fa-code mr-2"></i>
-            {t('textEdit')}
+            <EyeOff className="w-4 h-4 mr-1" />
+            {t('textEditMode')}
           </Button>
         </div>
-      </div>
-
-      {/* Mode Description */}
-      <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
-        {editMode === 'visual' ? (
-          <div>
-            <p>{t('visualEditModeTip')}</p>
-            <p className="mt-1 text-xs">
-              {t('syncTip.visual')}
-            </p>
-          </div>
-        ) : (
-          <div>
-            <p>{t('gameUserSettingsTextEditDesc')}</p>
-            <p className="mt-1 text-xs">
-              {t('syncTip.text')}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Visual Edit Mode */}
