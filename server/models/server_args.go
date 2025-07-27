@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -155,28 +154,4 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 	}
 
 	return result
-}
-
-// MarshalJSON 自定义JSON序列化
-func (sa *ServerArgs) MarshalJSON() ([]byte, error) {
-	type Alias ServerArgs
-	return json.Marshal(&struct {
-		*Alias
-	}{
-		Alias: (*Alias)(sa),
-	})
-}
-
-// UnmarshalJSON 自定义JSON反序列化
-func (sa *ServerArgs) UnmarshalJSON(data []byte) error {
-	type Alias ServerArgs
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(sa),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	return nil
 }
