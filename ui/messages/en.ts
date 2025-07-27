@@ -543,12 +543,78 @@ export default {
 
     // Game.ini parameter translations
     gameIniParams: {
-      // Basic game settings
+      // Basic settings
       bUseSingleplayerSettings: 'Use Singleplayer Settings',
       bDisableStructurePlacementCollision: 'Disable Structure Placement Collision',
-      bAllowFlyerCarryPvE: 'PvE Allow Flyer Carry',
+      bAllowFlyerCarryPvE: 'Allow Flyer Carry PvE',
+      bDisableStructureDecayPvE: 'Disable Structure Decay PvE',
       bAllowUnlimitedRespecs: 'Allow Unlimited Respecs',
+      bAllowPlatformSaddleMultiFloors: 'Allow Platform Saddle Multi Floors',
       bPassiveDefensesDamageRiderlessDinos: 'Passive Defenses Damage Riderless Dinos',
+      bPvEDisableFriendlyFire: 'PvE Disable Friendly Fire',
+      bDisableFriendlyFire: 'Disable Friendly Fire',
+      bEnablePvPGamma: 'Enable PvP Gamma',
+      DifficultyOffset: 'Difficulty Offset',
+      OverrideOfficialDifficulty: 'Override Official Difficulty',
+
+      // Experience and level settings
+      XPMultiplier: 'XP Multiplier',
+      PlayerCharacterWaterDrainMultiplier: 'Player Water Drain Multiplier',
+      PlayerCharacterFoodDrainMultiplier: 'Player Food Drain Multiplier',
+      PlayerCharacterStaminaDrainMultiplier: 'Player Stamina Drain Multiplier',
+      PlayerCharacterHealthRecoveryMultiplier: 'Player Health Recovery Multiplier',
+
+      // Breeding settings
+      MatingIntervalMultiplier: 'Mating Interval Multiplier',
+      EggHatchSpeedMultiplier: 'Egg Hatch Speed Multiplier',
+      BabyMatureSpeedMultiplier: 'Baby Mature Speed Multiplier',
+      BabyFoodConsumptionSpeedMultiplier: 'Baby Food Consumption Speed Multiplier',
+      BabyCuddleIntervalMultiplier: 'Baby Cuddle Interval Multiplier',
+      BabyCuddleGracePeriodMultiplier: 'Baby Cuddle Grace Period Multiplier',
+      BabyCuddleLoseImprintQualitySpeedMultiplier: 'Baby Cuddle Lose Imprint Quality Speed Multiplier',
+
+      // Item and resource settings
+      HarvestAmountMultiplier: 'Harvest Amount Multiplier',
+      HarvestHealthMultiplier: 'Harvest Health Multiplier',
+      ResourcesRespawnPeriodMultiplier: 'Resources Respawn Period Multiplier',
+      ItemStackSizeMultiplier: 'Item Stack Size Multiplier',
+      CropGrowthSpeedMultiplier: 'Crop Growth Speed Multiplier',
+      GlobalItemDecompositionTimeMultiplier: 'Global Item Decomposition Time Multiplier',
+      GlobalCorpseDecompositionTimeMultiplier: 'Global Corpse Decomposition Time Multiplier',
+
+      // Dinosaur settings
+      TamingSpeedMultiplier: 'Taming Speed Multiplier',
+      DinoCharacterFoodDrainMultiplier: 'Dino Food Drain Multiplier',
+      DinoCharacterStaminaDrainMultiplier: 'Dino Stamina Drain Multiplier',
+      DinoCharacterHealthRecoveryMultiplier: 'Dino Health Recovery Multiplier',
+      DinoCountMultiplier: 'Dino Count Multiplier',
+      WildDinoCharacterFoodDrainMultiplier: 'Wild Dino Food Drain Multiplier',
+      WildDinoTorporDrainMultiplier: 'Wild Dino Torpor Drain Multiplier',
+
+      // Tribe and player settings
+      MaxNumberOfPlayersInTribe: 'Max Number Of Players In Tribe',
+      TribeNameChangeCooldown: 'Tribe Name Change Cooldown (Minutes)',
+      bPvEAllowTribeWar: 'PvE Allow Tribe War',
+      bPvEAllowTribeWarCancel: 'PvE Allow Tribe War Cancel',
+
+      // PvP settings
+      bIncreasePvPRespawnInterval: 'Increase PvP Respawn Interval',
+      IncreasePvPRespawnIntervalCheckPeriod: 'PvP Respawn Interval Check Period (Seconds)',
+      IncreasePvPRespawnIntervalMultiplier: 'PvP Respawn Interval Multiplier',
+      IncreasePvPRespawnIntervalBaseAmount: 'PvP Respawn Interval Base Amount (Seconds)',
+
+      // Structure and building settings
+      StructureDamageMultiplier: 'Structure Damage Multiplier',
+      StructureResistanceMultiplier: 'Structure Resistance Multiplier',
+      StructureDamageRepairCooldown: 'Structure Damage Repair Cooldown (Seconds)',
+      PvEStructureDecayPeriodMultiplier: 'PvE Structure Decay Period Multiplier',
+      MaxStructuresInRange: 'Max Structures In Range',
+
+      // Advanced feature settings
+      bAutoPvETimer: 'Auto PvE Timer',
+      bAutoPvEUseSystemTime: 'Auto PvE Use System Time',
+      AutoPvEStartTimeSeconds: 'Auto PvE Start Time (Seconds)',
+      AutoPvEStopTimeSeconds: 'Auto PvE Stop Time (Seconds)',
       bOnlyAllowSpecifiedEngrams: 'Only Allow Specified Engrams',
       bAutoUnlockAllEngrams: 'Auto Unlock All Engrams',
       bShowCreativeMode: 'Show Creative Mode',
@@ -557,117 +623,11 @@ export default {
       bDisableDinoRiding: 'Disable Dino Riding',
       bDisableDinoTaming: 'Disable Dino Taming',
       bAllowCustomRecipes: 'Allow Custom Recipes',
-      bHardLimitTurretsInRange: 'Hard Limit Turrets In Range',
-      bPvEAllowTribeWar: 'PvE Allow Tribe War',
-      bPvEAllowTribeWarCancel: 'PvE Allow Tribe War Cancel',
-      bPvEDisableFriendlyFire: 'PvE Disable Friendly Fire',
-      bDisableFriendlyFire: 'Disable Friendly Fire',
-      bFlyerPlatformAllowUnalignedDinoBasing: 'Flyer Platform Allow Unaligned Dino Basing',
-      bIncreasePvPRespawnInterval: 'Increase PvP Respawn Interval',
-      bAutoPvETimer: 'Auto PvE Timer',
-      bAutoPvEUseSystemTime: 'Auto PvE Use System Time',
-      bIgnoreStructuresPreventionVolumes: 'Ignore Structures Prevention Volumes',
-      bGenesisUseStructuresPreventionVolumes: 'Genesis Use Structures Prevention Volumes',
-      bAllowFlyerSpeedLeveling: 'Allow Flyer Speed Leveling',
-      bUseTameLimitForStructuresOnly: 'Use Tame Limit For Structures Only',
-
-      // Experience and level settings
-      OverrideMaxExperiencePointsPlayer: 'Override Max Experience Points Player',
-      OverrideMaxExperiencePointsDino: 'Override Max Experience Points Dino',
-      OverridePlayerLevelEngramPoints: 'Override Player Level Engram Points',
-      KillXPMultiplier: 'Kill XP Multiplier',
-      HarvestXPMultiplier: 'Harvest XP Multiplier',
-      CraftXPMultiplier: 'Craft XP Multiplier',
-      GenericXPMultiplier: 'Generic XP Multiplier',
-      SpecialXPMultiplier: 'Special XP Multiplier',
-
-      // Breeding settings
-      MatingIntervalMultiplier: 'Mating Interval Multiplier',
-      MatingSpeedMultiplier: 'Mating Speed Multiplier',
-      EggHatchSpeedMultiplier: 'Egg Hatch Speed Multiplier',
-      BabyMatureSpeedMultiplier: 'Baby Mature Speed Multiplier',
-      BabyCuddleIntervalMultiplier: 'Baby Cuddle Interval Multiplier',
-      BabyFoodConsumptionSpeedMultiplier: 'Baby Food Consumption Speed Multiplier',
-      BabyImprintingStatScaleMultiplier: 'Baby Imprinting Stat Scale Multiplier',
-      BabyImprintAmountMultiplier: 'Baby Imprint Amount Multiplier',
-      BabyCuddleGracePeriodMultiplier: 'Baby Cuddle Grace Period Multiplier',
-      BabyCuddleLoseImprintQualitySpeedMultiplier: 'Baby Cuddle Lose Imprint Quality Speed Multiplier',
-
-      // Item and resource settings
-      CropGrowthSpeedMultiplier: 'Crop Growth Speed Multiplier',
-      CropDecaySpeedMultiplier: 'Crop Decay Speed Multiplier',
-      GlobalSpoilingTimeMultiplier: 'Global Spoiling Time Multiplier',
-      GlobalItemDecompositionTimeMultiplier: 'Global Item Decomposition Time Multiplier',
-      GlobalCorpseDecompositionTimeMultiplier: 'Global Corpse Decomposition Time Multiplier',
-      UseCorpseLifeSpanMultiplier: 'Use Corpse Life Span Multiplier',
-      SupplyCrateLootQualityMultiplier: 'Supply Crate Loot Quality Multiplier',
-      FishingLootQualityMultiplier: 'Fishing Loot Quality Multiplier',
-      CustomRecipeEffectivenessMultiplier: 'Custom Recipe Effectiveness Multiplier',
-      CustomRecipeSkillMultiplier: 'Custom Recipe Skill Multiplier',
-      CraftingSkillBonusMultiplier: 'Crafting Skill Bonus Multiplier',
-      ResourceNoReplenishRadiusPlayers: 'Resource No Replenish Radius Players',
-      ResourceNoReplenishRadiusStructures: 'Resource No Replenish Radius Structures',
-      HarvestResourceItemAmountClassMultipliers: 'Harvest Resource Item Amount Class Multipliers',
-      DinoHarvestingDamageMultiplier: 'Dino Harvesting Damage Multiplier',
-      PlayerHarvestingDamageMultiplier: 'Player Harvesting Damage Multiplier',
-
-      // Dinosaur settings
-      TamedDinoCharacterFoodDrainMultiplier: 'Tamed Dino Character Food Drain Multiplier',
-      WildDinoCharacterFoodDrainMultiplier: 'Wild Dino Character Food Drain Multiplier',
-      WildDinoTorporDrainMultiplier: 'Wild Dino Torpor Drain Multiplier',
-      TamedDinoTorporDrainMultiplier: 'Tamed Dino Torpor Drain Multiplier',
-      PassiveTameIntervalMultiplier: 'Passive Tame Interval Multiplier',
-      DinoTurretDamageMultiplier: 'Dino Turret Damage Multiplier',
-      PreventDinoTameClassNames: 'Prevent Dino Tame Class Names',
-      PreventTransferForClassName: 'Prevent Transfer For Class Name',
-      DinoClassDamageMultipliers: 'Dino Class Damage Multipliers',
-      TamedDinoClassDamageMultipliers: 'Tamed Dino Class Damage Multipliers',
-      DinoClassResistanceMultipliers: 'Dino Class Resistance Multipliers',
-      TamedDinoClassResistanceMultipliers: 'Tamed Dino Class Resistance Multipliers',
-      DestroyTamesOverLevelClamp: 'Destroy Tames Over Level Clamp',
-
-      // Tribe and player settings
-      MaxNumberOfPlayersInTribe: 'Max Number Of Players In Tribe',
-      MaxAlliancesPerTribe: 'Max Alliances Per Tribe',
-      MaxTribesPerAlliance: 'Max Tribes Per Alliance',
-      TribeSlotReuseCooldown: 'Tribe Slot Reuse Cooldown',
-      MaxTribeLogs: 'Max Tribe Logs',
-      KickIdlePlayersPeriod: 'Kick Idle Players Period',
-
-      // PvP settings
-      IncreasePvPRespawnIntervalCheckPeriod: 'Increase PvP Respawn Interval Check Period',
-      IncreasePvPRespawnIntervalMultiplier: 'Increase PvP Respawn Interval Multiplier',
-      IncreasePvPRespawnIntervalBaseAmount: 'Increase PvP Respawn Interval Base Amount',
-      AutoPvEStartTimeSeconds: 'Auto PvE Start Time Seconds',
-      AutoPvEStopTimeSeconds: 'Auto PvE Stop Time Seconds',
-      PvPZoneStructureDamageMultiplier: 'PvP Zone Structure Damage Multiplier',
-
-      // Building and structure settings
-      StructureDamageRepairCooldown: 'Structure Damage Repair Cooldown',
-      StructureResistanceMultiplier: 'Structure Resistance Multiplier',
-      StructureDamageMultiplier: 'Structure Damage Multiplier',
-      PvEStructureDecayPeriodMultiplier: 'PvE Structure Decay Period Multiplier',
-      FastDecayInterval: 'Fast Decay Interval',
-
-      // Advanced settings
-      HairGrowthSpeedMultiplier: 'Hair Growth Speed Multiplier',
-      PoopIntervalMultiplier: 'Poop Interval Multiplier',
-      LayEggIntervalMultiplier: 'Lay Egg Interval Multiplier',
-      FuelConsumptionIntervalMultiplier: 'Fuel Consumption Interval Multiplier',
-      GlobalPoweredBatteryDurabilityDecreasePerSecond: 'Global Powered Battery Durability Decrease Per Second',
-      LimitNonPlayerDroppedItemsRange: 'Limit Non Player Dropped Items Range',
-      LimitNonPlayerDroppedItemsCount: 'Limit Non Player Dropped Items Count',
-      MaxFallSpeedMultiplier: 'Max Fall Speed Multiplier',
-      PreventOfflinePvPConnectionInvincibleInterval: 'Prevent Offline PvP Connection Invincible Interval',
 
       // Custom configuration
-      ConfigOverrideItemMaxQuantity: 'Config Override Item Max Quantity',
-      ConfigOverrideItemCraftingCosts: 'Config Override Item Crafting Costs',
-      ConfigOverrideSupplyCrateItems: 'Config Override Supply Crate Items',
-      ExcludeItemIndices: 'Exclude Item Indices',
-      LevelExperienceRampOverrides: 'Level Experience Ramp Overrides',
-      EngramEntryAutoUnlocks: 'Engram Entry Auto Unlocks',
-      ModIDS: 'Mod IDS'
+      DayCycleSpeedScale: 'Day Cycle Speed Scale',
+      NightTimeSpeedScale: 'Night Time Speed Scale',
+      DayTimeSpeedScale: 'Day Time Speed Scale'
     },
 
     // GameUserSettings.ini parameter translations
