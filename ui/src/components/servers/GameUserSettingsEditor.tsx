@@ -363,7 +363,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     return values;
   };
 
-  const syncVisualToText = useCallback(() => {
+  const syncVisualToTextWithConfig = useCallback((config: Record<string, string | number | boolean>) => {
     try {
       // Build INI content matching GameUserSettings.ini format
       let iniContent = '';
@@ -372,7 +372,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       iniContent += '[ServerSettings]\n';
       const serverBasicParams = getGameUserSettingsParamsByCategory('serverBasic');
       Object.keys(serverBasicParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined && value !== '') {
           iniContent += `${key}=${value}\n`;
         }
@@ -381,7 +381,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Game mode settings
       const gameModeParams = getGameUserSettingsParamsByCategory('gameMode');
       Object.keys(gameModeParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -390,7 +390,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Communication settings
       const communicationParams = getGameUserSettingsParamsByCategory('communication');
       Object.keys(communicationParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -399,7 +399,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Game multipliers
       const gameMultipliersParams = getGameUserSettingsParamsByCategory('gameMultipliers');
       Object.keys(gameMultipliersParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -408,7 +408,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Character settings
       const characterSettingsParams = getGameUserSettingsParamsByCategory('characterSettings');
       Object.keys(characterSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -417,7 +417,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Dino settings
       const dinoSettingsParams = getGameUserSettingsParamsByCategory('dinoSettings');
       Object.keys(dinoSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -426,7 +426,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Environment settings
       const environmentSettingsParams = getGameUserSettingsParamsByCategory('environmentSettings');
       Object.keys(environmentSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -435,7 +435,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Structure settings
       const structureSettingsParams = getGameUserSettingsParamsByCategory('structureSettings');
       Object.keys(structureSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -444,7 +444,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Tribe settings
       const tribeSettingsParams = getGameUserSettingsParamsByCategory('tribeSettings');
       Object.keys(tribeSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -453,7 +453,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Breeding settings
       const breedingSettingsParams = getGameUserSettingsParamsByCategory('breedingSettings');
       Object.keys(breedingSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -462,7 +462,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Item settings
       const itemSettingsParams = getGameUserSettingsParamsByCategory('itemSettings');
       Object.keys(itemSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -471,7 +471,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Performance settings
       const performanceSettingsParams = getGameUserSettingsParamsByCategory('performanceSettings');
       Object.keys(performanceSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -480,7 +480,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Disease settings
       const diseaseSettingsParams = getGameUserSettingsParamsByCategory('diseaseSettings');
       Object.keys(diseaseSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -489,7 +489,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Offline raid settings
       const offlineRaidSettingsParams = getGameUserSettingsParamsByCategory('offlineRaidSettings');
       Object.keys(offlineRaidSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -498,7 +498,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Cross ARK settings
       const crossArkSettingsParams = getGameUserSettingsParamsByCategory('crossArkSettings');
       Object.keys(crossArkSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -507,7 +507,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Flyer settings
       const flyerSettingsParams = getGameUserSettingsParamsByCategory('flyerSettings');
       Object.keys(flyerSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -516,7 +516,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       // Advanced settings
       const advancedSettingsParams = getGameUserSettingsParamsByCategory('advancedSettings');
       Object.keys(advancedSettingsParams).forEach(key => {
-        const value = visualConfig[key];
+        const value = config[key];
         if (value !== undefined) {
           iniContent += `${key}=${value}\n`;
         }
@@ -527,18 +527,24 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       iniContent += 'MaxPlayers=70\n\n';
 
       iniContent += '[SessionSettings]\n';
-      iniContent += `SessionName=${visualConfig.SessionName || tDefaultValues('sessionName')}\n\n`;
+      iniContent += `SessionName=${config.SessionName || tDefaultValues('sessionName')}\n\n`;
 
       iniContent += '[MessageOfTheDay]\n';
-      iniContent += `Message=${visualConfig.Message || tDefaultValues('message')}\n`;
-      iniContent += `Duration=${visualConfig.Duration || 30}\n`;
+      iniContent += `Message=${config.Message || tDefaultValues('message')}\n`;
+      iniContent += `Duration=${config.Duration || 30}\n`;
 
       setTextContent(iniContent);
       onChange?.(iniContent);
     } catch (error) {
       console.error('同步可视化配置到文本失败:', error);
     }
-  }, [visualConfig, onChange]);
+  }, [onChange, tDefaultValues]);
+
+  const syncVisualToText = useCallback(() => {
+    syncVisualToTextWithConfig(visualConfig);
+  }, [visualConfig, syncVisualToTextWithConfig]);
+
+
 
   const handleTextChange = (newContent: string) => {
     setTextContent(newContent);
@@ -572,7 +578,14 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
 
   const handleVisualChange = (paramKey: string, value: string | number | boolean) => {
-    setVisualConfig(prev => ({ ...prev, [paramKey]: value }));
+    setVisualConfig(prev => {
+      const newConfig = { ...prev, [paramKey]: value };
+      // 立即同步到文本内容并通知父组件
+      setTimeout(() => {
+        syncVisualToTextWithConfig(newConfig);
+      }, 0);
+      return newConfig;
+    });
     setPendingSync(true);
   };
 
