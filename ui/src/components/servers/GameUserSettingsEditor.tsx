@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, CheckCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Info, CheckCircle, RefreshCw, Eye, EyeOff, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 // GameUserSettings configuration parameters
@@ -249,7 +249,6 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<GameUserSettingsCategoryKey>('serverBasic');
-  const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastUserEditTime, setLastUserEditTime] = useState(0);
 
@@ -567,6 +566,32 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     }, 500);
   };
 
+  const handleModeSwitch = (mode: 'visual' | 'text') => {
+    if (mode === 'text' && editMode === 'visual') {
+      syncVisualToText();
+    } else if (mode === 'visual' && editMode === 'text') {
+      parseTextToVisual(textContent);
+    }
+    setEditMode(mode);
+  };
+
+  const resetToDefault = () => {
+    const defaultConfig: Record<string, string | number | boolean> = {};
+    getAllGameUserSettingsCategories().forEach(categoryKey => {
+      const params = getGameUserSettingsParamsByCategory(categoryKey);
+      Object.keys(params).forEach(paramKey => {
+        defaultConfig[paramKey] = params[paramKey].default;
+      });
+    });
+    
+    // Add SessionSettings and MessageOfTheDay defaults
+    defaultConfig.SessionName = tDefaultValues('sessionName');
+    defaultConfig.Message = tDefaultValues('message');
+    defaultConfig.Duration = 30;
+    
+    setVisualConfig(defaultConfig);
+  };
+
   const handleVisualChange = (paramKey: string, value: string | number | boolean) => {
     setVisualConfig(prev => ({ ...prev, [paramKey]: value }));
     setIsUserEditing(true);
@@ -588,6 +613,85 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     setShowPasswords(prev => ({ ...prev, [paramKey]: !prev[paramKey] }));
   };
 
+  const renderParamControl = (paramKey: string, param: GameUserSettingsParam) => {
+    const currentValue = visualConfig[paramKey] ?? param.default;
+
+    switch (param.type) {
+      case 'boolean':
+        return (
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={Boolean(currentValue)}
+              onCheckedChange={(checked) => handleVisualChange(paramKey, checked)}
+            />
+            <span className="text-sm text-muted-foreground">
+              {Boolean(currentValue) ? t('enabled') : t('disabled')}
+            </span>
+          </div>
+        );
+
+      case 'number':
+        return (
+          <div className="space-y-1">
+            <Input
+              type="number"
+              value={String(currentValue)}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!isNaN(value)) {
+                  handleVisualChange(paramKey, value);
+                }
+              }}
+              min={param.min}
+              max={param.max}
+              step={param.step || 1}
+              className="w-full"
+            />
+            {(param.min !== undefined || param.max !== undefined) && (
+              <div className="text-xs text-muted-foreground">
+                {t('range')}: {param.min ?? '∞'} - {param.max ?? '∞'}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'text':
+        return (
+          <Input
+            type="text"
+            value={String(currentValue)}
+            onChange={(e) => handleVisualChange(paramKey, e.target.value)}
+            className="w-full"
+          />
+        );
+
+      case 'password':
+        return (
+          <div className="relative">
+            <Input
+              type={!showPasswords[paramKey] ? 'password' : 'text'}
+              value={String(currentValue)}
+              onChange={(e) => handleVisualChange(paramKey, e.target.value)}
+              className="w-full pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => togglePasswordVisibility(paramKey)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            >
+              {showPasswords[paramKey] ? (
+                <EyeOff className="h-4 w-4 text-gray-500" />
+              ) : (
+                <Eye className="h-4 w-4 text-gray-500" />
+              )}
+            </button>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   const getAllCategories = () => getAllGameUserSettingsCategories();
 
@@ -597,7 +701,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-wrap gap-2 sm:gap-4">
           <Button
-            onClick={() => setEditMode('visual')}
+            onClick={() => handleModeSwitch('visual')}
             variant={editMode === 'visual' ? 'default' : 'outline'}
             size="sm"
             className={cn(
@@ -608,7 +712,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
             {t('visualEdit')}
           </Button>
           <Button
-            onClick={() => setEditMode('text')}
+            onClick={() => handleModeSwitch('text')}
             variant={editMode === 'text' ? 'default' : 'outline'}
             size="sm"
             className={cn(
@@ -617,6 +721,15 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
           >
             <i className="fas fa-code mr-2"></i>
             {t('textEdit')}
+          </Button>
+          <Button
+            onClick={resetToDefault}
+            variant="outline"
+            size="sm"
+            className="text-orange-600 hover:text-orange-700"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            {t('resetToDefault')}
           </Button>
         </div>
 
@@ -640,132 +753,83 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
         </div>
       </div>
 
+      {/* Mode Description */}
+      <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
+        {editMode === 'visual' ? t('visualEditModeTip') : t('gameUserSettingsTextEditDesc')}
+      </div>
+
       {/* Visual Edit Mode */}
       {editMode === 'visual' && (
-        <div className="space-y-6">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as GameUserSettingsCategoryKey)}>
-            <TabsList className="flex flex-wrap h-auto">
-              {getAllCategories().map((categoryKey) => (
-                <TabsTrigger key={categoryKey} value={categoryKey} className="text-sm">
-                  {getCategoryName(categoryKey)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as GameUserSettingsCategoryKey)}>
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-9">
             {getAllCategories().map((categoryKey) => (
-              <TabsContent key={categoryKey} value={categoryKey} className="mt-4">
+              <TabsTrigger key={categoryKey} value={categoryKey} className="text-xs">
+                {getCategoryName(categoryKey)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {getAllCategories().map((categoryKey) => {
+            const params = getGameUserSettingsParamsByCategory(categoryKey);
+            
+            return (
+              <TabsContent key={categoryKey} value={categoryKey} className="space-y-4">
                 <Card>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {Object.entries(getGameUserSettingsParamsByCategory(categoryKey)).map(([paramKey, param]) => (
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      {getCategoryName(categoryKey)}
+                    </CardTitle>
+                    <CardDescription>
+                      {Object.keys(params).length}{t('parametersCount')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4">
+                      {Object.entries(params).map(([paramKey, param]) => (
                         <div key={paramKey} className="space-y-2">
                           <Label className="text-sm font-medium">
                             {getParamDisplayName(paramKey)}
-                            <div className="relative inline-block ml-1">
-                              <Info
-                                className="h-3 w-3 text-gray-400 cursor-help"
-                                onMouseEnter={() => setShowTooltip(paramKey)}
-                                onMouseLeave={() => setShowTooltip(null)}
-                              />
-                              {showTooltip === paramKey && (
-                                <div className="absolute z-30 bg-gray-900 text-white text-xs rounded py-2 px-3 max-w-xs whitespace-normal shadow-lg"
-                                  style={{ bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '8px' }}>
-                                  {getParamDisplayName(paramKey)}
-                                </div>
-                              )}
-                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="w-4 h-4 ml-1 inline-block cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="max-w-xs">
+                                    <p className="font-medium">{paramKey}</p>
+                                    <p className="text-sm mt-1">{getParamDisplayName(paramKey)}</p>
+                                    <p className="text-xs mt-1 text-muted-foreground">
+                                      {t('defaultValue')}: {String(param.default)}
+                                    </p>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </Label>
-
-                          {param.type === 'boolean' && (
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                checked={Boolean(visualConfig[paramKey])}
-                                onCheckedChange={(checked) => handleVisualChange(paramKey, checked)}
-                              />
-                              <span className="text-sm">
-                                {visualConfig[paramKey] ? t('enabled') : t('disabled')}
-                              </span>
-                            </div>
-                          )}
-
-                          {param.type === 'number' && (
-                            <Input
-                              type="number"
-                              value={(visualConfig[paramKey]?.toString() || '')}
-                              onChange={(e) => handleVisualChange(paramKey, parseFloat(e.target.value) || 0)}
-                              min={param.min}
-                              max={param.max}
-                              step={param.step || 1}
-                              className="w-full"
-                            />
-                          )}
-
-
-                          {(param.type === 'text' || param.type === 'password') && (
-                            <div className="relative">
-                              <Input
-                                type={param.type === 'password' && !showPasswords[paramKey] ? 'password' : 'text'}
-                                value={visualConfig[paramKey]?.toString() || ''}
-                                onChange={(e) => handleVisualChange(paramKey, e.target.value)}
-                                className="w-full"
-                              />
-                              {param.type === 'password' && (
-                                <button
-                                  type="button"
-                                  onClick={() => togglePasswordVisibility(paramKey)}
-                                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                                >
-                                  {showPasswords[paramKey] ? (
-                                    <EyeOff className="h-4 w-4 text-gray-500" />
-                                  ) : (
-                                    <Eye className="h-4 w-4 text-gray-500" />
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          )}
+                          {renderParamControl(paramKey, param)}
                         </div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
-            ))}
-          </Tabs>
-        </div>
+            );
+          })}
+        </Tabs>
       )}
 
       {/* Text Edit Mode */}
       {editMode === 'text' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex justify-between items-center">
-              <span>{t('gameUserSettingsContent')}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              value={textContent}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleTextChange(e.target.value)}
-              placeholder={t('placeholders.gameUserSettings')}
-              className="h-96 font-mono text-sm overflow-y-auto"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              {t('gameUserSettingsDescription')}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Info Alert */}
-      {editMode === 'visual' && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            <p className="font-medium">{t('visualEditModeDesc')}</p>
-            <p className="text-sm">{t('visualEditModeTip')}</p>
-          </AlertDescription>
-        </Alert>
+        <div className="space-y-2">
+          <Label htmlFor="gameusersettings-text">{t('textEditMode')}</Label>
+          <Textarea
+            id="gameusersettings-text"
+            value={textContent}
+            onChange={(e) => handleTextChange(e.target.value)}
+            className="min-h-[400px] font-mono text-sm"
+            placeholder={t('placeholders.gameUserSettings')}
+          />
+        </div>
       )}
     </div>
   );
