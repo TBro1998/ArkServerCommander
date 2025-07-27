@@ -63,6 +63,24 @@ func CloseDockerManager() error {
 	return nil
 }
 
+// CheckDockerStatus 检查Docker环境状态
+// 返回: Docker是否可用和错误信息
+func CheckDockerStatus() error {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return fmt.Errorf("docker客户端创建失败: %v", err)
+	}
+	defer cli.Close()
+
+	// 检查Docker服务是否运行
+	_, err = cli.Ping(context.Background())
+	if err != nil {
+		return fmt.Errorf("docker服务未运行或无法连接: %v", err)
+	}
+
+	return nil
+}
+
 // ValidateRequiredImages 验证必要的镜像是否存在（不自动下载）
 func (dm *DockerManager) ValidateRequiredImages() ([]string, error) {
 	requiredImages := []string{
