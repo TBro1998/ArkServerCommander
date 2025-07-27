@@ -18,12 +18,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ServerEditPage() {
   const t = useTranslations('servers.edit');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const params = useParams();
   const serverId = params.id as string;
-  
+
   const { getServer, updateServer } = serversActions;
-  
+
   const [server, setServer] = useState<Server | null>(null);
   const [formData, setFormData] = useState<Partial<Server>>({});
   const [loading, setLoading] = useState(true);
@@ -80,7 +81,7 @@ export default function ServerEditPage() {
       <div className="w-full max-w-none py-8">
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">{t('common.loading')}</span>
+          <span className="ml-2">{tCommon('loading')}</span>
         </div>
       </div>
     );
@@ -94,7 +95,7 @@ export default function ServerEditPage() {
         </Alert>
         <Button onClick={handleBack} className="mt-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('common.back')}
+          {tCommon('back')}
         </Button>
       </div>
     );
@@ -106,20 +107,20 @@ export default function ServerEditPage() {
         <div className="flex items-center gap-4 mb-4">
           <Button variant="outline" onClick={handleBack}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {t('common.back')}
+            {tCommon('back')}
           </Button>
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{t('editTitle')}</h1>
             <p className="text-gray-600">{server?.name}</p>
           </div>
         </div>
-        
+
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        
+
         {success && (
           <Alert className="mb-4">
             <AlertDescription>{success}</AlertDescription>
@@ -139,7 +140,7 @@ export default function ServerEditPage() {
               <TabsTrigger value="game_ini">{t('gameIni')}</TabsTrigger>
               <TabsTrigger value="server_args">{t('serverArgs')}</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="basic">
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -176,27 +177,27 @@ export default function ServerEditPage() {
                 </div>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="game_user_settings">
               <GameUserSettingsEditor
                 value={formData.game_user_settings}
                 onChange={(v) => setFormData(p => ({ ...p, game_user_settings: v }))}
               />
             </TabsContent>
-            
+
             <TabsContent value="game_ini">
               <GameIniEditor />
             </TabsContent>
-            
+
             <TabsContent value="server_args">
               {/* @ts-expect-error: Prop 'value' is not available on type 'IntrinsicAttributes' */}
               <ServerArgsEditor value={formData.server_args} onChange={(v) => setFormData(p => ({ ...p, server_args: v }))} />
             </TabsContent>
           </Tabs>
-          
+
           <div className="flex justify-end gap-2 mt-6 pt-6 border-t">
             <Button variant="outline" onClick={handleBack}>
-              {t('common.cancel')}
+              {tCommon('cancel')}
             </Button>
             <Button onClick={handleSubmit} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

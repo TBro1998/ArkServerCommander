@@ -40,6 +40,7 @@ export function ServerEditModal({
   onSave,
 }: ServerEditModalProps) {
   const t = useTranslations('servers.edit');
+  const tCommon = useTranslations('common');
   const [formData, setFormData] = useState<Partial<Server>>({});
 
   useEffect(() => {
@@ -146,7 +147,7 @@ export function ServerEditModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon('cancel')}</Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t('saveChanges')}

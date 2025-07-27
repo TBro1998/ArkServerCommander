@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl';
 
 export default function ServersPage() {
   const t = useTranslations('servers');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const servers = useServers();
   const { fetchServers, getImageStatus, startServer, stopServer, deleteServer } = serversActions;
@@ -76,13 +77,13 @@ export default function ServersPage() {
         )}
       </div>
 
-      {error && <ClosableAlert variant="destructive" className="mb-4" title={t('common.error')} onClose={() => setError('')}>{error}</ClosableAlert>}
-      {success && <ClosableAlert className="mb-4" title={t('common.success')} onClose={() => setSuccess('')}>{success}</ClosableAlert>}
+      {error && <ClosableAlert variant="destructive" className="mb-4" title={tCommon('error')} onClose={() => setError('')}>{error}</ClosableAlert>}
+      {success && <ClosableAlert className="mb-4" title={tCommon('success')} onClose={() => setSuccess('')}>{success}</ClosableAlert>}
 
       {isLoading && servers.length === 0 ? (
         <div className="text-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">{t('common.loading')}</p>
+          <p className="text-gray-600">{tCommon('loading')}</p>
         </div>
       ) : servers.length === 0 ? (
         <div className="text-center py-16 px-4">

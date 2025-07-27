@@ -18,10 +18,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ServerNewPage() {
   const t = useTranslations('servers.edit');
+  const tCommon = useTranslations('common');
   const router = useRouter();
-  
+
   const { createServer } = serversActions;
-  
+
   const [formData, setFormData] = useState<Partial<Server>>({
     name: 'ARK Server',
     port: 7777,
@@ -63,14 +64,14 @@ export default function ServerNewPage() {
         <div className="flex items-center gap-4 mb-4">
           <Button variant="outline" onClick={handleBack}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {t('common.back')}
+            {tCommon('back')}
           </Button>
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{t('createTitle')}</h1>
             <p className="text-gray-600">{t('createServerDesc')}</p>
           </div>
         </div>
-        
+
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
@@ -90,7 +91,7 @@ export default function ServerNewPage() {
               <TabsTrigger value="game_ini">{t('gameIni')}</TabsTrigger>
               <TabsTrigger value="server_args">{t('serverArgs')}</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="basic">
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -127,27 +128,27 @@ export default function ServerNewPage() {
                 </div>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="game_user_settings">
               <GameUserSettingsEditor
                 value={formData.game_user_settings}
                 onChange={(v) => setFormData(p => ({ ...p, game_user_settings: v }))}
               />
             </TabsContent>
-            
+
             <TabsContent value="game_ini">
               <GameIniEditor />
             </TabsContent>
-            
+
             <TabsContent value="server_args">
               {/* @ts-expect-error: Prop 'value' is not available on type 'IntrinsicAttributes' */}
               <ServerArgsEditor value={formData.server_args} onChange={(v) => setFormData(p => ({ ...p, server_args: v }))} />
             </TabsContent>
           </Tabs>
-          
+
           <div className="flex justify-end gap-2 mt-6 pt-6 border-t">
             <Button variant="outline" onClick={handleBack}>
-              {t('common.cancel')}
+              {tCommon('cancel')}
             </Button>
             <Button onClick={handleSubmit} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
