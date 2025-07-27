@@ -145,61 +145,6 @@ func GetServerRCON(c *gin.Context) {
 	})
 }
 
-// ExecuteRCONCommand 执行RCON命令
-// @Summary 执行RCON命令
-// @Description 在指定服务器上执行RCON命令
-// @Tags 服务器管理
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param id path int true "服务器ID"
-// @Param command body map[string]string true "RCON命令 {\"command\": \"ListPlayers\"}"
-// @Success 200 {object} map[string]string "命令执行结果"
-// @Failure 400 {object} map[string]string "请求错误"
-// @Failure 404 {object} map[string]string "服务器不存在"
-// @Failure 401 {object} map[string]string "未授权"
-// @Failure 500 {object} map[string]string "服务器错误"
-// @Router /servers/{id}/rcon/execute [post]
-func ExecuteRCONCommand(c *gin.Context) {
-	userID := c.GetUint("user_id")
-	serverID := c.Param("id")
-
-	var req struct {
-		Command string `json:"command" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
-		return
-	}
-
-	data, err := serverService.ExecuteRCONCommand(userID, serverID, req.Command)
-	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器未运行，无法执行RCON命令" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器容器不存在，无法执行RCON命令" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "RCON命令执行成功",
-		"data":    data,
-	})
-}
-
 // UpdateServer 更新服务器
 // @Summary 更新服务器配置
 // @Description 更新指定服务器的配置信息（包括配置文件）
@@ -376,43 +321,6 @@ func StopServer(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "服务器停止命令已发送",
-	})
-}
-
-// GetServerFolderInfo 获取服务器文件夹信息（内部管理使用）
-// @Summary 获取服务器文件夹信息
-// @Description 获取指定服务器的文件夹路径和大小（仅供内部管理使用）
-// @Tags 服务器管理
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param id path int true "服务器ID"
-// @Success 200 {object} map[string]interface{} "文件夹信息"
-// @Failure 400 {object} map[string]string "请求错误"
-// @Failure 404 {object} map[string]string "服务器不存在"
-// @Failure 401 {object} map[string]string "未授权"
-// @Router /servers/{id}/folder [get]
-func GetServerFolderInfo(c *gin.Context) {
-	userID := c.GetUint("user_id")
-	serverID := c.Param("id")
-
-	data, err := serverService.GetServerFolderInfo(userID, serverID)
-	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"data":    data,
 	})
 }
 

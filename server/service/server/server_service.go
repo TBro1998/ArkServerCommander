@@ -159,7 +159,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	var gameIni string
 
 	if req.GameUserSettings != "" {
-		if err := utils.ValidateINIContent(req.GameUserSettings); err != nil {
+		if err = utils.ValidateINIContent(req.GameUserSettings); err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("GameUserSettings.ini格式错误: %w", err)
 		}
@@ -169,9 +169,9 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	}
 
 	if req.GameIni != "" {
-		if err := utils.ValidateINIContent(req.GameIni); err != nil {
+		if err = utils.ValidateINIContent(req.GameIni); err != nil {
 			tx.Rollback()
-			return nil, fmt.Errorf("Game.ini格式错误: %w", err)
+			return nil, fmt.Errorf("game.ini格式错误: %w", err)
 		}
 		gameIni = req.GameIni
 	} else {
@@ -233,7 +233,7 @@ func (s *ServerService) GetServer(userID uint, serverID string) (*models.ServerR
 	}
 
 	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+	if err = database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
 		return nil, fmt.Errorf("服务器不存在")
 	}
 
@@ -241,7 +241,7 @@ func (s *ServerService) GetServer(userID uint, serverID string) (*models.ServerR
 	var serverArgs *models.ServerArgs
 	if server.ServerArgsJSON != "" && server.ServerArgsJSON != "{}" {
 		serverArgs = models.NewServerArgs()
-		if err := json.Unmarshal([]byte(server.ServerArgsJSON), serverArgs); err != nil {
+		if err = json.Unmarshal([]byte(server.ServerArgsJSON), serverArgs); err != nil {
 			serverArgs = models.FromServer(server)
 		}
 	} else {
@@ -305,48 +305,6 @@ func (s *ServerService) GetServerRCON(userID uint, serverID string) (map[string]
 	}, nil
 }
 
-// ExecuteRCONCommand 执行RCON命令
-func (s *ServerService) ExecuteRCONCommand(userID uint, serverID string, command string) (map[string]interface{}, error) {
-	id, err := strconv.ParseUint(serverID, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("无效的服务器ID")
-	}
-
-	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return nil, fmt.Errorf("服务器不存在")
-	}
-
-	if server.Status != "running" {
-		return nil, fmt.Errorf("服务器未运行，无法执行RCON命令")
-	}
-
-	dockerManager, err := docker_manager.GetDockerManager()
-	if err != nil {
-		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
-	}
-
-	containerName := utils.GetServerContainerName(server.ID)
-	containerExists, err := dockerManager.ContainerExists(containerName)
-	if err != nil {
-		return nil, fmt.Errorf("检查容器状态失败: %w", err)
-	}
-	if !containerExists {
-		return nil, fmt.Errorf("服务器容器不存在，无法执行RCON命令")
-	}
-
-	rconCommand := fmt.Sprintf("echo '%s' | /ark/rcon -H localhost -P %d -p '%s'", command, server.RCONPort, server.AdminPassword)
-	output, err := dockerManager.ExecuteCommand(containerName, rconCommand)
-	if err != nil {
-		return nil, fmt.Errorf("执行RCON命令失败: %w", err)
-	}
-
-	return map[string]interface{}{
-		"command": command,
-		"output":  output,
-	}, nil
-}
-
 // UpdateServer 更新服务器配置
 func (s *ServerService) UpdateServer(userID uint, serverID string, req models.ServerUpdateRequest) (*models.ServerResponse, bool, error) {
 	id, err := strconv.ParseUint(serverID, 10, 32)
@@ -355,14 +313,14 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	}
 
 	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
+	if err = database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
 		return nil, false, fmt.Errorf("服务器不存在")
 	}
 
 	// 检查标识是否冲突
 	if req.Identifier != "" && req.Identifier != server.Identifier {
 		var existingServer models.Server
-		if err := database.DB.Where("identifier = ? AND user_id = ? AND id != ?", req.Identifier, userID, id).First(&existingServer).Error; err == nil {
+		if err = database.DB.Where("identifier = ? AND user_id = ? AND id != ?", req.Identifier, userID, id).First(&existingServer).Error; err == nil {
 			return nil, false, fmt.Errorf("服务器标识已存在")
 		}
 		server.Identifier = req.Identifier
@@ -733,56 +691,6 @@ func (s *ServerService) stopServerAsync(server models.Server, dockerManager *doc
 	if err := database.DB.Model(&server).Update("status", "stopped").Error; err != nil {
 		fmt.Printf("Failed to update server status to stopped: %v\n", err)
 	}
-}
-
-// GetServerFolderInfo 获取服务器文件夹信息
-func (s *ServerService) GetServerFolderInfo(userID uint, serverID string) (map[string]interface{}, error) {
-	id, err := strconv.ParseUint(serverID, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("无效的服务器ID")
-	}
-
-	var server models.Server
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return nil, fmt.Errorf("服务器不存在")
-	}
-
-	// 获取Docker卷信息
-	dockerManager, err := docker_manager.GetDockerManager()
-	if err != nil {
-		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
-	}
-
-	volumeName := utils.GetServerVolumeName(server.ID)
-	pluginsVolumeName := utils.GetServerPluginsVolumeName(server.ID)
-	containerName := utils.GetServerContainerName(server.ID)
-
-	// 检查卷是否存在
-	volumeExists, _ := dockerManager.VolumeExists(volumeName)
-	pluginsVolumeExists, _ := dockerManager.VolumeExists(pluginsVolumeName)
-
-	// 检查容器是否存在
-	containerExists, _ := dockerManager.ContainerExists(containerName)
-
-	// 获取容器状态
-	containerStatus := "not_found"
-	if containerExists {
-		if status, err := dockerManager.GetContainerStatus(containerName); err == nil {
-			containerStatus = status
-		}
-	}
-
-	return map[string]interface{}{
-		"server_id":             server.ID,
-		"server_name":           server.Identifier,
-		"volume_name":           volumeName,
-		"volume_exists":         volumeExists,
-		"plugins_volume_name":   pluginsVolumeName,
-		"plugins_volume_exists": pluginsVolumeExists,
-		"container_name":        containerName,
-		"container_exists":      containerExists,
-		"container_status":      containerStatus,
-	}, nil
 }
 
 // ValidateRequiredImages 验证启动服务器所需的镜像是否存在
