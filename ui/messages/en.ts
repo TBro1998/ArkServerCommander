@@ -334,14 +334,15 @@ export default {
       textEditMode: 'Text Edit',
       syncing: 'Syncing...',
       synced: 'Synced',
+      pendingSync: 'Pending Sync',
       resetToDefault: 'Reset to Default',
       format: 'Format',
       content: 'Content',
       placeholder: 'Enter configuration content...',
       description: 'This file contains basic server settings such as port, password, max players, etc.',
       visualEditModeDesc: 'Visual Edit Mode',
-      visualEditModeTip: 'Modify parameters through form controls. Hover over the icon next to parameter names to view detailed descriptions. Changes are automatically synchronized to the configuration file. Switch to text mode to view the generated configuration content.',
-      gameIniTextEditDesc: 'Directly edit Game.ini configuration file content. Changes are automatically parsed and synced to the visual interface. Switch to visual mode to see the parsed parameter settings.',
+      visualEditModeTip: 'Modify parameters through form controls. Hover over the icon next to parameter names to view detailed descriptions.',
+      gameIniTextEditDesc: 'Directly edit Game.ini configuration file content.',
       showPassword: 'Show Password',
       hidePassword: 'Hide Password',
       enabled: 'Enabled',
@@ -349,7 +350,12 @@ export default {
       parametersCount: ' parameters',
       defaultValue: 'Default',
       parseGameIniError: 'Failed to parse Game.ini text',
-      syncVisualToTextError: 'Failed to sync visual config to text'
+      syncVisualToTextError: 'Failed to sync visual config to text',
+      range: 'Range',
+      syncTip: {
+        visual: 'Modify parameters in visual mode, configuration will be synced to text when switching to text mode.',
+        text: 'Edit configuration file directly in text mode, content will be parsed when switching to visual mode.'
+      }
     },
     // Server args editor related
     argsEditor: {

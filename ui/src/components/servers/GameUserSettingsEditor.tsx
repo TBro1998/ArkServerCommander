@@ -249,8 +249,7 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<GameUserSettingsCategoryKey>('serverBasic');
-  const [isUserEditing, setIsUserEditing] = useState(false);
-  const [lastUserEditTime, setLastUserEditTime] = useState(0);
+  const [pendingSync, setPendingSync] = useState(false);
 
   // Helper functions with i18n support
   const getCategoryName = (categoryKey: GameUserSettingsCategoryKey): string => {
@@ -273,7 +272,10 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     }
   };
 
-  const initializeVisualConfig = useCallback(() => {
+
+
+  const parseTextToVisual = useCallback((content: string) => {
+    // 首先初始化默认配置
     const defaultConfig: Record<string, string | number | boolean> = {};
     getAllGameUserSettingsCategories().forEach(categoryKey => {
       const section = gameUserSettingsParams[categoryKey];
@@ -292,46 +294,36 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     defaultConfig.Message = tDefaultValues('message');
     defaultConfig.Duration = 30;
 
-    setVisualConfig(prev => ({ ...prev, ...defaultConfig }));
-  }, []);
-
-  const parseTextToVisual = useCallback((content: string) => {
     if (!content) {
-      initializeVisualConfig();
+      // 如果没有内容，直接使用默认配置
+      setVisualConfig(defaultConfig);
       return;
     }
 
     try {
       const values = extractConfigValues(content);
-      if (values && Object.keys(values).length > 0) {
-        // 只更新实际发生变化的值，避免覆盖用户输入
-        setVisualConfig(prev => {
-          const newConfig = { ...prev };
-          let hasChanges = false;
-
-          Object.entries(values).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && newConfig[key] !== value) {
-              newConfig[key] = value;
-              hasChanges = true;
-            }
-          });
-
-          return hasChanges ? newConfig : prev;
-        });
-      }
+      // 合并默认配置和解析出的配置
+      const mergedConfig = { ...defaultConfig, ...values };
+      setVisualConfig(mergedConfig);
     } catch (error) {
       console.error('解析配置文件失败:', error);
+      // 解析失败时使用默认配置
+      setVisualConfig(defaultConfig);
     }
-  }, [initializeVisualConfig]);
+  }, [tDefaultValues]);
+
+  // 组件初始化时设置默认配置
+  useEffect(() => {
+    parseTextToVisual('');
+  }, [parseTextToVisual]);
 
   useEffect(() => {
     setTextContent(value || '');
-    // 只有在用户没有正在编辑时才更新可视化配置
-    const now = Date.now();
-    if (now - lastUserEditTime > 1000 && !isUserEditing) {
-      parseTextToVisual(value || '');
+    // 解析后端传来的配置数据到可视化配置
+    if (value) {
+      parseTextToVisual(value);
     }
-  }, [value, lastUserEditTime, isUserEditing, parseTextToVisual]);
+  }, [value, parseTextToVisual]);
 
   const extractConfigValues = (content: string): Record<string, string | number | boolean> => {
     const values: Record<string, string | number | boolean> = {};
@@ -550,48 +542,38 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
   const handleTextChange = (newContent: string) => {
     setTextContent(newContent);
-    setIsUserEditing(true);
-    setLastUserEditTime(Date.now());
     onChange?.(newContent);
-    setIsSyncing(true);
-
-    // 使用防抖机制避免快速连续修改
-    if ((window as Window & { __textSyncTimeout?: NodeJS.Timeout }).__textSyncTimeout) {
-      clearTimeout((window as Window & { __textSyncTimeout?: NodeJS.Timeout }).__textSyncTimeout);
-    }
-    (window as Window & { __textSyncTimeout?: NodeJS.Timeout }).__textSyncTimeout = setTimeout(() => {
-      parseTextToVisual(newContent);
-      setIsSyncing(false);
-      setIsUserEditing(false);
-    }, 500);
+    setPendingSync(true);
   };
 
-  const handleModeSwitch = (mode: 'visual' | 'text') => {
-    if (mode === 'text' && editMode === 'visual') {
-      syncVisualToText();
-    } else if (mode === 'visual' && editMode === 'text') {
-      parseTextToVisual(textContent);
+  const handleModeSwitch = async (mode: 'visual' | 'text') => {
+    if (mode === editMode) return;
+
+    setIsSyncing(true);
+    
+    try {
+      if (mode === 'text' && editMode === 'visual') {
+        // 从可视化模式切换到文本模式：将可视化配置同步到文本
+        syncVisualToText();
+      } else if (mode === 'visual' && editMode === 'text') {
+        // 从文本模式切换到可视化模式：将文本解析到可视化配置
+        parseTextToVisual(textContent);
+      }
+      
+      setEditMode(mode);
+      setPendingSync(false);
+    } catch (error) {
+      console.error('模式切换同步失败:', error);
+    } finally {
+      setIsSyncing(false);
     }
-    setEditMode(mode);
   };
 
 
 
   const handleVisualChange = (paramKey: string, value: string | number | boolean) => {
     setVisualConfig(prev => ({ ...prev, [paramKey]: value }));
-    setIsUserEditing(true);
-    setLastUserEditTime(Date.now());
-    setIsSyncing(true);
-
-    // 使用防抖机制避免快速连续修改
-    if ((window as Window & { __visualSyncTimeout?: NodeJS.Timeout }).__visualSyncTimeout) {
-      clearTimeout((window as Window & { __visualSyncTimeout?: NodeJS.Timeout }).__visualSyncTimeout);
-    }
-    (window as Window & { __visualSyncTimeout?: NodeJS.Timeout }).__visualSyncTimeout = setTimeout(() => {
-      syncVisualToText();
-      setIsSyncing(false);
-      setIsUserEditing(false);
-    }, 500);
+    setPendingSync(true);
   };
 
   const togglePasswordVisibility = (paramKey: string) => {
@@ -720,6 +702,11 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
                 <RefreshCw className="h-4 w-4 animate-spin mr-2" />
                 {t('syncing')}
               </div>
+            ) : pendingSync ? (
+              <div className="flex items-center text-yellow-600">
+                <Info className="h-4 w-4 mr-1" />
+                {t('pendingSync')}
+              </div>
             ) : (
               <div className="flex items-center text-green-600">
                 <CheckCircle className="h-4 w-4 mr-1" />
@@ -732,7 +719,21 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
       {/* Mode Description */}
       <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-md">
-        {editMode === 'visual' ? t('visualEditModeTip') : t('gameUserSettingsTextEditDesc')}
+        {editMode === 'visual' ? (
+          <div>
+            <p>{t('visualEditModeTip')}</p>
+            <p className="mt-1 text-xs">
+              {t('syncTip.visual')}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p>{t('gameUserSettingsTextEditDesc')}</p>
+            <p className="mt-1 text-xs">
+              {t('syncTip.text')}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Visual Edit Mode */}

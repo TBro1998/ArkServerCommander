@@ -333,14 +333,15 @@ export default {
       textEditMode: '文本编辑',
       syncing: '正在同步...',
       synced: '已同步',
+      pendingSync: '待同步',
       resetToDefault: '重置为默认',
       format: '格式化',
       content: '内容',
       placeholder: '输入配置内容...',
       description: '此文件包含服务器的基本设置，如端口、密码、最大玩家数等',
       visualEditModeDesc: '可视化编辑模式',
-      visualEditModeTip: '通过表单控件修改参数，鼠标悬停在参数名称旁的图标可查看详细说明。修改会自动同步到配置文件，切换到文本模式可查看生成的配置内容。',
-      gameIniTextEditDesc: '直接编辑 Game.ini 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。',
+      visualEditModeTip: '通过表单控件修改参数，鼠标悬停在参数名称旁的图标可查看详细说明。',
+      gameIniTextEditDesc: '直接编辑 Game.ini 配置文件内容。',
       showPassword: '显示密码',
       hidePassword: '隐藏密码',
       enabled: '启用',
@@ -350,6 +351,10 @@ export default {
       parseGameIniError: '解析Game.ini文本失败',
       syncVisualToTextError: '同步可视化配置到文本失败',
       range: '范围',
+      syncTip: {
+        visual: '在可视化模式下修改参数，切换到文本模式时会将配置同步到文本。',
+        text: '在文本模式下直接编辑配置文件，切换到可视化模式时会解析文本内容。'
+      }
     },
     // 启动参数编辑器相关
     argsEditor: {
