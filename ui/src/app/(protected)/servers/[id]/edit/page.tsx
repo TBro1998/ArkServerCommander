@@ -14,6 +14,7 @@ import { Loader2, ArrowLeft, Save } from 'lucide-react';
 import { GameUserSettingsEditor } from '@/components/servers/GameUserSettingsEditor';
 import { GameIniEditor } from '@/components/servers/GameIniEditor';
 import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
+import { MapSelector } from '@/components/servers/MapSelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ServerEditPage() {
@@ -150,8 +151,11 @@ export default function ServerEditPage() {
                     <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} />
                   </div>
                   <div>
-                    <Label htmlFor="map">{tServersEdit('map')}</Label>
-                    <Input id="map" name="map" value={formData.map || ''} onChange={handleChange} />
+                    <MapSelector
+                      value={formData.map || ''}
+                      onChange={(value) => setFormData(prev => ({ ...prev, map: value }))}
+                      label={tServersEdit('map')}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">

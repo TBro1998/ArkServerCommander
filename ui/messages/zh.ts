@@ -323,7 +323,11 @@ export default {
         CrystalIsles: '水晶群岛',
         LostIsland: '失落岛',
         Fjordur: '冰封群岛'
-      }
+      },
+      selectMapPlaceholder: '选择地图或输入地图名称',
+       customMapPlaceholder: '输入自定义地图名称',
+       customMap: '自定义地图',
+       noMatchingMaps: '没有匹配的地图'
     },
     // 编辑器相关
     editor: {

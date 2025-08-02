@@ -324,7 +324,11 @@ export default {
         CrystalIsles: 'Crystal Isles',
         LostIsland: 'Lost Island',
         Fjordur: 'Fjordur'
-      }
+      },
+      selectMapPlaceholder: 'Select map or enter map name',
+      customMapPlaceholder: 'Enter custom map name',
+      customMap: 'Custom Map',
+      noMatchingMaps: 'No matching maps'
     },
     // Editor related
     editor: {

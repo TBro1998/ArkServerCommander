@@ -47,6 +47,14 @@ export function ServerCard({
   const t = useTranslations('servers');
   const [showPassword, setShowPassword] = useState(false);
 
+  // 获取地图的显示名称（翻译名称或原始名称）
+  const getMapDisplayName = (mapName: string) => {
+    const mapKey = `edit.maps.${mapName}`;
+    const translatedName = t(mapKey);
+    // 如果翻译存在且不等于key本身，返回翻译；否则返回原始名称
+    return translatedName !== mapKey ? translatedName : mapName;
+  };
+
   const getStatusVariant = (status: Server['status']): 'default' | 'destructive' | 'secondary' | 'outline' => {
     switch (status) {
       case 'running':
@@ -70,10 +78,10 @@ export function ServerCard({
     switch (server.status) {
       case 'running':
         return (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
             onClick={() => onStop(server)}
           >
             <Square className="h-4 w-4" />
@@ -81,11 +89,11 @@ export function ServerCard({
         );
       case 'stopped':
         return (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" 
-            onClick={() => onStart(server)} 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+            onClick={() => onStart(server)}
             disabled={!canStartServer}
           >
             <Play className="h-4 w-4" />
@@ -94,10 +102,10 @@ export function ServerCard({
       case 'starting':
       case 'stopping':
         return (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 w-8 p-0 text-blue-600" 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-blue-600"
             disabled
           >
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -105,10 +113,10 @@ export function ServerCard({
         );
       default:
         return (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 w-8 p-0 text-gray-400" 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-gray-400"
             disabled
           >
             <HelpCircle className="h-4 w-4" />
@@ -125,13 +133,13 @@ export function ServerCard({
           <div className="flex items-center gap-1 flex-shrink-0">
             {/* 启动/停止按钮 */}
             {StartStopButton()}
-            
+
             {/* 删除按钮 */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -144,20 +152,20 @@ export function ServerCard({
                 </div>
               </PopoverContent>
             </Popover>
-            
+
             {/* 编辑按钮 */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
               onClick={() => onEdit(server)}
             >
               <Edit className="h-4 w-4" />
             </Button>
           </div>
         </div>
-        <Badge 
-          variant={getStatusVariant(server.status)} 
+        <Badge
+          variant={getStatusVariant(server.status)}
           className="w-fit text-xs px-2 py-1"
         >
           {server.status}
@@ -193,7 +201,7 @@ export function ServerCard({
               <Info className="h-3.5 w-3.5 mr-1.5 text-green-600" />
               {t('card.map')}
             </span>
-            <span className="font-medium truncate ml-2">{server.map}</span>
+            <span className="font-medium truncate ml-2">{getMapDisplayName(server.map)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">{t('card.maxPlayers')}</span>
@@ -212,18 +220,18 @@ export function ServerCard({
               <span className="font-mono text-xs">
                 {showPassword ? server.admin_password : '••••••••'}
               </span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 p-0" 
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 p-0" 
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
                 onClick={() => copyToClipboard(server.admin_password)}
               >
                 <Copy className="h-3 w-3" />

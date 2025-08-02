@@ -19,6 +19,7 @@ import { Loader2 } from 'lucide-react';
 import { GameUserSettingsEditor } from './GameUserSettingsEditor';
 import { GameIniEditor } from './GameIniEditor';
 import { ServerArgsEditor } from './ServerArgsEditor';
+import { MapSelector } from './MapSelector';
 
 interface ServerEditModalProps {
   show: boolean;
@@ -99,8 +100,11 @@ export function ServerEditModal({
                     <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} />
                   </div>
                   <div>
-                    <Label htmlFor="map">{t('map')}</Label>
-                    <Input id="map" name="map" value={formData.map || ''} onChange={handleChange} />
+                    <MapSelector
+                      value={formData.map || ''}
+                      onChange={(value) => setFormData(prev => ({ ...prev, map: value }))}
+                      label={t('map')}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
