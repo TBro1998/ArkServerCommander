@@ -129,7 +129,7 @@ export function ServerCard({
     <Card className="h-full hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start mb-2">
-          <CardTitle className="text-base font-semibold truncate pr-2">{server.name}</CardTitle>
+          <CardTitle className="text-base font-semibold truncate pr-2">{server.session_name}</CardTitle>
           <div className="flex items-center gap-1 flex-shrink-0">
             {/* 启动/停止按钮 */}
             {StartStopButton()}
@@ -147,7 +147,7 @@ export function ServerCard({
               </PopoverTrigger>
               <PopoverContent>
                 <div className="space-y-2">
-                  <p className="text-sm">{t('card.confirmDeleteMessage', { identifier: server.name })}</p>
+                  <p className="text-sm">{t('card.confirmDeleteMessage', { identifier: server.session_name })}</p>
                   <Button size="sm" variant="destructive" onClick={() => onDelete(server)}>{t('deleteServer')}</Button>
                 </div>
               </PopoverContent>

@@ -328,7 +328,8 @@ export default {
       selectMapPlaceholder: 'Select map or enter map name',
       customMapPlaceholder: 'Enter custom map name',
       customMap: 'Custom Map',
-      noMatchingMaps: 'No matching maps'
+      noMatchingMaps: 'No matching maps',
+      mapId: 'Map ID'
     },
     // Editor related
     editor: {

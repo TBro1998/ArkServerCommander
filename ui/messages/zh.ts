@@ -325,9 +325,12 @@ export default {
         Fjordur: '冰封群岛'
       },
       selectMapPlaceholder: '选择地图或输入地图名称',
-       customMapPlaceholder: '输入自定义地图名称',
-       customMap: '自定义地图',
-       noMatchingMaps: '没有匹配的地图'
+      searchMaps: '搜索地图',
+      officialMaps: '官方地图',
+      customMapPlaceholder: '输入自定义地图名称',
+      customMap: '自定义地图',
+      noMatchingMaps: '没有匹配的地图',
+      mapId: '地图ID'
     },
     // 编辑器相关
     editor: {

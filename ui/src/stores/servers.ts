@@ -5,7 +5,7 @@ import Cookies from 'js-cookie';
 // 定义服务器对象类型
 export interface Server {
     id: string;
-    name: string;
+    session_name: string;
     status: 'running' | 'stopped' | 'starting' | 'stopping';
     port: number;
     query_port: number;

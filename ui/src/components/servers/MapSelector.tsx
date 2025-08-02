@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, X, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ChevronDown, X, Check, Map } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MapSelectorProps {
@@ -16,12 +17,9 @@ interface MapSelectorProps {
 
 export function MapSelector({ value, onChange, label }: MapSelectorProps) {
   const t = useTranslations('servers.edit');
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [inputValue, setInputValue] = useState(value || '');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+
   // 预定义的地图选项
   const predefinedMaps = {
     'TheIsland': t('maps.TheIsland'),
@@ -37,71 +35,33 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
     'Fjordur': t('maps.Fjordur')
   };
 
-  // 同步外部value变化到内部inputValue
+  // 同步外部value变化
   useEffect(() => {
-    setInputValue(value || '');
-  }, [value]);
+    // 当外部value变化时，重置搜索值
+    if (!open) {
+      setSearchValue('');
+    }
+  }, [value, open]);
 
   // 过滤地图选项
   const filteredMaps = Object.entries(predefinedMaps).filter(([key, displayName]) => {
-    const searchLower = searchTerm.toLowerCase();
-    return key.toLowerCase().includes(searchLower) || 
-           displayName.toLowerCase().includes(searchLower);
+    if (!searchValue) return true;
+    const searchLower = searchValue.toLowerCase();
+    return key.toLowerCase().includes(searchLower) ||
+      displayName.toLowerCase().includes(searchLower);
   });
 
-  // 点击外部关闭下拉框
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSearchTerm('');
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    setSearchTerm(newValue);
-    onChange(newValue);
-    
-    // 如果用户在输入，自动打开下拉框
-    if (!isOpen && newValue) {
-      setIsOpen(true);
-    }
-  };
-
+  // 处理地图选择
   const handleMapSelect = (mapKey: string) => {
-    setInputValue(mapKey);
     onChange(mapKey);
-    setIsOpen(false);
-    setSearchTerm('');
+    setOpen(false);
+    setSearchValue('');
   };
 
-  const handleInputFocus = () => {
-    setSearchTerm(inputValue);
-    setIsOpen(true);
-  };
-
-  const handleClearInput = () => {
-    setInputValue('');
+  // 清空选择
+  const handleClear = () => {
     onChange('');
-    setSearchTerm('');
-    setIsOpen(true); // 清空后打开下拉框显示所有选项
-    inputRef.current?.focus();
-  };
-
-  const toggleDropdown = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
-      setSearchTerm(inputValue);
-      inputRef.current?.focus();
-    } else {
-      setSearchTerm('');
-    }
+    setSearchValue('');
   };
 
   // 获取当前选中地图的显示名称
@@ -110,102 +70,105 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {label && <Label htmlFor="map">{label}</Label>}
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          id="map"
-          name="map"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          placeholder={t('selectMapPlaceholder')}
-          className="pr-20"
-          autoComplete="off"
-        />
-        
-        {/* 右侧按钮组 */}
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {inputValue && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleClearInput}
-              className="h-6 w-6 p-0 hover:bg-gray-100"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={toggleDropdown}
-            className="h-6 w-6 p-0 hover:bg-gray-100"
-          >
-            <ChevronDown className={cn(
-              "h-3 w-3 transition-transform duration-200",
-              isOpen && "rotate-180"
-            )} />
-          </Button>
-        </div>
+    <div className="space-y-2">
+      {label && <Label>{label}</Label>}
 
-        {/* 下拉选项 */}
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-white shadow-lg">
-            {filteredMaps.length > 0 ? (
-              <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Map className="h-4 w-4 opacity-50" />
+              <span className={cn(
+                "truncate",
+                !value && "text-muted-foreground"
+              )}>
+                {value ? getDisplayName(value) : t('selectMapPlaceholder')}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {value && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-4 w-4 p-0 hover:bg-transparent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClear();
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              <ChevronDown className={cn(
+                "h-4 w-4 shrink-0 opacity-50 transition-transform duration-200",
+                open && "rotate-180"
+              )} />
+            </div>
+          </Button>
+        </PopoverTrigger>
+
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput
+              placeholder={t('searchMaps') || 'Search maps...'}
+              value={searchValue}
+              onValueChange={setSearchValue}
+            />
+            <CommandList>
+              <CommandEmpty>{t('noMatchingMaps') || 'No maps found.'}</CommandEmpty>
+
+              <CommandGroup heading={t('officialMaps') || 'Official Maps'}>
                 {filteredMaps.map(([key, displayName]) => (
-                  <div
+                  <CommandItem
                     key={key}
-                    className={cn(
-                      "flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-gray-50",
-                      inputValue === key && "bg-blue-50 text-blue-600"
-                    )}
-                    onClick={() => handleMapSelect(key)}
+                    value={key}
+                    onSelect={() => handleMapSelect(key)}
+                    className="flex items-center justify-between"
                   >
                     <div className="flex flex-col">
                       <span className="font-medium">{displayName}</span>
                       {displayName !== key && (
-                        <span className="text-xs text-gray-500">{key}</span>
+                        <span className="text-xs text-muted-foreground">{key}</span>
                       )}
                     </div>
-                    {inputValue === key && (
-                      <Check className="h-4 w-4 text-blue-600" />
+                    {value === key && (
+                      <Check className="h-4 w-4" />
                     )}
-                  </div>
+                  </CommandItem>
                 ))}
-                
-                {/* 如果输入的不是预定义地图，显示自定义选项 */}
-                {searchTerm && !Object.keys(predefinedMaps).includes(searchTerm) && (
-                  <div className="border-t">
-                    <div
-                      className="flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 text-blue-600"
-                      onClick={() => handleMapSelect(searchTerm)}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{t('customMap')}: {searchTerm}</span>
-                        <span className="text-xs text-gray-500">{t('customMapPlaceholder')}</span>
-                      </div>
+              </CommandGroup>
+
+              {/* 自定义地图选项 */}
+              {searchValue && !Object.keys(predefinedMaps).includes(searchValue) && (
+                <CommandGroup heading={t('customMap') || 'Custom Map'}>
+                  <CommandItem
+                    value={searchValue}
+                    onSelect={() => handleMapSelect(searchValue)}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{searchValue}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t('customMapPlaceholder') || 'Custom map'}
+                      </span>
                     </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="px-3 py-2 text-sm text-gray-500">
-                {searchTerm ? t('noMatchingMaps') : t('selectMapPlaceholder')}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      
+                  </CommandItem>
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
       {/* 显示当前选中地图的友好名称 */}
-      {inputValue && Object.keys(predefinedMaps).includes(inputValue) && (
-        <div className="mt-1 text-xs text-gray-600">
-          {getDisplayName(inputValue)}
+      {value && Object.keys(predefinedMaps).includes(value) && value !== getDisplayName(value) && (
+        <div className="text-xs text-muted-foreground">
+          {t('mapId')}: {value}
         </div>
       )}
     </div>

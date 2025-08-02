@@ -113,7 +113,7 @@ export default function ServerEditPage() {
           </Button>
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{tServersEdit('editTitle')}</h1>
-            <p className="text-gray-600">{server?.name}</p>
+            <p className="text-gray-600">{server?.session_name}</p>
           </div>
         </div>
 
@@ -147,8 +147,8 @@ export default function ServerEditPage() {
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">{tServersEdit('serverName')}</Label>
-                    <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} />
+                    <Label htmlFor="session_name">{tServersEdit('serverName')}</Label>
+                    <Input id="session_name" name="session_name" value={formData.session_name || ''} onChange={handleChange} />
                   </div>
                   <div>
                     <MapSelector

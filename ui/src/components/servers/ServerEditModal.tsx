@@ -48,7 +48,7 @@ export function ServerEditModal({
     if (show) {
       if (mode === 'create') {
         setFormData({
-          name: 'ARK Server',
+          session_name: 'ARK Server',
           port: 7777,
           query_port: 27015,
           rcon_port: 27020,
@@ -77,7 +77,7 @@ export function ServerEditModal({
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>{mode === 'create' ? t('createTitle') : t('editTitle')}</DialogTitle>
-          <DialogDescription>{server?.name}</DialogDescription>
+          <DialogDescription>{server?.session_name}</DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -96,8 +96,8 @@ export function ServerEditModal({
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">{t('serverName')}</Label>
-                    <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} />
+                    <Label htmlFor="session_name">{t('serverName')}</Label>
+                    <Input id="session_name" name="session_name" value={formData.session_name || ''} onChange={handleChange} />
                   </div>
                   <div>
                     <MapSelector
