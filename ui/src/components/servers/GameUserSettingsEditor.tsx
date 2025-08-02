@@ -44,7 +44,6 @@ type GameUserSettingsCategoryKey =
 const gameUserSettingsParams: Record<GameUserSettingsCategoryKey, Record<string, GameUserSettingsParam>> = {
   serverBasic: {
     ServerPassword: { type: 'password', default: '' },
-    ServerAdminPassword: { type: 'password', default: '' },
     SpectatorPassword: { type: 'password', default: '' },
     AdminLogging: { type: 'boolean', default: true }
   },

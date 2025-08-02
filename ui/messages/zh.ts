@@ -647,7 +647,6 @@ export default {
     gameUserSettingsParams: {
       // 服务器基本设置
       ServerPassword: '服务器密码',
-      ServerAdminPassword: '服务器管理员密码',
       SpectatorPassword: '观察者密码',
       AdminLogging: '管理员日志',
 
