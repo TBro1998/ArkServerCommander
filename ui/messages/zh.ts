@@ -415,17 +415,17 @@ export default {
       UseVivox: '使用 Vivox 语音聊天',
       webalarm: '网页警报',
       AllowChatSpam: '允许聊天刷屏',
-      
+
       // 模组和 Steam
       automanagedmods: '自动管理模组',
       MapModID: '地图模组ID',
-      
+
       // 跨平台和网络
       crossplay: '启用跨平台',
       epiconly: '仅限 Epic 游戏商店',
       PublicIPForEpic: 'Epic 游戏公网IP',
       MULTIHOME: '多宿主IP地址',
-      
+
       // 服务器管理
       culture: '服务器语言文化',
       exclusivejoin: '独占加入（白名单）',
@@ -433,7 +433,7 @@ export default {
       MaxNumOfSaveBackups: '最大存档备份数量',
       newsaveformat: '新存档格式',
       NoHangDetection: '禁用挂起检测',
-      
+
       // 生物和游戏玩法
       DisableCustomFoldersInTributeInventories: '禁用贡品库存中的自定义文件夹',
       ForceAllowCaveFlyers: '强制允许洞穴飞行',
@@ -441,12 +441,12 @@ export default {
       NoDinos: '无恐龙',
       imprintlimit: '印记限制百分比',
       MinimumTimeBetweenInventoryRetrieval: '库存检索之间的最小时间',
-      
+
       // PvP 设置
       DisableRailgunPVP: '在PvP中禁用轨道炮',
       pvedisallowtribewar: 'PvE 禁止部落战争',
       pveallowtribewar: 'PvE 允许部落战争',
-      
+
       // 安全和反作弊
       insecure: '禁用 VAC（不安全）',
       NoBattlEye: '禁用 BattlEye',
@@ -458,7 +458,7 @@ export default {
       UseItemDupeCheck: '使用物品复制检查',
       UseSecureSpawnRules: '使用安全生成规则',
       BattlEyeServerRecheck: 'BattlEye 服务器重检',
-      
+
       // 性能优化
       nocombineclientmoves: '禁用合并客户端移动',
       StasisKeepControllers: '静止保持控制器',
@@ -468,24 +468,24 @@ export default {
       nodormancythrottling: '禁用休眠节流',
       nitradotest2: 'Nitrado 测试模式 2',
       dedihibernation: '专用休眠',
-      
+
       // 图形和客户端
       ServerAllowAnsel: '服务器允许 NVIDIA Ansel',
-      
+
       // 日志和管理
       servergamelog: '服务器游戏日志',
       servergamelogincludetribelogs: '服务器游戏日志包含部落日志',
       ServerRCONOutputTribeLogs: '服务器 RCON 输出部落日志',
       NotifyAdminCommandsInChat: '在聊天中通知管理员命令',
-      
+
       // 传输和集群
       ClusterDirOverride: '集群目录覆盖',
       clusterid: '集群ID',
       NoTransferFromFiltering: '无传输来源过滤',
-      usestore: '使用商店',
+      usestore: '使用备份',
       BackupTransferPlayerDatas: '备份传输玩家数据',
-      converttostore: '转换为商店',
-      
+      converttostore: '转换为备份',
+
       // 高级/未记录
       CustomAdminCommandTrackingURL: '自定义管理员命令跟踪URL',
       CustomMerticsURL: '自定义指标URL',

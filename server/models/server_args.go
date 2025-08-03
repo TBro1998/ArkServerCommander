@@ -63,6 +63,8 @@ func FromServer(server Server) *ServerArgs {
 	args.CommandLineArgs["MinimumTimeBetweenInventoryRetrieval"] = 3600
 	args.CommandLineArgs["newsaveformat"] = true
 	args.CommandLineArgs["usestore"] = true
+	args.CommandLineArgs["BackupTransferPlayerDatas"] = true
+	args.CommandLineArgs["converttostore"] = true
 
 	return args
 }

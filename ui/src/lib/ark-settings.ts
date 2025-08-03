@@ -117,7 +117,7 @@ export const commandLineArgs: Record<string, ServerParam> = {
   newsaveformat: {
     type: 'boolean',
     category: 'maintenance',
-    default: false
+    default: true
   },
   NoHangDetection: {
     type: 'boolean',
@@ -325,17 +325,17 @@ export const commandLineArgs: Record<string, ServerParam> = {
   usestore: {
     type: 'boolean',
     category: 'transfer',
-    default: false
+    default: true
   },
   BackupTransferPlayerDatas: {
     type: 'boolean',
     category: 'transfer',
-    default: false
+    default: true
   },
   converttostore: {
     type: 'boolean',
     category: 'transfer',
-    default: false
+    default: true
   },
 
   // Communication
