@@ -12,144 +12,436 @@ export interface ServerParam {
 
 // Query parameters (parameters starting with ?)
 export const queryParams: Record<string, ServerParam> = {
-  // Basic parameters (auto-generated from server config, not shown in UI)
-  listen: { type: 'boolean', category: 'basic', default: true, hidden: true },
-  Port: { type: 'number', category: 'basic', default: 7777, hidden: true },
-  QueryPort: { type: 'number', category: 'basic', default: 27015, hidden: true },
-  RCONPort: { type: 'number', category: 'basic', default: 32330, hidden: true },
-  ServerAdminPassword: { type: 'string', category: 'basic', default: '', hidden: true },
-  SessionName: { type: 'string', category: 'basic', default: '', hidden: true },
-  GameModIds: { type: 'string', category: 'basic', default: '', hidden: true },
-
-  // Core game settings
-  OverrideOfficialDifficulty: { type: 'number', category: 'core', default: 4.0, min: 1.0, max: 10.0, step: 0.1 },
-  AllowThirdPersonPlayer: { type: 'boolean', category: 'core', default: true },
-  ServerCrosshair: { type: 'boolean', category: 'core', default: false },
-  ShowFloatingDamageText: { type: 'boolean', category: 'core', default: false },
-  MapPlayerLocation: { type: 'boolean', category: 'core', default: false },
-  DisableWeatherFog: { type: 'boolean', category: 'core', default: false },
-
-  // Dinosaur management
-  MaxPersonalTamedDinos: { type: 'number', category: 'dinos', default: 500, min: 1, max: 10000 },
-  MaxTamedDinos: { type: 'number', category: 'dinos', default: 4000, min: 1, max: 100000 },
-  PersonalTamedDinosSaddleStructureCost: { type: 'number', category: 'dinos', default: 19, min: 1, max: 100 },
-  MinimumDinoReuploadInterval: { type: 'number', category: 'dinos', default: 0, min: 0, max: 86400 },
-  ServerAutoForceRespawnWildDinosInterval: { type: 'number', category: 'dinos', default: 0, min: 0, max: 31536000 },
-  AllowAnyoneBabyImprintCuddle: { type: 'boolean', category: 'dinos', default: false },
-  DisableImprintDinoBuff: { type: 'boolean', category: 'dinos', default: false },
-  PreventMateBoost: { type: 'boolean', category: 'dinos', default: false },
-  AllowFlyerCarryPvE: { type: 'boolean', category: 'dinos', default: false },
-  AllowFlyingStaminaRecovery: { type: 'boolean', category: 'dinos', default: false },
-  ForceFlyerExplosives: { type: 'boolean', category: 'dinos', default: false },
-  AllowMultipleAttachedC4: { type: 'boolean', category: 'dinos', default: false },
-  AutoDestroyDecayedDinos: { type: 'boolean', category: 'dinos', default: false },
-
-  // Structure system
-  TheMaxStructuresInRange: { type: 'number', category: 'structures', default: 10500, min: 1000, max: 50000 },
-  ForceAllStructureLocking: { type: 'boolean', category: 'structures', default: false },
-  EnableExtraStructurePreventionVolumes: { type: 'boolean', category: 'structures', default: false },
-  OverrideStructurePlatformPrevention: { type: 'boolean', category: 'structures', default: false },
-  DestroyUnconnectedWaterPipes: { type: 'boolean', category: 'structures', default: false },
-  FastDecayUnsnappedCoreStructures: { type: 'boolean', category: 'structures', default: false },
-  OnlyAutoDestroyCoreStructures: { type: 'boolean', category: 'structures', default: false },
-  OnlyDecayUnsnappedCoreStructures: { type: 'boolean', category: 'structures', default: false },
-
-  // PvP settings
-  PreventOfflinePvP: { type: 'boolean', category: 'pvp', default: false },
-  PreventOfflinePvPInterval: { type: 'number', category: 'pvp', default: 900, min: 0, max: 86400 },
-  PreventTribeAlliances: { type: 'boolean', category: 'pvp', default: false },
-
-  // Game mechanics
-  AllowCrateSpawnsOnTopOfStructures: { type: 'boolean', category: 'mechanics', default: false },
-  RandomSupplyCratePoints: { type: 'boolean', category: 'mechanics', default: false },
-  NonPermanentDiseases: { type: 'boolean', category: 'mechanics', default: false },
-  PreventDiseases: { type: 'boolean', category: 'mechanics', default: false },
-  PreventSpawnAnimations: { type: 'boolean', category: 'mechanics', default: false },
-  UseOptimizedHarvestingHealth: { type: 'boolean', category: 'mechanics', default: false },
-  ClampItemSpoilingTimes: { type: 'boolean', category: 'mechanics', default: false },
-  ClampItemStats: { type: 'boolean', category: 'mechanics', default: false },
-  ExtinctionEventTimeInterval: { type: 'number', category: 'mechanics', default: 0, min: 0, max: 31536000 },
-  OxygenSwimSpeedStatMultiplier: { type: 'number', category: 'mechanics', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-
-  // Data transfer control
-  PreventDownloadSurvivors: { type: 'boolean', category: 'transfer', default: false },
-  PreventDownloadItems: { type: 'boolean', category: 'transfer', default: false },
-  PreventDownloadDinos: { type: 'boolean', category: 'transfer', default: false },
-  PreventUploadSurvivors: { type: 'boolean', category: 'transfer', default: false },
-  PreventUploadItems: { type: 'boolean', category: 'transfer', default: false },
-  PreventUploadDinos: { type: 'boolean', category: 'transfer', default: false },
-
-  // Advanced config
-  CustomLiveTuningUrl: { type: 'string', category: 'advanced', default: '' },
-  customdynamicconfigurl: { type: 'string', category: 'advanced', default: '' },
-  EnableFullDump: { type: 'boolean', category: 'advanced', default: false },
-  TribeLogDestroyedEnemyStructures: { type: 'boolean', category: 'advanced', default: false }
+  AltSaveDirectoryName: {
+    type: 'string',
+    category: 'maintenance',
+    default: ''
+  },
+  EventColorsChanceOverride: {
+    type: 'number',
+    category: 'features',
+    default: 0,
+    min: 0,
+    max: 1,
+    step: 0.01
+  },
+  GameModIds: {
+    type: 'string',
+    category: 'mods',
+    default: ''
+  },
+  NewYear1UTC: {
+    type: 'number',
+    category: 'features',
+    default: 0
+  },
+  NewYear2UTC: {
+    type: 'number',
+    category: 'features',
+    default: 0
+  }
 };
 
 // Command line arguments (parameters starting with -)
 export const commandLineArgs: Record<string, ServerParam> = {
-  // Basic server settings
-  server: { type: 'boolean', category: 'basic', default: true, hidden: true },
-  clusterid: { type: 'string', category: 'basic', default: '', hidden: true },
+  // Events and Features
+  ActiveEvent: {
+    type: 'string',
+    category: 'features',
+    default: ''
+  },
+  NewYearEvent: {
+    type: 'boolean',
+    category: 'features',
+    default: false
+  },
 
-  // Performance optimization
-  allcores: { type: 'boolean', category: 'performance', default: false },
-  USEALLAVAILABLECORES: { type: 'boolean', category: 'performance', default: false },
-  lowmemory: { type: 'boolean', category: 'performance', default: false },
-  nomemorybias: { type: 'boolean', category: 'performance', default: false },
-  usecache: { type: 'boolean', category: 'performance', default: false },
-  high: { type: 'boolean', category: 'performance', default: false },
-  nocombineclientmoves: { type: 'boolean', category: 'performance', default: false },
+  // Mods and Steam
+  automanagedmods: {
+    type: 'boolean',
+    category: 'mods',
+    default: false
+  },
+  MapModID: {
+    type: 'string',
+    category: 'mods',
+    default: ''
+  },
 
-  // Graphics optimization
-  allowansel: { type: 'boolean', category: 'graphics', default: false },
-  d3d10: { type: 'boolean', category: 'graphics', default: false },
-  sm4: { type: 'boolean', category: 'graphics', default: false },
-  nomansky: { type: 'boolean', category: 'graphics', default: false },
-  noaafonts: { type: 'boolean', category: 'graphics', default: false },
+  // Crossplay and Network
+  crossplay: {
+    type: 'boolean',
+    category: 'core',
+    default: false
+  },
+  epiconly: {
+    type: 'boolean',
+    category: 'core',
+    default: false
+  },
+  PublicIPForEpic: {
+    type: 'string',
+    category: 'core',
+    default: ''
+  },
+  MULTIHOME: {
+    type: 'string',
+    category: 'core',
+    default: ''
+  },
 
-  // Security settings
-  NoBattlEye: { type: 'boolean', category: 'security', default: true },
-  noantispeedhack: { type: 'boolean', category: 'security', default: false },
-  insecure: { type: 'boolean', category: 'security', default: false },
-  UseItemDupeCheck: { type: 'boolean', category: 'security', default: true },
-  exclusivejoin: { type: 'boolean', category: 'security', default: false },
-
-  // Logging
-  servergamelog: { type: 'boolean', category: 'logging', default: true },
-  servergamelogincludetribelogs: { type: 'boolean', category: 'logging', default: false },
-  ServerRCONOutputTribeLogs: { type: 'boolean', category: 'logging', default: false },
-  gameplaylogging: { type: 'boolean', category: 'logging', default: false },
-  webalarm: { type: 'boolean', category: 'logging', default: false },
-
-  // Mods and platform
-  automanagedmods: { type: 'boolean', category: 'mods', default: true },
-  crossplay: { type: 'boolean', category: 'mods', default: false },
-  epiconly: { type: 'boolean', category: 'mods', default: false },
-  UseVivox: { type: 'boolean', category: 'mods', default: false },
-  MapModID: { type: 'string', category: 'mods', default: '' },
-  PublicIPForEpic: { type: 'string', category: 'mods', default: '' },
-
-  // Game features
-  ForceAllowCaveFlyers: { type: 'boolean', category: 'features', default: false },
-  ForceRespawnDinos: { type: 'boolean', category: 'features', default: false },
-  NoBiomeWalls: { type: 'boolean', category: 'features', default: false },
-  PreventHibernation: { type: 'boolean', category: 'features', default: false },
-  StasisKeepControllers: { type: 'boolean', category: 'features', default: false },
-  EnableIdlePlayerKick: { type: 'boolean', category: 'features', default: false },
-  nofishloot: { type: 'boolean', category: 'features', default: false },
-  ActiveEvent: { type: 'string', category: 'features', default: '' },
-
-  // Maintenance tools
-  ClearOldItems: { type: 'boolean', category: 'maintenance', default: false },
-  noninlinesaveload: { type: 'boolean', category: 'maintenance', default: false },
-  oldsaveformat: { type: 'boolean', category: 'maintenance', default: false },
-  StructureDestructionTag: { type: 'string', category: 'maintenance', default: '' },
+  // Server Management
   culture: {
     type: 'select',
     category: 'maintenance',
     default: '',
     options: ['ca', 'cs', 'da', 'de', 'en', 'es', 'eu', 'fi', 'fr', 'hu', 'it', 'ja', 'ka', 'ko', 'nl', 'pl', 'pt_BR', 'ru', 'sv', 'th', 'tr', 'zh', 'zh-Hans-CN', 'zh-TW']
+  },
+  exclusivejoin: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  EnableIdlePlayerKick: {
+    type: 'boolean',
+    category: 'maintenance',
+    default: false
+  },
+  MaxNumOfSaveBackups: {
+    type: 'number',
+    category: 'maintenance',
+    default: 20,
+    min: 1,
+    max: 100
+  },
+  newsaveformat: {
+    type: 'boolean',
+    category: 'maintenance',
+    default: false
+  },
+  NoHangDetection: {
+    type: 'boolean',
+    category: 'maintenance',
+    default: false
+  },
+
+  // Creatures and Gameplay
+  DisableCustomFoldersInTributeInventories: {
+    type: 'boolean',
+    category: 'mechanics',
+    default: false
+  },
+  ForceAllowCaveFlyers: {
+    type: 'boolean',
+    category: 'dinos',
+    default: false
+  },
+  ForceRespawnDinos: {
+    type: 'boolean',
+    category: 'dinos',
+    default: false
+  },
+  NoDinos: {
+    type: 'boolean',
+    category: 'dinos',
+    default: false
+  },
+  imprintlimit: {
+    type: 'number',
+    category: 'dinos',
+    default: 101,
+    min: 0,
+    max: 200
+  },
+  MinimumTimeBetweenInventoryRetrieval: {
+    type: 'number',
+    category: 'mechanics',
+    default: 3600,
+    min: 0
+  },
+
+  // PvP Settings
+  DisableRailgunPVP: {
+    type: 'boolean',
+    category: 'pvp',
+    default: false
+  },
+  pvedisallowtribewar: {
+    type: 'boolean',
+    category: 'pvp',
+    default: false
+  },
+  pveallowtribewar: {
+    type: 'boolean',
+    category: 'pvp',
+    default: false
+  },
+
+  // Security and Anti-Cheat
+  insecure: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  NoBattlEye: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  noantispeedhack: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  speedhackbias: {
+    type: 'number',
+    category: 'security',
+    default: 1.0,
+    min: 0.1,
+    max: 10.0,
+    step: 0.1
+  },
+  noundermeshchecking: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  noundermeshkilling: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  SecureSendArKPayload: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  UseItemDupeCheck: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  UseSecureSpawnRules: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+  BattlEyeServerRecheck: {
+    type: 'boolean',
+    category: 'security',
+    default: false
+  },
+
+  // Performance Optimization
+  nocombineclientmoves: {
+    type: 'boolean',
+    category: 'performance',
+    default: false
+  },
+  StasisKeepControllers: {
+    type: 'boolean',
+    category: 'performance',
+    default: false
+  },
+  structurememopts: {
+    type: 'boolean',
+    category: 'performance',
+    default: false
+  },
+  UseStructureStasisGrid: {
+    type: 'boolean',
+    category: 'performance',
+    default: false
+  },
+  DormancyNetMultiplier: {
+    type: 'number',
+    category: 'performance',
+    default: 1.0,
+    min: 0.1,
+    max: 10.0,
+    step: 0.1
+  },
+  nodormancythrottling: {
+    type: 'boolean',
+    category: 'performance',
+    default: false
+  },
+  nitradotest2: {
+    type: 'boolean',
+    category: 'performance',
+    default: false
+  },
+  dedihibernation: {
+    type: 'boolean',
+    category: 'performance',
+    default: false
+  },
+
+  // Graphics and Client
+  ServerAllowAnsel: {
+    type: 'boolean',
+    category: 'graphics',
+    default: false
+  },
+
+  // Logging and Admin
+  servergamelog: {
+    type: 'boolean',
+    category: 'logging',
+    default: false
+  },
+  servergamelogincludetribelogs: {
+    type: 'boolean',
+    category: 'logging',
+    default: false
+  },
+  ServerRCONOutputTribeLogs: {
+    type: 'boolean',
+    category: 'logging',
+    default: false
+  },
+  NotifyAdminCommandsInChat: {
+    type: 'boolean',
+    category: 'logging',
+    default: false
+  },
+
+  // Transfer and Cluster
+  ClusterDirOverride: {
+    type: 'string',
+    category: 'transfer',
+    default: ''
+  },
+  clusterid: {
+    type: 'string',
+    category: 'transfer',
+    default: ''
+  },
+  NoTransferFromFiltering: {
+    type: 'boolean',
+    category: 'transfer',
+    default: false
+  },
+  usestore: {
+    type: 'boolean',
+    category: 'transfer',
+    default: false
+  },
+  BackupTransferPlayerDatas: {
+    type: 'boolean',
+    category: 'transfer',
+    default: false
+  },
+  converttostore: {
+    type: 'boolean',
+    category: 'transfer',
+    default: false
+  },
+
+  // Communication
+  UseVivox: {
+    type: 'boolean',
+    category: 'features',
+    default: false
+  },
+  webalarm: {
+    type: 'boolean',
+    category: 'features',
+    default: false
+  },
+  AllowChatSpam: {
+    type: 'boolean',
+    category: 'features',
+    default: false
+  },
+
+  // Advanced/Undocumented
+  CustomAdminCommandTrackingURL: {
+    type: 'string',
+    category: 'advanced',
+    default: ''
+  },
+  CustomMerticsURL: {
+    type: 'string',
+    category: 'advanced',
+    default: ''
+  },
+  CustomNotificationURL: {
+    type: 'string',
+    category: 'advanced',
+    default: ''
+  },
+  DisableDupeLogDeletes: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  EnableOfficialOnlyVersioningCode: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  EnableVictoryCoreDupeCheck: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  forcedisablemeshchecking: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  ForceDupeLog: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  ignoredupeditems: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  MaxConnectionsPerIP: {
+    type: 'number',
+    category: 'advanced',
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  parseservertojson: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  pauseonddos: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  PreventTotalConversionSaveDir: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  ReloadedForBackup: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  UnstasisDinoObstructionCheck: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  UseTameEffectivenessClamp: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
+  },
+  UseServerNetSpeedCheck: {
+    type: 'boolean',
+    category: 'advanced',
+    default: false
   }
 };
 

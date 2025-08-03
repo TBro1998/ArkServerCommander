@@ -382,141 +382,128 @@ export default {
     },
     // 启动参数分类
     paramCategories: {
-      basic: '基础设置',
-      core: '核心游戏',
-      dinos: '恐龙管理',
-      structures: '建筑系统',
-      pvp: 'PvP设置',
+      basic: '基础',
+      core: '核心',
+      dinos: '恐龙',
+      structures: '建筑',
+      pvp: 'PvP',
       mechanics: '游戏机制',
-      transfer: '数据传输',
-      performance: '性能优化',
-      graphics: '图形优化',
-      security: '安全设置',
-      logging: '日志记录',
-      mods: '模组平台',
-      features: '游戏功能',
-      maintenance: '维护工具',
-      advanced: '高级配置',
-      custom: '自定义参数',
-      // 新增缺失的分类
-      events: '事件设置',
-      network: '网络设置',
-      compatibility: '兼容性设置',
-      localization: '本地化设置',
-      notifications: '通知设置',
-      voice: '语音设置',
-      gameplay: '游戏玩法'
+      transfer: '传输与集群',
+      performance: '性能',
+      graphics: '图形',
+      security: '安全',
+      logging: '日志',
+      mods: '模组',
+      features: '功能',
+      maintenance: '维护',
+      advanced: '高级',
+      custom: '自定义'
     },
     // 查询参数翻译
     queryParams: {
-      // 核心游戏设置
-      OverrideOfficialDifficulty: '覆盖官方难度等级',
-      AllowThirdPersonPlayer: '启用第三人称视角',
-      ServerCrosshair: '禁用准星',
-      ShowFloatingDamageText: '启用RPG风格伤害弹出文本',
-      MapPlayerLocation: '在地图上显示玩家精确位置',
-      DisableWeatherFog: '禁用雾天',
-      // 恐龙管理
-      MaxPersonalTamedDinos: '每个部落的恐龙驯服上限',
-      MaxTamedDinos: '服务器驯服恐龙总数上限',
-      PersonalTamedDinosSaddleStructureCost: '平台鞍占用恐龙槽位数量',
-      MinimumDinoReuploadInterval: '恐龙重新上传冷却时间（秒）',
-      ServerAutoForceRespawnWildDinosInterval: '强制野生恐龙重生间隔',
-      AllowAnyoneBabyImprintCuddle: '允许任何人照顾幼龙',
-      DisableImprintDinoBuff: '禁用恐龙印记玩家状态加成',
-      PreventMateBoost: '禁用恐龙配偶加成',
-      AllowFlyerCarryPvE: 'PvE服务器允许飞行生物携带野生恐龙',
-      AllowFlyingStaminaRecovery: '飞行生物在玩家站立时恢复耐力',
-      ForceFlyerExplosives: '允许飞行生物携带C4飞行',
-      AllowMultipleAttachedC4: '允许在恐龙上附加多个C4',
-      AutoDestroyDecayedDinos: '自动销毁已腐烂的可认领恐龙',
-      // 建筑系统
-      TheMaxStructuresInRange: '服务器最大建筑数量',
-      ForceAllStructureLocking: '默认锁定所有建筑',
-      EnableExtraStructurePreventionVolumes: '在特定资源丰富区域禁用建筑',
-      OverrideStructurePlatformPrevention: '允许在平台鞍上建造炮塔',
-      DestroyUnconnectedWaterPipes: '自动销毁未连接的水管',
-      FastDecayUnsnappedCoreStructures: '未连接核心建筑快速腐烂',
-      OnlyAutoDestroyCoreStructures: '仅自动销毁核心建筑',
-      OnlyDecayUnsnappedCoreStructures: '仅未连接核心建筑腐烂',
-      // PvP设置
-      PreventOfflinePvP: '启用离线PvP保护',
-      PreventOfflinePvPInterval: '离线PvP保护等待时间（秒）',
-      PreventTribeAlliances: '禁用部落联盟',
-      // 游戏机制
-      AllowCrateSpawnsOnTopOfStructures: '允许空投箱出现在建筑上',
-      RandomSupplyCratePoints: '空投箱随机位置',
-      NonPermanentDiseases: '疾病非永久性（重生后消失）',
-      PreventDiseases: '完全禁用疾病',
-      PreventSpawnAnimations: '禁用重生动画',
-      UseOptimizedHarvestingHealth: '优化收获健康值',
-      ClampItemSpoilingTimes: '限制物品腐烂时间到最大值',
-      ClampItemStats: '启用物品属性限制',
-      ExtinctionEventTimeInterval: '灭绝事件时间间隔（秒）',
-      OxygenSwimSpeedStatMultiplier: '氧气游泳速度倍数',
-      // 数据传输控制
-      PreventDownloadSurvivors: '禁止下载幸存者数据',
-      PreventDownloadItems: '禁止下载物品数据',
-      PreventDownloadDinos: '禁止下载恐龙数据',
-      PreventUploadSurvivors: '禁止上传幸存者数据',
-      PreventUploadItems: '禁止上传物品数据',
-      PreventUploadDinos: '禁止上传恐龙数据',
-      // 高级配置
-      CustomLiveTuningUrl: '自定义实时调优文件URL',
-      customdynamicconfigurl: '自定义动态配置文件URL',
-      EnableFullDump: '启用完整服务器日志转储',
-      TribeLogDestroyedEnemyStructures: '在部落日志中显示敌方建筑破坏'
+      AltSaveDirectoryName: '备用存档目录名称',
+      EventColorsChanceOverride: '事件颜色概率覆盖',
+      GameModIds: '游戏模组ID',
+      NewYear1UTC: '新年事件开始时间 (UTC)',
+      NewYear2UTC: '新年事件结束时间 (UTC)'
     },
     // 命令行参数翻译
     commandLineArgs: {
+      // 事件和功能
+      ActiveEvent: '激活事件',
+      NewYearEvent: '新年事件',
+      UseVivox: '使用 Vivox 语音聊天',
+      webalarm: '网页警报',
+      AllowChatSpam: '允许聊天刷屏',
+      
+      // 模组和 Steam
+      automanagedmods: '自动管理模组',
+      MapModID: '地图模组ID',
+      
+      // 跨平台和网络
+      crossplay: '启用跨平台',
+      epiconly: '仅限 Epic 游戏商店',
+      PublicIPForEpic: 'Epic 游戏公网IP',
+      MULTIHOME: '多宿主IP地址',
+      
+      // 服务器管理
+      culture: '服务器语言文化',
+      exclusivejoin: '独占加入（白名单）',
+      EnableIdlePlayerKick: '启用闲置玩家踢出',
+      MaxNumOfSaveBackups: '最大存档备份数量',
+      newsaveformat: '新存档格式',
+      NoHangDetection: '禁用挂起检测',
+      
+      // 生物和游戏玩法
+      DisableCustomFoldersInTributeInventories: '禁用贡品库存中的自定义文件夹',
+      ForceAllowCaveFlyers: '强制允许洞穴飞行',
+      ForceRespawnDinos: '强制重生恐龙',
+      NoDinos: '无恐龙',
+      imprintlimit: '印记限制百分比',
+      MinimumTimeBetweenInventoryRetrieval: '库存检索之间的最小时间',
+      
+      // PvP 设置
+      DisableRailgunPVP: '在PvP中禁用轨道炮',
+      pvedisallowtribewar: 'PvE 禁止部落战争',
+      pveallowtribewar: 'PvE 允许部落战争',
+      
+      // 安全和反作弊
+      insecure: '禁用 VAC（不安全）',
+      NoBattlEye: '禁用 BattlEye',
+      noantispeedhack: '禁用反加速作弊',
+      speedhackbias: '加速作弊检测偏差',
+      noundermeshchecking: '禁用穿地检测',
+      noundermeshkilling: '禁用穿地击杀',
+      SecureSendArKPayload: '安全发送 ARK 载荷',
+      UseItemDupeCheck: '使用物品复制检查',
+      UseSecureSpawnRules: '使用安全生成规则',
+      BattlEyeServerRecheck: 'BattlEye 服务器重检',
+      
       // 性能优化
-      allcores: '使用所有CPU核心',
-      USEALLAVAILABLECORES: '强制使用所有可用CPU核心',
-      lowmemory: '低内存模式（节省800MB RAM）',
-      nomemorybias: '减少内存使用（约600MB）',
-      usecache: '使用缓存（提升70%加载速度）',
-      high: '高优先级进程运行',
-      nocombineclientmoves: '禁用客户端移动优化',
-      // 图形优化
-      allowansel: '启用NVIDIA Ansel支持',
-      d3d10: '强制使用DX10（仅Windows）',
-      sm4: '强制使用Shader Model 4（仅Windows）',
-      nomansky: '禁用天空细节（云层、星空）',
-      noaafonts: '移除字体抗锯齿',
-      // 安全设置
-      NoBattlEye: '禁用BattleEye反作弊',
-      noantispeedhack: '禁用反速度黑客检测',
-      insecure: '禁用VAC系统',
-      UseItemDupeCheck: '启用额外复制保护',
-      exclusivejoin: '白名单模式',
-      // 日志记录
-      servergamelog: '启用服务器游戏日志',
-      servergamelogincludetribelogs: '在游戏日志中包含部落日志',
-      ServerRCONOutputTribeLogs: '在RCON中显示部落聊天',
-      gameplaylogging: '游戏玩法日志记录',
-      webalarm: '启用Web警报',
-      // 模组和平台
-      automanagedmods: '自动管理MOD下载/安装/更新',
-      crossplay: '启用跨平台（EPIC和Steam）',
-      epiconly: '仅允许Epic玩家连接',
-      UseVivox: '启用Vivox语音',
-      MapModID: '自定义地图MOD ID',
-      PublicIPForEpic: 'Epic客户端的公共IP地址',
-      // 游戏功能
-      ForceAllowCaveFlyers: '强制允许飞行生物进入洞穴',
-      ForceRespawnDinos: '启动时销毁所有野生生物',
-      NoBiomeWalls: '消除生物群落变化区域墙效果',
-      PreventHibernation: '防止休眠（消耗性能）',
-      StasisKeepControllers: '在静止状态保持AI控制器',
-      EnableIdlePlayerKick: '踢出空闲玩家',
-      nofishloot: '禁用钓鱼非肉类战利品',
-      ActiveEvent: '启用指定事件',
-      // 维护工具
-      ClearOldItems: '清除旧物品（一次性）',
-      noninlinesaveload: '修复大型存档损坏问题',
-      oldsaveformat: '使用旧存档格式',
-      StructureDestructionTag: '结构销毁标签',
-      culture: '语言代码覆盖'
+      nocombineclientmoves: '禁用合并客户端移动',
+      StasisKeepControllers: '静止保持控制器',
+      structurememopts: '结构内存优化',
+      UseStructureStasisGrid: '使用结构静止网格',
+      DormancyNetMultiplier: '休眠网络倍数',
+      nodormancythrottling: '禁用休眠节流',
+      nitradotest2: 'Nitrado 测试模式 2',
+      dedihibernation: '专用休眠',
+      
+      // 图形和客户端
+      ServerAllowAnsel: '服务器允许 NVIDIA Ansel',
+      
+      // 日志和管理
+      servergamelog: '服务器游戏日志',
+      servergamelogincludetribelogs: '服务器游戏日志包含部落日志',
+      ServerRCONOutputTribeLogs: '服务器 RCON 输出部落日志',
+      NotifyAdminCommandsInChat: '在聊天中通知管理员命令',
+      
+      // 传输和集群
+      ClusterDirOverride: '集群目录覆盖',
+      clusterid: '集群ID',
+      NoTransferFromFiltering: '无传输来源过滤',
+      usestore: '使用商店',
+      BackupTransferPlayerDatas: '备份传输玩家数据',
+      converttostore: '转换为商店',
+      
+      // 高级/未记录
+      CustomAdminCommandTrackingURL: '自定义管理员命令跟踪URL',
+      CustomMerticsURL: '自定义指标URL',
+      CustomNotificationURL: '自定义通知URL',
+      DisableDupeLogDeletes: '禁用重复日志删除',
+      EnableOfficialOnlyVersioningCode: '启用仅官方版本控制代码',
+      EnableVictoryCoreDupeCheck: '启用胜利核心复制检查',
+      forcedisablemeshchecking: '强制禁用网格检查',
+      ForceDupeLog: '强制复制日志',
+      ignoredupeditems: '忽略重复物品',
+      MaxConnectionsPerIP: '每个IP的最大连接数',
+      parseservertojson: '解析服务器为JSON',
+      pauseonddos: 'DDoS时暂停',
+      PreventTotalConversionSaveDir: '防止全面转换存档目录',
+      ReloadedForBackup: '为备份重新加载',
+      UnstasisDinoObstructionCheck: '解除静止恐龙阻塞检查',
+      UseTameEffectivenessClamp: '使用驯服效果钳制',
+      UseServerNetSpeedCheck: '使用服务器网络速度检查'
     },
 
     // Game.ini 参数分类
