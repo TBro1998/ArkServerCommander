@@ -41,15 +41,7 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    true,
 			Platform:    "All",
 		},
-		"MaxPlayers": {
-			Name:        "MaxPlayers",
-			Type:        "query",
-			Category:    "basic",
-			Description: "最大玩家数量",
-			Default:     "70",
-			Required:    false,
-			Platform:    "All",
-		},
+		// MaxPlayers 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
 		"RCONEnabled": {
 			Name:        "RCONEnabled",
 			Type:        "query",
@@ -77,42 +69,10 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    true,
 			Platform:    "All",
 		},
-		"GameModIds": {
-			Name:        "GameModIds",
-			Type:        "query",
-			Category:    "mods",
-			Description: "游戏模组ID列表，用逗号分隔",
-			Default:     "",
-			Required:    false,
-			Platform:    "All",
-		},
-		"AllowAnyoneBabyImprintCuddle": {
-			Name:        "AllowAnyoneBabyImprintCuddle",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "允许任何人照顾幼龙（抚摸等），不仅仅是印记者",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"AllowCrateSpawnsOnTopOfStructures": {
-			Name:        "AllowCrateSpawnsOnTopOfStructures",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "允许空投箱出现在建筑顶部",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"AllowFlyerCarryPvE": {
-			Name:        "AllowFlyerCarryPvE",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "PvE模式下飞行生物可以携带野生恐龙",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
+		// GameModIds 已移除 - 此参数应在GameUserSettings.ini中通过ActiveMods设置，避免与启动参数重复
+		// AllowAnyoneBabyImprintCuddle 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// AllowCrateSpawnsOnTopOfStructures 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// AllowFlyerCarryPvE 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
 		"AllowFlyingStaminaRecovery": {
 			Name:        "AllowFlyingStaminaRecovery",
 			Type:        "query",
@@ -131,24 +91,8 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"AllowThirdPersonPlayer": {
-			Name:        "AllowThirdPersonPlayer",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "启用第三人称视角",
-			Default:     "True",
-			Required:    false,
-			Platform:    "All",
-		},
-		"AutoDestroyDecayedDinos": {
-			Name:        "AutoDestroyDecayedDinos",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "自动销毁可认领的腐烂恐龙",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
+		// AllowThirdPersonPlayer 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// AutoDestroyDecayedDinos 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
 		"ClampItemSpoilingTimes": {
 			Name:        "ClampItemSpoilingTimes",
 			Type:        "query",
@@ -203,15 +147,7 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"DisableWeatherFog": {
-			Name:        "DisableWeatherFog",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "禁用雾天天气",
-			Default:     "",
-			Required:    false,
-			Platform:    "All",
-		},
+		// DisableWeatherFog 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
 		"EnableExtraStructurePreventionVolumes": {
 			Name:        "EnableExtraStructurePreventionVolumes",
 			Type:        "query",
@@ -248,51 +184,11 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"ForceAllStructureLocking": {
-			Name:        "ForceAllStructureLocking",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "默认锁定所有结构",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"ForceFlyerExplosives": {
-			Name:        "ForceFlyerExplosives",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "飞行生物可以携带C4飞行",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"MapPlayerLocation": {
-			Name:        "MapPlayerLocation",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "在地图上显示玩家精确位置",
-			Default:     "True",
-			Required:    false,
-			Platform:    "All",
-		},
-		"MaxPersonalTamedDinos": {
-			Name:        "MaxPersonalTamedDinos",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "每个部落的恐龙驯服限制",
-			Default:     "500",
-			Required:    false,
-			Platform:    "All",
-		},
-		"MaxTamedDinos": {
-			Name:        "MaxTamedDinos",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "服务器上驯服恐龙的最大数量",
-			Default:     "4000",
-			Required:    false,
-			Platform:    "All",
-		},
+		// ForceAllStructureLocking 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// ForceFlyerExplosives 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// MapPlayerLocation 已移除 - 此参数应在GameUserSettings.ini中通过ShowMapPlayerLocation设置，避免与启动参数重复
+		// MaxPersonalTamedDinos 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// MaxTamedDinos 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
 		"MinimumDinoReuploadInterval": {
 			Name:        "MinimumDinoReuploadInterval",
 			Type:        "query",
@@ -329,15 +225,7 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"OverrideOfficialDifficulty": {
-			Name:        "OverrideOfficialDifficulty",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "覆盖默认服务器难度等级",
-			Default:     "5.0",
-			Required:    false,
-			Platform:    "All",
-		},
+		// OverrideOfficialDifficulty 已移除 - 此参数应在GameUserSettings.ini或Game.ini中设置，避免与启动参数重复
 		"OverrideStructurePlatformPrevention": {
 			Name:        "OverrideStructurePlatformPrevention",
 			Type:        "query",
@@ -347,15 +235,7 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"OxygenSwimSpeedStatMultiplier": {
-			Name:        "OxygenSwimSpeedStatMultiplier",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "氧气等级对游泳速度的倍数",
-			Default:     "1.0",
-			Required:    false,
-			Platform:    "All",
-		},
+		// OxygenSwimSpeedStatMultiplier 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
 		"PersonalTamedDinosSaddleStructureCost": {
 			Name:        "PersonalTamedDinosSaddleStructureCost",
 			Type:        "query",
@@ -365,168 +245,24 @@ func GetQueryParamDefinitions() map[string]ServerArgDefinition {
 			Required:    false,
 			Platform:    "All",
 		},
-		"PreventDownloadSurvivors": {
-			Name:        "PreventDownloadSurvivors",
-			Type:        "query",
-			Category:    "transfer",
-			Description: "阻止跨ARK数据转移幸存者",
-			Default:     "False",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventDownloadItems": {
-			Name:        "PreventDownloadItems",
-			Type:        "query",
-			Category:    "transfer",
-			Description: "阻止跨ARK数据转移物品",
-			Default:     "False",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventDownloadDinos": {
-			Name:        "PreventDownloadDinos",
-			Type:        "query",
-			Category:    "transfer",
-			Description: "阻止跨ARK数据转移恐龙",
-			Default:     "False",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventDiseases": {
-			Name:        "PreventDiseases",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "完全禁用疾病",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventMateBoost": {
-			Name:        "PreventMateBoost",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "禁用恐龙交配加成",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventOfflinePvP": {
-			Name:        "PreventOfflinePvP",
-			Type:        "query",
-			Category:    "pvp",
-			Description: "启用离线PvP防护",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventOfflinePvPInterval": {
-			Name:        "PreventOfflinePvPInterval",
-			Type:        "query",
-			Category:    "pvp",
-			Description: "离线PvP防护等待时间（秒）",
-			Default:     "900",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventSpawnAnimations": {
-			Name:        "PreventSpawnAnimations",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "禁用玩家角色重生动画",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventTribeAlliances": {
-			Name:        "PreventTribeAlliances",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "阻止部落创建联盟",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventUploadSurvivors": {
-			Name:        "PreventUploadSurvivors",
-			Type:        "query",
-			Category:    "transfer",
-			Description: "阻止上传幸存者",
-			Default:     "False",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventUploadItems": {
-			Name:        "PreventUploadItems",
-			Type:        "query",
-			Category:    "transfer",
-			Description: "阻止上传物品",
-			Default:     "False",
-			Required:    false,
-			Platform:    "All",
-		},
-		"PreventUploadDinos": {
-			Name:        "PreventUploadDinos",
-			Type:        "query",
-			Category:    "transfer",
-			Description: "阻止上传恐龙",
-			Default:     "False",
-			Required:    false,
-			Platform:    "All",
-		},
-		"RandomSupplyCratePoints": {
-			Name:        "RandomSupplyCratePoints",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "空投箱在随机位置出现",
-			Default:     "",
-			Required:    false,
-			Platform:    "All",
-		},
-		"ServerCrosshair": {
-			Name:        "ServerCrosshair",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "禁用服务器准星",
-			Default:     "False",
-			Required:    false,
-			Platform:    "All",
-		},
-		"ShowFloatingDamageText": {
-			Name:        "ShowFloatingDamageText",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "启用RPG风格的弹出伤害文本",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"TheMaxStructuresInRange": {
-			Name:        "TheMaxStructuresInRange",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "服务器允许的最大结构数量",
-			Default:     "10500",
-			Required:    false,
-			Platform:    "All",
-		},
-		"TribeLogDestroyedEnemyStructures": {
-			Name:        "TribeLogDestroyedEnemyStructures",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "在部落日志中显示敌方结构破坏",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
-		"UseOptimizedHarvestingHealth": {
-			Name:        "UseOptimizedHarvestingHealth",
-			Type:        "query",
-			Category:    "gameplay",
-			Description: "使用优化的收获健康系统",
-			Default:     "false",
-			Required:    false,
-			Platform:    "All",
-		},
+		// PreventDownloadSurvivors 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventDownloadItems 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventDownloadDinos 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventDiseases 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventMateBoost 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventOfflinePvP 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventOfflinePvPInterval 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventSpawnAnimations 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventTribeAlliances 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventUploadSurvivors 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventUploadItems 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// PreventUploadDinos 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// RandomSupplyCratePoints 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// ServerCrosshair 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// ShowFloatingDamageText 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// TheMaxStructuresInRange 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// TribeLogDestroyedEnemyStructures 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
+		// UseOptimizedHarvestingHealth 已移除 - 此参数应在GameUserSettings.ini中设置，避免与启动参数重复
 	}
 }
 
