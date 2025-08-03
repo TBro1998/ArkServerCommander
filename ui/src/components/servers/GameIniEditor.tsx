@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Info, Eye, EyeOff } from 'lucide-react';
 import {
   Tooltip,
@@ -144,11 +144,9 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
   const tCategories = useTranslations('servers.gameIniCategories');
   const tParams = useTranslations('servers.gameIniParams');
   const [editMode, setEditMode] = useState<'visual' | 'text'>('visual');
-  const [isSyncing, setIsSyncing] = useState(false);
   const [textContent, setTextContent] = useState('');
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [activeTab, setActiveTab] = useState<GameIniCategoryKey>('gameBasic');
-  const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastUserEditTime, setLastUserEditTime] = useState(0);
 
@@ -160,24 +158,6 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
       return paramKey; // Fallback to parameter key if translation not found
     }
   };
-
-  // Initialize with default values
-  useEffect(() => {
-    if (!value) {
-      const defaultConfig: Record<string, string | number | boolean> = {};
-      Object.keys(gameIniParams).forEach(categoryKey => {
-        const category = categoryKey as GameIniCategoryKey;
-        const params = getGameIniParamsByCategory(category);
-        Object.keys(params).forEach(paramKey => {
-          defaultConfig[paramKey] = params[paramKey].default;
-        });
-      });
-      setVisualConfig(defaultConfig);
-    } else {
-      setTextContent(value);
-      parseTextToVisual(value);
-    }
-  }, [value]);
 
   const parseTextToVisual = useCallback((text: string) => {
     try {
@@ -221,6 +201,24 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
       console.error(t('parseGameIniError') + ':', error);
     }
   }, []);
+
+  // Initialize with default values
+  useEffect(() => {
+    if (!value) {
+      const defaultConfig: Record<string, string | number | boolean> = {};
+      Object.keys(gameIniParams).forEach(categoryKey => {
+        const category = categoryKey as GameIniCategoryKey;
+        const params = getGameIniParamsByCategory(category);
+        Object.keys(params).forEach(paramKey => {
+          defaultConfig[paramKey] = params[paramKey].default;
+        });
+      });
+      setVisualConfig(defaultConfig);
+    } else {
+      setTextContent(value);
+      parseTextToVisual(value);
+    }
+  }, [value, parseTextToVisual]);
 
   const syncVisualToText = useCallback(() => {
     try {
@@ -326,7 +324,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     } catch (error) {
       console.error(t('syncVisualToTextError') + ':', error);
     }
-  }, [visualConfig, onChange]);
+  }, [visualConfig, onChange, t]);
 
   // Sync visual to text when visual config changes
   useEffect(() => {
@@ -336,7 +334,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
         syncVisualToText();
       }
     }
-  }, [visualConfig, editMode, syncVisualToText, isUserEditing, lastUserEditTime]);
+  }, [visualConfig, editMode, syncVisualToText, isUserEditing, lastUserEditTime, t]);
 
   const handleVisualChange = (key: string, value: string | number | boolean) => {
     setIsUserEditing(true);
@@ -367,7 +365,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
 
 
   const getCategoryDisplayName = (categoryKey: GameIniCategoryKey): string => {
-    const translated = tCategories(categoryKey as any);
+    const translated = tCategories(categoryKey as string);
     return translated !== categoryKey ? translated : categoryKey;
   };
 

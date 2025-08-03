@@ -5,13 +5,13 @@ import { useTranslations } from 'next-intl';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Info, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Info, Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+
 
 // GameUserSettings configuration parameters
 interface GameUserSettingsParam {
@@ -243,7 +243,6 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const tCategories = useTranslations('servers.gameUserSettingsCategories');
   const tParams = useTranslations('servers.gameUserSettingsParams');
   const [editMode, setEditMode] = useState<'visual' | 'text'>('visual');
-  const [isSyncing, setIsSyncing] = useState(false);
   const [textContent, setTextContent] = useState('');
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
@@ -552,8 +551,6 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const handleModeSwitch = async (mode: 'visual' | 'text') => {
     if (mode === editMode) return;
 
-    setIsSyncing(true);
-
     try {
       if (mode === 'text' && editMode === 'visual') {
         // 从可视化模式切换到文本模式：将可视化配置同步到文本
@@ -566,8 +563,6 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       setEditMode(mode);
     } catch (error) {
       console.error('模式切换同步失败:', error);
-    } finally {
-      setIsSyncing(false);
     }
   };
 

@@ -41,7 +41,7 @@ export default function ServerEditPage() {
         const serverData = await getServer(serverId);
         setServer(serverData);
         setFormData(serverData);
-      } catch (err) {
+      } catch {
         setError(tServersEdit('loadServerInfoFailed'));
       } finally {
         setLoading(false);
@@ -67,7 +67,7 @@ export default function ServerEditPage() {
       setSuccess(tServers('serverUpdateSuccess'));
       // 可选：保存成功后跳转回服务器列表
       // router.push('/servers');
-    } catch (err) {
+    } catch {
       setError(tServers('serverUpdateError'));
     } finally {
       setSaving(false);

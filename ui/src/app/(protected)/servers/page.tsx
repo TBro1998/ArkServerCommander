@@ -41,7 +41,7 @@ export default function ServersPage() {
       setError(t('cannotDeleteRunning'));
       return;
     }
-    if (confirm(t('card.confirmDeleteMessage', { identifier: server.name }))) {
+    if (confirm(t('card.confirmDeleteMessage', { identifier: server.session_name }))) {
       try {
         await deleteServer(server.id);
         setSuccess(t('serverDeleteSuccess'));

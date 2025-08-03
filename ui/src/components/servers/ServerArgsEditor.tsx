@@ -24,6 +24,8 @@ interface ServerArgsEditorProps {
 export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
   const t = useTranslations('servers.argsEditor');
   const tParams = useTranslations('servers.paramCategories');
+  const tQueryParams = useTranslations('servers.queryParams');
+  const tCommandLineArgs = useTranslations('servers.commandLineArgs');
   const paramCategories = getServerParamsByCategory();
   const [activeTab, setActiveTab] = useState<CategoryKey>('basic');
 
@@ -73,8 +75,6 @@ export function ServerArgsEditor({ value, onChange }: ServerArgsEditorProps) {
     const currentValue = type === 'query' ? safeValue.query_params[key] : safeValue.command_line_args[key];
     
     // 获取参数的翻译名称
-    const tQueryParams = useTranslations('servers.queryParams');
-    const tCommandLineArgs = useTranslations('servers.commandLineArgs');
     const paramDisplayName = type === 'query' 
       ? (tQueryParams.has(key) ? tQueryParams(key) : key)
       : (tCommandLineArgs.has(key) ? tCommandLineArgs(key) : key);

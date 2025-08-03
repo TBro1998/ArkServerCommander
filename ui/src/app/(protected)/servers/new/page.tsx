@@ -53,7 +53,7 @@ export default function ServerNewPage() {
       await createServer(formData);
       // 创建成功后跳转回服务器列表
       router.push('/servers');
-    } catch (err) {
+    } catch {
       setError(t('serverCreateError'));
     } finally {
       setSaving(false);
