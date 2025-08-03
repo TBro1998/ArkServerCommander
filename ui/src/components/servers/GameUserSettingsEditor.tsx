@@ -690,9 +690,13 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
       {/* Visual Edit Mode */}
       {editMode === 'visual' && (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as GameUserSettingsCategoryKey)}>
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-9">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-2 h-auto p-2 bg-muted/50 border rounded-lg">
             {getAllCategories().map((categoryKey) => (
-              <TabsTrigger key={categoryKey} value={categoryKey} className="text-xs">
+              <TabsTrigger 
+                key={categoryKey} 
+                value={categoryKey} 
+                className="text-xs px-3 py-2 flex-shrink-0 border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:border-muted-foreground/50 hover:bg-muted transition-all duration-200 font-medium rounded-md"
+              >
                 {getCategoryName(categoryKey)}
               </TabsTrigger>
             ))}
