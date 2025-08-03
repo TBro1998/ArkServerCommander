@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Eye, EyeOff } from 'lucide-react';
 import { GameUserSettingsEditor } from '@/components/servers/GameUserSettingsEditor';
 import { GameIniEditor } from '@/components/servers/GameIniEditor';
 import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
@@ -39,6 +39,7 @@ export default function ServerNewPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -129,7 +130,27 @@ export default function ServerNewPage() {
                 </div>
                 <div>
                   <Label htmlFor="admin_password">{t('adminPassword')}</Label>
-                  <Input id="admin_password" name="admin_password" type="password" value={formData.admin_password || ''} onChange={handleChange} />
+                  <div className="relative">
+                    <Input 
+                      id="admin_password" 
+                      name="admin_password" 
+                      type={showPassword ? 'text' : 'password'} 
+                      value={formData.admin_password || ''} 
+                      onChange={handleChange} 
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="max_players">{t('maxPlayers')}</Label>

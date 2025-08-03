@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { GameUserSettingsEditor } from './GameUserSettingsEditor';
 import { GameIniEditor } from './GameIniEditor';
 import { ServerArgsEditor } from './ServerArgsEditor';
@@ -43,6 +43,7 @@ export function ServerEditModal({
   const t = useTranslations('servers.edit');
   const tCommon = useTranslations('common');
   const [formData, setFormData] = useState<Partial<Server>>({});
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -123,7 +124,27 @@ export function ServerEditModal({
                 </div>
                 <div>
                   <Label htmlFor="admin_password">{t('adminPassword')}</Label>
-                  <Input id="admin_password" name="admin_password" type="password" value={formData.admin_password || ''} onChange={handleChange} />
+                  <div className="relative">
+                    <Input 
+                      id="admin_password" 
+                      name="admin_password" 
+                      type={showPassword ? 'text' : 'password'} 
+                      value={formData.admin_password || ''} 
+                      onChange={handleChange} 
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="max_players">{t('maxPlayers')}</Label>
