@@ -37,6 +37,53 @@
 - 🌍 Server listing website, breaking free from poor Steam server search
 - 👥 Player user interface
 
+## 🔒 Security Notice
+
+### ⚠️ JWT Secret Configuration (CRITICAL)
+
+**Before deploying this application, you MUST configure a strong JWT secret key!**
+
+#### Why is this important?
+- JWT (JSON Web Token) is used for user authentication and session management
+- A weak or default JWT secret allows attackers to forge authentication tokens
+- This could lead to **complete system compromise** and unauthorized access to all servers
+
+#### How to configure:
+
+**1. Generate a strong random secret (recommended):**
+```bash
+openssl rand -base64 48
+```
+
+**2. Set the environment variable:**
+
+For Docker Compose deployment, edit `docker-compose.yml`:
+```yaml
+environment:
+  - JWT_SECRET=your-generated-secret-here  # Replace with generated secret
+```
+
+For direct deployment:
+```bash
+export JWT_SECRET='your-generated-secret-here'
+```
+
+#### Security Requirements:
+- ✅ Minimum length: 32 characters
+- ✅ Use cryptographically random generation
+- ✅ Never commit secrets to version control
+- ✅ Use different secrets for different environments (dev/staging/prod)
+- ❌ Never use default values like "your-secret-key-here"
+- ❌ Never use common passwords or dictionary words
+
+#### Validation:
+The application will **refuse to start** if:
+- JWT_SECRET is not set
+- JWT_SECRET is shorter than 32 characters
+- JWT_SECRET contains weak/common password patterns
+
+---
+
 ## 🚀 Quick Start
 
 ### 🔧 System Requirements

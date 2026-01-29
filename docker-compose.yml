@@ -8,10 +8,8 @@ services:
     container_name: ark-server-manager
     ports:
       - "8080:8080"
-    environment:
-      - JWT_SECRET=your-secret-key-here
-      - DB_PATH=/data/ark_server.db
-      - GIN_MODE=release
+    env_file:
+      - .env  # 从 .env 文件加载环境变量
     volumes:
       - ./data:/data
       - /var/run/docker.sock:/var/run/docker.sock
