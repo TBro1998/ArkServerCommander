@@ -1,10 +1,10 @@
 package docker_manager
 
 import (
+	"ark-server-commander/utils"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
+	"go.uber.org/zap"
 )
 
 // ImagePullProgress 镜像拉取进度信息
@@ -56,7 +57,7 @@ var (
 // imageName: 镜像名称
 // 返回: 错误信息
 func (dm *DockerManager) PullImageWithProgress(imageName string) error {
-	fmt.Printf("正在拉取Docker镜像: %s\n", imageName)
+	utils.Info("开始拉取Docker镜像", zap.String("image", imageName))
 
 	// 设置拉取状态
 	imagePullMutex.Lock()
@@ -169,7 +170,7 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 		}
 	}
 
-	fmt.Printf("\nDocker镜像拉取成功: %s\n", imageName)
+	utils.Info("Docker镜像拉取成功", zap.String("image", imageName))
 
 	return nil
 }
@@ -251,7 +252,7 @@ func IsImagePulling(imageName string) bool {
 // timeout: 超时时间（秒）
 // 返回: 是否成功和错误信息
 func (dm *DockerManager) WaitForImage(imageName string, timeout int) (bool, error) {
-	log.Printf("等待镜像 %s 拉取完成...", imageName)
+	utils.Info("等待镜像拉取完成", zap.String("image", imageName))
 
 	// 每秒检查一次镜像是否存在
 	for i := 0; i < timeout; i++ {
@@ -261,13 +262,13 @@ func (dm *DockerManager) WaitForImage(imageName string, timeout int) (bool, erro
 		}
 
 		if exists {
-			log.Printf("镜像 %s 已准备就绪", imageName)
+			utils.Info("镜像已准备就绪", zap.String("image", imageName))
 			return true, nil
 		}
 
 		// 检查是否正在拉取中
 		if IsImagePulling(imageName) {
-			log.Printf("镜像 %s 正在拉取中，继续等待...", imageName)
+			utils.Debug("镜像正在拉取中，继续等待", zap.String("image", imageName))
 		}
 
 		// 等待1秒后再次检查
@@ -359,9 +360,9 @@ func (dm *DockerManager) RemoveOldImage(imageName string, keepLatest bool) error
 		if err != nil {
 			return fmt.Errorf("删除镜像失败: %v", err)
 		}
-		fmt.Printf("镜像 %s 已删除\n", imageName)
+		utils.Info("镜像已删除", zap.String("image", imageName))
 	} else {
-		fmt.Println("保留最新镜像，跳过删除")
+		utils.Debug("保留最新镜像，跳过删除")
 	}
 
 	return nil

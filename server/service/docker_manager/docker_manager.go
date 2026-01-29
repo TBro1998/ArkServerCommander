@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"go.uber.org/zap"
 )
 
 // DockerManager Docker管理器结构体
@@ -92,15 +92,15 @@ func (dm *DockerManager) ValidateRequiredImages() ([]string, error) {
 	for _, imageName := range requiredImages {
 		exists, err := dm.ImageExists(imageName)
 		if err != nil {
-			log.Printf("⚠️  检查镜像 %s 失败: %v", imageName, err)
+			utils.Warnf("检查镜像 %s 失败: %v", imageName, err)
 			return nil, fmt.Errorf("检查镜像 %s 失败: %v", imageName, err)
 		}
 
 		if !exists {
 			missingImages = append(missingImages, imageName)
-			log.Printf("❌ 镜像缺失: %s", imageName)
+			utils.Error("镜像缺失", zap.String("image", imageName))
 		} else {
-			log.Printf("✅ 镜像 %s 已存在", imageName)
+			utils.Info("镜像已存在", zap.String("image", imageName))
 		}
 	}
 
@@ -119,7 +119,7 @@ func (dm *DockerManager) EnsureRequiredImages() error {
 		return fmt.Errorf("缺失必要镜像: %v，请手动下载", missingImages)
 	}
 
-	log.Println("✅ 所有必要镜像已存在")
+	utils.Info("所有必要镜像已存在")
 	return nil
 }
 
@@ -242,13 +242,16 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 	}
 
 	// 创建容器
-	fmt.Printf("正在创建Docker容器: %s\n", containerName)
+	utils.Infof("正在创建Docker容器: %s", containerName)
 	resp, err := dm.client.ContainerCreate(dm.ctx, containerConfig, hostConfig, nil, nil, containerName)
 	if err != nil {
 		return "", fmt.Errorf("创建Docker容器失败: %v", err)
 	}
 
-	fmt.Printf("Docker容器创建成功: %s (ID: %s)，容器处于停止状态，需要手动启动\n", containerName, resp.ID)
+	utils.Info("Docker容器创建成功，处于停止状态",
+		zap.String("container_name", containerName),
+		zap.String("container_id", resp.ID),
+	)
 	return resp.ID, nil
 }
 
@@ -256,13 +259,13 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 // containerName: 容器名称
 // 返回: 错误信息
 func (dm *DockerManager) StartContainer(containerName string) error {
-	fmt.Printf("正在启动容器: %s\n", containerName)
+	utils.Infof("正在启动容器: %s", containerName)
 	err := dm.client.ContainerStart(dm.ctx, containerName, container.StartOptions{})
 	if err != nil {
 		return fmt.Errorf("启动Docker容器失败: %v", err)
 	}
 
-	fmt.Printf("容器启动成功: %s\n", containerName)
+	utils.Info("容器启动成功", zap.String("container_name", containerName))
 	return nil
 }
 
@@ -270,7 +273,7 @@ func (dm *DockerManager) StartContainer(containerName string) error {
 // containerName: 容器名称
 // 返回: 错误信息
 func (dm *DockerManager) StopContainer(containerName string) error {
-	fmt.Printf("正在停止容器: %s\n", containerName)
+	utils.Infof("正在停止容器: %s", containerName)
 
 	// 设置30秒超时时间
 	timeout := 30
@@ -281,7 +284,7 @@ func (dm *DockerManager) StopContainer(containerName string) error {
 		return fmt.Errorf("停止Docker容器失败: %v", err)
 	}
 
-	fmt.Printf("容器停止成功: %s\n", containerName)
+	utils.Info("容器停止成功", zap.String("container_name", containerName))
 	return nil
 }
 
@@ -293,7 +296,7 @@ func (dm *DockerManager) RemoveContainer(containerName string) error {
 	dm.StopContainer(containerName)
 
 	// 删除容器
-	fmt.Printf("正在删除容器: %s\n", containerName)
+	utils.Infof("正在删除容器: %s", containerName)
 	err := dm.client.ContainerRemove(dm.ctx, containerName, container.RemoveOptions{
 		Force: true,
 	})
@@ -301,7 +304,7 @@ func (dm *DockerManager) RemoveContainer(containerName string) error {
 		return fmt.Errorf("删除Docker容器失败: %v", err)
 	}
 
-	fmt.Printf("容器删除成功: %s\n", containerName)
+	utils.Info("容器删除成功", zap.String("container_name", containerName))
 	return nil
 }
 
