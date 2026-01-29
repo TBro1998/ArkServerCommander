@@ -157,7 +157,7 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 
 					// 打印进度到控制台
 					if strings.Contains(progressInfo.Status, "Downloading") || strings.Contains(progressInfo.Status, "Extracting") {
-						fmt.Printf("\r[%s] %s", imageName, progressInfo.Status)
+						// 进度显示静默（避免日志刷屏）
 					}
 				}
 			}

@@ -79,7 +79,7 @@ func (dm *DockerManager) RemoveVolume(volumeName string) error {
 	pluginsVolumeName := volumeName + "-plugins"
 	if err := dm.removeSingleVolume(pluginsVolumeName); err != nil {
 		// 插件卷删除失败不影响主流程，只记录警告
-		fmt.Printf("警告: 删除插件卷 %s 失败: %v\n", pluginsVolumeName, err)
+		utils.Warn("删除插件卷失败", zap.String("volume", pluginsVolumeName), zap.Error(err))
 	}
 
 	return nil
@@ -95,7 +95,7 @@ func (dm *DockerManager) removeSingleVolume(volumeName string) error {
 		return fmt.Errorf("检查卷是否存在失败: %v", err)
 	}
 	if !exists {
-		fmt.Printf("Docker卷 %s 不存在，跳过删除\n", volumeName)
+		utils.Debug("Docker卷不存在，跳过删除", zap.String("volume", volumeName))
 		return nil
 	}
 
