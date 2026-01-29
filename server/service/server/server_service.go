@@ -10,6 +10,8 @@ import (
 	"ark-server-commander/models"
 	"ark-server-commander/service/docker_manager"
 	"ark-server-commander/utils"
+
+	"go.uber.org/zap"
 )
 
 // ServerService 服务器管理业务逻辑服务
@@ -466,10 +468,10 @@ func (s *ServerService) DeleteServer(userID uint, serverID string) error {
 	containerName := utils.GetServerContainerName(server.ID)
 	containerExists, err := dockerManager.ContainerExists(containerName)
 	if err != nil {
-		fmt.Printf("Warning: Failed to check container existence: %v\n", err)
+		utils.Warn("检查容器存在性失败", zap.Error(err))
 	} else if containerExists {
 		if err := dockerManager.RemoveContainer(containerName); err != nil {
-			fmt.Printf("Warning: Failed to remove Docker container: %v\n", err)
+			utils.Warn("删除Docker容器失败", zap.Error(err))
 		}
 	}
 
@@ -512,7 +514,7 @@ func (s *ServerService) StartServer(userID uint, serverID string) error {
 
 	go func() {
 		if err := s.startServerAsync(server, dockerManager, containerName); err != nil {
-			fmt.Printf("Failed to start server: %v\n", err)
+			utils.Error("启动服务器失败", zap.Error(err))
 			database.DB.Model(&server).Update("status", "stopped")
 		}
 	}()
@@ -604,7 +606,7 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 
 		if status == "running" {
 			if err := database.DB.Model(&server).Update("status", "running").Error; err != nil {
-				fmt.Printf("Failed to update server status to running: %v\n", err)
+				utils.Error("更新服务器状态为running失败", zap.Error(err))
 			}
 			return nil
 		}
@@ -659,7 +661,7 @@ func (s *ServerService) stopServerAsync(server models.Server, dockerManager *doc
 	// 检查容器是否存在
 	containerExists, err := dockerManager.ContainerExists(containerName)
 	if err != nil {
-		fmt.Printf("Failed to check container existence: %v\n", err)
+		utils.Error("检查容器存在性失败", zap.Error(err))
 		database.DB.Model(&server).Update("status", "stopped")
 		return
 	}
@@ -671,7 +673,7 @@ func (s *ServerService) stopServerAsync(server models.Server, dockerManager *doc
 
 	// 停止容器
 	if err := dockerManager.StopContainer(containerName); err != nil {
-		fmt.Printf("Failed to stop Docker container: %v\n", err)
+		utils.Error("停止Docker容器失败", zap.Error(err))
 	}
 
 	// 验证容器状态
@@ -689,7 +691,7 @@ func (s *ServerService) stopServerAsync(server models.Server, dockerManager *doc
 
 	// 更新状态为已停止
 	if err := database.DB.Model(&server).Update("status", "stopped").Error; err != nil {
-		fmt.Printf("Failed to update server status to stopped: %v\n", err)
+		utils.Error("更新服务器状态为stopped失败", zap.Error(err))
 	}
 }
 
@@ -757,9 +759,9 @@ func (s *ServerService) PullImage(imageName string) error {
 	// 异步拉取镜像
 	go func() {
 		if err := dockerManager.PullImageWithProgress(imageName); err != nil {
-			fmt.Printf("拉取镜像 %s 失败: %v\n", imageName, err)
+			utils.Error("拉取镜像失败", zap.String("image", imageName), zap.Error(err))
 		} else {
-			fmt.Printf("镜像 %s 拉取完成\n", imageName)
+			utils.Info("镜像拉取完成", zap.String("image", imageName))
 		}
 	}()
 
@@ -796,18 +798,18 @@ func (s *ServerService) UpdateImage(imageName string, userID uint) ([]models.Ser
 	go func() {
 		dockerManager, err := docker_manager.GetDockerManager()
 		if err != nil {
-			fmt.Printf("获取Docker管理器失败: %v\n", err)
+			utils.Error("获取Docker管理器失败", zap.Error(err))
 			return
 		}
 
 		// 拉取新镜像
-		fmt.Printf("开始更新镜像: %s\n", imageName)
+		utils.Info("开始更新镜像", zap.String("image", imageName))
 		if err := dockerManager.PullImageWithProgress(imageName); err != nil {
-			fmt.Printf("更新镜像 %s 失败: %v\n", imageName, err)
+			utils.Error("更新镜像失败", zap.String("image", imageName), zap.Error(err))
 			return
 		}
 
-		fmt.Printf("镜像 %s 更新完成\n", imageName)
+		utils.Info("镜像更新完成", zap.String("image", imageName))
 
 		// 这里可以添加通知逻辑，告知用户镜像更新完成
 		// 用户可以选择重建受影响的容器
@@ -860,7 +862,7 @@ func (s *ServerService) RecreateContainer(userID uint, serverID string) error {
 	go func() {
 		dockerManager, err := docker_manager.GetDockerManager()
 		if err != nil {
-			fmt.Printf("获取Docker管理器失败: %v\n", err)
+			utils.Error("获取Docker管理器失败", zap.Error(err))
 			return
 		}
 
@@ -868,7 +870,7 @@ func (s *ServerService) RecreateContainer(userID uint, serverID string) error {
 
 		// 删除现有容器
 		if err := dockerManager.RemoveContainer(containerName); err != nil {
-			fmt.Printf("删除容器失败: %v\n", err)
+			utils.Error("删除容器失败", zap.Error(err))
 		}
 
 		// 重新创建容器
@@ -884,11 +886,11 @@ func (s *ServerService) RecreateContainer(userID uint, serverID string) error {
 			server.AutoRestart,
 		)
 		if err != nil {
-			fmt.Printf("重建容器失败: %v\n", err)
+			utils.Error("重建容器失败", zap.Error(err))
 			return
 		}
 
-		fmt.Printf("服务器 %s 容器重建完成\n", server.Identifier)
+		utils.Info("服务器容器重建完成", zap.String("identifier", server.Identifier))
 	}()
 
 	return nil

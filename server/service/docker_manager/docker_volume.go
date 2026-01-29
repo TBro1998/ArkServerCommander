@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/volume"
+	"go.uber.org/zap"
 )
 
 // CreateVolume 创建Docker卷（包括游戏数据卷和插件卷）
@@ -27,7 +28,7 @@ func (dm *DockerManager) CreateVolume(serverID uint) (string, error) {
 		return "", fmt.Errorf("创建插件卷失败: %v", err)
 	}
 
-	fmt.Printf("Docker卷创建成功: 游戏数据卷=%s, 插件卷=%s\n", volumeName, pluginsVolumeName)
+	utils.Info("Docker卷创建成功", zap.String("data_volume", volumeName), zap.String("plugins_volume", pluginsVolumeName))
 	return volumeName, nil
 }
 
@@ -41,12 +42,12 @@ func (dm *DockerManager) createSingleVolume(volumeName string) error {
 		return fmt.Errorf("检查卷是否存在失败: %v", err)
 	}
 	if exists {
-		fmt.Printf("Docker卷 %s 已存在，跳过创建\n", volumeName)
+		utils.Debug("Docker卷已存在，跳过创建", zap.String("volume", volumeName))
 		return nil
 	}
 
 	// 创建卷
-	fmt.Printf("正在创建Docker卷: %s\n", volumeName)
+	utils.Infof("正在创建Docker卷: %s", volumeName)
 	volumeCreateBody := volume.CreateOptions{
 		Name: volumeName,
 	}
@@ -56,7 +57,7 @@ func (dm *DockerManager) createSingleVolume(volumeName string) error {
 		return fmt.Errorf("创建Docker卷失败: %v", err)
 	}
 
-	fmt.Printf("Docker卷创建成功: %s\n", volumeName)
+	utils.Info("Docker卷创建成功", zap.String("volume", volumeName))
 	return nil
 }
 
@@ -98,13 +99,13 @@ func (dm *DockerManager) removeSingleVolume(volumeName string) error {
 		return nil
 	}
 
-	fmt.Printf("正在删除Docker卷: %s\n", volumeName)
+	utils.Infof("正在删除Docker卷: %s", volumeName)
 	err = dm.client.VolumeRemove(dm.ctx, volumeName, false)
 	if err != nil {
 		return fmt.Errorf("删除Docker卷失败: %v", err)
 	}
 
-	fmt.Printf("Docker卷删除成功: %s\n", volumeName)
+	utils.Info("Docker卷删除成功", zap.String("volume", volumeName))
 	return nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"go.uber.org/zap"
 )
 
 // ReadConfigFile 从容器卷中读取配置文件
@@ -199,6 +200,6 @@ func (dm *DockerManager) WriteConfigFile(serverID uint, fileName, content string
 		Force: true,
 	})
 
-	fmt.Printf("配置文件写入成功: %s\n", fileName)
+	utils.Info("配置文件写入成功", zap.String("file", fileName))
 	return nil
 }
