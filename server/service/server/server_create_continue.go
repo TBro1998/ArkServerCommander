@@ -1,7 +1,6 @@
 package server
 
 import (
-	"ark-server-commander/database"
 	"ark-server-commander/models"
 	"ark-server-commander/service/docker_manager"
 	"ark-server-commander/utils"

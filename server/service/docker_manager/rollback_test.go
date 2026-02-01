@@ -1,8 +1,14 @@
 package docker_manager
 
 import (
+	"ark-server-commander/utils"
 	"testing"
 )
+
+func init() {
+	// 初始化测试环境的 logger
+	utils.InitLogger()
+}
 
 // TestRollbackManager 测试回滚管理器
 func TestRollbackManager(t *testing.T) {

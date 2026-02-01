@@ -95,7 +95,7 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 			nat.Port(fmt.Sprintf("%d/udp", queryPort)): struct{}{},
 			nat.Port(fmt.Sprintf("%d/tcp", queryPort)): struct{}{},
 			nat.Port(fmt.Sprintf("%d/udp", rconPort)):  struct{}{},
-			nat.Port(fmt.Sprintf("%d/tcp", rconPort)):  struct{},
+			nat.Port(fmt.Sprintf("%d/tcp", rconPort)):  struct{}{},
 		},
 	}
 
