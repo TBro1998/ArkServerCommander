@@ -8,10 +8,10 @@ import (
 
 // RollbackAction 回滚操作类型
 type RollbackAction struct {
-	Type        string      // 操作类型: "volume", "container", "config"
-	ResourceID  string      // 资源ID
+	Type        string       // 操作类型: "volume", "container", "config"
+	ResourceID  string       // 资源ID
 	Action      func() error // 回滚函数
-	Description string      // 操作描述
+	Description string       // 操作描述
 }
 
 // RollbackManager 回滚管理器
