@@ -20,7 +20,6 @@
 - ▶️ One-click server start/stop
 - 🖼️ Docker image management (pull, update, status check)
 - 🔐 JWT authentication and user management
-- 🔄 Server container recreation functionality
 - 📝 Complete API documentation (Swagger)
 
 ### 🚧 Planned Features
@@ -32,6 +31,7 @@
 - 💾 Server save and configuration backup
 - 🔍 Tool version update checking
 - ⚡ Optional server files and mod updates
+- 🔄 Container image update functionality
 - 🌐 i18n internationalization support
 - 🔌 MCP (Mod Configuration Protocol) support
 
