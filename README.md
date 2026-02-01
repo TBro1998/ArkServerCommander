@@ -18,9 +18,12 @@
 - 🖥️ Add and manage multiple ARK servers
 - ⚙️ Configure server settings and configuration parameters
 - ▶️ One-click server start/stop
+- 🖼️ Docker image management (pull, update, status check)
+- 🔐 JWT authentication and user management
+- 🔄 Server container recreation functionality
+- 📝 Complete API documentation (Swagger)
 
 ### 🚧 Planned Features
-- 🖼️ Server image updates
 - 🎮 RCON command execution
 - 📊 Server running status monitoring
 - 🎨 Mod management integration with Steam Workshop
@@ -110,7 +113,7 @@ services:
       # You can modify the port mapping
       - "8080:8080"
     environment:
-      # Will be optimized later, keep default for now
+      # ⚠️ IMPORTANT: Generate a strong secret using: openssl rand -base64 48
       - JWT_SECRET=your-secret-key-here
       - DB_PATH=/data/ark_server.db
       - SERVER_PORT=8080
@@ -159,10 +162,19 @@ sudo docker-compose up -d
 ## ❓ FAQ
 
 ### ❓ Q: How to backup ARK server data?
-A: Server data backup operations are not yet implemented. Server data is stored in Docker volumes ark-server-<server_number>, you can backup manually.
+A: Server data backup operations are not yet implemented. Server data is stored in Docker volumes `ark-server-<server_number>`, you can backup manually.
 
 ### ❓ Q: How to view ARK server logs?
 A: The server program currently cannot output logs directly in docker logs, you need to view the server log files, and we'll see how to optimize this later.
+
+### ❓ Q: How to update ARK server images?
+A: The system now supports image management features. After logging in, go to the image management page where you can check for updates, pull new images, and update existing images.
+
+### ❓ Q: What if JWT_SECRET configuration fails?
+A: If the application fails to start with JWT_SECRET errors, ensure:
+- JWT_SECRET is set in environment variables
+- Secret is at least 32 characters long
+- Use `openssl rand -base64 48` to generate a strong random secret
 
 ### 🖼️ ARK Server Image
 - This system uses the `tbro98/ase-server:latest` image to run ARK servers
