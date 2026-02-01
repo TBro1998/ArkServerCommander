@@ -16,7 +16,7 @@ import (
 func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName, gameModIds string, autoRestart bool) (containerID string, err error) {
 	// 创建回滚管理器
 	rollback := NewRollbackManager()
-	
+
 	// 使用 defer 确保发生错误时执行回滚
 	defer func() {
 		if err != nil && rollback.Count() > 0 {
@@ -26,15 +26,15 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 			}
 		}
 	}()
-	
+
 	containerName := utils.GetServerContainerName(serverID)
 	volumeName := utils.GetServerVolumeName(serverID)
 	imageName := "tbro98/ase-server:latest"
-	
-	utils.Info("开始创建容器（带回滚保护）", 
+
+	utils.Info("开始创建容器（带回滚保护）",
 		zap.String("container", containerName),
 		zap.Uint("server_id", serverID))
-	
+
 	// 步骤1: 检查并删除已存在的容器
 	if exists, checkErr := dm.ContainerExists(containerName); checkErr != nil {
 		err = fmt.Errorf("检查容器是否存在失败: %w", checkErr)
@@ -46,7 +46,7 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 			return "", err
 		}
 	}
-	
+
 	// 步骤2: 检查镜像是否存在
 	imageExists, checkErr := dm.ImageExists(imageName)
 	if checkErr != nil {
@@ -57,14 +57,14 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 		err = fmt.Errorf("镜像 %s 不存在，请等待镜像下载完成", imageName)
 		return "", err
 	}
-	
+
 	// 步骤3: 获取服务器信息
 	var server models.Server
 	if dbErr := database.DB.Where("id = ?", serverID).First(&server).Error; dbErr != nil {
 		err = fmt.Errorf("获取服务器信息失败: %w", dbErr)
 		return "", err
 	}
-	
+
 	// 步骤4: 构建启动参数
 	serverArgs := models.NewServerArgs()
 	if server.ServerArgsJSON != "" && server.ServerArgsJSON != "{}" {
@@ -73,7 +73,7 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 		serverArgs = models.FromServer(server)
 	}
 	argsString := serverArgs.GenerateArgsString(server)
-	
+
 	// 步骤5: 构建环境变量
 	envVars := []string{
 		"TZ=Asia/Shanghai",
@@ -82,7 +82,7 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 	if server.GameModIds != "" {
 		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", server.GameModIds))
 	}
-	
+
 	// 步骤6: 构建容器配置
 	containerConfig := &container.Config{
 		Image: imageName,
@@ -98,13 +98,13 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 			nat.Port(fmt.Sprintf("%d/tcp", rconPort)):  struct{},
 		},
 	}
-	
+
 	// 步骤7: 设置重启策略
 	restartPolicyName := container.RestartPolicyMode("unless-stopped")
 	if !autoRestart {
 		restartPolicyName = container.RestartPolicyMode("no")
 	}
-	
+
 	// 步骤8: 构建主机配置
 	hostConfig := &container.HostConfig{
 		RestartPolicy: container.RestartPolicy{
@@ -141,7 +141,7 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Binaries/Win64/ArkApi/Plugins", utils.GetServerPluginsVolumeName(serverID)),
 		},
 	}
-	
+
 	// 步骤9: 创建容器
 	utils.Info("正在创建Docker容器", zap.String("container", containerName))
 	resp, createErr := dm.client.ContainerCreate(dm.ctx, containerConfig, hostConfig, nil, nil, containerName)
@@ -149,20 +149,20 @@ func (dm *DockerManager) CreateContainerWithRollback(serverID uint, serverName s
 		err = fmt.Errorf("创建Docker容器失败: %w", createErr)
 		return "", err
 	}
-	
+
 	containerID = resp.ID
-	
+
 	// 添加回滚操作：删除刚创建的容器
 	rollback.AddAction("container", containerName, "删除容器", func() error {
 		return dm.RemoveContainer(containerName)
 	})
-	
-	utils.Info("Docker容器创建成功", 
+
+	utils.Info("Docker容器创建成功",
 		zap.String("container_name", containerName),
 		zap.String("container_id", containerID))
-	
+
 	// 成功完成，清空回滚操作
 	rollback.Clear()
-	
+
 	return containerID, nil
 }

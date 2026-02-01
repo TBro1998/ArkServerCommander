@@ -34,7 +34,7 @@ func (rm *RollbackManager) AddAction(actionType, resourceID, description string,
 		Action:      action,
 		Description: description,
 	})
-	utils.Debug("添加回滚操作", 
+	utils.Debug("添加回滚操作",
 		zap.String("type", actionType),
 		zap.String("resource", resourceID),
 		zap.String("description", description))
@@ -48,34 +48,34 @@ func (rm *RollbackManager) Rollback() error {
 	}
 
 	utils.Info("开始执行回滚操作", zap.Int("count", len(rm.actions)))
-	
+
 	var rollbackErrors []error
-	
+
 	// 逆序执行回滚操作
 	for i := len(rm.actions) - 1; i >= 0; i-- {
 		action := rm.actions[i]
-		utils.Info("执行回滚", 
+		utils.Info("执行回滚",
 			zap.String("type", action.Type),
 			zap.String("resource", action.ResourceID),
 			zap.String("description", action.Description))
-		
+
 		if err := action.Action(); err != nil {
-			utils.Error("回滚操作失败", 
+			utils.Error("回滚操作失败",
 				zap.String("type", action.Type),
 				zap.String("resource", action.ResourceID),
 				zap.Error(err))
 			rollbackErrors = append(rollbackErrors, fmt.Errorf("%s 回滚失败: %w", action.Description, err))
 		} else {
-			utils.Info("回滚操作成功", 
+			utils.Info("回滚操作成功",
 				zap.String("type", action.Type),
 				zap.String("resource", action.ResourceID))
 		}
 	}
-	
+
 	if len(rollbackErrors) > 0 {
 		return fmt.Errorf("部分回滚操作失败: %v", rollbackErrors)
 	}
-	
+
 	utils.Info("所有回滚操作执行完成")
 	return nil
 }
