@@ -1,6 +1,7 @@
 package docker_manager
 
 import (
+	"ark-server-commander/config"
 	"ark-server-commander/database"
 	"ark-server-commander/models"
 	"ark-server-commander/utils"
@@ -158,7 +159,7 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 
 	// 3. 构建环境变量
 	envVars := []string{
-		"TZ=Asia/Shanghai",
+		"TZ=" + config.ContainerTZ,
 		fmt.Sprintf("SERVER_ARGS=%s", argsString),
 	}
 	if server.GameModIds != "" {

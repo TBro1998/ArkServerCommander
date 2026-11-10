@@ -20,7 +20,7 @@ export default function ServersPage() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const servers = useServers();
-  const { fetchServers, getImageStatus, startServer, stopServer, deleteServer } = serversActions;
+  const { fetchServers, getImageStatus, startServer, stopServer, deleteServer, recreateServer } = serversActions;
   const isLoading = useServersIsLoading();
   const imageStatus = useImageStatus();
 
@@ -69,6 +69,15 @@ export default function ServersPage() {
       await startServer(server.id);
     } catch (err) {
       setError(getErrorMessage(err, t('startServerFailed')));
+    }
+  };
+
+  const handleRecreateServer = async (server: Server) => {
+    try {
+      await recreateServer(server.id);
+      setSuccess(t('recreateStarted'));
+    } catch (err) {
+      setError(getErrorMessage(err, t('recreateFailed')));
     }
   };
 
@@ -132,6 +141,7 @@ export default function ServersPage() {
               onStop={handleStopServer}
               onEdit={handleEditServer}
               onDelete={handleDeleteServer}
+              onRecreate={handleRecreateServer}
             />
           ))}
         </div>

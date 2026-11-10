@@ -21,6 +21,9 @@ var (
 	DBPath     = "ark_server.db"
 	ServerPort = "8080"
 
+	// ContainerTZ ARK 服务器容器的时区，通过 CONTAINER_TZ 修改，仅对新建或重建的容器生效
+	ContainerTZ = "Asia/Shanghai"
+
 	// ListenHost 监听地址，默认仅本机回环；容器内由 docker-entrypoint.sh 指定
 	ListenHost = "127.0.0.1"
 
@@ -47,6 +50,10 @@ func InitConfig() error {
 
 	if port := os.Getenv("SERVER_PORT"); port != "" {
 		ServerPort = port
+	}
+
+	if tz := os.Getenv("CONTAINER_TZ"); tz != "" {
+		ContainerTZ = tz
 	}
 
 	if host := os.Getenv("LISTEN_HOST"); host != "" {

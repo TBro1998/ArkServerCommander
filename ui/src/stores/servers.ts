@@ -77,6 +77,7 @@ interface ServersActions {
     getImageStatus: () => Promise<void>;
     startServer: (serverId: Server['id']) => Promise<void>;
     stopServer: (serverId: Server['id']) => Promise<void>;
+    recreateServer: (serverId: Server['id']) => Promise<void>;
     updateServerStatus: (serverId: Server['id'], status: Server['status']) => void;
 }
 
@@ -184,6 +185,16 @@ const useServersStore = create<ServersState>((set, get) => ({
                 get().actions.updateServerStatus(serverId, 'stopping');
             } catch (error) {
                 set({ error: '停止服务器失败' });
+                throw error;
+            }
+        },
+        recreateServer: async (serverId) => {
+            try {
+                await axios.post(`/api/servers/${serverId}/recreate`, {});
+                // 重建在后台执行，期间状态为 stopping，结果由服务器列表页轮询获取
+                get().actions.updateServerStatus(serverId, 'stopping');
+            } catch (error) {
+                set({ error: '重建容器失败' });
                 throw error;
             }
         },

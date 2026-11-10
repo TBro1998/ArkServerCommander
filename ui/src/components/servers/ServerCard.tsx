@@ -26,6 +26,7 @@ import {
   EyeOff,
   Copy,
   AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 
 interface ServerCardProps {
@@ -35,6 +36,7 @@ interface ServerCardProps {
   onStop: (server: Server) => void;
   onEdit: (server: Server) => void;
   onDelete: (server: Server) => void;
+  onRecreate: (server: Server) => void;
 }
 
 export function ServerCard({
@@ -44,6 +46,7 @@ export function ServerCard({
   onStop,
   onEdit,
   onDelete,
+  onRecreate,
 }: ServerCardProps) {
   const t = useTranslations('servers');
   const [showPassword, setShowPassword] = useState(false);
@@ -180,6 +183,27 @@ export function ServerCard({
                 <div className="space-y-2">
                   <p className="text-sm">{t('card.confirmDeleteMessage', { identifier: server.session_name })}</p>
                   <Button size="sm" variant="destructive" onClick={() => onDelete(server)}>{t('deleteServer')}</Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* 重建容器按钮 */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                  title={t('card.recreateServer')}
+                  disabled={server.status === 'starting' || server.status === 'stopping'}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent>
+                <div className="space-y-2">
+                  <p className="text-sm">{t('card.confirmRecreateMessage')}</p>
+                  <Button size="sm" onClick={() => onRecreate(server)}>{t('card.recreateServer')}</Button>
                 </div>
               </PopoverContent>
             </Popover>

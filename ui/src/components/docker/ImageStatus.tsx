@@ -66,7 +66,7 @@ export function ImageStatus({
         {imageStatus.any_pulling ? (
           <div className="flex items-center gap-2 text-yellow-600">
             <RefreshCw className="w-5 h-5 animate-spin" />
-            <span className="font-medium">{imageStatus.overall_status}</span>
+            <span className="font-medium">{t('downloading')}</span>
           </div>
         ) : !imageStatus.can_start_server ? (
           <div className="flex items-center gap-2 text-red-600">

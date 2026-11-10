@@ -41,17 +41,23 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
 	}
 
+	// 一次列出所有服务器容器，避免对每台服务器分别 inspect
+	containers, listErr := dockerManager.ListServerContainers()
+	if listErr != nil {
+		utils.Warn("列出服务器容器失败，状态沿用数据库记录", zap.Error(listErr))
+	}
+	currentImageID, imageErr := dockerManager.GetImageID(utils.ArkServerImage)
+
 	var serverResponses []models.ServerResponse
 	for _, server := range servers {
-		containerName := utils.GetServerContainerName(server.ID)
 		realTimeStatus := server.Status
 		imageOutdated := false
 
-		if dockerStatus, err := dockerManager.GetContainerStatus(containerName); err == nil {
-			if dockerStatus != "not_found" {
-				if outdated, err := dockerManager.IsContainerImageOutdated(containerName, utils.ArkServerImage); err == nil {
-					imageOutdated = outdated
-				}
+		if listErr == nil {
+			dockerStatus := "not_found"
+			if c, ok := containers[utils.GetServerContainerName(server.ID)]; ok {
+				dockerStatus = c.Status
+				imageOutdated = imageErr == nil && c.ImageID != currentImageID
 			}
 			realTimeStatus = syncStatusWithDocker(server, dockerStatus)
 		}
@@ -1231,21 +1237,27 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		}
 	}
 
-	// 生成总体状态描述
+	// 创建服务器要往数据卷写配置文件，只依赖 alpine 镜像；ARK 镜像在启动时才用到
+	canCreate := false
+	if st, ok := imageStatuses["alpine:latest"]; ok {
+		canCreate = st.Ready
+	}
+
+	// 总体状态用状态码（ready / pulling / not_ready），文案由前端翻译
 	var overallStatus string
 	if allReady {
-		overallStatus = "所有镜像已就绪"
+		overallStatus = "ready"
 	} else if anyPulling {
-		overallStatus = "正在下载镜像"
+		overallStatus = "pulling"
 	} else {
-		overallStatus = "镜像未就绪，请手动下载"
+		overallStatus = "not_ready"
 	}
 
 	return map[string]interface{}{
 		"images":            imageStatuses,
 		"any_pulling":       anyPulling,
 		"any_not_ready":     !allReady,
-		"can_create_server": true,
+		"can_create_server": canCreate,
 		"can_start_server":  allReady,
 		"overall_status":    overallStatus,
 		"pulling_count":     pullingCount,
