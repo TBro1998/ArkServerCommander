@@ -87,9 +87,33 @@ func finishPull(imageName string, err error) {
 
 // PullClaimedImage 拉取已经通过 ClaimPull 占用的镜像并记录进度，结束时释放占用
 func (dm *DockerManager) PullClaimedImage(imageName string) error {
+	// 记录拉取前的镜像 ID，拉取成功后用来清理被替换下来的旧镜像
+	oldID, _ := dm.GetImageID(imageName)
+
 	err := dm.pullImage(imageName)
 	finishPull(imageName, err)
+	if err == nil {
+		dm.removeReplacedImage(oldID, imageName)
+	}
 	return err
+}
+
+// removeReplacedImage 删除拉取后被替换下来的旧镜像，避免旧版本的镜像层一直占用磁盘。
+// 不使用 Force：旧镜像仍被容器使用时 Docker 会拒绝删除，这里只记录日志，
+// 等容器按新镜像重建、不再引用它之后可以再次清理
+func (dm *DockerManager) removeReplacedImage(oldID, imageName string) {
+	if oldID == "" {
+		return
+	}
+	newID, err := dm.GetImageID(imageName)
+	if err != nil || newID == oldID {
+		return
+	}
+	if _, err := dm.client.ImageRemove(dm.ctx, oldID, image.RemoveOptions{}); err != nil {
+		utils.Info("旧镜像仍被使用，暂不清理", zap.String("image", imageName), zap.String("old_id", oldID), zap.Error(err))
+		return
+	}
+	utils.Info("已清理被替换的旧镜像", zap.String("image", imageName), zap.String("old_id", oldID))
 }
 
 // pullImage 拉取镜像并更新进度信息，不负责占用和释放
