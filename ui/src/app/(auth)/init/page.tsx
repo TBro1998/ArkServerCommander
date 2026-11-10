@@ -59,8 +59,14 @@ export default function InitPage() {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       setError(t('passwordMinLengthError'));
+      return;
+    }
+
+    // 后端限制 72 字节（bcrypt 只处理前 72 字节），中文等多字节字符要按字节数计算
+    if (new TextEncoder().encode(password).length > 72) {
+      setError(t('passwordMaxLengthError'));
       return;
     }
 

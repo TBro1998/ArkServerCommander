@@ -45,6 +45,16 @@ func InitUser(c *gin.Context) {
 		return
 	}
 
+	// 限制用户名和密码长度：bcrypt 只处理前 72 字节，超过会直接报错
+	if len(req.Username) == 0 || len(req.Username) > 64 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户名长度需要在 1 到 64 个字节之间"})
+		return
+	}
+	if len(req.Password) < 8 || len(req.Password) > 72 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "密码长度需要在 8 到 72 个字节之间"})
+		return
+	}
+
 	// 检查是否已有用户
 	var count int64
 	database.DB.Model(&models.User{}).Count(&count)
