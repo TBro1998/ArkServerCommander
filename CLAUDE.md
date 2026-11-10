@@ -128,14 +128,15 @@ docker-compose down            # 停止
 - 容器：`ase-server-<server_id>`
 - 数据卷：`ase-server-<server_id>`
 - 插件卷：`ase-server-plugins-<server_id>`
+- 服务端文件卷：名称见 `utils.GetServerFilesVolumeName`
 - 镜像：`tbro98/ase-server:latest`（子模块 `ASE-Server-Docker` 是该镜像的源码）
 
-容器只挂载两个卷：数据卷挂到 `ShooterGame/Saved`，插件卷挂到 `ArkApi/Plugins`。游戏本体、Mod 和镜像入口脚本的首次启动标记 `/home/steam/.first_startup_complete` 都在容器层里，所以**每次重建容器后，首次启动都会重新 `steamcmd validate` 并重新下载全部 Mod**。
+容器挂载三个卷：服务端文件卷挂到 `/home/steam/arkserver`，数据卷嵌套挂到 `ShooterGame/Saved`，插件卷嵌套挂到 `ArkApi/Plugins`。镜像不再预下载游戏本体，入口脚本在首次启动时把服务端文件下载到文件卷；安装标记 `.install_complete` 和已装 Mod 记录 `.installed_mods` 也在卷里，所以重建容器不会重新下载，新增 Mod 时只下载缺少的。ArkApi 随镜像放在 `/home/steam/arkapi`，每次启动同步到卷里（已存在的 `config.json` 不覆盖）。镜像侧的改动需要重新构建并推送镜像后才生效。
 
 ### 服务器生命周期
 
-1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建两个卷并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷（`committed` 标记）
-2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；如果 `SERVER_ARGS`、`GameModIds` 与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
+1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建三个卷（服务端文件卷、数据卷、插件卷）并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷（`committed` 标记）
+2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；如果 `SERVER_ARGS`、`GameModIds` 与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。管理员密码不在启动参数和环境变量里，每次启动前由 `syncAdminPassword` 以数据库里的值写入 `GameUserSettings.ini` 的 `[ServerSettings]`（读取失败时不会覆盖整个文件，只有 `ErrConfigNotFound` 才视为空文件）。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
 3. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（服务器卡片上有重建按钮）
 4. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，**不会删除 Docker 卷**，数据会保留在卷中
 
@@ -174,19 +175,18 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ## 测试
 
-测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态，使用临时 SQLite）。启停流程、RCON、配置暂存、卷清理和前端流程都没有自动化测试。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态，使用临时 SQLite）、`server/utils/ini_test.go`（`SetIniValue`）。启停流程、RCON、配置暂存、卷清理和前端流程都没有自动化测试。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 
 - `proxy.ts` 在缺少 `NEXT_LOCALE` cookie 时会在登录检查之前直接放行
 - 登录接口没有限流，`InitUser` 存在并发创建管理员的竞态
 - 编辑服务器时不处理 `auto_restart`，前端也不提供这个开关，容器重启策略始终是 `unless-stopped`
-- 容器重建后首次启动要重新校验服务端文件并下载 Mod，原因见"Docker 集成"
 - `npm audit` 有来自 ESLint 依赖链（`minimatch`）的中等级别告警，仅影响开发期
 - 删除服务器不会清理 Docker 卷，需要手动 `docker volume rm`
 - 入口脚本已转发 SIGTERM，但游戏进程能否在 `docker stop` 的 30 秒内完成存档，没有在真实环境验证过，停服前的 `SaveWorld` 继续保留
-- 管理员密码仍然出现在容器环境变量 `SERVER_ARGS` 和容器启动命令里，`docker inspect` 能看到
-- 游戏本体在容器层里，每台服务器各一份，磁盘占用大；Mod 只在首次启动时下载，之后不会更新
+- 管理员密码现在存放在卷里的 `GameUserSettings.ini`，`docker inspect` 看不到；数据库里仍是明文，并且每次启动都以数据库的值为准，在 ini 里直接改 `ServerAdminPassword` 会被覆盖
+- 每台服务器各有一份完整的服务端文件卷，磁盘占用大；Mod 只下载尚未安装的，已装 Mod 不会随创意工坊更新
 - 默认 Game.ini 模板里的倍率类 key（如 `XPMultiplier`、`TamingSpeedMultiplier`）可能应该放在 GameUserSettings.ini 的 `[ServerSettings]` 下，未验证
 - `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`），`can_create_server` 取决于 alpine 镜像是否就绪
 
