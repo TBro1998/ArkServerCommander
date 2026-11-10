@@ -1,4 +1,4 @@
-export default {
+const messages = {
   // 通用
   common: {
     confirm: '确定',
@@ -919,3 +919,5 @@ BabyImprintAmountMultiplier=1.0`
     portInUse: '端口已被占用'
   }
 }
+
+export default messages;

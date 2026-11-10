@@ -30,7 +30,7 @@ async function proxy(request: NextRequest, { params }: { params: Promise<{ path:
       status: res.status,
       headers: { 'Content-Type': res.headers.get('content-type') ?? 'application/json' },
     });
-    // 令牌过期或无效时清掉 cookie，middleware 会把用户带回登录页
+    // 令牌过期或无效时清掉 cookie，proxy 会把用户带回登录页
     if (res.status === 401 && token) clearTokenCookie(response);
     return response;
   } catch {

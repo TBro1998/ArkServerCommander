@@ -1,4 +1,4 @@
-export default {
+const messages = {
   // Common
   common: {
     confirm: 'Confirm',
@@ -918,3 +918,5 @@ BabyImprintAmountMultiplier=1.0`
     portInUse: 'Port is already in use'
   }
 }
+
+export default messages;

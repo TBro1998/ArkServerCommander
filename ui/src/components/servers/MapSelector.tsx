@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -35,13 +35,11 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
     'Fjordur': t('maps.Fjordur')
   };
 
-  // 同步外部value变化
-  useEffect(() => {
-    // 当外部value变化时，重置搜索值
-    if (!open) {
-      setSearchValue('');
-    }
-  }, [value, open]);
+  // 弹窗关闭时清空搜索值（在事件里处理，而不是在 effect 中同步 setState）
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setSearchValue('');
+  };
 
   // 过滤地图选项
   const filteredMaps = Object.entries(predefinedMaps).filter(([key, displayName]) => {
@@ -73,7 +71,7 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
     <div className="space-y-2">
       {label && <Label>{label}</Label>}
 
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"

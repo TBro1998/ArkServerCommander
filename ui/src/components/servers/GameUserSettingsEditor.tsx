@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -237,6 +237,45 @@ interface GameUserSettingsEditorProps {
   onChange?: (value: string) => void;
 }
 
+// 解析 ini 文本为键值对；不依赖组件状态，放在模块层以便在使用前声明
+function extractConfigValues(content: string): Record<string, string | number | boolean> {
+  const values: Record<string, string | number | boolean> = {};
+  const lines = content.split('\n');
+
+  lines.forEach(line => {
+    line = line.trim();
+
+    // 处理section
+    if (line.startsWith('[') && line.endsWith(']')) {
+      return;
+    }
+
+    // 跳过注释和空行
+    if (!line || line.startsWith(';') || !line.includes('=')) {
+      return;
+    }
+
+    const [key, ...valueParts] = line.split('=');
+    const value = valueParts.join('=').trim();
+    const keyName = key.trim();
+
+    if (keyName && value !== undefined) {
+      // 尝试解析为布尔值
+      if (value.toLowerCase() === 'true') {
+        values[keyName] = true;
+      } else if (value.toLowerCase() === 'false') {
+        values[keyName] = false;
+      } else if (!isNaN(Number(value)) && value !== '') {
+        values[keyName] = Number(value);
+      } else {
+        values[keyName] = value;
+      }
+    }
+  });
+
+  return values;
+}
+
 export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEditorProps) {
   const t = useTranslations('servers.editor');
   const tDefaultValues = useTranslations('servers.defaultValues');
@@ -271,7 +310,8 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
 
 
-  const parseTextToVisual = useCallback((content: string) => {
+  // 根据文本内容生成可视化配置（纯计算，不写入状态）
+  const buildVisualConfig = useCallback((content: string): Record<string, string | number | boolean> => {
     // 首先初始化默认配置
     const defaultConfig: Record<string, string | number | boolean> = {};
     getAllGameUserSettingsCategories().forEach(categoryKey => {
@@ -293,72 +333,37 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
 
     if (!content) {
       // 如果没有内容，直接使用默认配置
-      setVisualConfig(defaultConfig);
-      return;
+      return defaultConfig;
     }
 
     try {
       const values = extractConfigValues(content);
       // 合并默认配置和解析出的配置
-      const mergedConfig = { ...defaultConfig, ...values };
-      setVisualConfig(mergedConfig);
+      return { ...defaultConfig, ...values };
     } catch (error) {
       console.error('解析配置文件失败:', error);
       // 解析失败时使用默认配置
-      setVisualConfig(defaultConfig);
+      return defaultConfig;
     }
   }, [tDefaultValues]);
 
-  // 组件初始化时设置默认配置
-  useEffect(() => {
-    parseTextToVisual('');
-  }, [parseTextToVisual]);
+  // 把文本解析进可视化配置（模式切换时使用）
+  const parseTextToVisual = useCallback((content: string) => {
+    setVisualConfig(buildVisualConfig(content));
+  }, [buildVisualConfig]);
 
-  useEffect(() => {
-    setTextContent(value || '');
-    // 解析后端传来的配置数据到可视化配置
-    if (value) {
-      parseTextToVisual(value);
+  // 首次渲染以及外部 value 变化时，同步文本和可视化配置。
+  // 在渲染期间调整状态，而不是在 effect 里同步 setState
+  const [syncedValue, setSyncedValue] = useState<string | null>(null);
+  const incomingValue = value || '';
+  if (syncedValue !== incomingValue) {
+    setSyncedValue(incomingValue);
+    setTextContent(incomingValue);
+    // 首次渲染总是生成默认配置；之后只有传入非空内容时才重新解析
+    if (syncedValue === null || incomingValue) {
+      setVisualConfig(buildVisualConfig(incomingValue));
     }
-  }, [value, parseTextToVisual]);
-
-  const extractConfigValues = (content: string): Record<string, string | number | boolean> => {
-    const values: Record<string, string | number | boolean> = {};
-    const lines = content.split('\n');
-
-    lines.forEach(line => {
-      line = line.trim();
-
-      // 处理section
-      if (line.startsWith('[') && line.endsWith(']')) {
-        return;
-      }
-
-      // 跳过注释和空行
-      if (!line || line.startsWith(';') || !line.includes('=')) {
-        return;
-      }
-
-      const [key, ...valueParts] = line.split('=');
-      const value = valueParts.join('=').trim();
-      const keyName = key.trim();
-
-      if (keyName && value !== undefined) {
-        // 尝试解析为布尔值
-        if (value.toLowerCase() === 'true') {
-          values[keyName] = true;
-        } else if (value.toLowerCase() === 'false') {
-          values[keyName] = false;
-        } else if (!isNaN(Number(value)) && value !== '') {
-          values[keyName] = Number(value);
-        } else {
-          values[keyName] = value;
-        }
-      }
-    });
-
-    return values;
-  };
+  }
 
   const syncVisualToTextWithConfig = useCallback((config: Record<string, string | number | boolean>) => {
     try {

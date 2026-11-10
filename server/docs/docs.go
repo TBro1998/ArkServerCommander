@@ -1266,9 +1266,6 @@ const docTemplate = `{
         "models.ServerResponse": {
             "type": "object",
             "properties": {
-                "admin_password": {
-                    "type": "string"
-                },
                 "auto_restart": {
                     "type": "boolean"
                 },

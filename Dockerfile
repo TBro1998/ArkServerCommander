@@ -1,15 +1,15 @@
 # 前端构建阶段
-FROM node:24-alpine AS frontend-builder
+FROM node:26-alpine AS frontend-builder
 
 WORKDIR /app/ui
 
 COPY ui/ ./
-RUN npm install
+RUN npm ci
 
 RUN npm run build
 
 # 后端构建阶段
-FROM golang:1.24-alpine AS backend-builder
+FROM golang:1.27-alpine AS backend-builder
 
 # 设置工作目录
 WORKDIR /app
@@ -27,7 +27,7 @@ COPY server/ ./
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -trimpath -ldflags="-s -w" -o main .
 
 # 最终运行阶段：Node 运行 Next.js（对外），Go 后端只在容器内回环地址监听
-FROM node:24-alpine
+FROM node:26-alpine
 
 # 安装必要的包
 RUN apk add --no-cache ca-certificates docker-cli sqlite wget

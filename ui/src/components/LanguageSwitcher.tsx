@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from 'next-intl';
-import { setClientLocale, getClientLocale, type Locale } from '@/lib/locale';
+import { setClientLocale, type Locale } from '@/lib/locale';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,24 +10,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Languages } from 'lucide-react';
-import { useState, useEffect } from 'react';
 
 export function LanguageSwitcher() {
-  const serverLocale = useLocale();
-  const [currentLocale, setCurrentLocale] = useState<Locale>(serverLocale as Locale);
-
-  useEffect(() => {
-    // 同步客户端和服务端的语言设置
-    const clientLocale = getClientLocale();
-    if (clientLocale !== serverLocale) {
-      setCurrentLocale(clientLocale);
-    }
-  }, [serverLocale]);
+  // 服务端渲染使用的语言来自 cookie，切换语言会整页刷新，所以直接以它作为当前语言
+  const currentLocale = useLocale() as Locale;
 
   const changeLocale = (nextLocale: Locale) => {
     // 设置cookie
     setClientLocale(nextLocale);
-    setCurrentLocale(nextLocale);
 
     // 刷新页面以应用新语言
     window.location.reload();

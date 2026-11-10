@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Server } from '@/stores/servers';
 import {
@@ -45,22 +45,26 @@ export function ServerEditModal({
   const [formData, setFormData] = useState<Partial<Server>>({});
   const [showPassword, setShowPassword] = useState(false);
 
-  useEffect(() => {
-    if (show) {
-      if (mode === 'create') {
-        setFormData({
-          session_name: 'ARK Server',
-          port: 7777,
-          query_port: 27015,
-          rcon_port: 27020,
-          map: 'TheIsland',
-          max_players: 70,
-        });
-      } else {
-        setFormData(server || {});
-      }
+  // 弹窗打开，或传入的模式、数据变化时重置表单。
+  // 在渲染期间调整状态，而不是在 effect 里同步 setState；弹窗关闭时清掉记录，下次打开会重新初始化
+  const [syncedFrom, setSyncedFrom] = useState<{ mode: 'create' | 'edit'; server: Partial<Server> | null } | null>(null);
+  if (!show) {
+    if (syncedFrom !== null) setSyncedFrom(null);
+  } else if (!syncedFrom || syncedFrom.mode !== mode || syncedFrom.server !== server) {
+    setSyncedFrom({ mode, server });
+    if (mode === 'create') {
+      setFormData({
+        session_name: 'ARK Server',
+        port: 7777,
+        query_port: 27015,
+        rcon_port: 27020,
+        map: 'TheIsland',
+        max_players: 70,
+      });
+    } else {
+      setFormData(server || {});
     }
-  }, [show, mode, server]);
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -134,6 +134,17 @@ function getGameIniParamsByCategory(category: GameIniCategoryKey): Record<string
 
 
 
+function buildDefaultConfig(): Record<string, string | number | boolean> {
+  const defaultConfig: Record<string, string | number | boolean> = {};
+  Object.keys(gameIniParams).forEach(categoryKey => {
+    const params = getGameIniParamsByCategory(categoryKey as GameIniCategoryKey);
+    Object.keys(params).forEach(paramKey => {
+      defaultConfig[paramKey] = params[paramKey].default;
+    });
+  });
+  return defaultConfig;
+}
+
 interface GameIniEditorProps {
   value?: string;
   onChange?: (value: string) => void;
@@ -147,8 +158,6 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
   const [textContent, setTextContent] = useState('');
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [activeTab, setActiveTab] = useState<GameIniCategoryKey>('gameBasic');
-  const [isUserEditing, setIsUserEditing] = useState(false);
-  const [lastUserEditTime, setLastUserEditTime] = useState(0);
 
   // Get parameter display name from translations
   const getParamDisplayName = (paramKey: string): string => {
@@ -200,27 +209,23 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     } catch (error) {
       console.error(t('parseGameIniError') + ':', error);
     }
-  }, []);
+  }, [t]);
 
-  // Initialize with default values
-  useEffect(() => {
+  // 首次渲染以及外部 value 变化时同步文本和可视化配置。
+  // 在渲染期间调整状态，而不是在 effect 里同步 setState
+  const [syncedValue, setSyncedValue] = useState<string | null>(null);
+  const incomingValue = value || '';
+  if (syncedValue !== incomingValue) {
+    setSyncedValue(incomingValue);
     if (!value) {
-      const defaultConfig: Record<string, string | number | boolean> = {};
-      Object.keys(gameIniParams).forEach(categoryKey => {
-        const category = categoryKey as GameIniCategoryKey;
-        const params = getGameIniParamsByCategory(category);
-        Object.keys(params).forEach(paramKey => {
-          defaultConfig[paramKey] = params[paramKey].default;
-        });
-      });
-      setVisualConfig(defaultConfig);
+      setVisualConfig(buildDefaultConfig());
     } else {
       setTextContent(value);
       parseTextToVisual(value);
     }
-  }, [value, parseTextToVisual]);
+  }
 
-  const syncVisualToText = useCallback(() => {
+  const syncVisualToTextWithConfig = useCallback((visualConfig: Record<string, string | number | boolean>) => {
     try {
       let iniContent = '';
 
@@ -324,23 +329,17 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     } catch (error) {
       console.error(t('syncVisualToTextError') + ':', error);
     }
-  }, [visualConfig, onChange, t]);
+  }, [onChange, t]);
 
-  // Sync visual to text when visual config changes
-  useEffect(() => {
-    if (editMode === 'visual' && !isUserEditing) {
-      const now = Date.now();
-      if (now - lastUserEditTime > 500) {
-        syncVisualToText();
-      }
-    }
-  }, [visualConfig, editMode, syncVisualToText, isUserEditing, lastUserEditTime, t]);
+  const syncVisualToText = useCallback(() => {
+    syncVisualToTextWithConfig(visualConfig);
+  }, [visualConfig, syncVisualToTextWithConfig]);
 
+  // 可视化编辑在事件里直接同步到文本并通知父组件，不再依赖 effect 和计时器
   const handleVisualChange = (key: string, value: string | number | boolean) => {
-    setIsUserEditing(true);
-    setLastUserEditTime(Date.now());
-    setVisualConfig(prev => ({ ...prev, [key]: value }));
-    setTimeout(() => setIsUserEditing(false), 1000);
+    const next = { ...visualConfig, [key]: value };
+    setVisualConfig(next);
+    syncVisualToTextWithConfig(next);
   };
 
   const handleTextChange = (newText: string) => {

@@ -87,8 +87,6 @@ definitions:
     type: object
   models.ServerResponse:
     properties:
-      admin_password:
-        type: string
       auto_restart:
         type: boolean
       cluster_id:
