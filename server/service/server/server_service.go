@@ -2,9 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"ark-server-commander/database"
@@ -321,6 +323,30 @@ func fillConfigFiles(response *models.ServerResponse, server models.Server, dock
 	} else if content, err := dockerManager.ReadConfigFile(server.ID, utils.GameIniFileName); err == nil {
 		response.GameIni = content
 	}
+}
+
+// syncAdminPassword 把管理员密码写入 GameUserSettings.ini 的 [ServerSettings]。
+// 密码不再放进启动参数和环境变量（docker inspect 能直接看到），ARK 会从这个文件读取 ServerAdminPassword，RCON 同样使用它。
+// 每次启动前都以数据库里的值为准覆盖；此时容器已停止，ARK 停服时的写回不会再改动它
+func syncAdminPassword(server models.Server, dockerManager *docker_manager.DockerManager) error {
+	if strings.ContainsAny(server.AdminPassword, "\r\n") {
+		return fmt.Errorf("管理员密码不能包含换行符")
+	}
+
+	current, err := dockerManager.ReadConfigFile(server.ID, utils.GameUserSettingsFileName)
+	if err != nil && !errors.Is(err, docker_manager.ErrConfigNotFound) {
+		// 读取失败时不能当作文件为空，否则会用只含密码的内容覆盖掉整个配置文件
+		return fmt.Errorf("读取GameUserSettings.ini失败: %w", err)
+	}
+
+	updated := utils.SetIniValue(current, "ServerSettings", "ServerAdminPassword", server.AdminPassword)
+	if strings.TrimSpace(updated) == strings.TrimSpace(current) {
+		return nil
+	}
+	if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, updated); err != nil {
+		return fmt.Errorf("写入管理员密码失败: %w", err)
+	}
+	return nil
 }
 
 // applyPendingConfig 在启动容器前把暂存的配置文件写入数据卷。
@@ -766,6 +792,10 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 	}
 
 	if err := applyPendingConfig(server.ID, dockerManager); err != nil {
+		return err
+	}
+
+	if err := syncAdminPassword(server, dockerManager); err != nil {
 		return err
 	}
 

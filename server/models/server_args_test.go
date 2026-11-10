@@ -2,6 +2,7 @@ package models
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -38,7 +39,7 @@ func TestGenerateArgsBasics(t *testing.T) {
 	got := FromServer(server).GenerateArgs(server)
 
 	wantURL := "TheIsland?listen?Port=7777?QueryPort=27015?MaxPlayers=70?RCONEnabled=True" +
-		"?RCONPort=32330?ServerAdminPassword=hunter2?SessionName=My Ark Server?GameModIds=123,456"
+		"?RCONPort=32330?SessionName=My Ark Server?GameModIds=123,456"
 	if len(got) == 0 || got[0] != wantURL {
 		t.Fatalf("地图 URL 不符合预期:\n want: %s\n  got: %v", wantURL, got)
 	}
@@ -76,5 +77,21 @@ func TestGenerateArgsSkipsEmptyAndZeroValues(t *testing.T) {
 		if slices.Contains(got, unwanted) {
 			t.Errorf("不应包含值为空的参数: %q", unwanted)
 		}
+	}
+}
+
+// 管理员密码不能出现在启动参数里，否则 docker inspect 能直接看到
+func TestGenerateArgsOmitsAdminPassword(t *testing.T) {
+	server := testServer()
+	args := FromServer(server)
+	args.QueryParams["ServerAdminPassword"] = "from-query-params"
+
+	for _, a := range args.GenerateArgs(server) {
+		if strings.Contains(a, "hunter2") || strings.Contains(a, "from-query-params") || strings.Contains(a, "ServerAdminPassword") {
+			t.Fatalf("启动参数不应包含管理员密码: %q", a)
+		}
+	}
+	if strings.Contains(args.GenerateArgsString(server), "hunter2") {
+		t.Fatal("启动参数字符串不应包含管理员密码")
 	}
 }

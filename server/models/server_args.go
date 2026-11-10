@@ -82,7 +82,6 @@ func (sa *ServerArgs) GenerateArgs(server Server) []string {
 	fmt.Fprintf(&url, "?MaxPlayers=%d", server.MaxPlayers)
 	url.WriteString("?RCONEnabled=True")
 	fmt.Fprintf(&url, "?RCONPort=%d", server.RCONPort)
-	fmt.Fprintf(&url, "?ServerAdminPassword=%s", server.AdminPassword)
 
 	// 添加服务器名称（SessionName）
 	if server.SessionName != "" {

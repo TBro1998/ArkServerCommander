@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"ark-server-commander/utils"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -27,6 +28,9 @@ const (
 	// UTF-8 字节序标记，Windows 编辑器保存的配置文件可能带有
 	utf8BOM = "\uFEFF"
 )
+
+// ErrConfigNotFound 配置文件在数据卷里不存在（新建的服务器还没有写过配置）
+var ErrConfigNotFound = errors.New("文件不存在")
 
 // newConfigHelper 创建一个挂载了服务器数据卷的临时容器。
 // 容器只创建、不启动：CopyFromContainer / CopyToContainer 对已创建的容器同样可用，
@@ -86,7 +90,7 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 	reader, _, err := dm.client.CopyFromContainer(dm.ctx, containerID, configPath)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
-			return "", fmt.Errorf("文件不存在: %s", fileName)
+			return "", fmt.Errorf("%w: %s", ErrConfigNotFound, fileName)
 		}
 		return "", fmt.Errorf("从数据卷复制文件失败: %v", err)
 	}
@@ -97,7 +101,7 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 	header, err := tarReader.Next()
 	if err != nil {
 		if err == io.EOF {
-			return "", fmt.Errorf("文件不存在: %s", fileName)
+			return "", fmt.Errorf("%w: %s", ErrConfigNotFound, fileName)
 		}
 		return "", fmt.Errorf("读取 tar 文件头失败: %v", err)
 	}
