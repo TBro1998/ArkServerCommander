@@ -23,6 +23,10 @@ func respondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrAlreadyStopped),
 		errors.Is(err, server.ErrAlreadyStopping):
 		status = http.StatusBadRequest
+	case errors.Is(err, server.ErrInvalidPort):
+		status = http.StatusBadRequest
+	case errors.Is(err, server.ErrPortConflict), errors.Is(err, server.ErrServerBusy):
+		status = http.StatusConflict
 	}
 	c.JSON(status, gin.H{"error": err.Error()})
 }

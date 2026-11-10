@@ -13,4 +13,8 @@ var (
 	ErrAlreadyStopped   = errors.New("服务器已经停止")
 	ErrAlreadyStopping  = errors.New("服务器正在停止中")
 	ErrImagePulling     = errors.New("镜像正在下载中，请等待完成")
+	ErrPortConflict     = errors.New("端口配置冲突")
+	ErrInvalidPort      = errors.New("端口无效")
+	ErrServerBusy       = errors.New("服务器正在启动或停止中，请稍后再试")
+	ErrImageNotAllowed  = errors.New("不允许操作该镜像")
 )

@@ -8,6 +8,7 @@ import (
 	"ark-server-commander/middleware"
 	"ark-server-commander/routes"
 	"ark-server-commander/service/docker_manager"
+	"ark-server-commander/service/server"
 	"ark-server-commander/utils"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,11 @@ func main() {
 		utils.Fatal("获取Docker管理器失败", zap.Error(err))
 	}
 	defer docker_manager.CloseDockerManager()
+
+	// 上次退出时未完成的启停操作，按容器实际状态校正
+	if err := server.NewServerService().ReconcileStatuses(); err != nil {
+		utils.Warn("校正服务器状态失败", zap.Error(err))
+	}
 
 	// 创建Gin实例
 	r := gin.Default()

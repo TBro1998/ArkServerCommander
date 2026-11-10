@@ -10,28 +10,29 @@ import (
 	"go.uber.org/zap"
 )
 
-// CreateVolume 创建Docker卷（包括游戏数据卷和插件卷）
+// serverVolumeNames 返回服务器的全部卷：服务端文件卷、游戏数据卷、插件卷
+func serverVolumeNames(serverID uint) []string {
+	return []string{
+		utils.GetServerFilesVolumeName(serverID),
+		utils.GetServerVolumeName(serverID),
+		utils.GetServerPluginsVolumeName(serverID),
+	}
+}
+
+// CreateVolume 创建Docker卷（包括服务端文件卷、游戏数据卷和插件卷）
 // serverID: 服务器ID
-// 返回: 错误信息
+// 返回: 错误信息；任一卷创建失败时会清理已创建的卷
 func (dm *DockerManager) CreateVolume(serverID uint) error {
-	volumeName := utils.GetServerVolumeName(serverID)
-	pluginsVolumeName := utils.GetServerPluginsVolumeName(serverID)
-
-	// 创建游戏数据卷
-	if err := dm.createSingleVolume(volumeName); err != nil {
-		return fmt.Errorf("创建游戏数据卷失败: %v", err)
-	}
-
-	// 创建插件卷
-	if err := dm.createSingleVolume(pluginsVolumeName); err != nil {
-		// 如果插件卷创建失败，清理已创建的游戏数据卷
-		if rmErr := dm.RemoveVolume(serverID); rmErr != nil {
-			utils.Warn("清理游戏数据卷失败", zap.String("volume", volumeName), zap.Error(rmErr))
+	for _, name := range serverVolumeNames(serverID) {
+		if err := dm.createSingleVolume(name); err != nil {
+			if rmErr := dm.RemoveVolume(serverID); rmErr != nil {
+				utils.Warn("清理已创建的卷失败", zap.Uint("server_id", serverID), zap.Error(rmErr))
+			}
+			return fmt.Errorf("创建卷 %s 失败: %v", name, err)
 		}
-		return fmt.Errorf("创建插件卷失败: %v", err)
 	}
 
-	utils.Info("Docker卷创建成功", zap.String("data_volume", volumeName), zap.String("plugins_volume", pluginsVolumeName))
+	utils.Info("Docker卷创建成功", zap.Strings("volumes", serverVolumeNames(serverID)))
 	return nil
 }
 
@@ -64,15 +65,12 @@ func (dm *DockerManager) createSingleVolume(volumeName string) error {
 	return nil
 }
 
-// RemoveVolume 删除Docker卷（包括游戏数据卷和插件卷）
+// RemoveVolume 删除Docker卷（包括服务端文件卷、游戏数据卷和插件卷）
 // serverID: 服务器ID
-// 返回: 错误信息；两个卷都会尝试删除，任一失败都会返回错误
+// 返回: 错误信息；每个卷都会尝试删除，任一失败都会返回错误
 func (dm *DockerManager) RemoveVolume(serverID uint) error {
 	var errs []error
-	for _, name := range []string{
-		utils.GetServerVolumeName(serverID),
-		utils.GetServerPluginsVolumeName(serverID),
-	} {
+	for _, name := range serverVolumeNames(serverID) {
 		if err := dm.removeSingleVolume(name); err != nil {
 			errs = append(errs, err)
 		}

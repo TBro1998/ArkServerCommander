@@ -186,6 +186,9 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 	containerConfig := &container.Config{
 		Image: imageName,
 		Env:   envVars,
+		// 每个参数作为独立的一项传给入口脚本（"$@"），名称、密码里的空格不会被拆开；
+		// SERVER_ARGS 保留用于重建判断，也兼容还不认识 Cmd 的旧镜像
+		Cmd: serverArgs.GenerateArgs(server),
 		ExposedPorts: nat.PortSet{
 			nat.Port(fmt.Sprintf("%d/udp", port)):      struct{}{},
 			nat.Port(fmt.Sprintf("%d/tcp", port)):      struct{}{},
@@ -235,7 +238,9 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 				{HostPort: fmt.Sprintf("%d", rconPort)},
 			},
 		},
+		// 服务端文件卷挂到安装目录，数据卷和插件卷嵌套挂载在其中
 		Binds: []string{
+			fmt.Sprintf("%s:/home/steam/arkserver", utils.GetServerFilesVolumeName(serverID)),
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Binaries/Win64/ArkApi/Plugins", utils.GetServerPluginsVolumeName(serverID)),
 		},

@@ -53,30 +53,50 @@ var (
 	imagePullCurrentLayer = make(map[string]string)                  // 记录当前下载的层级
 	imagePullLayers       = make(map[string]map[string]*LayerStatus) // 记录所有层级的状态
 	imageUpdateAvailable  = make(map[string]bool)                    // 记录最近一次检查更新的结果，拉取成功后清除
+	imagePullError        = make(map[string]string)                  // 最近一次拉取失败的原因，下次拉取开始时清除
 	imagePullMutex        sync.RWMutex
 )
 
-// PullImageWithProgress 拉取Docker镜像并显示进度
-// imageName: 镜像名称
-// 返回: 错误信息
-func (dm *DockerManager) PullImageWithProgress(imageName string) error {
-	utils.Info("开始拉取Docker镜像", zap.String("image", imageName))
-
-	// 设置拉取状态
+// ClaimPull 原子地占用镜像的拉取权，返回 false 表示该镜像已经在拉取中。
+// 检查和占用在同一把锁里完成，并发的请求只有一个能成功。
+// 占用成功后，调用方必须调用 PullClaimedImage，它会在结束时释放占用
+func ClaimPull(imageName string) bool {
 	imagePullMutex.Lock()
+	defer imagePullMutex.Unlock()
+	if imagePullStatus[imageName] {
+		return false
+	}
 	imagePullStatus[imageName] = true
 	imagePullCurrentLayer[imageName] = ""
 	imagePullLayers[imageName] = make(map[string]*LayerStatus)
-	imagePullMutex.Unlock()
+	delete(imagePullError, imageName)
+	return true
+}
 
-	// 确保在函数结束时清理状态
-	defer func() {
-		imagePullMutex.Lock()
-		imagePullStatus[imageName] = false
-		delete(imagePullCurrentLayer, imageName)
-		delete(imagePullLayers, imageName)
-		imagePullMutex.Unlock()
-	}()
+// finishPull 结束拉取：释放占用，并记录失败原因供镜像状态接口返回
+func finishPull(imageName string, err error) {
+	imagePullMutex.Lock()
+	defer imagePullMutex.Unlock()
+	imagePullStatus[imageName] = false
+	delete(imagePullCurrentLayer, imageName)
+	delete(imagePullLayers, imageName)
+	if err != nil {
+		imagePullError[imageName] = err.Error()
+	} else {
+		delete(imagePullError, imageName)
+	}
+}
+
+// PullClaimedImage 拉取已经通过 ClaimPull 占用的镜像并记录进度，结束时释放占用
+func (dm *DockerManager) PullClaimedImage(imageName string) error {
+	err := dm.pullImage(imageName)
+	finishPull(imageName, err)
+	return err
+}
+
+// pullImage 拉取镜像并更新进度信息，不负责占用和释放
+func (dm *DockerManager) pullImage(imageName string) error {
+	utils.Info("开始拉取Docker镜像", zap.String("image", imageName))
 
 	// 拉取镜像
 	reader, err := dm.client.ImagePull(dm.ctx, imageName, image.PullOptions{})
@@ -210,6 +230,9 @@ func (dm *DockerManager) GetImageStatus(imageName string) *ImageStatus {
 	imagePullMutex.RLock()
 	status.HasUpdate = imageUpdateAvailable[imageName]
 	status.Pulling = imagePullStatus[imageName]
+	if msg := imagePullError[imageName]; msg != "" && !status.Pulling {
+		status.Error = "拉取镜像失败: " + msg
+	}
 	if status.Pulling {
 		status.CurrentLayer = imagePullCurrentLayer[imageName]
 

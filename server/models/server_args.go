@@ -2,6 +2,9 @@ package models
 
 import (
 	"fmt"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -69,39 +72,42 @@ func FromServer(server Server) *ServerArgs {
 	return args
 }
 
-// GenerateArgsString 生成完整的启动参数字符串
+// GenerateArgs 生成启动参数列表，第一个元素是地图 URL（地图 + ?查询参数），其余是命令行参数。
 // 从服务器基础参数中获取：游戏端口、查询端口、RCON端口、管理员密码、地图、模组ID
 // 从启动参数中获取：其他自定义参数
-func (sa *ServerArgs) GenerateArgsString(server Server) string {
-	var queryParams []string
-	var commandLineParams []string
+// map 的遍历顺序是随机的，这里按 key 排序，保证相同配置每次生成的结果一致，
+// 否则启动时会误判参数已变化而重建容器
+func (sa *ServerArgs) GenerateArgs(server Server) []string {
+	var url strings.Builder
 
 	// 添加地图名称（从服务器基础参数获取）
-	result := server.Map
+	url.WriteString(server.Map)
 
 	// 添加基础查询参数（从服务器基础参数获取，不在启动参数中重复设置）
-	queryParams = append(queryParams, "?listen")
-	queryParams = append(queryParams, fmt.Sprintf("?Port=%d", server.Port))
-	queryParams = append(queryParams, fmt.Sprintf("?QueryPort=%d", server.QueryPort))
-	queryParams = append(queryParams, fmt.Sprintf("?MaxPlayers=%d", server.MaxPlayers))
-	queryParams = append(queryParams, "?RCONEnabled=True")
-	queryParams = append(queryParams, fmt.Sprintf("?RCONPort=%d", server.RCONPort))
-	queryParams = append(queryParams, fmt.Sprintf("?ServerAdminPassword=%s", server.AdminPassword))
+	url.WriteString("?listen")
+	fmt.Fprintf(&url, "?Port=%d", server.Port)
+	fmt.Fprintf(&url, "?QueryPort=%d", server.QueryPort)
+	fmt.Fprintf(&url, "?MaxPlayers=%d", server.MaxPlayers)
+	url.WriteString("?RCONEnabled=True")
+	fmt.Fprintf(&url, "?RCONPort=%d", server.RCONPort)
+	fmt.Fprintf(&url, "?ServerAdminPassword=%s", server.AdminPassword)
 
 	// 添加服务器名称（SessionName）
 	if server.SessionName != "" {
-		queryParams = append(queryParams, fmt.Sprintf("?SessionName=%s", server.SessionName))
+		fmt.Fprintf(&url, "?SessionName=%s", server.SessionName)
 	}
 
 	if server.GameModIds != "" {
-		queryParams = append(queryParams, fmt.Sprintf("?GameModIds=%s", server.GameModIds))
+		fmt.Fprintf(&url, "?GameModIds=%s", server.GameModIds)
 	}
 
 	// 添加自定义查询参数
-	for key, value := range sa.QueryParams {
+	for _, key := range slices.Sorted(maps.Keys(sa.QueryParams)) {
+		value := sa.QueryParams[key]
 		// 跳过基础参数，避免重复
 		if key == "listen" || key == "Port" || key == "QueryPort" || key == "MaxPlayers" ||
-			key == "RCONEnabled" || key == "RCONPort" || key == "ServerAdminPassword" || key == "GameModIds" {
+			key == "RCONEnabled" || key == "RCONPort" || key == "ServerAdminPassword" ||
+			key == "SessionName" || key == "GameModIds" {
 			continue
 		}
 
@@ -110,50 +116,52 @@ func (sa *ServerArgs) GenerateArgsString(server Server) string {
 			continue
 		}
 
-		queryParams = append(queryParams, fmt.Sprintf("?%s=%s", key, value))
+		fmt.Fprintf(&url, "?%s=%s", key, value)
 	}
 
+	args := []string{url.String()}
+
 	// 添加命令行参数
-	for key, value := range sa.CommandLineArgs {
-		switch v := value.(type) {
+	for _, key := range slices.Sorted(maps.Keys(sa.CommandLineArgs)) {
+		switch v := sa.CommandLineArgs[key].(type) {
 		case bool:
 			if v {
-				commandLineParams = append(commandLineParams, fmt.Sprintf("-%s", key))
+				args = append(args, "-"+key)
 			}
 		case string:
-			if v != "" {
-				commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%s", key, v))
-			}
 			// 如果字符串为空，则不追加该参数
-		case int, int32, int64, float32, float64:
-			// 检查数值是否为0，如果是0则不追加该参数
-			if v != 0 {
-				commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%v", key, v))
+			if v != "" {
+				args = append(args, fmt.Sprintf("-%s=%s", key, v))
 			}
+		case float64:
+			// JSON 反序列化得到的数字都是 float64；为 0 时不追加该参数，避免大数被格式化成科学计数法
+			if v != 0 {
+				args = append(args, fmt.Sprintf("-%s=%s", key, strconv.FormatFloat(v, 'f', -1, 64)))
+			}
+		case int:
+			if v != 0 {
+				args = append(args, fmt.Sprintf("-%s=%d", key, v))
+			}
+		case nil:
 		default:
-			commandLineParams = append(commandLineParams, fmt.Sprintf("-%s=%v", key, v))
+			args = append(args, fmt.Sprintf("-%s=%v", key, v))
 		}
 	}
 
 	// 添加集群ID（ClusterID）
 	if server.ClusterID != "" {
-		commandLineParams = append(commandLineParams, fmt.Sprintf("-clusterid=%s", server.ClusterID))
+		args = append(args, "-clusterid="+server.ClusterID)
 	}
 
-	// 添加自定义参数
-	commandLineParams = append(commandLineParams, sa.CustomArgs...)
-
-	// 组合参数：地图 + 查询参数（无空格连接）+ 空格 + 命令行参数
-	if len(queryParams) > 0 {
-		result += strings.Join(queryParams, "")
+	// 添加自定义参数（一项里可能写了多个参数，按空白拆开）
+	for _, custom := range sa.CustomArgs {
+		args = append(args, strings.Fields(custom)...)
 	}
 
-	if len(commandLineParams) > 0 {
-		if len(queryParams) > 0 {
-			result += " " // 查询参数和命令行参数之间加空格
-		}
-		result += strings.Join(commandLineParams, " ")
-	}
+	return args
+}
 
-	return result
+// GenerateArgsString 生成完整的启动参数字符串（地图 URL 和命令行参数之间用空格分隔）
+func (sa *ServerArgs) GenerateArgsString(server Server) string {
+	return strings.Join(sa.GenerateArgs(server), " ")
 }

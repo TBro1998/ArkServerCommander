@@ -35,7 +35,7 @@ func PullImage(c *gin.Context) {
 
 	err := serverService.PullImage(req.ImageName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(imageErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 
@@ -103,11 +103,7 @@ func UpdateImage(c *gin.Context) {
 
 	affectedServers, err := serverService.UpdateImage(req.ImageName, userID, req.RestartRunning)
 	if err != nil {
-		status := http.StatusInternalServerError
-		if errors.Is(err, server.ErrImagePulling) {
-			status = http.StatusConflict
-		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		c.JSON(imageErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 
@@ -180,4 +176,15 @@ func GetImageStatus(c *gin.Context) {
 		"message": "获取成功",
 		"data":    data,
 	})
+}
+
+// imageErrorStatus 把镜像相关的服务层错误映射为 HTTP 状态码
+func imageErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, server.ErrImagePulling):
+		return http.StatusConflict
+	case errors.Is(err, server.ErrImageNotAllowed):
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
 }

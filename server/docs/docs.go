@@ -1295,6 +1295,10 @@ const docTemplate = `{
                     "description": "集群ID",
                     "type": "string"
                 },
+                "config_pending": {
+                    "description": "有已保存但尚未写入数据卷的配置文件修改，下次启动时生效",
+                    "type": "boolean"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -1322,6 +1326,10 @@ const docTemplate = `{
                 "image_outdated": {
                     "description": "容器仍在使用旧镜像，下次启动时会重建",
                     "type": "boolean"
+                },
+                "last_error": {
+                    "description": "最近一次启停失败的原因",
+                    "type": "string"
                 },
                 "map": {
                     "type": "string"
@@ -1372,7 +1380,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "cluster_id": {
-                    "description": "集群ID",
+                    "description": "集群ID，传空字符串表示清空",
                     "type": "string"
                 },
                 "game_ini": {
@@ -1380,7 +1388,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "game_mod_ids": {
-                    "description": "游戏模组ID列表，用逗号分隔",
+                    "description": "游戏模组ID列表，用逗号分隔，传空字符串表示清空",
                     "type": "string"
                 },
                 "game_user_settings": {
