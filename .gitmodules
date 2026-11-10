@@ -1,0 +1,3 @@
+[submodule "ASE-Server-Docker"]
+	path = ASE-Server-Docker
+	url = https://github.com/TBro1998/ASE-Server-Docker
