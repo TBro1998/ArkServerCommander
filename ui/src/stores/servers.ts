@@ -3,19 +3,29 @@ import axios from 'axios';
 
 // 定义服务器对象类型
 export interface Server {
-    id: string;
+    id: number;
+    identifier?: string;
+    cluster_id?: string;
     session_name: string;
     status: 'running' | 'stopped' | 'starting' | 'stopping';
+    last_error?: string;
     port: number;
     query_port: number;
     rcon_port: number;
     admin_password?: string;
     map: string;
     max_players: number;
+    game_mod_ids?: string;
+    auto_restart?: boolean;
     game_user_settings?: string;
     game_ini?: string;
-    server_args?: Record<string, unknown>;
+    server_args?: {
+        query_params: Record<string, string>;
+        command_line_args: Record<string, string | number | boolean>;
+        custom_args: string[];
+    };
     image_outdated?: boolean;
+    config_pending?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -24,6 +34,7 @@ export interface Server {
 interface ServersState {
     servers: Server[];
     isLoading: boolean;
+    isImageStatusLoading: boolean;
     error: string | null;
     imageStatus: ImageStatus | null;
     actions: ServersActions;
@@ -42,6 +53,7 @@ export interface ImageStatus {
             ready: boolean;
             pulling: boolean;
             has_update?: boolean;
+            error?: string;
             layers?: {
                 [layerId: string]: {
                     id: string;
@@ -58,19 +70,20 @@ export interface ImageStatus {
 interface ServersActions {
     fetchServers: () => Promise<void>;
     createServer: (serverData: Partial<Server>) => Promise<Server>;
-    updateServer: (serverId: string, updateData: Partial<Server>) => Promise<Server>;
-    deleteServer: (serverId: string) => Promise<void>;
-    getServer: (serverId: string) => Promise<Server>;
-    getServerPassword: (serverId: string) => Promise<string>;
+    updateServer: (serverId: Server['id'], updateData: Partial<Server>) => Promise<Server>;
+    deleteServer: (serverId: Server['id']) => Promise<void>;
+    getServer: (serverId: Server['id']) => Promise<Server>;
+    getServerPassword: (serverId: Server['id']) => Promise<string>;
     getImageStatus: () => Promise<void>;
-    startServer: (serverId: string) => Promise<void>;
-    stopServer: (serverId: string) => Promise<void>;
-    updateServerStatus: (serverId: string, status: Server['status']) => void;
+    startServer: (serverId: Server['id']) => Promise<void>;
+    stopServer: (serverId: Server['id']) => Promise<void>;
+    updateServerStatus: (serverId: Server['id'], status: Server['status']) => void;
 }
 
 const useServersStore = create<ServersState>((set, get) => ({
     servers: [],
     isLoading: false,
+    isImageStatusLoading: false,
     error: null,
     imageStatus: null,
     actions: {
@@ -141,9 +154,10 @@ const useServersStore = create<ServersState>((set, get) => ({
             }
         },
         getImageStatus: async () => {
-            if (get().isLoading) return; // 如果正在加载，则不执行任何操作
+            // 镜像状态和服务器列表各自使用独立的加载标记，两者不会互相阻塞
+            if (get().isImageStatusLoading) return;
 
-            set({ isLoading: true, error: null });
+            set({ isImageStatusLoading: true, error: null });
             try {
                 const response = await axios.get('/api/images/status');
                 set({ imageStatus: response.data.data });
@@ -151,14 +165,14 @@ const useServersStore = create<ServersState>((set, get) => ({
                 set({ error: '获取镜像状态失败' });
                 throw error;
             } finally {
-                set({ isLoading: false });
+                set({ isImageStatusLoading: false });
             }
         },
         startServer: async (serverId) => {
             try {
                 await axios.post(`/api/servers/${serverId}/start`, {});
+                // 实际结果由服务器列表页轮询获取，这里只标记为启动中
                 get().actions.updateServerStatus(serverId, 'starting');
-                setTimeout(() => get().actions.updateServerStatus(serverId, 'running'), 3000);
             } catch (error) {
                 set({ error: '启动服务器失败' });
                 throw error;
@@ -168,7 +182,6 @@ const useServersStore = create<ServersState>((set, get) => ({
             try {
                 await axios.post(`/api/servers/${serverId}/stop`, {});
                 get().actions.updateServerStatus(serverId, 'stopping');
-                setTimeout(() => get().actions.updateServerStatus(serverId, 'stopped'), 2000);
             } catch (error) {
                 set({ error: '停止服务器失败' });
                 throw error;
@@ -176,7 +189,7 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         updateServerStatus: (serverId, status) => {
             set((state) => ({
-                servers: state.servers.map((s) => (s.id === serverId ? { ...s, status } : s)),
+                servers: state.servers.map((s) => (s.id === serverId ? { ...s, status, last_error: undefined } : s)),
             }));
         },
     },

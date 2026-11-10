@@ -16,6 +16,7 @@ import { GameIniEditor } from '@/components/servers/GameIniEditor';
 import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
 import { MapSelector } from '@/components/servers/MapSelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getErrorMessage } from '@/lib/api-error';
 
 export default function ServerNewPage() {
   const t = useTranslations('servers.edit');
@@ -25,12 +26,15 @@ export default function ServerNewPage() {
   const { createServer } = serversActions;
 
   const [formData, setFormData] = useState<Partial<Server>>({
+    identifier: '',
     session_name: 'ARK Server',
+    cluster_id: '',
     port: 7777,
     query_port: 27015,
-    rcon_port: 27020,
+    rcon_port: 32330,
     map: 'TheIsland',
     max_players: 70,
+    game_mod_ids: '',
     server_args: {
       query_params: {},
       command_line_args: {},
@@ -49,13 +53,18 @@ export default function ServerNewPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.identifier?.trim()) {
+      setError(t('identifierRequired'));
+      return;
+    }
+    setError('');
     try {
       setSaving(true);
-      await createServer(formData);
+      await createServer({ ...formData, identifier: formData.identifier.trim() });
       // 创建成功后跳转回服务器列表
       router.push('/servers');
-    } catch {
-      setError(t('serverCreateError'));
+    } catch (err) {
+      setError(getErrorMessage(err, t('serverCreateError')));
     } finally {
       setSaving(false);
     }
@@ -114,6 +123,29 @@ export default function ServerNewPage() {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="identifier">{t('serverIdentifierRequired')}</Label>
+                    <Input
+                      id="identifier"
+                      name="identifier"
+                      value={formData.identifier || ''}
+                      onChange={handleChange}
+                      placeholder={t('serverIdentifierPlaceholder')}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cluster_id">{t('clusterId')}</Label>
+                    <Input
+                      id="cluster_id"
+                      name="cluster_id"
+                      value={formData.cluster_id || ''}
+                      onChange={handleChange}
+                      placeholder={t('clusterIdPlaceholder')}
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="port">{t('gamePort')}</Label>
@@ -156,22 +188,36 @@ export default function ServerNewPage() {
                   <Label htmlFor="max_players">{t('maxPlayers')}</Label>
                   <Input id="max_players" name="max_players" type="number" value={formData.max_players || ''} onChange={handleChange} />
                 </div>
+                <div>
+                  <Label htmlFor="game_mod_ids">{t('modIds')}</Label>
+                  <Input
+                    id="game_mod_ids"
+                    name="game_mod_ids"
+                    value={formData.game_mod_ids || ''}
+                    onChange={handleChange}
+                    placeholder={t('modIdsPlaceholder')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{t('modIdsDesc')}</p>
+                </div>
               </form>
             </TabsContent>
 
             <TabsContent value="game_user_settings">
               <GameUserSettingsEditor
                 value={formData.game_user_settings}
+                maxPlayers={formData.max_players}
                 onChange={(v) => setFormData(p => ({ ...p, game_user_settings: v }))}
               />
             </TabsContent>
 
             <TabsContent value="game_ini">
-              <GameIniEditor />
+              <GameIniEditor
+                value={formData.game_ini}
+                onChange={(v) => setFormData(p => ({ ...p, game_ini: v }))}
+              />
             </TabsContent>
 
             <TabsContent value="server_args">
-              {/* @ts-expect-error: Prop 'value' is not available on type 'IntrinsicAttributes' */}
               <ServerArgsEditor value={formData.server_args} onChange={(v) => setFormData(p => ({ ...p, server_args: v }))} />
             </TabsContent>
           </Tabs>

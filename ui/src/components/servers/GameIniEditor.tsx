@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { mergeIni } from '@/lib/ini';
 
 import { Info, Eye, EyeOff } from 'lucide-react';
 import {
@@ -145,6 +146,107 @@ function buildDefaultConfig(): Record<string, string | number | boolean> {
   return defaultConfig;
 }
 
+// 生成默认的 Game.ini 模板，只在文件为空（新建服务器）时使用
+function buildDefaultGameIniText(visualConfig: Record<string, string | number | boolean>): string {
+  let iniContent = '';
+
+  // Add sections based on categories
+  iniContent += '[/script/shootergame.shootergamemode]\n';
+
+  // Basic game settings
+  const gameBasicParams = getGameIniParamsByCategory('gameBasic');
+  Object.keys(gameBasicParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // Tribe settings
+  const tribeParams = getGameIniParamsByCategory('tribeSettings');
+  Object.keys(tribeParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  iniContent += '\n[/Script/ShooterGame.ShooterGameMode]\n';
+
+  // Experience settings
+  const expParams = getGameIniParamsByCategory('experienceSettings');
+  Object.keys(expParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // Item settings
+  const itemParams = getGameIniParamsByCategory('itemSettings');
+  Object.keys(itemParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // Dino settings
+  const dinoParams = getGameIniParamsByCategory('dinoSettings');
+  Object.keys(dinoParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // Breeding settings
+  const breedingParams = getGameIniParamsByCategory('breedingSettings');
+  Object.keys(breedingParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // PvP settings
+  const pvpParams = getGameIniParamsByCategory('pvpSettings');
+  Object.keys(pvpParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // Structure settings
+  const structureParams = getGameIniParamsByCategory('structureSettings');
+  Object.keys(structureParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // Advanced settings
+  const advancedParams = getGameIniParamsByCategory('advancedSettings');
+  Object.keys(advancedParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+
+  // Custom settings
+  const customParams = getGameIniParamsByCategory('customSettings');
+  Object.keys(customParams).forEach(key => {
+    const value = visualConfig[key];
+    if (value !== undefined) {
+      iniContent += `${key}=${value}\n`;
+    }
+  });
+  return iniContent;
+}
+
 interface GameIniEditorProps {
   value?: string;
   onChange?: (value: string) => void;
@@ -158,6 +260,8 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
   const [textContent, setTextContent] = useState('');
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [activeTab, setActiveTab] = useState<GameIniCategoryKey>('gameBasic');
+  // 在可视化界面里改动过的键，保存时只合并这些键
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set());
 
   // Get parameter display name from translations
   const getParamDisplayName = (paramKey: string): string => {
@@ -225,103 +329,22 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     }
   }
 
-  const syncVisualToTextWithConfig = useCallback((visualConfig: Record<string, string | number | boolean>) => {
+  // 只把用户改过的键合并进现有文本，文件里的其它内容（未知参数、自定义 section、注释）原样保留
+  const syncVisualToTextWithConfig = useCallback((config: Record<string, string | number | boolean>) => {
     try {
-      let iniContent = '';
-
-      // Add sections based on categories
-      iniContent += '[/script/shootergame.shootergamemode]\n';
-
-      // Basic game settings
-      const gameBasicParams = getGameIniParamsByCategory('gameBasic');
-      Object.keys(gameBasicParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
+      const updates: Record<string, string | number | boolean> = {};
+      dirtyKeys.forEach((key) => {
+        const value = config[key];
+        if (value !== undefined) updates[key] = value;
       });
 
-      // Tribe settings
-      const tribeParams = getGameIniParamsByCategory('tribeSettings');
-      Object.keys(tribeParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      iniContent += '\n[/Script/ShooterGame.ShooterGameMode]\n';
-
-      // Experience settings
-      const expParams = getGameIniParamsByCategory('experienceSettings');
-      Object.keys(expParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Item settings
-      const itemParams = getGameIniParamsByCategory('itemSettings');
-      Object.keys(itemParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Dino settings
-      const dinoParams = getGameIniParamsByCategory('dinoSettings');
-      Object.keys(dinoParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Breeding settings
-      const breedingParams = getGameIniParamsByCategory('breedingSettings');
-      Object.keys(breedingParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // PvP settings
-      const pvpParams = getGameIniParamsByCategory('pvpSettings');
-      Object.keys(pvpParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Structure settings
-      const structureParams = getGameIniParamsByCategory('structureSettings');
-      Object.keys(structureParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Advanced settings
-      const advancedParams = getGameIniParamsByCategory('advancedSettings');
-      Object.keys(advancedParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Custom settings
-      const customParams = getGameIniParamsByCategory('customSettings');
-      Object.keys(customParams).forEach(key => {
-        const value = visualConfig[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
+      const base = textContent.trim() === '' ? buildDefaultGameIniText(config) : textContent;
+      const iniContent = mergeIni(base, updates, {
+        // 基础设置和部落设置属于 ShooterGameMode，其余沿用 shootergamemode
+        sectionForKey: (key) =>
+          key in gameIniParams.gameBasic || key in gameIniParams.tribeSettings
+            ? '[/Script/ShooterGame.ShooterGameMode]'
+            : '[/script/shootergame.shootergamemode]',
       });
 
       setTextContent(iniContent);
@@ -329,7 +352,7 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
     } catch (error) {
       console.error(t('syncVisualToTextError') + ':', error);
     }
-  }, [onChange, t]);
+  }, [dirtyKeys, onChange, t, textContent]);
 
   const syncVisualToText = useCallback(() => {
     syncVisualToTextWithConfig(visualConfig);
@@ -337,6 +360,12 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
 
   // 可视化编辑在事件里直接同步到文本并通知父组件，不再依赖 effect 和计时器
   const handleVisualChange = (key: string, value: string | number | boolean) => {
+    setDirtyKeys(prev => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
     const next = { ...visualConfig, [key]: value };
     setVisualConfig(next);
     syncVisualToTextWithConfig(next);

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Info, Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { mergeIni } from '@/lib/ini';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -235,6 +236,39 @@ function getAllGameUserSettingsCategories(): GameUserSettingsCategoryKey[] {
 interface GameUserSettingsEditorProps {
   value?: string;
   onChange?: (value: string) => void;
+  // 基础参数里的最大玩家数，写入 [/Script/Engine.GameSession] 的 MaxPlayers
+  maxPlayers?: number;
+}
+
+// 生成默认的 GameUserSettings.ini 模板，只在文件为空（新建服务器）时使用
+function buildDefaultGameUserSettings(
+  config: Record<string, string | number | boolean>,
+  maxPlayers: number,
+  sessionName: string,
+  message: string
+): string {
+  let iniContent = '[ServerSettings]\n';
+  getAllGameUserSettingsCategories().forEach(categoryKey => {
+    const section = gameUserSettingsParams[categoryKey];
+    Object.keys(section).forEach(key => {
+      const value = config[key];
+      if (value !== undefined && value !== '') {
+        iniContent += `${key}=${value}\n`;
+      }
+    });
+  });
+
+  iniContent += '\n[/Script/Engine.GameSession]\n';
+  iniContent += `MaxPlayers=${maxPlayers}\n\n`;
+
+  iniContent += '[SessionSettings]\n';
+  iniContent += `SessionName=${config.SessionName || sessionName}\n\n`;
+
+  iniContent += '[MessageOfTheDay]\n';
+  iniContent += `Message=${config.Message || message}\n`;
+  iniContent += `Duration=${config.Duration || 30}\n`;
+
+  return iniContent;
 }
 
 // 解析 ini 文本为键值对；不依赖组件状态，放在模块层以便在使用前声明
@@ -276,7 +310,7 @@ function extractConfigValues(content: string): Record<string, string | number | 
   return values;
 }
 
-export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEditorProps) {
+export function GameUserSettingsEditor({ value, onChange, maxPlayers = 70 }: GameUserSettingsEditorProps) {
   const t = useTranslations('servers.editor');
   const tDefaultValues = useTranslations('servers.defaultValues');
   const tCategories = useTranslations('servers.gameUserSettingsCategories');
@@ -286,6 +320,8 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   const [visualConfig, setVisualConfig] = useState<Record<string, string | number | boolean>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<GameUserSettingsCategoryKey>('serverBasic');
+  // 在可视化界面里改动过的键，保存时只合并这些键
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set());
 
   // Helper functions with i18n support
   const getCategoryName = (categoryKey: GameUserSettingsCategoryKey): string => {
@@ -365,182 +401,37 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
     }
   }
 
+  // 只把用户改过的键合并进现有文本，未改动的键（包括文件里不存在、使用默认值的键）不写入，
+  // 文件里的其它内容（未知参数、自定义 section、注释）原样保留
   const syncVisualToTextWithConfig = useCallback((config: Record<string, string | number | boolean>) => {
     try {
-      // Build INI content matching GameUserSettings.ini format
-      let iniContent = '';
-
-      // ServerSettings section
-      iniContent += '[ServerSettings]\n';
-      const serverBasicParams = getGameUserSettingsParamsByCategory('serverBasic');
-      Object.keys(serverBasicParams).forEach(key => {
+      const updates: Record<string, string | number | boolean> = {};
+      dirtyKeys.forEach((key) => {
         const value = config[key];
-        if (value !== undefined && value !== '') {
-          iniContent += `${key}=${value}\n`;
-        }
+        if (value !== undefined) updates[key] = value;
       });
 
-      // Game mode settings
-      const gameModeParams = getGameUserSettingsParamsByCategory('gameMode');
-      Object.keys(gameModeParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
+      // 文件为空时以默认模板为基础，否则在现有文本上就地修改
+      const base = textContent.trim() === ''
+        ? buildDefaultGameUserSettings(
+            config,
+            maxPlayers,
+            tDefaultValues('sessionName'),
+            tDefaultValues('message')
+          )
+        : textContent;
+
+      const iniContent = mergeIni(base, updates, {
+        sectionForKey: (key) =>
+          key === 'Message' || key === 'Duration' ? '[MessageOfTheDay]' : '[ServerSettings]',
       });
-
-      // Communication settings
-      const communicationParams = getGameUserSettingsParamsByCategory('communication');
-      Object.keys(communicationParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Game multipliers
-      const gameMultipliersParams = getGameUserSettingsParamsByCategory('gameMultipliers');
-      Object.keys(gameMultipliersParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Character settings
-      const characterSettingsParams = getGameUserSettingsParamsByCategory('characterSettings');
-      Object.keys(characterSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Dino settings
-      const dinoSettingsParams = getGameUserSettingsParamsByCategory('dinoSettings');
-      Object.keys(dinoSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Environment settings
-      const environmentSettingsParams = getGameUserSettingsParamsByCategory('environmentSettings');
-      Object.keys(environmentSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Structure settings
-      const structureSettingsParams = getGameUserSettingsParamsByCategory('structureSettings');
-      Object.keys(structureSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Tribe settings
-      const tribeSettingsParams = getGameUserSettingsParamsByCategory('tribeSettings');
-      Object.keys(tribeSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Breeding settings
-      const breedingSettingsParams = getGameUserSettingsParamsByCategory('breedingSettings');
-      Object.keys(breedingSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Item settings
-      const itemSettingsParams = getGameUserSettingsParamsByCategory('itemSettings');
-      Object.keys(itemSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Performance settings
-      const performanceSettingsParams = getGameUserSettingsParamsByCategory('performanceSettings');
-      Object.keys(performanceSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Disease settings
-      const diseaseSettingsParams = getGameUserSettingsParamsByCategory('diseaseSettings');
-      Object.keys(diseaseSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Offline raid settings
-      const offlineRaidSettingsParams = getGameUserSettingsParamsByCategory('offlineRaidSettings');
-      Object.keys(offlineRaidSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Cross ARK settings
-      const crossArkSettingsParams = getGameUserSettingsParamsByCategory('crossArkSettings');
-      Object.keys(crossArkSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Flyer settings
-      const flyerSettingsParams = getGameUserSettingsParamsByCategory('flyerSettings');
-      Object.keys(flyerSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Advanced settings
-      const advancedSettingsParams = getGameUserSettingsParamsByCategory('advancedSettings');
-      Object.keys(advancedSettingsParams).forEach(key => {
-        const value = config[key];
-        if (value !== undefined) {
-          iniContent += `${key}=${value}\n`;
-        }
-      });
-
-      // Add other required sections
-      iniContent += '\n[/Script/Engine.GameSession]\n';
-      iniContent += 'MaxPlayers=70\n\n';
-
-      iniContent += '[SessionSettings]\n';
-      iniContent += `SessionName=${config.SessionName || tDefaultValues('sessionName')}\n\n`;
-
-      iniContent += '[MessageOfTheDay]\n';
-      iniContent += `Message=${config.Message || tDefaultValues('message')}\n`;
-      iniContent += `Duration=${config.Duration || 30}\n`;
 
       setTextContent(iniContent);
       onChange?.(iniContent);
     } catch (error) {
       console.error('同步可视化配置到文本失败:', error);
     }
-  }, [onChange, tDefaultValues]);
+  }, [dirtyKeys, maxPlayers, onChange, tDefaultValues, textContent]);
 
   const syncVisualToText = useCallback(() => {
     syncVisualToTextWithConfig(visualConfig);
@@ -572,6 +463,12 @@ export function GameUserSettingsEditor({ value, onChange }: GameUserSettingsEdit
   };
 
   const handleVisualChange = (paramKey: string, value: string | number | boolean) => {
+    setDirtyKeys(prev => {
+      if (prev.has(paramKey)) return prev;
+      const next = new Set(prev);
+      next.add(paramKey);
+      return next;
+    });
     setVisualConfig(prev => {
       const newConfig = { ...prev, [paramKey]: value };
       // 自动同步到文本内容并通知父组件

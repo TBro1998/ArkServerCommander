@@ -25,6 +25,7 @@ import {
   Eye,
   EyeOff,
   Copy,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ServerCardProps {
@@ -210,9 +211,28 @@ export function ServerCard({
               {t('card.imageOutdated')}
             </Badge>
           )}
+          {server.config_pending && (
+            <Badge
+              variant="secondary"
+              className="w-fit text-xs px-2 py-1 text-blue-700 bg-blue-100"
+              title={t('card.configPendingTip')}
+            >
+              {t('card.configPending')}
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
+        {/* 最近一次启停失败的原因，下次启停时清空 */}
+        {server.last_error && (
+          <div className="flex items-start gap-1.5 rounded-lg bg-red-50 p-2 text-xs text-red-700">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+            <span className="break-all">
+              <span className="font-medium">{t('card.lastError')}:</span> {server.last_error}
+            </span>
+          </div>
+        )}
+
         {/* 端口配置 - 紧凑显示 */}
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="flex items-center mb-2">

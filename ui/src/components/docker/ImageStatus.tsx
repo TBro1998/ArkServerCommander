@@ -154,6 +154,14 @@ export function ImageStatus({
                 </Badge>
               </div>
 
+              {/* 最近一次拉取失败的原因，下次开始拉取时由后端清除 */}
+              {status.error && !status.pulling && (
+                <div className="mb-3 flex items-start gap-1.5 rounded bg-red-50 p-2 text-xs text-red-700">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span className="break-all">{status.error}</span>
+                </div>
+              )}
+
               {/* 层级信息 - 使用 Popover 展示 */}
               {status.pulling && status.layers && (
                 <div className="space-y-2">

@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Trash2 } from 'lucide-react';
 
 interface ServerArgsEditorProps {
-  value: {
+  value?: {
     query_params: Record<string, string>;
     command_line_args: Record<string, string | number | boolean>;
     custom_args: string[];

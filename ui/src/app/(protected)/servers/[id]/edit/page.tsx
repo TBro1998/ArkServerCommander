@@ -16,6 +16,7 @@ import { GameIniEditor } from '@/components/servers/GameIniEditor';
 import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
 import { MapSelector } from '@/components/servers/MapSelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getErrorMessage } from '@/lib/api-error';
 
 export default function ServerEditPage() {
   const tServers = useTranslations('servers');
@@ -23,7 +24,7 @@ export default function ServerEditPage() {
   const tCommon = useTranslations('common');
   const router = useRouter();
   const params = useParams();
-  const serverId = params.id as string;
+  const serverId = Number(params.id);
 
   const { getServer, updateServer } = serversActions;
 
@@ -62,14 +63,24 @@ export default function ServerEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    // 配置文件只在内容有变化时提交，避免每次保存都重写数据卷里的文件。
+    // 服务器未停止时后端会先暂存，下次启动时再写入
+    const payload: Partial<Server> = { ...formData };
+    if (payload.game_user_settings === server?.game_user_settings) delete payload.game_user_settings;
+    if (payload.game_ini === server?.game_ini) delete payload.game_ini;
+
     try {
       setSaving(true);
-      await updateServer(serverId, formData);
+      const updated = await updateServer(serverId, payload);
+      setServer(updated);
       setSuccess(tServers('serverUpdateSuccess'));
       // 可选：保存成功后跳转回服务器列表
       // router.push('/servers');
-    } catch {
-      setError(tServers('serverUpdateError'));
+    } catch (err) {
+      setError(getErrorMessage(err, tServers('serverUpdateError')));
     } finally {
       setSaving(false);
     }
@@ -118,6 +129,14 @@ export default function ServerEditPage() {
           </div>
         </div>
 
+        {server && (server.status !== 'stopped' || server.config_pending) && (
+          <Alert className="mb-4 border-amber-300 bg-amber-50 text-amber-900">
+            <AlertDescription>
+              {server.config_pending ? tServersEdit('configPending') : tServersEdit('configAppliesOnRestart')}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
@@ -156,6 +175,28 @@ export default function ServerEditPage() {
                       value={formData.map || ''}
                       onChange={(value) => setFormData(prev => ({ ...prev, map: value }))}
                       label={tServersEdit('map')}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="identifier">{tServersEdit('serverIdentifier')}</Label>
+                    <Input
+                      id="identifier"
+                      name="identifier"
+                      value={formData.identifier || ''}
+                      onChange={handleChange}
+                      placeholder={tServersEdit('serverIdentifierPlaceholder')}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cluster_id">{tServersEdit('clusterId')}</Label>
+                    <Input
+                      id="cluster_id"
+                      name="cluster_id"
+                      value={formData.cluster_id || ''}
+                      onChange={handleChange}
+                      placeholder={tServersEdit('clusterIdPlaceholder')}
                     />
                   </div>
                 </div>
@@ -201,22 +242,36 @@ export default function ServerEditPage() {
                   <Label htmlFor="max_players">{tServersEdit('maxPlayers')}</Label>
                   <Input id="max_players" name="max_players" type="number" value={formData.max_players || ''} onChange={handleChange} />
                 </div>
+                <div>
+                  <Label htmlFor="game_mod_ids">{tServersEdit('modIds')}</Label>
+                  <Input
+                    id="game_mod_ids"
+                    name="game_mod_ids"
+                    value={formData.game_mod_ids || ''}
+                    onChange={handleChange}
+                    placeholder={tServersEdit('modIdsPlaceholder')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{tServersEdit('modIdsDesc')}</p>
+                </div>
               </form>
             </TabsContent>
 
             <TabsContent value="game_user_settings">
               <GameUserSettingsEditor
                 value={formData.game_user_settings}
+                maxPlayers={formData.max_players}
                 onChange={(v) => setFormData(p => ({ ...p, game_user_settings: v }))}
               />
             </TabsContent>
 
             <TabsContent value="game_ini">
-              <GameIniEditor />
+              <GameIniEditor
+                value={formData.game_ini}
+                onChange={(v) => setFormData(p => ({ ...p, game_ini: v }))}
+              />
             </TabsContent>
 
             <TabsContent value="server_args">
-              {/* @ts-expect-error: Prop 'value' is not available on type 'IntrinsicAttributes' */}
               <ServerArgsEditor value={formData.server_args} onChange={(v) => setFormData(p => ({ ...p, server_args: v }))} />
             </TabsContent>
           </Tabs>

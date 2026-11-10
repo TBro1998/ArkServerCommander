@@ -169,7 +169,6 @@ export function ServerEditModal({
               />
             </TabsContent>
             <TabsContent value="server_args">
-              {/* @ts-expect-error: Prop 'value' is not available on type 'IntrinsicAttributes' */}
               <ServerArgsEditor value={formData.server_args} onChange={(v) => setFormData(p => ({ ...p, server_args: v }))} />
             </TabsContent>
           </Tabs>

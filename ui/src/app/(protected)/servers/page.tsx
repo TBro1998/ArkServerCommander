@@ -10,6 +10,10 @@ import { ClosableAlert } from '@/components/ui/closable-alert';
 import { Plus, Loader2, Server as ServerIcon, AlertCircle } from 'lucide-react';
 import { Server } from '@/stores/servers';
 import { useTranslations } from 'next-intl';
+import { getErrorMessage } from '@/lib/api-error';
+
+// 有服务器处于启动中或停止中时，按这个间隔刷新列表以获取实际结果
+const TRANSITION_POLL_INTERVAL = 3000;
 
 export default function ServersPage() {
   const t = useTranslations('servers');
@@ -25,8 +29,18 @@ export default function ServersPage() {
 
   useEffect(() => {
     fetchServers().catch(() => setError(t('getServerListFailed')));
-    getImageStatus();
+    getImageStatus().catch(() => {});
   }, [fetchServers, getImageStatus, t]);
+
+  const hasTransitioning = servers.some((s) => s.status === 'starting' || s.status === 'stopping');
+
+  useEffect(() => {
+    if (!hasTransitioning) return;
+    const timer = setInterval(() => {
+      fetchServers().catch(() => {});
+    }, TRANSITION_POLL_INTERVAL);
+    return () => clearInterval(timer);
+  }, [hasTransitioning, fetchServers]);
 
   const handleAddServer = () => {
     router.push('/servers/new');
@@ -41,20 +55,30 @@ export default function ServersPage() {
       setError(t('cannotDeleteRunning'));
       return;
     }
-    if (confirm(t('card.confirmDeleteMessage', { identifier: server.session_name }))) {
-      try {
-        await deleteServer(server.id);
-        setSuccess(t('serverDeleteSuccess'));
-      } catch {
-        setError(t('deleteFailed'));
-      }
+    // 卡片上的弹出框已经确认过一次，这里直接删除
+    try {
+      await deleteServer(server.id);
+      setSuccess(t('serverDeleteSuccess'));
+    } catch (err) {
+      setError(getErrorMessage(err, t('deleteFailed')));
     }
   };
 
+  const handleStartServer = async (server: Server) => {
+    try {
+      await startServer(server.id);
+    } catch (err) {
+      setError(getErrorMessage(err, t('startServerFailed')));
+    }
+  };
 
-
-  const handleStartServer = (server: Server) => startServer(server.id);
-  const handleStopServer = (server: Server) => stopServer(server.id);
+  const handleStopServer = async (server: Server) => {
+    try {
+      await stopServer(server.id);
+    } catch (err) {
+      setError(getErrorMessage(err, t('stopServerFailed')));
+    }
+  };
 
   return (
     <div className="w-full max-w-none py-8">
