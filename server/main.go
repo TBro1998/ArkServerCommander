@@ -47,20 +47,7 @@ func main() {
 
 	// 初始化配置
 	if err := config.InitConfig(); err != nil {
-		utils.Error("配置初始化失败", zap.Error(err))
-		utils.Info("=========================================")
-		utils.Info("💡 解决方案:")
-		utils.Info("1. 生成强随机密钥（推荐）:")
-		utils.Info("   openssl rand -base64 48")
-		utils.Info("")
-		utils.Info("2. 设置环境变量:")
-		utils.Info("   export JWT_SECRET='your-generated-secret-here'")
-		utils.Info("")
-		utils.Info("3. 或在 docker-compose.yml 中配置:")
-		utils.Info("   environment:")
-		utils.Info("     - JWT_SECRET=your-generated-secret-here")
-		utils.Info("=========================================")
-		utils.Fatal("程序退出")
+		utils.Fatal("配置初始化失败", zap.Error(err))
 	}
 
 	// 初始化数据库

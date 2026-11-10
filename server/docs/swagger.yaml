@@ -1,5 +1,16 @@
 basePath: /api
 definitions:
+  images.UpdateImageRequest:
+    properties:
+      image_name:
+        example: tbro98/ase-server:latest
+        type: string
+      restart_running:
+        description: 是否立即重启运行中的服务器以应用新镜像
+        type: boolean
+    required:
+    - image_name
+    type: object
   models.ServerArgs:
     properties:
       command_line_args:
@@ -109,6 +120,9 @@ definitions:
         type: integer
       identifier:
         type: string
+      image_outdated:
+        description: 容器仍在使用旧镜像，下次启动时会重建
+        type: boolean
       map:
         type: string
       max_players:
@@ -457,16 +471,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: 更新指定镜像并处理相关容器
+      description: 拉取指定镜像的最新版本。已停止的服务器在下次启动时自动用新镜像重建容器；restart_running 为 true 时，运行中的服务器会立即重启以应用新镜像
       parameters:
-      - description: 镜像信息 {\
+      - description: 镜像信息
         in: body
         name: request
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/images.UpdateImageRequest'
       produces:
       - application/json
       responses:
@@ -483,6 +495,12 @@ paths:
             type: object
         "401":
           description: 未授权
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 镜像正在下载中
           schema:
             additionalProperties:
               type: string

@@ -84,8 +84,8 @@ func CheckDockerStatus() error {
 // ValidateRequiredImages 验证必要的镜像是否存在（不自动下载）
 func (dm *DockerManager) ValidateRequiredImages() ([]string, error) {
 	requiredImages := []string{
-		"tbro98/ase-server:latest", // ARK服务器镜像
-		"alpine:latest",            // Alpine镜像（用于配置文件操作）
+		utils.ArkServerImage, // ARK服务器镜像
+		"alpine:latest",      // Alpine镜像（用于配置文件操作）
 	}
 
 	var missingImages []string
@@ -137,7 +137,7 @@ func (dm *DockerManager) EnsureRequiredImages() error {
 func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName, gameModIds string, autoRestart bool) (string, error) {
 	containerName := utils.GetServerContainerName(serverID)
 	volumeName := utils.GetServerVolumeName(serverID)
-	imageName := "tbro98/ase-server:latest"
+	imageName := utils.ArkServerImage
 
 	// 检查容器是否已存在
 	if exists, err := dm.ContainerExists(containerName); err != nil {

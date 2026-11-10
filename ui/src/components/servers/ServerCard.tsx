@@ -194,12 +194,23 @@ export function ServerCard({
             </Button>
           </div>
         </div>
-        <Badge
-          variant={getStatusVariant(server.status)}
-          className="w-fit text-xs px-2 py-1"
-        >
-          {server.status}
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Badge
+            variant={getStatusVariant(server.status)}
+            className="w-fit text-xs px-2 py-1"
+          >
+            {server.status}
+          </Badge>
+          {server.image_outdated && (
+            <Badge
+              variant="secondary"
+              className="w-fit text-xs px-2 py-1 text-yellow-700 bg-yellow-100"
+              title={t('card.imageOutdatedTip')}
+            >
+              {t('card.imageOutdated')}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
         {/* 端口配置 - 紧凑显示 */}

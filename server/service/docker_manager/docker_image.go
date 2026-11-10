@@ -24,7 +24,8 @@ type ImagePullProgress struct {
 		Current int64 `json:"current"`
 		Total   int64 `json:"total"`
 	} `json:"progressDetail"`
-	ID string `json:"id"`
+	ID    string `json:"id"`
+	Error string `json:"error"`
 }
 
 // LayerStatus 层级状态信息
@@ -41,6 +42,7 @@ type ImageStatus struct {
 	Pulling      bool                    `json:"pulling"`       // 是否正在拉取
 	Ready        bool                    `json:"ready"`         // 是否准备就绪
 	Error        string                  `json:"error"`         // 错误信息
+	HasUpdate    bool                    `json:"has_update"`    // 最近一次检查更新的结果
 	CurrentLayer string                  `json:"current_layer"` // 当前下载的层级
 	Layers       map[string]*LayerStatus `json:"layers"`        // 所有层级的状态
 }
@@ -50,6 +52,7 @@ var (
 	imagePullStatus       = make(map[string]bool)                    // 记录镜像是否正在拉取
 	imagePullCurrentLayer = make(map[string]string)                  // 记录当前下载的层级
 	imagePullLayers       = make(map[string]map[string]*LayerStatus) // 记录所有层级的状态
+	imageUpdateAvailable  = make(map[string]bool)                    // 记录最近一次检查更新的结果，拉取成功后清除
 	imagePullMutex        sync.RWMutex
 )
 
@@ -82,93 +85,82 @@ func (dm *DockerManager) PullImageWithProgress(imageName string) error {
 	}
 	defer reader.Close()
 
-	// 读取并显示拉取进度
-	buffer := make([]byte, 1024)
+	// 逐条解析拉取进度（每条是一个 JSON 对象）
+	decoder := json.NewDecoder(reader)
 	for {
-		n, err := reader.Read(buffer)
-		if n > 0 {
-			// 解析JSON进度信息
-			progress := string(buffer[:n])
-			lines := strings.Split(progress, "\n")
-
-			for _, line := range lines {
-				if line == "" {
-					continue
-				}
-
-				var progressInfo ImagePullProgress
-				if err := json.Unmarshal([]byte(line), &progressInfo); err == nil {
-					// 更新进度信息
-					imagePullMutex.Lock()
-
-					// 处理层级信息
-					layerID := progressInfo.ID
-					if layerID != "" {
-						imagePullCurrentLayer[imageName] = layerID
-
-						// 确保层级存在
-						if imagePullLayers[imageName][layerID] == nil {
-							imagePullLayers[imageName][layerID] = &LayerStatus{
-								ID:       layerID,
-								Size:     0,
-								Progress: 0,
-								Status:   "pending",
-							}
-						}
-
-						// 更新层级大小信息
-						if progressInfo.ProgressDetail != nil {
-							if progressInfo.ProgressDetail.Total > 0 {
-								imagePullLayers[imageName][layerID].Size = progressInfo.ProgressDetail.Total
-							}
-							if progressInfo.ProgressDetail.Current > 0 {
-								imagePullLayers[imageName][layerID].Progress = progressInfo.ProgressDetail.Current
-							}
-						}
-
-						// 如果ProgressDetail中没有大小信息，尝试从Progress字符串中解析
-						if imagePullLayers[imageName][layerID].Size == 0 && progressInfo.Progress != "" {
-							if size := parseSizeFromProgress(progressInfo.Progress); size > 0 {
-								imagePullLayers[imageName][layerID].Size = size
-							}
-						}
-
-						// 更新层级状态
-						if strings.Contains(progressInfo.Status, "Downloading") {
-							imagePullLayers[imageName][layerID].Status = "downloading"
-						} else if strings.Contains(progressInfo.Status, "Extracting") {
-							imagePullLayers[imageName][layerID].Status = "extracting"
-						} else if strings.Contains(progressInfo.Status, "Verifying") {
-							imagePullLayers[imageName][layerID].Status = "verifying"
-						} else if strings.Contains(progressInfo.Status, "Pull complete") || strings.Contains(progressInfo.Status, "complete") {
-							imagePullLayers[imageName][layerID].Status = "complete"
-							// 完成时，如果没有大小信息，设置一个默认值
-							if imagePullLayers[imageName][layerID].Size == 0 {
-								imagePullLayers[imageName][layerID].Size = imagePullLayers[imageName][layerID].Progress
-								if imagePullLayers[imageName][layerID].Size == 0 {
-									imagePullLayers[imageName][layerID].Size = 1024 * 1024 // 默认1MB
-								}
-							}
-							imagePullLayers[imageName][layerID].Progress = imagePullLayers[imageName][layerID].Size
-						}
-					}
-
-					imagePullMutex.Unlock()
-
-					// 打印进度到控制台
-					if strings.Contains(progressInfo.Status, "Downloading") || strings.Contains(progressInfo.Status, "Extracting") {
-						// 进度显示静默（避免日志刷屏）
-					}
-				}
+		var progressInfo ImagePullProgress
+		if err := decoder.Decode(&progressInfo); err != nil {
+			if err == io.EOF {
+				break
 			}
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
 			return fmt.Errorf("读取镜像拉取进度失败: %v", err)
 		}
+
+		// 拉取过程中的错误（如网络中断、镜像不存在）出现在进度流里，而不是 ImagePull 的返回值
+		if progressInfo.Error != "" {
+			return fmt.Errorf("拉取Docker镜像失败: %s", progressInfo.Error)
+		}
+
+		imagePullMutex.Lock()
+
+		// 处理层级信息
+		layerID := progressInfo.ID
+		if layerID != "" {
+			imagePullCurrentLayer[imageName] = layerID
+
+			// 确保层级存在
+			if imagePullLayers[imageName][layerID] == nil {
+				imagePullLayers[imageName][layerID] = &LayerStatus{
+					ID:       layerID,
+					Size:     0,
+					Progress: 0,
+					Status:   "pending",
+				}
+			}
+
+			// 更新层级大小信息
+			if progressInfo.ProgressDetail != nil {
+				if progressInfo.ProgressDetail.Total > 0 {
+					imagePullLayers[imageName][layerID].Size = progressInfo.ProgressDetail.Total
+				}
+				if progressInfo.ProgressDetail.Current > 0 {
+					imagePullLayers[imageName][layerID].Progress = progressInfo.ProgressDetail.Current
+				}
+			}
+
+			// 如果ProgressDetail中没有大小信息，尝试从Progress字符串中解析
+			if imagePullLayers[imageName][layerID].Size == 0 && progressInfo.Progress != "" {
+				if size := parseSizeFromProgress(progressInfo.Progress); size > 0 {
+					imagePullLayers[imageName][layerID].Size = size
+				}
+			}
+
+			// 更新层级状态
+			if strings.Contains(progressInfo.Status, "Downloading") {
+				imagePullLayers[imageName][layerID].Status = "downloading"
+			} else if strings.Contains(progressInfo.Status, "Extracting") {
+				imagePullLayers[imageName][layerID].Status = "extracting"
+			} else if strings.Contains(progressInfo.Status, "Verifying") {
+				imagePullLayers[imageName][layerID].Status = "verifying"
+			} else if strings.Contains(progressInfo.Status, "Pull complete") || strings.Contains(progressInfo.Status, "complete") {
+				imagePullLayers[imageName][layerID].Status = "complete"
+				// 完成时，如果没有大小信息，设置一个默认值
+				if imagePullLayers[imageName][layerID].Size == 0 {
+					imagePullLayers[imageName][layerID].Size = imagePullLayers[imageName][layerID].Progress
+					if imagePullLayers[imageName][layerID].Size == 0 {
+						imagePullLayers[imageName][layerID].Size = 1024 * 1024 // 默认1MB
+					}
+				}
+				imagePullLayers[imageName][layerID].Progress = imagePullLayers[imageName][layerID].Size
+			}
+		}
+
+		imagePullMutex.Unlock()
 	}
+
+	imagePullMutex.Lock()
+	imageUpdateAvailable[imageName] = false
+	imagePullMutex.Unlock()
 
 	utils.Info("Docker镜像拉取成功", zap.String("image", imageName))
 
@@ -212,13 +204,11 @@ func (dm *DockerManager) GetImageStatus(imageName string) *ImageStatus {
 	}
 
 	status.Exists = exists
-	if exists {
-		status.Ready = true
-		return status
-	}
+	status.Ready = exists
 
-	// 检查是否正在拉取中
+	// 检查是否正在拉取中（镜像已存在时可能是在更新）
 	imagePullMutex.RLock()
+	status.HasUpdate = imageUpdateAvailable[imageName]
 	status.Pulling = imagePullStatus[imageName]
 	if status.Pulling {
 		status.CurrentLayer = imagePullCurrentLayer[imageName]
@@ -297,28 +287,65 @@ func parseSizeFromProgress(progress string) int64 {
 }
 
 // CheckImageUpdate 检查镜像是否有更新
+// 比较镜像仓库中该标签当前的 manifest digest 和本地镜像的 RepoDigests，结果会记录下来供 GetImageStatus 返回
 // imageName: 镜像名称
 // 返回: 是否有更新和错误信息
 func (dm *DockerManager) CheckImageUpdate(imageName string) (bool, error) {
-	// 获取本地镜像信息
-	localImageInfo, err := dm.GetImageInfo(imageName)
+	hasUpdate, err := dm.checkImageUpdate(imageName)
 	if err != nil {
-		// 如果本地镜像不存在，认为有更新（需要下载）
+		return false, err
+	}
+
+	imagePullMutex.Lock()
+	imageUpdateAvailable[imageName] = hasUpdate
+	imagePullMutex.Unlock()
+
+	return hasUpdate, nil
+}
+
+func (dm *DockerManager) checkImageUpdate(imageName string) (bool, error) {
+	localImage, err := dm.client.ImageInspect(dm.ctx, imageName)
+	if err != nil {
+		// 本地镜像不存在，需要下载
 		if errdefs.IsNotFound(err) {
 			return true, nil
 		}
 		return false, fmt.Errorf("获取本地镜像信息失败: %v", err)
 	}
 
-	// 尝试拉取最新镜像信息（不实际下载）
-	// 这里简化实现，实际应该比较镜像的digest
-	// 由于Docker API限制，我们暂时返回false（没有更新）
-	// 在实际生产环境中，可以通过比较镜像的创建时间或digest来判断
-	_ = localImageInfo
+	// 只查询镜像仓库中的 manifest，不下载镜像层
+	remote, err := dm.client.DistributionInspect(dm.ctx, imageName, "")
+	if err != nil {
+		return false, fmt.Errorf("获取远程镜像信息失败: %v", err)
+	}
 
-	// TODO: 实现真正的镜像更新检查逻辑
-	// 可以通过Docker Registry API来获取远程镜像信息并比较
-	return false, nil
+	// RepoDigests 形如 tbro98/ase-server@sha256:...，本地构建的镜像没有 RepoDigests，会被视为有更新
+	remoteDigest := "@" + remote.Descriptor.Digest.String()
+	for _, repoDigest := range localImage.RepoDigests {
+		if strings.HasSuffix(repoDigest, remoteDigest) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// IsContainerImageOutdated 判断容器创建时使用的镜像是否已不是 imageName 当前指向的镜像
+// containerName: 容器名称
+// imageName: 镜像名称
+// 返回: 是否过期和错误信息
+func (dm *DockerManager) IsContainerImageOutdated(containerName, imageName string) (bool, error) {
+	containerInfo, err := dm.client.ContainerInspect(dm.ctx, containerName)
+	if err != nil {
+		return false, fmt.Errorf("获取Docker容器信息失败: %v", err)
+	}
+
+	imageInfo, err := dm.client.ImageInspect(dm.ctx, imageName)
+	if err != nil {
+		return false, fmt.Errorf("获取Docker镜像信息失败: %v", err)
+	}
+
+	return containerInfo.Image != imageInfo.ID, nil
 }
 
 // GetImageInfo 获取本地镜像详细信息

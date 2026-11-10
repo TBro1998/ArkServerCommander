@@ -12,4 +12,5 @@ var (
 	ErrAlreadyStarting  = errors.New("服务器正在启动中")
 	ErrAlreadyStopped   = errors.New("服务器已经停止")
 	ErrAlreadyStopping  = errors.New("服务器正在停止中")
+	ErrImagePulling     = errors.New("镜像正在下载中，请等待完成")
 )

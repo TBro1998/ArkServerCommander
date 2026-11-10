@@ -22,3 +22,6 @@ func GetServerVolumeName(serverID uint) string {
 func GetServerPluginsVolumeName(serverID uint) string {
 	return fmt.Sprintf("ase-server-plugins-%d", serverID)
 }
+
+// ArkServerImage ARK服务器镜像（源码见子模块 ASE-Server-Docker）
+const ArkServerImage = "tbro98/ase-server:latest"

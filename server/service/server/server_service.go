@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"time"
 
@@ -13,6 +14,12 @@ import (
 
 	"go.uber.org/zap"
 )
+
+// managedImages 由本系统管理的镜像，只允许对这些镜像执行拉取和更新
+var managedImages = []string{
+	utils.ArkServerImage,
+	"alpine:latest", // 用于读写卷中的配置文件
+}
 
 // ServerService 服务器管理业务逻辑服务
 type ServerService struct{}
@@ -40,9 +47,15 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 		containerName := utils.GetServerContainerName(server.ID)
 		realTimeStatus := server.Status
 
+		imageOutdated := false
+
 		// 检查容器是否存在
 		containerExists, err := dockerManager.ContainerExists(containerName)
 		if err == nil && containerExists {
+			if outdated, err := dockerManager.IsContainerImageOutdated(containerName, utils.ArkServerImage); err == nil {
+				imageOutdated = outdated
+			}
+
 			if dockerStatus, err := dockerManager.GetContainerStatus(containerName); err == nil {
 				realTimeStatus = dockerStatus
 
@@ -62,21 +75,22 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 		}
 
 		serverResponses = append(serverResponses, models.ServerResponse{
-			ID:          server.ID,
-			Identifier:  server.Identifier,
-			SessionName: server.SessionName,
-			ClusterID:   server.ClusterID,
-			Port:        server.Port,
-			QueryPort:   server.QueryPort,
-			RCONPort:    server.RCONPort,
-			Map:         server.Map,
-			MaxPlayers:  server.MaxPlayers,
-			GameModIds:  server.GameModIds,
-			Status:      realTimeStatus,
-			AutoRestart: server.AutoRestart,
-			UserID:      server.UserID,
-			CreatedAt:   server.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   server.UpdatedAt.Format("2006-01-02 15:04:05"),
+			ID:            server.ID,
+			Identifier:    server.Identifier,
+			SessionName:   server.SessionName,
+			ClusterID:     server.ClusterID,
+			Port:          server.Port,
+			QueryPort:     server.QueryPort,
+			RCONPort:      server.RCONPort,
+			Map:           server.Map,
+			MaxPlayers:    server.MaxPlayers,
+			GameModIds:    server.GameModIds,
+			Status:        realTimeStatus,
+			AutoRestart:   server.AutoRestart,
+			ImageOutdated: imageOutdated,
+			UserID:        server.UserID,
+			CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
@@ -598,6 +612,14 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 					needRecreateContainer = true
 				}
 			}
+
+			// 镜像更新后，旧容器仍指向旧镜像，需要重建才能使用新镜像
+			if !needRecreateContainer {
+				outdated, err := dockerManager.IsContainerImageOutdated(containerName, utils.ArkServerImage)
+				if err != nil || outdated {
+					needRecreateContainer = true
+				}
+			}
 		}
 
 		if needRecreateContainer {
@@ -745,20 +767,21 @@ func (s *ServerService) CheckImageUpdates() (map[string]bool, error) {
 		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
 	}
 
-	requiredImages := []string{
-		"tbro98/ase-server:latest",
-		"alpine:latest",
-	}
-
 	updateStatus := make(map[string]bool)
-	for _, imageName := range requiredImages {
+	var lastErr error
+	for _, imageName := range managedImages {
 		hasUpdate, err := dockerManager.CheckImageUpdate(imageName)
 		if err != nil {
-			// 如果检查失败，假设没有更新
-			updateStatus[imageName] = false
-		} else {
-			updateStatus[imageName] = hasUpdate
+			utils.Warn("检查镜像更新失败", zap.String("image", imageName), zap.Error(err))
+			lastErr = err
+			continue
 		}
+		updateStatus[imageName] = hasUpdate
+	}
+
+	// 全部检查失败通常是无法访问镜像仓库，需要告知用户
+	if len(updateStatus) == 0 && lastErr != nil {
+		return nil, fmt.Errorf("检查镜像更新失败: %w", lastErr)
 	}
 
 	return updateStatus, nil
@@ -771,21 +794,7 @@ func (s *ServerService) PullImage(imageName string) error {
 		return fmt.Errorf("获取Docker管理器失败: %w", err)
 	}
 
-	// 验证镜像名称是否在允许的列表中
-	allowedImages := []string{
-		"tbro98/ase-server:latest",
-		"alpine:latest",
-	}
-
-	allowed := false
-	for _, allowedImage := range allowedImages {
-		if imageName == allowedImage {
-			allowed = true
-			break
-		}
-	}
-
-	if !allowed {
+	if !slices.Contains(managedImages, imageName) {
 		return fmt.Errorf("不允许拉取镜像: %s", imageName)
 	}
 
@@ -801,24 +810,16 @@ func (s *ServerService) PullImage(imageName string) error {
 	return nil
 }
 
-// UpdateImage 更新指定镜像及相关容器
-func (s *ServerService) UpdateImage(imageName string, userID uint) ([]models.ServerResponse, error) {
-	// 验证镜像名称
-	allowedImages := []string{
-		"tbro98/ase-server:latest",
-		"alpine:latest",
-	}
-
-	allowed := false
-	for _, allowedImage := range allowedImages {
-		if imageName == allowedImage {
-			allowed = true
-			break
-		}
-	}
-
-	if !allowed {
+// UpdateImage 更新指定镜像
+// 拉取完成后，已停止的服务器会在下次启动时自动用新镜像重建容器；
+// restartRunning 为 true 时，正在运行且使用旧镜像的服务器会立即重启以应用新镜像
+func (s *ServerService) UpdateImage(imageName string, userID uint, restartRunning bool) ([]models.ServerResponse, error) {
+	if !slices.Contains(managedImages, imageName) {
 		return nil, fmt.Errorf("不允许更新镜像: %s", imageName)
+	}
+
+	if docker_manager.IsImagePulling(imageName) {
+		return nil, ErrImagePulling
 	}
 
 	// 获取受影响的服务器
@@ -827,34 +828,77 @@ func (s *ServerService) UpdateImage(imageName string, userID uint) ([]models.Ser
 		return nil, fmt.Errorf("获取受影响服务器失败: %w", err)
 	}
 
+	dockerManager, err := docker_manager.GetDockerManager()
+	if err != nil {
+		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
+	}
+
 	// 异步更新镜像
 	go func() {
-		dockerManager, err := docker_manager.GetDockerManager()
-		if err != nil {
-			utils.Error("获取Docker管理器失败", zap.Error(err))
-			return
-		}
-
-		// 拉取新镜像
 		utils.Info("开始更新镜像", zap.String("image", imageName))
 		if err := dockerManager.PullImageWithProgress(imageName); err != nil {
 			utils.Error("更新镜像失败", zap.String("image", imageName), zap.Error(err))
 			return
 		}
-
 		utils.Info("镜像更新完成", zap.String("image", imageName))
 
-		// 这里可以添加通知逻辑，告知用户镜像更新完成
-		// 用户可以选择重建受影响的容器
+		if !restartRunning || imageName != utils.ArkServerImage {
+			return
+		}
+
+		var running []models.Server
+		if err := database.DB.Where("user_id = ? AND status = ?", userID, "running").Find(&running).Error; err != nil {
+			utils.Error("获取运行中的服务器失败", zap.Error(err))
+			return
+		}
+
+		for _, server := range running {
+			containerName := utils.GetServerContainerName(server.ID)
+			outdated, err := dockerManager.IsContainerImageOutdated(containerName, imageName)
+			if err != nil {
+				utils.Warn("检查容器镜像失败", zap.String("container", containerName), zap.Error(err))
+				continue
+			}
+			if outdated {
+				go s.restartServer(server, dockerManager)
+			}
+		}
 	}()
 
 	return affectedServers, nil
 }
 
+// restartServer 停止并重新启动服务器，启动时会按当前镜像和配置重建容器
+func (s *ServerService) restartServer(server models.Server, dockerManager *docker_manager.DockerManager) {
+	containerName := utils.GetServerContainerName(server.ID)
+
+	ok, err := transitionStatus(server.ID, []string{"stopped", "stopping", "starting"}, "stopping")
+	if err != nil || !ok {
+		utils.Warn("服务器状态已变化，跳过重启", zap.Uint("server_id", server.ID), zap.Error(err))
+		return
+	}
+	server.Status = "stopping"
+	s.stopServerAsync(server, dockerManager, containerName)
+
+	ok, err = transitionStatus(server.ID, []string{"running", "starting"}, "starting")
+	if err != nil || !ok {
+		utils.Warn("服务器状态已变化，跳过启动", zap.Uint("server_id", server.ID), zap.Error(err))
+		return
+	}
+	server.Status = "starting"
+	if err := s.startServerAsync(server, dockerManager, containerName); err != nil {
+		utils.Error("重启服务器失败", zap.Uint("server_id", server.ID), zap.Error(err))
+		database.DB.Model(&server).Update("status", "stopped")
+		return
+	}
+
+	utils.Info("服务器已重启并应用新镜像", zap.String("identifier", server.Identifier))
+}
+
 // GetAffectedServers 获取使用指定镜像的服务器列表
 func (s *ServerService) GetAffectedServers(imageName string, userID uint) ([]models.ServerResponse, error) {
 	// 目前所有ARK服务器都使用相同的镜像
-	if imageName == "tbro98/ase-server:latest" {
+	if imageName == utils.ArkServerImage {
 		return s.GetServers(userID)
 	}
 
@@ -936,17 +980,12 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
 	}
 
-	requiredImages := []string{
-		"tbro98/ase-server:latest",
-		"alpine:latest",
-	}
-
 	imageStatuses := make(map[string]*docker_manager.ImageStatus)
 	allReady := true
 	anyPulling := false
 	pullingCount := 0
 
-	for _, imageName := range requiredImages {
+	for _, imageName := range managedImages {
 		status := dockerManager.GetImageStatus(imageName)
 		imageStatuses[imageName] = status
 
@@ -978,6 +1017,6 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		"can_start_server":  allReady,
 		"overall_status":    overallStatus,
 		"pulling_count":     pullingCount,
-		"total_images":      len(requiredImages),
+		"total_images":      len(managedImages),
 	}, nil
 }

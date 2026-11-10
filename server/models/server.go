@@ -61,9 +61,11 @@ type ServerResponse struct {
 	GameModIds  string `json:"game_mod_ids"`
 	Status      string `json:"status"`
 	AutoRestart bool   `json:"auto_restart"`
-	UserID      uint   `json:"user_id"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	// 容器仍在使用旧镜像，下次启动时会重建
+	ImageOutdated bool   `json:"image_outdated"`
+	UserID        uint   `json:"user_id"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 	// 配置文件内容
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容

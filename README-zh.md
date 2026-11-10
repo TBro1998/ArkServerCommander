@@ -11,16 +11,17 @@
 
 ### ✅ 已实现功能
 - 🐳 每个ARK服务器运行在独立的Docker容器中
-- 🔌 服务器自带ArkApi
+- 🔌 服务器自带ArkApi，插件目录单独挂载为Docker卷
 - 🔄 服务器容器支持崩溃自动重启
-- ⬆️ 第一次启动时自动更新服务端文件和Mod
-- 💾 自动创建和管理Docker卷存储游戏数据
+- ⬆️ 容器首次启动时自动更新服务端文件并下载Mod（容器重建后会重新执行）
+- 💾 自动创建Docker卷保存存档、配置和插件，删除服务器时保留卷中的数据
 - 🖥️ 添加和管理多个 ARK 服务器
-- ⚙️ 配置服务器设置和配置参数
-- ▶️ 一键启动/停止服务器
-- 🖼️ Docker镜像管理（拉取、更新、状态检查）
-- 🔐 JWT认证和用户管理
-- 📝 完整的API文档（Swagger）
+- ⚙️ 可视化或文本方式编辑 GameUserSettings.ini、Game.ini 和启动参数
+- ▶️ 一键启动/停止服务器，修改启动参数或Mod后启动时自动重建容器
+- 🖼️ Docker镜像管理：下载、检查更新、更新镜像；更新后服务器在下次启动时自动用新镜像重建容器，也可选择立即重启运行中的服务器
+- 🔐 管理员账号登录（JWT认证，密钥由后端自动生成，无需配置）
+- 🌐 中文/英文界面切换
+- 📝 API文档（Swagger，本地直接运行后端时可访问）
 
 ### 🚧 待实现功能
 - 🎮 RCON 命令执行
@@ -29,63 +30,15 @@
 - 🔧 ArkApi插件管理
 - 📋 服务器日志查看
 - 💾 服务器存档及配置备份
+- 👤 用户管理（修改密码、多用户）
 - 🔍 工具版本更新检查
 - ⚡ 可选更新服务端文件和Mod
-- 🔄 容器镜像更新功能
-- 🌐 i18n 国际化支持
 - 🔌 MCP 支持
-  
+
 ### 🚀 未来计划
 - ☸️ 多主机管理，可能基于K8S实现
 - 🌍 服务器收录网站，脱离糟糕的steam搜服
 - 👥 玩家使用界面
-
-## 🔒 安全提示
-
-### ⚠️ JWT密钥配置（重要）
-
-**在部署此应用程序之前，您必须配置一个强JWT密钥！**
-
-#### 为什么这很重要？
-- JWT（JSON Web Token）用于用户认证和会话管理
-- 弱密钥或默认密钥允许攻击者伪造认证令牌
-- 这可能导致**系统完全被攻破**和对所有服务器的未授权访问
-
-#### 如何配置：
-
-**1. 生成强随机密钥（推荐）：**
-```bash
-openssl rand -base64 48
-```
-
-**2. 设置环境变量：**
-
-对于 Docker Compose 部署，编辑 `docker-compose.yml`：
-```yaml
-environment:
-  - JWT_SECRET=your-generated-secret-here  # 替换为生成的密钥
-```
-
-对于直接部署：
-```bash
-export JWT_SECRET='your-generated-secret-here'
-```
-
-#### 安全要求：
-- ✅ 最小长度：32 字符
-- ✅ 使用加密随机生成
-- ✅ 永远不要将密钥提交到版本控制
-- ✅ 不同环境使用不同密钥（开发/测试/生产）
-- ❌ 永远不要使用默认值如 "your-secret-key-here"
-- ❌ 永远不要使用常见密码或字典单词
-
-#### 验证：
-应用程序将**拒绝启动**如果：
-- JWT_SECRET 未设置
-- JWT_SECRET 短于 32 字符
-- JWT_SECRET 包含弱/常见密码模式
-
----
 
 ## 🚀 快速开始
 
@@ -102,8 +55,6 @@ export JWT_SECRET='your-generated-secret-here'
 
 拷贝docker-compose.yml，或直接复制：
 ```yml
-version: '3.8'
-
 services:
   # ARK服务器管理系统 (前后端一体)
   ark-commander:
@@ -112,21 +63,17 @@ services:
     ports:
       # 可修改端口映射
       - "8080:8080"
-    environment:
-      # ⚠️ 重要：请使用 openssl rand -base64 48 生成强密钥
-      - JWT_SECRET=your-secret-key-here
-      - DB_PATH=/data/ark_server.db
-      - SERVER_PORT=8080
     volumes:
-      # 数据库存储
+      # 数据库和自动生成的登录密钥
       - ./data:/data
       # Docker socket (用于管理Docker容器)
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     # 系统需要操作宿主机Docker的特权模式
     privileged: true
-
 ```
+
+无需额外配置。如果通过 HTTPS 访问，需要添加环境变量 `COOKIE_SECURE=true`，其他可选项见 [.env.example](.env.example)。
 
 # 🚀 启动服务
 ```
@@ -162,20 +109,20 @@ sudo docker-compose up -d
 ## ❓ 常见问题
 
 ### ❓ Q: 如何备份ARK服务器数据？
-A: 暂时还没实现服务器数据的备份操作。服务器数据存储在Docker卷 `ark-server-<服务器编号>` 中，可以自行备份。
+A: 暂时还没实现服务器数据的备份操作。存档和配置存储在Docker卷 `ase-server-<服务器编号>` 中，ArkApi插件存储在 `ase-server-plugins-<服务器编号>` 中，可以自行备份。删除服务器不会删除这些卷，不再需要时请手动 `docker volume rm`。
 
 ### ❓ Q: 如何查看ARK服务器日志？
 A: 服务端程序目前无法直接在docker的logs中输出，需要查看服务器的日志文件，后续查看该怎么优化。
 
 ### ❓ Q: 如何更新ARK服务器镜像？
-A: 系统已支持镜像管理功能。登录后台，进入镜像管理页面，可以检查更新、拉取新镜像和更新现有镜像。
+A: 登录后在首页的"镜像管理"中点击"检查更新"，有新版本时点击"更新"。确认时可以选择：
+- **仅更新镜像**：运行中的服务器不受影响，下次启动时自动用新镜像重建容器
+- **更新镜像并重启运行中的服务器**：下载完成后立即停止、重建并重新启动这些服务器
 
-### ❓ Q: JWT_SECRET 配置错误怎么办？
-A: 如果应用启动失败并提示 JWT_SECRET 错误，请确保：
-- JWT_SECRET 已在环境变量中设置
-- 密钥长度至少 32 字符
-- 使用 `openssl rand -base64 48` 生成强随机密钥
+使用旧镜像的服务器卡片上会显示"旧镜像"标记。容器重建后的首次启动会重新校验服务端文件并下载Mod，耗时较长；存档和配置保存在卷中，不会丢失。
 
+### ❓ Q: 登录用的密钥在哪里？需要配置吗？
+A: 不需要。后端首次启动时会自动生成强随机密钥，保存在数据目录下的 `jwt_secret` 文件中（即挂载的 `./data/jwt_secret`）。删除该文件并重启容器会让所有已登录的会话失效。
 
 ### 🖼️ ARK服务器镜像
 - 本系统使用 `tbro98/ase-server:latest` 镜像来运行ARK服务器

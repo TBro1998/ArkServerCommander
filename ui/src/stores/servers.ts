@@ -15,6 +15,7 @@ export interface Server {
     game_user_settings?: string;
     game_ini?: string;
     server_args?: Record<string, unknown>;
+    image_outdated?: boolean;
     created_at: string;
     updated_at: string;
 }

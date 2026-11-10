@@ -11,6 +11,7 @@ import { ImageStatus as ImageStatusType } from '@/stores/servers';
 
 interface ImageStatusProps {
   imageStatus: ImageStatusType;
+  checkingUpdates: boolean;
   onRefresh: () => void;
   onManualDownload: () => void;
   onCheckUpdates: () => void;
@@ -20,6 +21,7 @@ interface ImageStatusProps {
 
 export function ImageStatus({
   imageStatus,
+  checkingUpdates,
   onRefresh,
   onManualDownload,
   onCheckUpdates,
@@ -51,7 +53,7 @@ export function ImageStatus({
     if (status.pulling) {
       return t('downloading');
     } else if (status.ready) {
-      return t('ready');
+      return status.has_update ? t('updateAvailable') : t('ready');
     } else {
       return t('notReady');
     }
@@ -110,10 +112,11 @@ export function ImageStatus({
             variant="default"
             size="sm"
             onClick={onCheckUpdates}
+            disabled={checkingUpdates || imageStatus.any_pulling}
             className="bg-purple-600 hover:bg-purple-700"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            {t('checkUpdates')}
+            <RefreshCw className={`w-4 h-4 mr-2 ${checkingUpdates ? 'animate-spin' : ''}`} />
+            {checkingUpdates ? t('checkingUpdates') : t('checkUpdates')}
           </Button>
         )}
       </div>
@@ -234,9 +237,9 @@ export function ImageStatus({
                       size="sm"
                       onClick={() => onUpdateImage(imageName)}
                       className="mt-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50"
-                      title={t('update')}
                     >
-                      <RotateCcw className="w-4 h-4" />
+                      <RotateCcw className="w-4 h-4 mr-1" />
+                      {t('update')}
                     </Button>
                   )}
                 </div>

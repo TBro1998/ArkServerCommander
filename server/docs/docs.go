@@ -403,7 +403,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "更新指定镜像并处理相关容器",
+                "description": "拉取指定镜像的最新版本。已停止的服务器在下次启动时自动用新镜像重建容器；restart_running 为 true 时，运行中的服务器会立即重启以应用新镜像",
                 "consumes": [
                     "application/json"
                 ],
@@ -416,15 +416,12 @@ const docTemplate = `{
                 "summary": "更新Docker镜像",
                 "parameters": [
                     {
-                        "description": "镜像信息 {\\",
+                        "description": "镜像信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/images.UpdateImageRequest"
                         }
                     }
                 ],
@@ -447,6 +444,15 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "未授权",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "镜像正在下载中",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1144,6 +1150,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "images.UpdateImageRequest": {
+            "type": "object",
+            "required": [
+                "image_name"
+            ],
+            "properties": {
+                "image_name": {
+                    "type": "string",
+                    "example": "tbro98/ase-server:latest"
+                },
+                "restart_running": {
+                    "description": "是否立即重启运行中的服务器以应用新镜像",
+                    "type": "boolean"
+                }
+            }
+        },
         "models.ServerArgs": {
             "type": "object",
             "properties": {
@@ -1296,6 +1318,10 @@ const docTemplate = `{
                 },
                 "identifier": {
                     "type": "string"
+                },
+                "image_outdated": {
+                    "description": "容器仍在使用旧镜像，下次启动时会重建",
+                    "type": "boolean"
                 },
                 "map": {
                     "type": "string"

@@ -1,6 +1,7 @@
 package images
 
 import (
+	"errors"
 	"net/http"
 
 	"ark-server-commander/service/server"
@@ -71,33 +72,42 @@ func CheckImageUpdates(c *gin.Context) {
 	})
 }
 
+// UpdateImageRequest 更新镜像请求
+type UpdateImageRequest struct {
+	ImageName      string `json:"image_name" binding:"required" example:"tbro98/ase-server:latest"`
+	RestartRunning bool   `json:"restart_running"` // 是否立即重启运行中的服务器以应用新镜像
+}
+
 // UpdateImage 更新镜像
 // @Summary 更新Docker镜像
-// @Description 更新指定镜像并处理相关容器
+// @Description 拉取指定镜像的最新版本。已停止的服务器在下次启动时自动用新镜像重建容器；restart_running 为 true 时，运行中的服务器会立即重启以应用新镜像
 // @Tags 镜像管理
 // @Accept json
 // @Produce json
 // @Security Bearer
-// @Param request body map[string]string true "镜像信息 {\"image_name\": \"tbro98/ase-server:latest\"}"
+// @Param request body UpdateImageRequest true "镜像信息"
 // @Success 200 {object} map[string]interface{} "更新状态"
 // @Failure 400 {object} map[string]string "请求错误"
+// @Failure 409 {object} map[string]string "镜像正在下载中"
 // @Failure 401 {object} map[string]string "未授权"
 // @Failure 500 {object} map[string]string "服务器错误"
 // @Router /images/update [post]
 func UpdateImage(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
-	var req struct {
-		ImageName string `json:"image_name" binding:"required"`
-	}
+	var req UpdateImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
 		return
 	}
 
-	affectedServers, err := serverService.UpdateImage(req.ImageName, userID)
+	affectedServers, err := serverService.UpdateImage(req.ImageName, userID, req.RestartRunning)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		status := http.StatusInternalServerError
+		if errors.Is(err, server.ErrImagePulling) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 

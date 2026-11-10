@@ -51,7 +51,7 @@ docker-compose down            # 停止
 ## 环境变量
 
 后端：
-- `JWT_SECRET`：必需，至少 32 字符，包含弱口令片段（如 `secret`、`password`）会被拒绝启动
+- `JWT_SECRET`：可选。未设置时，首次启动自动生成 48 字节随机密钥，保存到数据库所在目录的 `jwt_secret`（权限 0600，镜像内为 `/data/jwt_secret`），之后重启复用。手动设置时至少 32 字符，包含弱口令片段（如 `secret`、`password`）会被拒绝启动
 - `DB_PATH`：数据库路径（代码默认 `ark_server.db`，镜像内为 `/data/ark_server.db`）
 - `SERVER_PORT`：后端端口（默认 `8080`；容器内由入口脚本固定为 `8081`，`.env` 中的值被忽略）
 - `LISTEN_HOST`：监听地址（默认 `127.0.0.1`；容器内固定为 `127.0.0.1`）
@@ -63,7 +63,7 @@ docker-compose down            # 停止
 - `NEXT_PUBLIC_API_BASE`：开发环境回退值；都未设置时回退到 `http://127.0.0.1:8080/api`
 - `COOKIE_SECURE`：通过 HTTPS 访问时设为 `true`，纯 HTTP 时保持 `false`，否则无法登录
 
-示例见 `.env.example`。
+示例见 `.env.example`。`docker-compose.yml` 中 `.env` 是可选的（`required: false`），不建 `.env` 也能直接启动。
 
 ## 架构概览
 
@@ -85,13 +85,13 @@ docker-compose down            # 停止
 分层：controllers（HTTP）→ service（业务）→ docker_manager（Docker SDK）。
 
 - `main.go`：初始化日志、配置、数据库，检查 Docker，注册 CORS 和路由
-- `config/`：环境变量读取和 JWT 密钥校验
+- `config/`：环境变量读取，JWT 密钥加载（环境变量优先，否则读取或生成 `jwt_secret` 文件）
 - `controllers/{auth,servers,images}/`：请求处理。`servers/errors.go` 的 `respondServiceError` 用 `errors.Is` 把服务层错误映射为 404、400、500
-- `service/server/`：服务器生命周期。`errors.go` 定义哨兵错误，不要再用 `err.Error() == ...` 比较字符串
+- `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单
 - `service/docker_manager/`：容器、镜像、卷操作和 `RollbackManager`（LIFO 回滚栈）
 - `middleware/`：`auth.go`（JWT 校验）、`cors.go`（白名单 CORS）
-- `models/`：GORM 模型 User、Server，以及请求和响应结构。`ServerResponse` 不包含管理员密码
-- `utils/`：日志、JWT、密码、命名（`asm_info.go`）、配置文件模板（`config_files.go`）
+- `models/`：GORM 模型 User、Server，以及请求和响应结构。`ServerResponse` 不包含管理员密码，`image_outdated` 表示容器仍在用旧镜像
+- `utils/`：日志、JWT、密码、命名和镜像名常量（`asm_info.go`，`ArkServerImage`）、配置文件模板（`config_files.go`）
 - `docs/`：swag 生成的 Swagger 文件，不要手改
 
 ### API 路由（均以 `/api` 开头）
@@ -99,7 +99,7 @@ docker-compose down            # 停止
 - 公开：`GET /auth/check-init`、`POST /auth/init`、`POST /auth/login`
 - 需 JWT：`GET /profile`
 - 服务器：`GET|POST /servers`、`GET|PUT|DELETE /servers/:id`、`POST /servers/:id/start|stop|recreate`、`GET /servers/:id/rcon`
-- 镜像：`GET /images/status`、`POST /images/pull`、`GET /images/check-updates`、`POST /images/update`、`GET /images/affected`
+- 镜像：`GET /images/status`、`POST /images/pull`、`GET /images/check-updates`、`POST /images/update`（`{image_name, restart_running}`）、`GET /images/affected`
 
 ### 前端结构（`ui/src/`）
 
@@ -109,7 +109,7 @@ docker-compose down            # 停止
 - `proxy.ts`：Next 16 中原 `middleware.ts` 的新约定。负责语言 cookie（`NEXT_LOCALE`）和登录重定向
 - `lib/backend-server.ts`：`getApiBase`、令牌 cookie 读写、`authProxy`
 - `stores/`：Zustand（`auth.ts`、`servers.ts`），HTTP 用 Axios
-- `components/ui/`：shadcn/ui 风格基础组件；`components/servers/`：服务器卡片、编辑弹窗、ini 可视化编辑器
+- `components/ui/`：shadcn/ui 风格基础组件；`components/servers/`：服务器卡片、编辑弹窗、ini 可视化编辑器；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
 
 ### 认证流程
@@ -128,16 +128,24 @@ docker-compose down            # 停止
 - 插件卷：`ase-server-plugins-<server_id>`
 - 镜像：`tbro98/ase-server:latest`（子模块 `ASE-Server-Docker` 是该镜像的源码）
 
+容器只挂载两个卷：数据卷挂到 `ShooterGame/Saved`，插件卷挂到 `ArkApi/Plugins`。游戏本体、Mod 和镜像入口脚本的首次启动标记 `/home/steam/.first_startup_complete` 都在容器层里，所以**每次重建容器后，首次启动都会重新 `steamcmd validate` 并重新下载全部 Mod**。
+
 ### 服务器生命周期
 
 1. **创建**：事务内写数据库记录并创建两个卷，创建容器；失败时 `defer` 清理已创建的卷（`committed` 标记）
-2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成
-3. **重建**：必要时先停止，删除旧容器，按当前配置创建新容器
+2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成。启动时如果 `SERVER_ARGS`、`GameModIds` 与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器
+3. **重建**：必要时先停止，删除旧容器，按当前配置创建新容器（`/servers/:id/recreate`，前端暂未使用）
 4. **删除**：运行中拒绝删除；软删除数据库记录并删除容器，**不会删除 Docker 卷**，数据会保留在卷中
+
+### 镜像更新
+
+1. **检查更新**：`CheckImageUpdate` 用 `DistributionInspect` 取镜像仓库中该标签的 manifest digest，与本地镜像的 `RepoDigests` 比较，不下载镜像层。结果记录在内存中，由 `/images/status` 的 `has_update` 返回，拉取成功后清除。本地构建、没有 `RepoDigests` 的镜像会一直显示有更新
+2. **更新**：后台拉取新镜像，拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
+3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记
 
 ### 配置文件
 
-GameUserSettings.ini 和 Game.ini 以文本形式保存在数据库中，在创建容器时写入。前端的可视化编辑器（`GameUserSettingsEditor`、`GameIniEditor`）和文本模式互相同步。
+GameUserSettings.ini 和 Game.ini 不存数据库，而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 通过临时 `alpine:latest` 容器挂载数据卷来读写。所以 `alpine:latest` 也是必需镜像。前端的可视化编辑器（`GameUserSettingsEditor`、`GameIniEditor`）和文本模式互相同步。
 
 ## 开发约定
 
@@ -164,20 +172,22 @@ GameUserSettings.ini 和 Game.ini 以文本形式保存在数据库中，在创�
 
 ## 测试
 
-测试覆盖率很低，目前只有 `server/service/docker_manager/rollback_test.go`。启停竞态、卷清理和前端流程都没有自动化测试。
+测试覆盖率很低，目前只有 `server/service/docker_manager/rollback_test.go` 和 `server/config/config_test.go`（JWT 密钥生成和复用）。启停竞态、卷清理、镜像更新和前端流程都没有自动化测试。
 
 ## 已知问题
 
 - 前端新建表单的 RCON 默认端口是 27020，后端模型默认值是 32330，两者不一致
 - `proxy.ts` 在缺少 `NEXT_LOCALE` cookie 时会在登录检查之前直接放行
 - 登录接口没有限流，`InitUser` 存在并发创建管理员的竞态
-- `README.md` 和 `README-zh.md` 仍把卷名写成 `ark-server-<id>`，实际为 `ase-server-<id>`
+- 编辑服务器时不处理 `auto_restart`，前端也不提供这个开关，容器重启策略始终是 `unless-stopped`
+- 容器重建后首次启动要重新校验服务端文件并下载 Mod，原因见"Docker 集成"
 - `npm audit` 有来自 ESLint 依赖链（`minimatch`）的中等级别告警，仅影响开发期
 - 删除服务器不会清理 Docker 卷，需要手动 `docker volume rm`
 
 ## 故障排除
 
-- **后端无法启动**：检查 `JWT_SECRET` 是否设置且不少于 32 字符；`docker ps` 确认 Docker 可用；检查数据库目录权限
+- **后端无法启动**：`docker ps` 确认 Docker 可用；检查数据库目录是否可写（需要写入 `jwt_secret`）；如果手动设置了 `JWT_SECRET`，确认不少于 32 字符且不含弱口令片段
+- **所有用户被登出**：`jwt_secret` 文件被删除或数据目录没有持久化，重启后生成了新密钥
 - **登录后立即回到登录页**：通过 HTTP 访问却设置了 `COOKIE_SECURE=true`
 - **页面提示后端服务不可用（502）**：检查 `API_BASE` 是否指向后端，以及后端进程是否在运行
 - **前端构建失败**：删除 `ui/.next` 和 `ui/node_modules` 后执行 `npm ci`
