@@ -16,6 +16,9 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      digest: ${{ steps.build.outputs.digest }}
 
     steps:
     - name: Checkout repository
@@ -59,4 +62,31 @@ jobs:
     #   with:
     #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     #     subject-digest: ${{ steps.build.outputs.digest }}
-    #     push-to-registry: true 
+    #     push-to-registry: true
+
+  # 镜像推送成功后再发布 Release，保证 Release 里写的 tag 一定有对应的镜像
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: ${{ github.ref_name }}
+        # 由 GitHub 根据上一个 Release 到本 tag 之间的合并 PR 生成 "What's Changed"
+        # 末尾会自动附上 Full Changelog 的 compare 链接
+        generate_release_notes: true
+        # v0.0.2-b1 这类带后缀的当作预发布，不出现在 /releases/latest 里
+        prerelease: ${{ contains(github.ref_name, '-') }}
+        body: |
+          ## 镜像
+
+          ```
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          ```
+
+          digest: `${{ needs.build.outputs.digest }}`
