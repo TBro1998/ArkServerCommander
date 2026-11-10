@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"sync"
 
 	"github.com/containerd/errdefs"
@@ -105,22 +104,6 @@ func (dm *DockerManager) ValidateRequiredImages() ([]string, error) {
 	}
 
 	return missingImages, nil
-}
-
-// EnsureRequiredImages 确保必要的镜像已拉取（已废弃，请使用ValidateRequiredImages）
-// 保留此方法以维持向后兼容性，但不再自动下载镜像
-func (dm *DockerManager) EnsureRequiredImages() error {
-	missingImages, err := dm.ValidateRequiredImages()
-	if err != nil {
-		return err
-	}
-
-	if len(missingImages) > 0 {
-		return fmt.Errorf("缺失必要镜像: %v，请手动下载", missingImages)
-	}
-
-	utils.Info("所有必要镜像已存在")
-	return nil
 }
 
 // CreateContainer 创建ARK服务器容器（不自动启动）
@@ -354,50 +337,6 @@ func (dm *DockerManager) GetContainerStatus(containerName string) (string, error
 	} else {
 		return "unknown", nil
 	}
-}
-
-// ExecuteCommand 在容器中执行命令
-// containerName: 容器名称
-// command: 要执行的命令
-// 返回: 命令输出和错误信息
-func (dm *DockerManager) ExecuteCommand(containerName string, command string) (string, error) {
-	// 创建执行配置
-	execConfig := container.ExecOptions{
-		Cmd:          []string{"sh", "-c", command},
-		AttachStdout: true,
-		AttachStderr: true,
-	}
-
-	// 创建执行实例
-	execResp, err := dm.client.ContainerExecCreate(dm.ctx, containerName, execConfig)
-	if err != nil {
-		return "", fmt.Errorf("创建执行实例失败: %v", err)
-	}
-
-	// 执行命令
-	resp, err := dm.client.ContainerExecAttach(dm.ctx, execResp.ID, container.ExecAttachOptions{})
-	if err != nil {
-		return "", fmt.Errorf("执行命令失败: %v", err)
-	}
-	defer resp.Close()
-
-	// 读取输出
-	output, err := io.ReadAll(resp.Reader)
-	if err != nil {
-		return "", fmt.Errorf("读取命令输出失败: %v", err)
-	}
-
-	// 检查执行结果
-	inspectResp, err := dm.client.ContainerExecInspect(dm.ctx, execResp.ID)
-	if err != nil {
-		return "", fmt.Errorf("检查执行结果失败: %v", err)
-	}
-
-	if inspectResp.ExitCode != 0 {
-		return string(output), fmt.Errorf("命令执行失败，退出码: %d", inspectResp.ExitCode)
-	}
-
-	return string(output), nil
 }
 
 // GetContainerEnvVars 获取容器的环境变量

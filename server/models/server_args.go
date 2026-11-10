@@ -27,14 +27,6 @@ type ServerArgsRequest struct {
 	CustomArgs      []string               `json:"custom_args"`
 }
 
-// ServerArgsResponse 启动参数响应结构
-type ServerArgsResponse struct {
-	QueryParams     map[string]string      `json:"query_params"`
-	CommandLineArgs map[string]interface{} `json:"command_line_args"`
-	CustomArgs      []string               `json:"custom_args"`
-	GeneratedArgs   string                 `json:"generated_args"` // 生成的完整启动参数字符串
-}
-
 // NewServerArgs 创建新的启动参数实例
 func NewServerArgs() *ServerArgs {
 	return &ServerArgs{

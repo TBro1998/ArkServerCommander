@@ -35,7 +35,3 @@ func InitDB() {
 
 	utils.Info("数据库初始化成功", zap.String("db_path", config.DBPath))
 }
-
-func GetDB() *gorm.DB {
-	return DB
-}

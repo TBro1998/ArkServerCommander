@@ -8,10 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"go.uber.org/zap"
 )
@@ -260,37 +258,6 @@ func IsImagePulling(imageName string) bool {
 	return imagePullStatus[imageName]
 }
 
-// WaitForImage 等待镜像拉取完成（已废弃，请使用 GetImageStatus）
-// imageName: 镜像名称
-// timeout: 超时时间（秒）
-// 返回: 是否成功和错误信息
-func (dm *DockerManager) WaitForImage(imageName string, timeout int) (bool, error) {
-	utils.Info("等待镜像拉取完成", zap.String("image", imageName))
-
-	// 每秒检查一次镜像是否存在
-	for i := 0; i < timeout; i++ {
-		exists, err := dm.ImageExists(imageName)
-		if err != nil {
-			return false, fmt.Errorf("检查镜像失败: %v", err)
-		}
-
-		if exists {
-			utils.Info("镜像已准备就绪", zap.String("image", imageName))
-			return true, nil
-		}
-
-		// 检查是否正在拉取中
-		if IsImagePulling(imageName) {
-			utils.Debug("镜像正在拉取中，继续等待", zap.String("image", imageName))
-		}
-
-		// 等待1秒后再次检查
-		time.Sleep(1 * time.Second)
-	}
-
-	return false, fmt.Errorf("等待镜像 %s 超时（%d秒）", imageName, timeout)
-}
-
 // parseSizeFromProgress 从进度字符串中解析大小信息
 // progress: 进度字符串，如 "1.5MB/2.0MB"
 // 返回: 解析出的大小（字节）
@@ -369,121 +336,6 @@ func (dm *DockerManager) IsContainerImageOutdated(containerName, imageName strin
 	}
 
 	return containerInfo.Image != imageInfo.ID, nil
-}
-
-// GetImageInfo 获取本地镜像详细信息
-// imageName: 镜像名称
-// 返回: 镜像信息和错误信息
-func (dm *DockerManager) GetImageInfo(imageName string) (*ImageInfo, error) {
-	imageInspect, err := dm.client.ImageInspect(dm.ctx, imageName)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ImageInfo{
-		ID:      imageInspect.ID,
-		Tags:    imageInspect.RepoTags,
-		Size:    imageInspect.Size,
-		Created: imageInspect.Created,
-	}, nil
-}
-
-// ImageInfo 镜像信息结构体
-type ImageInfo struct {
-	ID      string   `json:"id"`      // 镜像ID
-	Tags    []string `json:"tags"`    // 镜像标签
-	Size    int64    `json:"size"`    // 镜像大小
-	Created string   `json:"created"` // 创建时间
-}
-
-// RemoveOldImage 删除旧版本镜像
-// imageName: 镜像名称
-// keepLatest: 是否保留最新版本
-// 返回: 错误信息
-func (dm *DockerManager) RemoveOldImage(imageName string, keepLatest bool) error {
-	if !keepLatest {
-		// 删除指定镜像
-		_, err := dm.client.ImageRemove(dm.ctx, imageName, image.RemoveOptions{
-			Force:         true,
-			PruneChildren: true,
-		})
-		if err != nil {
-			return fmt.Errorf("删除镜像失败: %v", err)
-		}
-		utils.Info("镜像已删除", zap.String("image", imageName))
-	} else {
-		utils.Debug("保留最新镜像，跳过删除")
-	}
-
-	return nil
-}
-
-// GetContainersByImage 获取使用指定镜像的所有容器
-// imageName: 镜像名称
-// 返回: 容器信息列表和错误信息
-func (dm *DockerManager) GetContainersByImage(imageName string) ([]ContainerInfo, error) {
-	containers, err := dm.client.ContainerList(dm.ctx, container.ListOptions{
-		All: true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("获取容器列表失败: %v", err)
-	}
-
-	var result []ContainerInfo
-	for _, c := range containers {
-		if c.Image == imageName {
-			result = append(result, ContainerInfo{
-				ID:     c.ID,
-				Name:   c.Names[0],
-				Image:  c.Image,
-				Status: c.Status,
-				State:  c.State,
-			})
-		}
-	}
-
-	return result, nil
-}
-
-// ContainerInfo 容器信息结构体
-type ContainerInfo struct {
-	ID     string `json:"id"`     // 容器ID
-	Name   string `json:"name"`   // 容器名称
-	Image  string `json:"image"`  // 镜像名称
-	Status string `json:"status"` // 容器状态
-	State  string `json:"state"`  // 容器状态
-}
-
-// GetImageHistory 获取镜像历史信息
-// imageName: 镜像名称
-// 返回: 历史信息和错误信息
-func (dm *DockerManager) GetImageHistory(imageName string) ([]ImageHistoryEntry, error) {
-	history, err := dm.client.ImageHistory(dm.ctx, imageName)
-	if err != nil {
-		return nil, fmt.Errorf("获取镜像历史失败: %v", err)
-	}
-
-	var result []ImageHistoryEntry
-	for _, h := range history {
-		result = append(result, ImageHistoryEntry{
-			ID:        h.ID,
-			Created:   h.Created,
-			CreatedBy: h.CreatedBy,
-			Size:      h.Size,
-			Comment:   h.Comment,
-		})
-	}
-
-	return result, nil
-}
-
-// ImageHistoryEntry 镜像历史条目
-type ImageHistoryEntry struct {
-	ID        string `json:"id"`         // 层ID
-	Created   int64  `json:"created"`    // 创建时间
-	CreatedBy string `json:"created_by"` // 创建命令
-	Size      int64  `json:"size"`       // 层大小
-	Comment   string `json:"comment"`    // 注释
 }
 
 // parseSizeString 解析大小字符串

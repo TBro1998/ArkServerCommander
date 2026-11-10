@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -123,25 +122,4 @@ func ValidateINIContent(content string) error {
 	}
 
 	return nil
-}
-
-// GetServerConfigPath 获取服务器配置文件目录路径
-func GetServerConfigPath(serverID uint) string {
-	serverFolder := GetServerFolderPath(serverID)
-	return filepath.Join(serverFolder, ConfigDirectory)
-}
-
-// GetConfigFilePath 获取配置文件的完整路径
-func GetConfigFilePath(serverID uint, fileName string) string {
-	configPath := GetServerConfigPath(serverID)
-	return filepath.Join(configPath, fileName)
-}
-
-// GenerateGameModIdsEnv 生成GameModIds环境变量
-// 如果GameModIds为空，返回空字符串
-func GenerateGameModIdsEnv(gameModIds string) string {
-	if gameModIds == "" {
-		return ""
-	}
-	return gameModIds
 }
