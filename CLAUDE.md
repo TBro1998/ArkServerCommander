@@ -55,6 +55,7 @@ docker-compose down            # 停止
 - `DB_PATH`：数据库路径（代码默认 `ark_server.db`，镜像内为 `/data/ark_server.db`）
 - `SERVER_PORT`：后端端口（默认 `8080`；容器内由入口脚本固定为 `8081`，`.env` 中的值被忽略）
 - `LISTEN_HOST`：监听地址（默认 `127.0.0.1`；容器内固定为 `127.0.0.1`）
+- `CONTAINER_TZ`：ARK 服务器容器的时区（默认 `Asia/Shanghai`），只对新建或重建的容器生效
 - `CORS_ALLOWED_ORIGINS`：跨域来源白名单，逗号分隔；为空表示仅同源
 - `GIN_MODE`、`LOG_LEVEL`、`LOG_FORMAT`：Gin 模式和日志配置
 
@@ -134,14 +135,14 @@ docker-compose down            # 停止
 ### 服务器生命周期
 
 1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建两个卷并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷（`committed` 标记）
-2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；如果 `SERVER_ARGS`、`GameModIds` 与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
-3. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（前端暂未使用）
+2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；如果 `SERVER_ARGS`、`GameModIds` 与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
+3. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（服务器卡片上有重建按钮）
 4. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，**不会删除 Docker 卷**，数据会保留在卷中
 
 ### 镜像更新
 
 1. **检查更新**：`CheckImageUpdate` 用 `DistributionInspect` 取镜像仓库中该标签的 manifest digest，与本地镜像的 `RepoDigests` 比较，不下载镜像层。结果记录在内存中，由 `/images/status` 的 `has_update` 返回，拉取成功后清除。本地构建、没有 `RepoDigests` 的镜像会一直显示有更新
-2. **更新**：先用 `ClaimPull` 原子占用拉取权（并发请求返回 409），再后台拉取新镜像，失败原因记录在镜像状态的 `error` 字段并显示在首页，拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
+2. **更新**：先用 `ClaimPull` 原子占用拉取权（并发请求返回 409），再后台拉取新镜像，失败原因记录在镜像状态的 `error` 字段并显示在首页；拉取成功且镜像 ID 变化时会清理被替换的旧镜像（不强删，仍被容器引用时只记日志），拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
 3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记
 
 ### 配置文件
@@ -183,10 +184,11 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 容器重建后首次启动要重新校验服务端文件并下载 Mod，原因见"Docker 集成"
 - `npm audit` 有来自 ESLint 依赖链（`minimatch`）的中等级别告警，仅影响开发期
 - 删除服务器不会清理 Docker 卷，需要手动 `docker volume rm`
-- 入口脚本仍没有 `exec` 和 `trap`，`docker stop` 的 SIGTERM 到不了游戏进程，只靠停服前的 `SaveWorld` 兜底，超时后仍会被 SIGKILL
-- 容器时区写死为 `Asia/Shanghai`；`GetImageStatus` 的 `overall_status` 是中文文案，`can_create_server` 恒为 true
-- `GetServers` 对每台服务器做多次 `ContainerInspect`，服务器多时会变慢
-- 前端没有重建容器的入口，后端 `/servers/:id/recreate` 已就绪
+- 入口脚本已转发 SIGTERM，但游戏进程能否在 `docker stop` 的 30 秒内完成存档，没有在真实环境验证过，停服前的 `SaveWorld` 继续保留
+- 管理员密码仍然出现在容器环境变量 `SERVER_ARGS` 和容器启动命令里，`docker inspect` 能看到
+- 游戏本体在容器层里，每台服务器各一份，磁盘占用大；Mod 只在首次启动时下载，之后不会更新
+- 默认 Game.ini 模板里的倍率类 key（如 `XPMultiplier`、`TamingSpeedMultiplier`）可能应该放在 GameUserSettings.ini 的 `[ServerSettings]` 下，未验证
+- `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`），`can_create_server` 取决于 alpine 镜像是否就绪
 
 ## 故障排除
 
