@@ -88,7 +88,7 @@ docker-compose down            # 停止
 - `config/`：环境变量读取，JWT 密钥加载（环境变量优先，否则读取或生成 `jwt_secret` 文件）
 - `controllers/{auth,servers,images}/`：请求处理。`servers/errors.go` 的 `respondServiceError` 用 `errors.Is` 把服务层错误映射为 404、400、500
 - `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单
-- `service/docker_manager/`：容器、镜像、卷操作和 `RollbackManager`（LIFO 回滚栈）
+- `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）和 `docker_rcon.go`（容器内执行 RCON 命令）
 - `middleware/`：`auth.go`（JWT 校验）、`cors.go`（白名单 CORS）
 - `models/`：GORM 模型 User、Server，以及请求和响应结构。`ServerResponse` 不包含管理员密码，`image_outdated` 表示容器仍在用旧镜像
 - `utils/`：日志、JWT、密码、命名和镜像名常量（`asm_info.go`，`ArkServerImage`）、配置文件模板（`config_files.go`）
@@ -108,6 +108,7 @@ docker-compose down            # 停止
 - `app/api/`：服务端路由。`auth/{login,init,logout}` 处理令牌 cookie；`[...path]` 是通配代理，转发到后端
 - `proxy.ts`：Next 16 中原 `middleware.ts` 的新约定。负责语言 cookie（`NEXT_LOCALE`）和登录重定向
 - `lib/backend-server.ts`：`getApiBase`、令牌 cookie 读写、`authProxy`
+- `lib/api-error.ts`：`getErrorMessage`，优先取后端返回的 `error` 文案；`lib/ini.ts`：`mergeIni`，INI 文本的就地合并
 - `stores/`：Zustand（`auth.ts`、`servers.ts`），HTTP 用 Axios
 - `components/ui/`：shadcn/ui 风格基础组件；`components/servers/`：服务器卡片、编辑弹窗、ini 可视化编辑器；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
@@ -132,20 +133,20 @@ docker-compose down            # 停止
 
 ### 服务器生命周期
 
-1. **创建**：事务内写数据库记录并创建两个卷，创建容器；失败时 `defer` 清理已创建的卷（`committed` 标记）
-2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成。启动时如果 `SERVER_ARGS`、`GameModIds` 与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器
-3. **重建**：必要时先停止，删除旧容器，按当前配置创建新容器（`/servers/:id/recreate`，前端暂未使用）
-4. **删除**：运行中拒绝删除；软删除数据库记录并删除容器，**不会删除 Docker 卷**，数据会保留在卷中
+1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建两个卷并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷（`committed` 标记）
+2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；如果 `SERVER_ARGS`、`GameModIds` 与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
+3. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（前端暂未使用）
+4. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，**不会删除 Docker 卷**，数据会保留在卷中
 
 ### 镜像更新
 
 1. **检查更新**：`CheckImageUpdate` 用 `DistributionInspect` 取镜像仓库中该标签的 manifest digest，与本地镜像的 `RepoDigests` 比较，不下载镜像层。结果记录在内存中，由 `/images/status` 的 `has_update` 返回，拉取成功后清除。本地构建、没有 `RepoDigests` 的镜像会一直显示有更新
-2. **更新**：后台拉取新镜像，拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
+2. **更新**：先用 `ClaimPull` 原子占用拉取权（并发请求返回 409），再后台拉取新镜像，失败原因记录在镜像状态的 `error` 字段并显示在首页，拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
 3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记
 
 ### 配置文件
 
-GameUserSettings.ini 和 Game.ini 不存数据库，而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 通过临时 `alpine:latest` 容器挂载数据卷来读写。所以 `alpine:latest` 也是必需镜像。前端的可视化编辑器（`GameUserSettingsEditor`、`GameIniEditor`）和文本模式互相同步。
+GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 创建一个挂载数据卷、不启动的临时 `alpine:latest` 容器，读用 `CopyFromContainer`，写用 `CopyToContainer`（tar 写入，不经过 shell）。所以 `alpine:latest` 也是必需镜像。服务器未停止时保存的配置先存入 `pending_game_user_settings` / `pending_game_ini`（ARK 停服时会覆盖 GameUserSettings.ini），下次启动或重建前写入数据卷，响应里 `config_pending` 为 true。前端的可视化编辑器（`GameUserSettingsEditor`、`GameIniEditor`）和文本模式互相同步，可视化修改通过 `lib/ini.ts` 的 `mergeIni` 在原文本上就地合并，只写入改过的键，未知键、注释和自定义 section 原样保留。
 
 ## 开发约定
 
@@ -172,17 +173,20 @@ GameUserSettings.ini 和 Game.ini 不存数据库，而是直接保存在数据�
 
 ## 测试
 
-测试覆盖率很低，目前只有 `server/service/docker_manager/rollback_test.go` 和 `server/config/config_test.go`（JWT 密钥生成和复用）。启停竞态、卷清理、镜像更新和前端流程都没有自动化测试。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态，使用临时 SQLite）。启停流程、RCON、配置暂存、卷清理和前端流程都没有自动化测试。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 
-- 前端新建表单的 RCON 默认端口是 27020，后端模型默认值是 32330，两者不一致
 - `proxy.ts` 在缺少 `NEXT_LOCALE` cookie 时会在登录检查之前直接放行
 - 登录接口没有限流，`InitUser` 存在并发创建管理员的竞态
 - 编辑服务器时不处理 `auto_restart`，前端也不提供这个开关，容器重启策略始终是 `unless-stopped`
 - 容器重建后首次启动要重新校验服务端文件并下载 Mod，原因见"Docker 集成"
 - `npm audit` 有来自 ESLint 依赖链（`minimatch`）的中等级别告警，仅影响开发期
 - 删除服务器不会清理 Docker 卷，需要手动 `docker volume rm`
+- 入口脚本仍没有 `exec` 和 `trap`，`docker stop` 的 SIGTERM 到不了游戏进程，只靠停服前的 `SaveWorld` 兜底，超时后仍会被 SIGKILL
+- 容器时区写死为 `Asia/Shanghai`；`GetImageStatus` 的 `overall_status` 是中文文案，`can_create_server` 恒为 true
+- `GetServers` 对每台服务器做多次 `ContainerInspect`，服务器多时会变慢
+- 前端没有重建容器的入口，后端 `/servers/:id/recreate` 已就绪
 
 ## 故障排除
 
