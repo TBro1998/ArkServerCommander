@@ -14,15 +14,15 @@ export default function ProtectedLayout({
   const router = useRouter();
   const isAuthenticated = useIsAuthenticated();
   const isInitialized = useAuthIsInitialized();
-  const { initFromStorage, logout } = useAuthActions();
+  const { restoreSession, logout } = useAuthActions();
   const t = useTranslations('navigation');
   const pathname = usePathname();
 
   useEffect(() => {
     if (!isInitialized) {
-      initFromStorage();
+      restoreSession();
     }
-  }, [initFromStorage, isInitialized]);
+  }, [restoreSession, isInitialized]);
 
   useEffect(() => {
     // 只有在初始化完成且未认证时才跳转

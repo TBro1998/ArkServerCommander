@@ -1,8 +1,11 @@
 package main
 
 import (
+	"net"
+
 	"ark-server-commander/config"
 	"ark-server-commander/database"
+	"ark-server-commander/middleware"
 	"ark-server-commander/routes"
 	"ark-server-commander/service/docker_manager"
 	"ark-server-commander/utils"
@@ -79,21 +82,8 @@ func main() {
 	// 创建Gin实例
 	r := gin.Default()
 
-	// 最简单的CORS解决方案 - 允许所有来源（仅开发环境）
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
-		c.Header("Access-Control-Allow-Credentials", "true")
-
-		// 处理预检请求
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	})
+	// CORS：默认仅同源，通过 CORS_ALLOWED_ORIGINS 配置白名单
+	r.Use(middleware.CORS(config.CORSAllowedOrigins))
 
 	// 注册路由
 	routes.RegisterRoutes(r)
@@ -104,17 +94,18 @@ func main() {
 	// 启动服务器
 	utils.Info("=========================================")
 	utils.Info("🚀 ARK服务器管理器后端启动成功")
-	utils.Info("📍 服务器地址: http://localhost:8080")
-	utils.Info("📚 API文档: http://localhost:8080/swagger/index.html")
-	utils.Info("🔗 健康检查: http://localhost:8080/health")
-	utils.Info("🌐 CORS: 已启用（允许所有来源）")
+	addr := net.JoinHostPort(config.ListenHost, config.ServerPort)
+	utils.Infof("📍 服务器地址: http://%s", addr)
+	utils.Infof("📚 API文档: http://%s/swagger/index.html", addr)
+	utils.Infof("🔗 健康检查: http://%s/health", addr)
+	utils.Info("🌐 CORS: 仅允许 CORS_ALLOWED_ORIGINS 白名单来源，未配置时仅同源")
 	utils.Info("🐳 Docker容器化ARK服务器管理")
 	utils.Info("🔄 Docker镜像正在后台检查中...")
 	utils.Info("📋 Docker卷和配置文件初始化完成")
 	utils.Info("📋 服务器状态同步完成")
 	utils.Info("=========================================")
 
-	if err := r.Run(":8080"); err != nil {
+	if err := r.Run(addr); err != nil {
 		utils.Fatal("服务器启动失败", zap.Error(err))
 	}
 }

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import axios from 'axios';
-import Cookies from 'js-cookie';
 
 // 定义服务器对象类型
 export interface Server {
@@ -10,7 +9,7 @@ export interface Server {
     port: number;
     query_port: number;
     rcon_port: number;
-    admin_password: string;
+    admin_password?: string;
     map: string;
     max_players: number;
     game_user_settings?: string;
@@ -61,22 +60,12 @@ interface ServersActions {
     updateServer: (serverId: string, updateData: Partial<Server>) => Promise<Server>;
     deleteServer: (serverId: string) => Promise<void>;
     getServer: (serverId: string) => Promise<Server>;
+    getServerPassword: (serverId: string) => Promise<string>;
     getImageStatus: () => Promise<void>;
     startServer: (serverId: string) => Promise<void>;
     stopServer: (serverId: string) => Promise<void>;
     updateServerStatus: (serverId: string, status: Server['status']) => void;
 }
-
-const getAuthHeaders = () => {
-    const token = Cookies.get('auth-token');
-    if (!token) {
-        throw new Error('未找到认证token');
-    }
-    return {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-    };
-};
 
 const useServersStore = create<ServersState>((set, get) => ({
     servers: [],
@@ -88,7 +77,7 @@ const useServersStore = create<ServersState>((set, get) => ({
             if (get().isLoading) return;
             set({ isLoading: true, error: null });
             try {
-                const response = await axios.get('/api/servers', { headers: getAuthHeaders() });
+                const response = await axios.get('/api/servers');
                 set({ servers: response.data.data || [] });
             } catch (error) {
                 set({ error: '获取服务器列表失败' });
@@ -99,7 +88,7 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         createServer: async (serverData) => {
             try {
-                const response = await axios.post('/api/servers', serverData, { headers: getAuthHeaders() });
+                const response = await axios.post('/api/servers', serverData);
                 const newServer = response.data.data;
                 set((state) => ({ servers: [...state.servers, newServer] }));
                 return newServer;
@@ -110,7 +99,7 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         updateServer: async (serverId, updateData) => {
             try {
-                const response = await axios.put(`/api/servers/${serverId}`, updateData, { headers: getAuthHeaders() });
+                const response = await axios.put(`/api/servers/${serverId}`, updateData);
                 const updatedServer = response.data.data;
                 set((state) => ({
                     servers: state.servers.map((s) => (s.id === serverId ? updatedServer : s)),
@@ -123,7 +112,7 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         deleteServer: async (serverId) => {
             try {
-                await axios.delete(`/api/servers/${serverId}`, { headers: getAuthHeaders() });
+                await axios.delete(`/api/servers/${serverId}`);
                 set((state) => ({
                     servers: state.servers.filter((s) => s.id !== serverId),
                 }));
@@ -134,10 +123,19 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         getServer: async (serverId) => {
             try {
-                const response = await axios.get(`/api/servers/${serverId}`, { headers: getAuthHeaders() });
+                const response = await axios.get(`/api/servers/${serverId}`);
                 return response.data.data;
             } catch (error) {
                 set({ error: '获取服务器信息失败' });
+                throw error;
+            }
+        },
+        getServerPassword: async (serverId) => {
+            try {
+                const response = await axios.get(`/api/servers/${serverId}/rcon`);
+                return response.data.data.admin_password;
+            } catch (error) {
+                set({ error: '获取管理员密码失败' });
                 throw error;
             }
         },
@@ -146,7 +144,7 @@ const useServersStore = create<ServersState>((set, get) => ({
 
             set({ isLoading: true, error: null });
             try {
-                const response = await axios.get('/api/images/status', { headers: getAuthHeaders() });
+                const response = await axios.get('/api/images/status');
                 set({ imageStatus: response.data.data });
             } catch (error) {
                 set({ error: '获取镜像状态失败' });
@@ -157,7 +155,7 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         startServer: async (serverId) => {
             try {
-                await axios.post(`/api/servers/${serverId}/start`, {}, { headers: getAuthHeaders() });
+                await axios.post(`/api/servers/${serverId}/start`, {});
                 get().actions.updateServerStatus(serverId, 'starting');
                 setTimeout(() => get().actions.updateServerStatus(serverId, 'running'), 3000);
             } catch (error) {
@@ -167,7 +165,7 @@ const useServersStore = create<ServersState>((set, get) => ({
         },
         stopServer: async (serverId) => {
             try {
-                await axios.post(`/api/servers/${serverId}/stop`, {}, { headers: getAuthHeaders() });
+                await axios.post(`/api/servers/${serverId}/stop`, {});
                 get().actions.updateServerStatus(serverId, 'stopping');
                 setTimeout(() => get().actions.updateServerStatus(serverId, 'stopped'), 2000);
             } catch (error) {

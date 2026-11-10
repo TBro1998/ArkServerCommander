@@ -10,6 +10,12 @@ var (
 	JWTSecret  []byte
 	DBPath     = "ark_server.db"
 	ServerPort = "8080"
+
+	// ListenHost 监听地址，默认仅本机回环；容器内由 docker-entrypoint.sh 指定
+	ListenHost = "127.0.0.1"
+
+	// CORSAllowedOrigins 允许跨域的来源白名单，为空时仅同源访问
+	CORSAllowedOrigins []string
 )
 
 // 弱密钥黑名单
@@ -52,6 +58,14 @@ func InitConfig() error {
 
 	if port := os.Getenv("SERVER_PORT"); port != "" {
 		ServerPort = port
+	}
+
+	if host := os.Getenv("LISTEN_HOST"); host != "" {
+		ListenHost = host
+	}
+
+	if origins := os.Getenv("CORS_ALLOWED_ORIGINS"); origins != "" {
+		CORSAllowedOrigins = strings.Split(origins, ",")
 	}
 
 	return nil

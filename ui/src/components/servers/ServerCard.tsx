@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Server } from '@/stores/servers';
+import { Server, serversActions } from '@/stores/servers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,8 @@ export function ServerCard({
 }: ServerCardProps) {
   const t = useTranslations('servers');
   const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState<string | null>(null);
+  const [loadingPassword, setLoadingPassword] = useState(false);
 
   // 获取地图的显示名称（翻译名称或原始名称）
   const getMapDisplayName = (mapName: string) => {
@@ -69,9 +71,37 @@ export function ServerCard({
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    // You might want to add a toast notification here
+  // 密码不再随列表返回，显示或复制时按需请求，且不做缓存
+  const fetchPassword = async (): Promise<string | null> => {
+    setLoadingPassword(true);
+    try {
+      return await serversActions.getServerPassword(server.id);
+    } catch {
+      return null;
+    } finally {
+      setLoadingPassword(false);
+    }
+  };
+
+  const togglePassword = async () => {
+    if (showPassword) {
+      setShowPassword(false);
+      setPassword(null);
+      return;
+    }
+    const value = await fetchPassword();
+    if (value !== null) {
+      setPassword(value);
+      setShowPassword(true);
+    }
+  };
+
+  const copyPassword = async () => {
+    const value = await fetchPassword();
+    if (value !== null) {
+      navigator.clipboard.writeText(value);
+      // You might want to add a toast notification here
+    }
   };
 
   const StartStopButton = () => {
@@ -218,13 +248,14 @@ export function ServerCard({
             </div>
             <div className="flex items-center gap-1">
               <span className="font-mono text-xs">
-                {showPassword ? server.admin_password : '••••••••'}
+                {showPassword && password !== null ? password : '••••••••'}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={togglePassword}
+                disabled={loadingPassword}
               >
                 {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </Button>
@@ -232,7 +263,8 @@ export function ServerCard({
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0"
-                onClick={() => copyToClipboard(server.admin_password)}
+                onClick={copyPassword}
+                disabled={loadingPassword}
               >
                 <Copy className="h-3 w-3" />
               </Button>

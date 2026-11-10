@@ -8,13 +8,13 @@ export default function HomePage() {
   const router = useRouter();
   const isAuthenticated = useIsAuthenticated();
   const isInitialized = useAuthIsInitialized();
-  const { initFromStorage } = useAuthActions();
+  const { restoreSession } = useAuthActions();
 
   useEffect(() => {
     if (!isInitialized) {
-      initFromStorage();
+      restoreSession();
     }
-  }, [initFromStorage, isInitialized]);
+  }, [restoreSession, isInitialized]);
 
   useEffect(() => {
     // 只有在初始化完成后才进行跳转
