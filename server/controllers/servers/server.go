@@ -27,7 +27,7 @@ func GetServers(c *gin.Context) {
 
 	serverResponses, err := serverService.GetServers(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -61,7 +61,7 @@ func CreateServer(c *gin.Context) {
 
 	response, err := serverService.CreateServer(userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -90,15 +90,7 @@ func GetServer(c *gin.Context) {
 
 	response, err := serverService.GetServer(userID, serverID)
 	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -127,15 +119,7 @@ func GetServerRCON(c *gin.Context) {
 
 	data, err := serverService.GetServerRCON(userID, serverID)
 	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -172,19 +156,7 @@ func UpdateServer(c *gin.Context) {
 
 	response, argsChanged, err := serverService.UpdateServer(userID, serverID, req)
 	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器标识已存在" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -221,19 +193,7 @@ func DeleteServer(c *gin.Context) {
 
 	err := serverService.DeleteServer(userID, serverID)
 	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "无法删除正在运行的服务器，请先停止服务器" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -262,19 +222,7 @@ func StartServer(c *gin.Context) {
 
 	err := serverService.StartServer(userID, serverID)
 	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器已在运行中" || err.Error() == "服务器正在启动中" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -303,19 +251,7 @@ func StopServer(c *gin.Context) {
 
 	err := serverService.StopServer(userID, serverID)
 	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器已经停止" || err.Error() == "服务器正在停止中" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 
@@ -344,15 +280,7 @@ func RecreateContainer(c *gin.Context) {
 
 	err := serverService.RecreateContainer(userID, serverID)
 	if err != nil {
-		if err.Error() == "无效的服务器ID" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err.Error() == "服务器不存在" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondServiceError(c, err)
 		return
 	}
 

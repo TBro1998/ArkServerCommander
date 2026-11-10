@@ -62,22 +62,21 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 		}
 
 		serverResponses = append(serverResponses, models.ServerResponse{
-			ID:            server.ID,
-			Identifier:    server.Identifier,
-			SessionName:   server.SessionName,
-			ClusterID:     server.ClusterID,
-			Port:          server.Port,
-			QueryPort:     server.QueryPort,
-			RCONPort:      server.RCONPort,
-			AdminPassword: server.AdminPassword,
-			Map:           server.Map,
-			MaxPlayers:    server.MaxPlayers,
-			GameModIds:    server.GameModIds,
-			Status:        realTimeStatus,
-			AutoRestart:   server.AutoRestart,
-			UserID:        server.UserID,
-			CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
+			ID:          server.ID,
+			Identifier:  server.Identifier,
+			SessionName: server.SessionName,
+			ClusterID:   server.ClusterID,
+			Port:        server.Port,
+			QueryPort:   server.QueryPort,
+			RCONPort:    server.RCONPort,
+			Map:         server.Map,
+			MaxPlayers:  server.MaxPlayers,
+			GameModIds:  server.GameModIds,
+			Status:      realTimeStatus,
+			AutoRestart: server.AutoRestart,
+			UserID:      server.UserID,
+			CreatedAt:   server.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   server.UpdatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
@@ -89,7 +88,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	// 检查服务器标识是否已存在
 	var existingServer models.Server
 	if err := database.DB.Where("identifier = ? AND user_id = ?", req.Identifier, userID).First(&existingServer).Error; err == nil {
-		return nil, fmt.Errorf("服务器标识已存在")
+		return nil, ErrIdentifierExists
 	}
 
 	// 设置默认值
@@ -150,11 +149,21 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
 	}
 
-	volumeName, err := dockerManager.CreateVolume(server.ID)
-	if err != nil {
+	if err := dockerManager.CreateVolume(server.ID); err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("创建Docker卷失败: %w", err)
 	}
+
+	// 卷创建之后，只要事务没有提交成功，就清理已创建的卷，避免泄漏
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		if err := dockerManager.RemoveVolume(server.ID); err != nil {
+			utils.Warn("创建服务器失败后清理Docker卷失败", zap.Uint("server_id", server.ID), zap.Error(err))
+		}
+	}()
 
 	// 处理配置文件
 	var gameUserSettings string
@@ -193,27 +202,26 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
-		dockerManager.RemoveVolume(volumeName)
 		return nil, fmt.Errorf("数据库提交失败: %w", err)
 	}
+	committed = true
 
 	// 构建响应
 	response := models.ServerResponse{
-		ID:            server.ID,
-		Identifier:    server.Identifier,
-		SessionName:   server.SessionName,
-		ClusterID:     server.ClusterID,
-		Port:          server.Port,
-		QueryPort:     server.QueryPort,
-		RCONPort:      server.RCONPort,
-		AdminPassword: server.AdminPassword,
-		Map:           server.Map,
-		GameModIds:    server.GameModIds,
-		Status:        server.Status,
-		AutoRestart:   server.AutoRestart,
-		UserID:        server.UserID,
-		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ID:          server.ID,
+		Identifier:  server.Identifier,
+		SessionName: server.SessionName,
+		ClusterID:   server.ClusterID,
+		Port:        server.Port,
+		QueryPort:   server.QueryPort,
+		RCONPort:    server.RCONPort,
+		Map:         server.Map,
+		GameModIds:  server.GameModIds,
+		Status:      server.Status,
+		AutoRestart: server.AutoRestart,
+		UserID:      server.UserID,
+		CreatedAt:   server.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   server.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
 	// 读取配置文件内容
@@ -231,12 +239,12 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 func (s *ServerService) GetServer(userID uint, serverID string) (*models.ServerResponse, error) {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("无效的服务器ID")
+		return nil, ErrInvalidServerID
 	}
 
 	var server models.Server
 	if err = database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return nil, fmt.Errorf("服务器不存在")
+		return nil, ErrServerNotFound
 	}
 
 	// 解析启动参数
@@ -258,7 +266,6 @@ func (s *ServerService) GetServer(userID uint, serverID string) (*models.ServerR
 		Port:          server.Port,
 		QueryPort:     server.QueryPort,
 		RCONPort:      server.RCONPort,
-		AdminPassword: server.AdminPassword,
 		Map:           server.Map,
 		MaxPlayers:    server.MaxPlayers,
 		GameModIds:    server.GameModIds,
@@ -291,12 +298,12 @@ func (s *ServerService) GetServer(userID uint, serverID string) (*models.ServerR
 func (s *ServerService) GetServerRCON(userID uint, serverID string) (map[string]interface{}, error) {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("无效的服务器ID")
+		return nil, ErrInvalidServerID
 	}
 
 	var server models.Server
 	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return nil, fmt.Errorf("服务器不存在")
+		return nil, ErrServerNotFound
 	}
 
 	return map[string]interface{}{
@@ -311,19 +318,19 @@ func (s *ServerService) GetServerRCON(userID uint, serverID string) (map[string]
 func (s *ServerService) UpdateServer(userID uint, serverID string, req models.ServerUpdateRequest) (*models.ServerResponse, bool, error) {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
-		return nil, false, fmt.Errorf("无效的服务器ID")
+		return nil, false, ErrInvalidServerID
 	}
 
 	var server models.Server
 	if err = database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return nil, false, fmt.Errorf("服务器不存在")
+		return nil, false, ErrServerNotFound
 	}
 
 	// 检查标识是否冲突
 	if req.Identifier != "" && req.Identifier != server.Identifier {
 		var existingServer models.Server
 		if err = database.DB.Where("identifier = ? AND user_id = ? AND id != ?", req.Identifier, userID, id).First(&existingServer).Error; err == nil {
-			return nil, false, fmt.Errorf("服务器标识已存在")
+			return nil, false, ErrIdentifierExists
 		}
 		server.Identifier = req.Identifier
 	}
@@ -403,23 +410,22 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 
 	// 构建响应
 	response := models.ServerResponse{
-		ID:            server.ID,
-		Identifier:    server.Identifier,
-		SessionName:   server.SessionName,
-		ClusterID:     server.ClusterID,
-		Port:          server.Port,
-		QueryPort:     server.QueryPort,
-		RCONPort:      server.RCONPort,
-		AdminPassword: server.AdminPassword,
-		Map:           server.Map,
-		MaxPlayers:    server.MaxPlayers,
-		GameModIds:    server.GameModIds,
-		Status:        server.Status,
-		AutoRestart:   server.AutoRestart,
-		UserID:        server.UserID,
-		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
-		ServerArgs:    models.FromServer(server),
+		ID:          server.ID,
+		Identifier:  server.Identifier,
+		SessionName: server.SessionName,
+		ClusterID:   server.ClusterID,
+		Port:        server.Port,
+		QueryPort:   server.QueryPort,
+		RCONPort:    server.RCONPort,
+		Map:         server.Map,
+		MaxPlayers:  server.MaxPlayers,
+		GameModIds:  server.GameModIds,
+		Status:      server.Status,
+		AutoRestart: server.AutoRestart,
+		UserID:      server.UserID,
+		CreatedAt:   server.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   server.UpdatedAt.Format("2006-01-02 15:04:05"),
+		ServerArgs:  models.FromServer(server),
 	}
 
 	// 读取配置文件内容
@@ -442,16 +448,16 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 func (s *ServerService) DeleteServer(userID uint, serverID string) error {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
-		return fmt.Errorf("无效的服务器ID")
+		return ErrInvalidServerID
 	}
 
 	var server models.Server
 	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return fmt.Errorf("服务器不存在")
+		return ErrServerNotFound
 	}
 
 	if server.Status == "running" {
-		return fmt.Errorf("无法删除正在运行的服务器，请先停止服务器")
+		return ErrServerRunning
 	}
 
 	// 软删除服务器
@@ -478,31 +484,49 @@ func (s *ServerService) DeleteServer(userID uint, serverID string) error {
 	return nil
 }
 
+// transitionStatus 原子地把服务器状态切换为 to，仅当当前状态不在 blocked 中时才会成功。
+// 返回 false 表示当前状态不允许切换，或已被并发请求抢先切换。
+func transitionStatus(serverID uint, blocked []string, to string) (bool, error) {
+	res := database.DB.Model(&models.Server{}).
+		Where("id = ? AND status NOT IN ?", serverID, blocked).
+		Update("status", to)
+	return res.RowsAffected > 0, res.Error
+}
+
 // StartServer 启动服务器
 func (s *ServerService) StartServer(userID uint, serverID string) error {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
-		return fmt.Errorf("无效的服务器ID")
+		return ErrInvalidServerID
 	}
 
 	var server models.Server
 	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return fmt.Errorf("服务器不存在")
+		return ErrServerNotFound
 	}
 
 	if server.Status == "running" {
-		return fmt.Errorf("服务器已在运行中")
+		return ErrAlreadyRunning
 	}
 
 	if server.Status == "starting" {
-		return fmt.Errorf("服务器正在启动中")
+		return ErrAlreadyStarting
 	}
 
-	// 更新服务器状态为启动中
-	server.Status = "starting"
-	if err := database.DB.Save(&server).Error; err != nil {
+	// 原子地切换为启动中，避免并发请求重复启动
+	ok, err := transitionStatus(server.ID, []string{"running", "starting"}, "starting")
+	if err != nil {
 		return fmt.Errorf("更新服务器状态失败: %w", err)
 	}
+	if !ok {
+		// 被并发请求抢先，重新读取状态以返回准确的错误
+		var latest models.Server
+		if err := database.DB.Select("status").First(&latest, server.ID).Error; err == nil && latest.Status == "running" {
+			return ErrAlreadyRunning
+		}
+		return ErrAlreadyStarting
+	}
+	server.Status = "starting"
 
 	// 启动Docker容器
 	dockerManager, err := docker_manager.GetDockerManager()
@@ -619,27 +643,36 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 func (s *ServerService) StopServer(userID uint, serverID string) error {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
-		return fmt.Errorf("无效的服务器ID")
+		return ErrInvalidServerID
 	}
 
 	var server models.Server
 	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return fmt.Errorf("服务器不存在")
+		return ErrServerNotFound
 	}
 
 	if server.Status == "stopped" {
-		return fmt.Errorf("服务器已经停止")
+		return ErrAlreadyStopped
 	}
 
 	if server.Status == "stopping" {
-		return fmt.Errorf("服务器正在停止中")
+		return ErrAlreadyStopping
 	}
 
-	// 更新服务器状态为停止中
-	server.Status = "stopping"
-	if err := database.DB.Save(&server).Error; err != nil {
+	// 原子地切换为停止中，避免并发请求重复停止
+	ok, err := transitionStatus(server.ID, []string{"stopped", "stopping"}, "stopping")
+	if err != nil {
 		return fmt.Errorf("更新服务器状态失败: %w", err)
 	}
+	if !ok {
+		// 被并发请求抢先，重新读取状态以返回准确的错误
+		var latest models.Server
+		if err := database.DB.Select("status").First(&latest, server.ID).Error; err == nil && latest.Status == "stopped" {
+			return ErrAlreadyStopped
+		}
+		return ErrAlreadyStopping
+	}
+	server.Status = "stopping"
 
 	// 停止Docker容器
 	dockerManager, err := docker_manager.GetDockerManager()
@@ -833,12 +866,12 @@ func (s *ServerService) GetAffectedServers(imageName string, userID uint) ([]mod
 func (s *ServerService) RecreateContainer(userID uint, serverID string) error {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
-		return fmt.Errorf("无效的服务器ID")
+		return ErrInvalidServerID
 	}
 
 	var server models.Server
 	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
-		return fmt.Errorf("服务器不存在")
+		return ErrServerNotFound
 	}
 
 	// 检查服务器状态，如果正在运行则先停止

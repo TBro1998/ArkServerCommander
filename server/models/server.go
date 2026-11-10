@@ -49,22 +49,21 @@ type ServerRequest struct {
 }
 
 type ServerResponse struct {
-	ID            uint   `json:"id"`
-	Identifier    string `json:"identifier"`
-	SessionName   string `json:"session_name"` // 服务器名称
-	ClusterID     string `json:"cluster_id"`   // 集群ID
-	Port          int    `json:"port"`
-	QueryPort     int    `json:"query_port"`
-	RCONPort      int    `json:"rcon_port"`
-	AdminPassword string `json:"admin_password"`
-	Map           string `json:"map"`
-	MaxPlayers    int    `json:"max_players"` // 最大玩家数
-	GameModIds    string `json:"game_mod_ids"`
-	Status        string `json:"status"`
-	AutoRestart   bool   `json:"auto_restart"`
-	UserID        uint   `json:"user_id"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID          uint   `json:"id"`
+	Identifier  string `json:"identifier"`
+	SessionName string `json:"session_name"` // 服务器名称
+	ClusterID   string `json:"cluster_id"`   // 集群ID
+	Port        int    `json:"port"`
+	QueryPort   int    `json:"query_port"`
+	RCONPort    int    `json:"rcon_port"`
+	Map         string `json:"map"`
+	MaxPlayers  int    `json:"max_players"` // 最大玩家数
+	GameModIds  string `json:"game_mod_ids"`
+	Status      string `json:"status"`
+	AutoRestart bool   `json:"auto_restart"`
+	UserID      uint   `json:"user_id"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 	// 配置文件内容
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
