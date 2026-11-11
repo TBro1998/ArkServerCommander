@@ -22,20 +22,20 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Log in to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         username: ${{ env.REGISTRY }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Extract metadata
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
@@ -44,7 +44,7 @@ jobs:
 
     - name: Build and push Docker image
       id: build
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: .
         platforms: linux/amd64
@@ -58,7 +58,7 @@ jobs:
     # For Docker Hub, this step is optional and may cause authentication issues
     # Uncomment the following lines if you want to enable attestation for GHCR
     # - name: Generate artifact attestation
-    #   uses: actions/attest-build-provenance@v1
+    #   uses: actions/attest-build-provenance@v4
     #   with:
     #     subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     #     subject-digest: ${{ steps.build.outputs.digest }}
@@ -73,7 +73,7 @@ jobs:
 
     steps:
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         name: ${{ github.ref_name }}
         # 由 GitHub 根据上一个 Release 到本 tag 之间的合并 PR 生成 "What's Changed"
