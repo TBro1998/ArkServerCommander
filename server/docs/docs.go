@@ -50,59 +50,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/init": {
-            "post": {
-                "description": "创建第一个管理员用户，只能在系统未初始化时调用",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "认证"
-                ],
-                "summary": "初始化系统用户",
-                "parameters": [
-                    {
-                        "description": "用户信息",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.UserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "初始化成功",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "请求错误",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "服务器错误",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/auth/login": {
             "post": {
                 "description": "使用用户名和密码登录系统",
@@ -155,6 +102,57 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "校验当前密码后设置新密码（8 到 72 字节）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "修改登录密码",
+                "parameters": [
+                    {
+                        "description": "当前密码和新密码",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "修改成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误或当前密码错误",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -466,6 +464,46 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/mods": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "根据 Mod ID 查询名称等信息（Steam 公开接口，结果缓存 6 小时）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "查询创意工坊 Mod 信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "逗号分隔的 Mod ID",
+                        "name": "ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mod 信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/server.ModInfo"
+                                }
                             }
                         }
                     }
@@ -804,6 +842,12 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "同时删除服务器的数据卷和备份",
+                        "name": "delete_data",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -849,6 +893,407 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/backups": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "存档备份"
+                ],
+                "summary": "存档备份列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "备份列表，最新的在前",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/server.BackupInfo"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "备份数据卷里的存档和配置文件（不含日志）；运行中的服务器会先保存世界",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "存档备份"
+                ],
+                "summary": "立即备份存档",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "备份信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.BackupInfo"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "正在备份或启停",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/backups/upload": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "上传本系统导出的 .tar.gz 备份（multipart 字段名 file），校验后加入备份列表",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "存档备份"
+                ],
+                "summary": "上传备份文件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "备份文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "备份信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.BackupInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "格式无效",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/backups/{name}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/gzip"
+                ],
+                "tags": [
+                    "存档备份"
+                ],
+                "summary": "下载备份文件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "备份文件名",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "备份文件",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "备份不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "存档备份"
+                ],
+                "summary": "删除备份文件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "备份文件名",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/backups/{name}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "只能在服务器停止时执行：先自动备份当前存档（pre-restore），再用所选备份覆盖存档和配置文件",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "存档备份"
+                ],
+                "summary": "从备份恢复存档",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "备份文件名",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "恢复成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "服务器未停止",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/logs": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回容器最近 tail 行日志（入口脚本、steamcmd 和游戏的标准输出）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "获取服务器日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "行数（默认 500，最多 5000）",
+                        "name": "tail",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "日志行",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/logs/stream": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Server-Sent Events：先发送最近 tail 行，之后持续推送新日志。每条消息的 data 是一行日志；容器停止时发送 end 事件",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "实时跟随服务器日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "先发送的历史行数（默认 200）",
+                        "name": "tail",
+                        "in": "query"
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/servers/{id}/players": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "通过 RCON ListPlayers 获取在线玩家（名称和 SteamID）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "在线玩家列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "玩家列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/server.Player"
+                                }
                             }
                         }
                     }
@@ -910,6 +1355,64 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "服务器不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/rcon/command": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "在运行中的服务器上执行一条 RCON 命令（如 Broadcast、SaveWorld、KickPlayer），返回输出",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "执行 RCON 命令",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "命令",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.RconCommandRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "命令输出",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "服务器未运行或命令无效",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -986,6 +1489,286 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/restart": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "运行中的服务器先保存世界并停止，再按当前配置启动；已停止的直接启动。后台执行",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "重启服务器",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已开始重启",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "服务器不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "服务器正在启停",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/schedules": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "定时任务"
+                ],
+                "summary": "定时任务列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "定时任务",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/models.Schedule"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "action: restart / backup / update / command / start / stop；cron 为 5 段表达式，时区为 CONTAINER_TZ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "定时任务"
+                ],
+                "summary": "新建定时任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "定时任务",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ScheduleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "定时任务",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.Schedule"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/schedules/{scheduleId}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "定时任务"
+                ],
+                "summary": "修改定时任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "定时任务ID",
+                        "name": "scheduleId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "定时任务",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ScheduleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "定时任务",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.Schedule"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "定时任务"
+                ],
+                "summary": "删除定时任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "定时任务ID",
+                        "name": "scheduleId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/schedules/{scheduleId}/run": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "定时任务"
+                ],
+                "summary": "立即执行一次定时任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "定时任务ID",
+                        "name": "scheduleId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已开始执行",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1147,9 +1930,183 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/servers/{id}/update-game": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "清除安装标记后启动服务器（运行中的先停止），入口脚本在启动时用 steamcmd 校验更新游戏本体、重新下载 Mod",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "更新游戏本体和 Mod",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新内容",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.UpdateGameRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已开始更新",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "服务器正在启停",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/system/info": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "玩家连接用的公网地址（PUBLIC_HOST 或自动探测）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "系统信息",
+                "responses": {
+                    "200": {
+                        "description": "系统信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/system/overview": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "服务器数量、运行和可连接数量、在线人数、CPU/内存合计、各服务器磁盘占用、公网地址",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "首页概览",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "强制重新计算磁盘占用（较慢）",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "概览",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.Overview"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/system/suggest-ports": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回第一组与现有服务器不冲突的游戏端口、查询端口和 RCON 端口",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "推荐可用端口",
+                "responses": {
+                    "200": {
+                        "description": "端口",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.SuggestedPorts"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "auth.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "old_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string"
+                },
+                "old_password": {
+                    "type": "string"
+                }
+            }
+        },
         "images.UpdateImageRequest": {
             "type": "object",
             "required": [
@@ -1163,6 +2120,139 @@ const docTemplate = `{
                 "restart_running": {
                     "description": "是否立即重启运行中的服务器以应用新镜像",
                     "type": "boolean"
+                }
+            }
+        },
+        "models.RuntimeInfo": {
+            "type": "object",
+            "properties": {
+                "cpu_percent": {
+                    "description": "CPU 占用率，100 表示占满一个核心",
+                    "type": "number"
+                },
+                "max_players": {
+                    "description": "查询端口返回的人数上限",
+                    "type": "integer"
+                },
+                "memory_bytes": {
+                    "description": "内存占用",
+                    "type": "integer"
+                },
+                "memory_limit": {
+                    "description": "内存上限（宿主机内存）",
+                    "type": "integer"
+                },
+                "mod_current": {
+                    "description": "正在处理第几个 Mod",
+                    "type": "integer"
+                },
+                "mod_total": {
+                    "description": "Mod 总数",
+                    "type": "integer"
+                },
+                "phase": {
+                    "description": "见 Phase* 常量，无法判断时为空",
+                    "type": "string"
+                },
+                "players": {
+                    "description": "在线人数（查询端口返回）",
+                    "type": "integer"
+                },
+                "progress": {
+                    "description": "下载服务端时的进度（0-100）",
+                    "type": "number"
+                },
+                "server_name": {
+                    "description": "查询端口返回的名称，带游戏版本号",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Schedule": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "command": {
+                    "description": "command 类型要执行的 RCON 命令",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "cron": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "keep": {
+                    "description": "backup 类型保留的份数，0 表示不清理",
+                    "type": "integer"
+                },
+                "last_result": {
+                    "description": "最近一次执行结果，成功为空",
+                    "type": "string"
+                },
+                "last_run_at": {
+                    "type": "string"
+                },
+                "message": {
+                    "description": "倒计时广播内容，{minutes} 会被替换为剩余分钟数",
+                    "type": "string"
+                },
+                "next_run_at": {
+                    "type": "string"
+                },
+                "server_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "warn_minutes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.ScheduleRequest": {
+            "type": "object",
+            "required": [
+                "action",
+                "cron"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "command": {
+                    "type": "string"
+                },
+                "cron": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "keep": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 0
+                },
+                "message": {
+                    "type": "string"
+                },
+                "warn_minutes": {
+                    "type": "integer",
+                    "maximum": 60,
+                    "minimum": 0
                 }
             }
         },
@@ -1228,6 +2318,10 @@ const docTemplate = `{
                     "description": "是否自动重启（可选）",
                     "type": "boolean"
                 },
+                "auto_update": {
+                    "description": "每次启动前检查游戏本体和 Mod 更新（可选）",
+                    "type": "boolean"
+                },
                 "cluster_id": {
                     "description": "集群ID",
                     "type": "string"
@@ -1291,6 +2385,9 @@ const docTemplate = `{
                 "auto_restart": {
                     "type": "boolean"
                 },
+                "auto_update": {
+                    "type": "boolean"
+                },
                 "cluster_id": {
                     "description": "集群ID",
                     "type": "string"
@@ -1347,6 +2444,14 @@ const docTemplate = `{
                 "rcon_port": {
                     "type": "integer"
                 },
+                "runtime": {
+                    "description": "运行中服务器的实时信息（阶段、在线人数、资源占用），由后台监控定期采集",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.RuntimeInfo"
+                        }
+                    ]
+                },
                 "server_args": {
                     "description": "启动参数",
                     "allOf": [
@@ -1377,6 +2482,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "auto_restart": {
+                    "type": "boolean"
+                },
+                "auto_update": {
                     "type": "boolean"
                 },
                 "cluster_id": {
@@ -1459,6 +2567,198 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "server.BackupInfo": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "server.ModInfo": {
+            "type": "object",
+            "properties": {
+                "checked": {
+                    "description": "是否从 Steam 拿到了结果；为 false 时表示查询失败（例如无法访问 Steam），Found 无意义",
+                    "type": "boolean"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "found": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "preview_url": {
+                    "type": "string"
+                },
+                "time_updated": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.Overview": {
+            "type": "object",
+            "properties": {
+                "cluster_volumes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "cpu_percent": {
+                    "type": "number"
+                },
+                "disk": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.ServerDiskUsage"
+                    }
+                },
+                "disk_error": {
+                    "type": "string"
+                },
+                "disk_total": {
+                    "type": "integer"
+                },
+                "disk_updated_at": {
+                    "type": "string"
+                },
+                "memory_bytes": {
+                    "type": "integer"
+                },
+                "online_players": {
+                    "type": "integer"
+                },
+                "public_host": {
+                    "type": "string"
+                },
+                "ready_servers": {
+                    "type": "integer"
+                },
+                "recent_errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.ServerError"
+                    }
+                },
+                "running_servers": {
+                    "type": "integer"
+                },
+                "total_servers": {
+                    "type": "integer"
+                }
+            }
+        },
+        "server.Player": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "steam_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.ServerDiskUsage": {
+            "type": "object",
+            "properties": {
+                "backups": {
+                    "description": "备份文件",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "存档和配置（数据卷）",
+                    "type": "integer"
+                },
+                "files": {
+                    "description": "服务端文件卷",
+                    "type": "integer"
+                },
+                "plugins": {
+                    "description": "插件卷",
+                    "type": "integer"
+                },
+                "server_id": {
+                    "type": "integer"
+                },
+                "session_name": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "server.ServerError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "server_id": {
+                    "type": "integer"
+                },
+                "session_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.SuggestedPorts": {
+            "type": "object",
+            "properties": {
+                "port": {
+                    "type": "integer"
+                },
+                "query_port": {
+                    "type": "integer"
+                },
+                "rcon_port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "servers.RconCommandRequest": {
+            "type": "object",
+            "required": [
+                "command"
+            ],
+            "properties": {
+                "command": {
+                    "type": "string"
+                }
+            }
+        },
+        "servers.UpdateGameRequest": {
+            "type": "object",
+            "properties": {
+                "game": {
+                    "type": "boolean"
+                },
+                "mods": {
+                    "type": "boolean"
                 }
             }
         }

@@ -165,6 +165,10 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 	if server.GameModIds != "" {
 		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", server.GameModIds))
 	}
+	// 记录挂载的集群卷，启动时据此判断是否需要重建容器（旧容器没有这个变量）
+	if cv := ExpectedClusterVolume(server.ClusterID); cv != "" {
+		envVars = append(envVars, "CLUSTER_VOLUME="+cv)
+	}
 
 	// 构建容器配置
 	containerConfig := &container.Config{
@@ -228,6 +232,12 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Binaries/Win64/ArkApi/Plugins", utils.GetServerPluginsVolumeName(serverID)),
 		},
+	}
+
+	// 集群：同一 cluster_id 的服务器共享 ARK 默认的集群目录 Saved/clusters，跨服传送的角色和物品存放在这里。
+	// 命名卷不存在时 Docker 会自动创建
+	if cv := ExpectedClusterVolume(server.ClusterID); cv != "" {
+		hostConfig.Binds = append(hostConfig.Binds, cv+":/home/steam/arkserver/ShooterGame/Saved/clusters")
 	}
 
 	// 创建容器
@@ -367,4 +377,24 @@ func (dm *DockerManager) GetContainerEnvVars(containerName string) (map[string]s
 	}
 
 	return envVars, nil
+}
+
+// ExpectedClusterVolume 服务器应挂载的集群卷名，没有设置（或格式不合法的旧数据）时返回空字符串
+func ExpectedClusterVolume(clusterID string) string {
+	if clusterID == "" || !utils.ClusterIDPattern.MatchString(clusterID) {
+		return ""
+	}
+	return utils.GetClusterVolumeName(clusterID)
+}
+
+// GetContainerRestartPolicy 返回容器的重启策略名称（如 unless-stopped、no）
+func (dm *DockerManager) GetContainerRestartPolicy(containerName string) (string, error) {
+	info, err := dm.client.ContainerInspect(dm.ctx, containerName)
+	if err != nil {
+		return "", fmt.Errorf("获取Docker容器信息失败: %v", err)
+	}
+	if info.HostConfig == nil {
+		return "", nil
+	}
+	return string(info.HostConfig.RestartPolicy.Name), nil
 }

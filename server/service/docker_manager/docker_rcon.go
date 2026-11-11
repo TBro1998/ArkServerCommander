@@ -1,14 +1,8 @@
 package docker_manager
 
 import (
-	"bytes"
-	"context"
 	"fmt"
-	"strings"
 	"time"
-
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // rconScript 在 ARK 容器内通过 Source RCON 协议向 127.0.0.1 上的 RCON 端口发送一条命令。
@@ -52,47 +46,14 @@ print(body)
 // RconCommand 在容器内通过 RCON 执行一条命令，返回命令输出。
 // timeout 是等待命令返回的时间（SaveWorld 在大地图上可能要几十秒）
 func (dm *DockerManager) RconCommand(containerName string, port int, password, command string, timeout time.Duration) (string, error) {
-	ctx, cancel := context.WithTimeout(dm.ctx, timeout+15*time.Second)
-	defer cancel()
-
-	execResp, err := dm.client.ContainerExecCreate(ctx, containerName, container.ExecOptions{
-		Cmd: []string{"python3", "-c", rconScript},
-		Env: []string{
-			fmt.Sprintf("RCON_PORT=%d", port),
-			"RCON_PASSWORD=" + password,
-			"RCON_COMMAND=" + command,
-			fmt.Sprintf("RCON_TIMEOUT=%d", int(timeout.Seconds())),
-		},
-		AttachStdout: true,
-		AttachStderr: true,
-	})
+	out, err := dm.execPython(containerName, rconScript, []string{
+		fmt.Sprintf("RCON_PORT=%d", port),
+		"RCON_PASSWORD=" + password,
+		"RCON_COMMAND=" + command,
+		fmt.Sprintf("RCON_TIMEOUT=%d", int(timeout.Seconds())),
+	}, timeout+15*time.Second)
 	if err != nil {
-		return "", fmt.Errorf("创建RCON执行实例失败: %v", err)
+		return "", fmt.Errorf("RCON命令失败: %w", err)
 	}
-
-	attach, err := dm.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
-	if err != nil {
-		return "", fmt.Errorf("执行RCON命令失败: %v", err)
-	}
-	defer attach.Close()
-
-	// 非 TTY 的 exec 输出是多路复用的，需要拆分 stdout 和 stderr
-	var stdout, stderr bytes.Buffer
-	if _, err := stdcopy.StdCopy(&stdout, &stderr, attach.Reader); err != nil {
-		return "", fmt.Errorf("读取RCON输出失败: %v", err)
-	}
-
-	inspect, err := dm.client.ContainerExecInspect(ctx, execResp.ID)
-	if err != nil {
-		return "", fmt.Errorf("检查RCON执行结果失败: %v", err)
-	}
-	if inspect.ExitCode != 0 {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = fmt.Sprintf("退出码 %d", inspect.ExitCode)
-		}
-		return "", fmt.Errorf("RCON命令失败: %s", msg)
-	}
-
-	return strings.TrimSpace(stdout.String()), nil
+	return out, nil
 }

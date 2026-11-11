@@ -21,7 +21,7 @@ func setupTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.Server{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Create(&models.User{Username: "admin", Password: "x"}).Error; err != nil {
@@ -30,7 +30,13 @@ func setupTestDB(t *testing.T) {
 
 	old := database.DB
 	database.DB = db
-	t.Cleanup(func() { database.DB = old })
+	t.Cleanup(func() {
+		database.DB = old
+		// 先关闭连接，Windows 上打开着的数据库文件无法被 TempDir 清理
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+	})
 }
 
 func createTestServer(t *testing.T, port, queryPort, rconPort int) models.Server {
@@ -125,5 +131,55 @@ func TestUpdateSaveDoesNotClobberStatus(t *testing.T) {
 	}
 	if got.SessionName != "renamed" {
 		t.Errorf("名称没有保存: %q", got.SessionName)
+	}
+}
+
+// GORM 创建记录时会把 bool 零值换成 default:true，关闭的开关需要显式写回
+func TestCreateScheduleKeepsDisabled(t *testing.T) {
+	setupTestDB(t)
+	s := createTestServer(t, 7777, 27015, 32330)
+
+	enabled := false
+	sch, err := NewServerService().CreateSchedule(1, fmt.Sprint(s.ID), models.ScheduleRequest{
+		Action: models.ScheduleBackup, Cron: "@daily", Enabled: &enabled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sch.Enabled {
+		t.Fatal("response should report the schedule as disabled")
+	}
+	var stored models.Schedule
+	database.DB.First(&stored, sch.ID)
+	if stored.Enabled {
+		t.Fatal("schedule should be stored as disabled")
+	}
+}
+
+func TestGetUserServerChecksOwner(t *testing.T) {
+	setupTestDB(t)
+	s := createTestServer(t, 7777, 27015, 32330)
+
+	if _, err := getUserServer(1, fmt.Sprint(s.ID)); err != nil {
+		t.Fatalf("owner should get the server: %v", err)
+	}
+	if _, err := getUserServer(2, fmt.Sprint(s.ID)); !errors.Is(err, ErrServerNotFound) {
+		t.Fatalf("other users should get ErrServerNotFound, got %v", err)
+	}
+	if _, err := getUserServer(1, "abc"); !errors.Is(err, ErrInvalidServerID) {
+		t.Fatalf("expected ErrInvalidServerID, got %v", err)
+	}
+}
+
+func TestSuggestPortsSkipsUsedPorts(t *testing.T) {
+	setupTestDB(t)
+	createTestServer(t, 7777, 27015, 32330)
+
+	p := NewServerService().SuggestPorts()
+	if p.Port == 7777 || p.Port == 7778 || p.QueryPort == 27015 || p.RCONPort == 32330 {
+		t.Fatalf("suggested ports overlap the existing server: %+v", p)
+	}
+	if err := checkPorts(0, p.Port, p.QueryPort, p.RCONPort); err != nil {
+		t.Fatalf("suggested ports should be free: %v", err)
 	}
 }

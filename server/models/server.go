@@ -21,6 +21,7 @@ type Server struct {
 	Status        string         `json:"status" gorm:"default:'stopped'"`
 	LastError     string         `json:"last_error" gorm:"default:''"` // 最近一次启停失败的原因，下次启停时清空
 	AutoRestart   bool           `json:"auto_restart" gorm:"default:true"`
+	AutoUpdate    bool           `json:"auto_update" gorm:"default:false"` // 每次启动前检查游戏本体和 Mod 更新
 	UserID        uint           `json:"user_id" gorm:"not null"`
 	User          User           `json:"user" gorm:"foreignKey:UserID"`
 	CreatedAt     time.Time      `json:"created_at"`
@@ -45,6 +46,7 @@ type ServerRequest struct {
 	MaxPlayers    int    `json:"max_players" binding:"min=1,max=200"` // 最大玩家数
 	GameModIds    string `json:"game_mod_ids"`                        // 游戏模组ID列表，用逗号分隔
 	AutoRestart   *bool  `json:"auto_restart"`                        // 是否自动重启（可选）
+	AutoUpdate    *bool  `json:"auto_update"`                         // 每次启动前检查游戏本体和 Mod 更新（可选）
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
@@ -66,6 +68,9 @@ type ServerResponse struct {
 	Status      string `json:"status"`
 	LastError   string `json:"last_error,omitempty"` // 最近一次启停失败的原因
 	AutoRestart bool   `json:"auto_restart"`
+	AutoUpdate  bool   `json:"auto_update"`
+	// 运行中服务器的实时信息（阶段、在线人数、资源占用），由后台监控定期采集
+	Runtime *RuntimeInfo `json:"runtime,omitempty"`
 	// 有已保存但尚未写入数据卷的配置文件修改，下次启动时生效
 	ConfigPending bool `json:"config_pending"`
 	// 容器仍在使用旧镜像，下次启动时会重建
@@ -95,9 +100,33 @@ type ServerUpdateRequest struct {
 	MaxPlayers    int     `json:"max_players" binding:"omitempty,min=1,max=200"` // 最大玩家数
 	GameModIds    *string `json:"game_mod_ids"`                                  // 游戏模组ID列表，用逗号分隔，传空字符串表示清空
 	AutoRestart   *bool   `json:"auto_restart"`
+	AutoUpdate    *bool   `json:"auto_update"`
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
 	// 启动参数（可选）
 	ServerArgs *ServerArgsRequest `json:"server_args,omitempty"` // 启动参数结构
+}
+
+// 运行阶段：容器运行后，入口脚本依次下载服务端、安装 Mod、启动游戏，游戏加载完地图后才能连接
+const (
+	PhaseDownloading    = "downloading"     // 下载或校验服务端文件
+	PhaseInstallingMods = "installing_mods" // 下载、安装 Mod
+	PhaseLaunching      = "launching"       // 游戏进程已启动，正在加载地图
+	PhaseReady          = "ready"           // 查询端口有响应，可以连接
+)
+
+// RuntimeInfo 运行中服务器的实时信息
+type RuntimeInfo struct {
+	Phase       string  `json:"phase"`                  // 见 Phase* 常量，无法判断时为空
+	Progress    float64 `json:"progress,omitempty"`     // 下载服务端时的进度（0-100）
+	ModCurrent  int     `json:"mod_current,omitempty"`  // 正在处理第几个 Mod
+	ModTotal    int     `json:"mod_total,omitempty"`    // Mod 总数
+	Players     int     `json:"players"`                // 在线人数（查询端口返回）
+	MaxPlayers  int     `json:"max_players,omitempty"`  // 查询端口返回的人数上限
+	ServerName  string  `json:"server_name,omitempty"`  // 查询端口返回的名称，带游戏版本号
+	CPUPercent  float64 `json:"cpu_percent"`            // CPU 占用率，100 表示占满一个核心
+	MemoryBytes uint64  `json:"memory_bytes"`           // 内存占用
+	MemoryLimit uint64  `json:"memory_limit,omitempty"` // 内存上限（宿主机内存）
+	UpdatedAt   string  `json:"updated_at"`
 }

@@ -72,6 +72,10 @@ func main() {
 		utils.Warn("校正服务器状态失败", zap.Error(err))
 	}
 
+	// 后台采集运行阶段、在线人数和资源占用；定时任务调度
+	server.StartRuntimeMonitor()
+	server.StartScheduler(server.NewServerService())
+
 	// 创建Gin实例
 	r := gin.Default()
 

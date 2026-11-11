@@ -1,5 +1,15 @@
 basePath: /api
 definitions:
+  auth.ChangePasswordRequest:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
   images.UpdateImageRequest:
     properties:
       image_name:
@@ -10,6 +20,100 @@ definitions:
         type: boolean
     required:
     - image_name
+    type: object
+  models.RuntimeInfo:
+    properties:
+      cpu_percent:
+        description: CPU 占用率，100 表示占满一个核心
+        type: number
+      max_players:
+        description: 查询端口返回的人数上限
+        type: integer
+      memory_bytes:
+        description: 内存占用
+        type: integer
+      memory_limit:
+        description: 内存上限（宿主机内存）
+        type: integer
+      mod_current:
+        description: 正在处理第几个 Mod
+        type: integer
+      mod_total:
+        description: Mod 总数
+        type: integer
+      phase:
+        description: 见 Phase* 常量，无法判断时为空
+        type: string
+      players:
+        description: 在线人数（查询端口返回）
+        type: integer
+      progress:
+        description: 下载服务端时的进度（0-100）
+        type: number
+      server_name:
+        description: 查询端口返回的名称，带游戏版本号
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.Schedule:
+    properties:
+      action:
+        type: string
+      command:
+        description: command 类型要执行的 RCON 命令
+        type: string
+      created_at:
+        type: string
+      cron:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      keep:
+        description: backup 类型保留的份数，0 表示不清理
+        type: integer
+      last_result:
+        description: 最近一次执行结果，成功为空
+        type: string
+      last_run_at:
+        type: string
+      message:
+        description: 倒计时广播内容，{minutes} 会被替换为剩余分钟数
+        type: string
+      next_run_at:
+        type: string
+      server_id:
+        type: integer
+      updated_at:
+        type: string
+      warn_minutes:
+        type: integer
+    type: object
+  models.ScheduleRequest:
+    properties:
+      action:
+        type: string
+      command:
+        type: string
+      cron:
+        type: string
+      enabled:
+        type: boolean
+      keep:
+        maximum: 1000
+        minimum: 0
+        type: integer
+      message:
+        type: string
+      warn_minutes:
+        maximum: 60
+        minimum: 0
+        type: integer
+    required:
+    - action
+    - cron
     type: object
   models.ServerArgs:
     properties:
@@ -48,6 +152,9 @@ definitions:
         type: string
       auto_restart:
         description: 是否自动重启（可选）
+        type: boolean
+      auto_update:
+        description: 每次启动前检查游戏本体和 Mod 更新（可选）
         type: boolean
       cluster_id:
         description: 集群ID
@@ -100,6 +207,8 @@ definitions:
     properties:
       auto_restart:
         type: boolean
+      auto_update:
+        type: boolean
       cluster_id:
         description: 集群ID
         type: string
@@ -140,6 +249,10 @@ definitions:
         type: integer
       rcon_port:
         type: integer
+      runtime:
+        allOf:
+        - $ref: '#/definitions/models.RuntimeInfo'
+        description: 运行中服务器的实时信息（阶段、在线人数、资源占用），由后台监控定期采集
       server_args:
         allOf:
         - $ref: '#/definitions/models.ServerArgs'
@@ -159,6 +272,8 @@ definitions:
       admin_password:
         type: string
       auto_restart:
+        type: boolean
+      auto_update:
         type: boolean
       cluster_id:
         description: 集群ID，传空字符串表示清空
@@ -218,6 +333,133 @@ definitions:
       username:
         type: string
     type: object
+  server.BackupInfo:
+    properties:
+      created_at:
+        type: string
+      kind:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+    type: object
+  server.ModInfo:
+    properties:
+      checked:
+        description: 是否从 Steam 拿到了结果；为 false 时表示查询失败（例如无法访问 Steam），Found 无意义
+        type: boolean
+      file_size:
+        type: integer
+      found:
+        type: boolean
+      id:
+        type: string
+      preview_url:
+        type: string
+      time_updated:
+        type: integer
+      title:
+        type: string
+    type: object
+  server.Overview:
+    properties:
+      cluster_volumes:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      cpu_percent:
+        type: number
+      disk:
+        items:
+          $ref: '#/definitions/server.ServerDiskUsage'
+        type: array
+      disk_error:
+        type: string
+      disk_total:
+        type: integer
+      disk_updated_at:
+        type: string
+      memory_bytes:
+        type: integer
+      online_players:
+        type: integer
+      public_host:
+        type: string
+      ready_servers:
+        type: integer
+      recent_errors:
+        items:
+          $ref: '#/definitions/server.ServerError'
+        type: array
+      running_servers:
+        type: integer
+      total_servers:
+        type: integer
+    type: object
+  server.Player:
+    properties:
+      index:
+        type: integer
+      name:
+        type: string
+      steam_id:
+        type: string
+    type: object
+  server.ServerDiskUsage:
+    properties:
+      backups:
+        description: 备份文件
+        type: integer
+      data:
+        description: 存档和配置（数据卷）
+        type: integer
+      files:
+        description: 服务端文件卷
+        type: integer
+      plugins:
+        description: 插件卷
+        type: integer
+      server_id:
+        type: integer
+      session_name:
+        type: string
+      total:
+        type: integer
+    type: object
+  server.ServerError:
+    properties:
+      error:
+        type: string
+      server_id:
+        type: integer
+      session_name:
+        type: string
+    type: object
+  server.SuggestedPorts:
+    properties:
+      port:
+        type: integer
+      query_port:
+        type: integer
+      rcon_port:
+        type: integer
+    type: object
+  servers.RconCommandRequest:
+    properties:
+      command:
+        type: string
+    required:
+    - command
+    type: object
+  servers.UpdateGameRequest:
+    properties:
+      game:
+        type: boolean
+      mods:
+        type: boolean
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -247,41 +489,6 @@ paths:
               type: boolean
             type: object
       summary: 检查系统初始化状态
-      tags:
-      - 认证
-  /auth/init:
-    post:
-      consumes:
-      - application/json
-      description: 创建第一个管理员用户，只能在系统未初始化时调用
-      parameters:
-      - description: 用户信息
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/models.UserRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 初始化成功
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: 服务器错误
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: 初始化系统用户
       tags:
       - 认证
   /auth/login:
@@ -325,6 +532,38 @@ paths:
       summary: 用户登录
       tags:
       - 认证
+  /auth/password:
+    put:
+      consumes:
+      - application/json
+      description: 校验当前密码后设置新密码（8 到 72 字节）
+      parameters:
+      - description: 当前密码和新密码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 修改成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求错误或当前密码错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改登录密码
+      tags:
+      - 用户
   /images/affected:
     get:
       consumes:
@@ -522,6 +761,31 @@ paths:
       summary: 更新Docker镜像
       tags:
       - 镜像管理
+  /mods:
+    get:
+      description: 根据 Mod ID 查询名称等信息（Steam 公开接口，结果缓存 6 小时）
+      parameters:
+      - description: 逗号分隔的 Mod ID
+        in: query
+        name: ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Mod 信息
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/server.ModInfo'
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 查询创意工坊 Mod 信息
+      tags:
+      - 系统
   /profile:
     get:
       consumes:
@@ -634,6 +898,10 @@ paths:
         name: id
         required: true
         type: integer
+      - description: 同时删除服务器的数据卷和备份
+        in: query
+        name: delete_data
+        type: boolean
       produces:
       - application/json
       responses:
@@ -768,6 +1036,261 @@ paths:
       summary: 更新服务器配置
       tags:
       - 服务器管理
+  /servers/{id}/backups:
+    get:
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 备份列表，最新的在前
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/server.BackupInfo'
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 存档备份列表
+      tags:
+      - 存档备份
+    post:
+      description: 备份数据卷里的存档和配置文件（不含日志）；运行中的服务器会先保存世界
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 备份信息
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.BackupInfo'
+            type: object
+        "409":
+          description: 正在备份或启停
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 立即备份存档
+      tags:
+      - 存档备份
+  /servers/{id}/backups/{name}:
+    delete:
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 备份文件名
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除备份文件
+      tags:
+      - 存档备份
+    get:
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 备份文件名
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/gzip
+      responses:
+        "200":
+          description: 备份文件
+          schema:
+            type: file
+        "404":
+          description: 备份不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 下载备份文件
+      tags:
+      - 存档备份
+  /servers/{id}/backups/{name}/restore:
+    post:
+      description: 只能在服务器停止时执行：先自动备份当前存档（pre-restore），再用所选备份覆盖存档和配置文件
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 备份文件名
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 恢复成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 服务器未停止
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 从备份恢复存档
+      tags:
+      - 存档备份
+  /servers/{id}/backups/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传本系统导出的 .tar.gz 备份（multipart 字段名 file），校验后加入备份列表
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 备份文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 备份信息
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.BackupInfo'
+            type: object
+        "400":
+          description: 格式无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 上传备份文件
+      tags:
+      - 存档备份
+  /servers/{id}/logs:
+    get:
+      description: 返回容器最近 tail 行日志（入口脚本、steamcmd 和游戏的标准输出）
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 行数（默认 500，最多 5000）
+        in: query
+        name: tail
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 日志行
+          schema:
+            additionalProperties:
+              items:
+                type: string
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取服务器日志
+      tags:
+      - 服务器管理
+  /servers/{id}/logs/stream:
+    get:
+      description: Server-Sent Events：先发送最近 tail 行，之后持续推送新日志。每条消息的 data 是一行日志；容器停止时发送
+        end 事件
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 先发送的历史行数（默认 200）
+        in: query
+        name: tail
+        type: integer
+      produces:
+      - text/event-stream
+      responses: {}
+      security:
+      - Bearer: []
+      summary: 实时跟随服务器日志
+      tags:
+      - 服务器管理
+  /servers/{id}/players:
+    get:
+      description: 通过 RCON ListPlayers 获取在线玩家（名称和 SteamID）
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 玩家列表
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/server.Player'
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 在线玩家列表
+      tags:
+      - 服务器管理
   /servers/{id}/rcon:
     get:
       consumes:
@@ -808,6 +1331,43 @@ paths:
       security:
       - Bearer: []
       summary: 获取服务器RCON信息
+      tags:
+      - 服务器管理
+  /servers/{id}/rcon/command:
+    post:
+      consumes:
+      - application/json
+      description: 在运行中的服务器上执行一条 RCON 命令（如 Broadcast、SaveWorld、KickPlayer），返回输出
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 命令
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/servers.RconCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 命令输出
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 服务器未运行或命令无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 执行 RCON 命令
       tags:
       - 服务器管理
   /servers/{id}/recreate:
@@ -859,6 +1419,184 @@ paths:
       summary: 重建服务器容器
       tags:
       - 服务器管理
+  /servers/{id}/restart:
+    post:
+      description: 运行中的服务器先保存世界并停止，再按当前配置启动；已停止的直接启动。后台执行
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已开始重启
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 服务器正在启停
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 重启服务器
+      tags:
+      - 服务器管理
+  /servers/{id}/schedules:
+    get:
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 定时任务
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.Schedule'
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 定时任务列表
+      tags:
+      - 定时任务
+    post:
+      consumes:
+      - application/json
+      description: 'action: restart / backup / update / command / start / stop；cron
+        为 5 段表达式，时区为 CONTAINER_TZ'
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 定时任务
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScheduleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 定时任务
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.Schedule'
+            type: object
+      security:
+      - Bearer: []
+      summary: 新建定时任务
+      tags:
+      - 定时任务
+  /servers/{id}/schedules/{scheduleId}:
+    delete:
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 定时任务ID
+        in: path
+        name: scheduleId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除定时任务
+      tags:
+      - 定时任务
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 定时任务ID
+        in: path
+        name: scheduleId
+        required: true
+        type: integer
+      - description: 定时任务
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScheduleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 定时任务
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.Schedule'
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改定时任务
+      tags:
+      - 定时任务
+  /servers/{id}/schedules/{scheduleId}/run:
+    post:
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 定时任务ID
+        in: path
+        name: scheduleId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已开始执行
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 立即执行一次定时任务
+      tags:
+      - 定时任务
   /servers/{id}/start:
     post:
       consumes:
@@ -957,6 +1695,105 @@ paths:
       summary: 停止服务器
       tags:
       - 服务器管理
+  /servers/{id}/update-game:
+    post:
+      consumes:
+      - application/json
+      description: 清除安装标记后启动服务器（运行中的先停止），入口脚本在启动时用 steamcmd 校验更新游戏本体、重新下载 Mod
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/servers.UpdateGameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已开始更新
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 服务器正在启停
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新游戏本体和 Mod
+      tags:
+      - 服务器管理
+  /system/info:
+    get:
+      description: 玩家连接用的公网地址（PUBLIC_HOST 或自动探测）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 系统信息
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 系统信息
+      tags:
+      - 系统
+  /system/overview:
+    get:
+      description: 服务器数量、运行和可连接数量、在线人数、CPU/内存合计、各服务器磁盘占用、公网地址
+      parameters:
+      - description: 强制重新计算磁盘占用（较慢）
+        in: query
+        name: refresh
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 概览
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.Overview'
+            type: object
+      security:
+      - Bearer: []
+      summary: 首页概览
+      tags:
+      - 系统
+  /system/suggest-ports:
+    get:
+      description: 返回第一组与现有服务器不冲突的游戏端口、查询端口和 RCON 端口
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 端口
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuggestedPorts'
+            type: object
+      security:
+      - Bearer: []
+      summary: 推荐可用端口
+      tags:
+      - 系统
 securityDefinitions:
   Bearer:
     description: JWT token in the format "Bearer {token}"

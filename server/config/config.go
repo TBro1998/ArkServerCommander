@@ -29,6 +29,12 @@ var (
 
 	// CORSAllowedOrigins 允许跨域的来源白名单，为空时仅同源访问
 	CORSAllowedOrigins []string
+
+	// BackupDir 存档备份目录，默认为数据库所在目录下的 backups（镜像内为 /data/backups）
+	BackupDir string
+
+	// PublicHost 玩家连接用的公网地址（IP 或域名），为空时自动探测公网 IP
+	PublicHost string
 )
 
 // 弱密钥黑名单，仅用于校验手动指定的 JWT_SECRET
@@ -63,6 +69,12 @@ func InitConfig() error {
 	if origins := os.Getenv("CORS_ALLOWED_ORIGINS"); origins != "" {
 		CORSAllowedOrigins = strings.Split(origins, ",")
 	}
+
+	BackupDir = os.Getenv("BACKUP_DIR")
+	if BackupDir == "" {
+		BackupDir = filepath.Join(filepath.Dir(DBPath), "backups")
+	}
+	PublicHost = strings.TrimSpace(os.Getenv("PUBLIC_HOST"))
 
 	secret, err := loadJWTSecret()
 	if err != nil {

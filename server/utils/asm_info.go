@@ -1,6 +1,10 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
 
 // GetServerContainerName 获取服务器容器名称
 // serverID: 服务器ID
@@ -33,3 +37,20 @@ func GetServerFilesVolumeName(serverID uint) string {
 
 // ArkServerImage ARK服务器镜像（源码见子模块 ASE-Server-Docker）
 const ArkServerImage = "tbro98/ase-server:latest"
+
+// GetClusterVolumeName 集群共享卷名称：cluster_id 相同的服务器挂载同一个卷，跨服传送的数据存放在这里
+func GetClusterVolumeName(clusterID string) string {
+	return "ase-cluster-" + clusterID
+}
+
+// ClusterIDPattern cluster_id 的允许格式，同时满足 ARK 参数和 Docker 卷名的要求
+var ClusterIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
+
+// ModIDsPattern Mod ID 列表格式：逗号分隔的数字
+var ModIDsPattern = regexp.MustCompile(`^[0-9]+(,[0-9]+)*$`)
+
+// NormalizeModIDs 去掉 Mod ID 列表里的空白和多余逗号，例如 " 123, 456 ," -> "123,456"
+func NormalizeModIDs(ids string) string {
+	parts := strings.FieldsFunc(ids, func(r rune) bool { return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '，' })
+	return strings.Join(parts, ",")
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -64,26 +65,13 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 			realTimeStatus = syncStatusWithDocker(server, dockerStatus)
 		}
 
-		serverResponses = append(serverResponses, models.ServerResponse{
-			ID:            server.ID,
-			Identifier:    server.Identifier,
-			SessionName:   server.SessionName,
-			ClusterID:     server.ClusterID,
-			Port:          server.Port,
-			QueryPort:     server.QueryPort,
-			RCONPort:      server.RCONPort,
-			Map:           server.Map,
-			MaxPlayers:    server.MaxPlayers,
-			GameModIds:    server.GameModIds,
-			Status:        realTimeStatus,
-			LastError:     server.LastError,
-			AutoRestart:   server.AutoRestart,
-			ImageOutdated: imageOutdated,
-			ConfigPending: server.PendingGameUserSettings != "" || server.PendingGameIni != "",
-			UserID:        server.UserID,
-			CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
-		})
+		response := toResponse(server)
+		response.Status = realTimeStatus
+		response.ImageOutdated = imageOutdated
+		if realTimeStatus != "running" {
+			response.Runtime = nil
+		}
+		serverResponses = append(serverResponses, response)
 	}
 
 	return serverResponses, nil
@@ -100,6 +88,12 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	if err := checkPorts(0, req.Port, req.QueryPort, req.RCONPort); err != nil {
 		return nil, err
 	}
+
+	clusterID, modIDs, err := normalizeServerFields(req.ClusterID, req.GameModIds)
+	if err != nil {
+		return nil, err
+	}
+	req.ClusterID, req.GameModIds = clusterID, modIDs
 
 	// 设置默认值
 	if req.Map == "" {
@@ -133,6 +127,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		GameModIds:    req.GameModIds,
 		Status:        "stopped",
 		AutoRestart:   *req.AutoRestart,
+		AutoUpdate:    req.AutoUpdate != nil && *req.AutoUpdate,
 		UserID:        userID,
 	}
 
@@ -150,6 +145,14 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	if err := tx.Create(&server).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("服务器创建失败: %w", err)
+	}
+	// AutoRestart 的默认值是 true，GORM 创建时会把 false 换成默认值，需要显式写回
+	if !*req.AutoRestart {
+		if err := tx.Model(&server).Update("auto_restart", false).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("服务器创建失败: %w", err)
+		}
+		server.AutoRestart = false
 	}
 
 	// 创建Docker卷
@@ -217,22 +220,8 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	committed = true
 
 	// 构建响应
-	response := models.ServerResponse{
-		ID:          server.ID,
-		Identifier:  server.Identifier,
-		SessionName: server.SessionName,
-		ClusterID:   server.ClusterID,
-		Port:        server.Port,
-		QueryPort:   server.QueryPort,
-		RCONPort:    server.RCONPort,
-		Map:         server.Map,
-		GameModIds:  server.GameModIds,
-		Status:      server.Status,
-		AutoRestart: server.AutoRestart,
-		UserID:      server.UserID,
-		CreatedAt:   server.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   server.UpdatedAt.Format("2006-01-02 15:04:05"),
-	}
+	response := toResponse(server)
+	response.ServerArgs = serverArgsFromJSON(server)
 
 	// 读取配置文件内容
 	fillConfigFiles(&response, server, dockerManager)
@@ -395,26 +384,9 @@ func (s *ServerService) GetServer(userID uint, serverID string) (*models.ServerR
 	// 解析启动参数
 	serverArgs := serverArgsFromJSON(server)
 
-	response := models.ServerResponse{
-		ID:            server.ID,
-		Identifier:    server.Identifier,
-		SessionName:   server.SessionName,
-		ClusterID:     server.ClusterID,
-		Port:          server.Port,
-		QueryPort:     server.QueryPort,
-		RCONPort:      server.RCONPort,
-		Map:           server.Map,
-		MaxPlayers:    server.MaxPlayers,
-		GameModIds:    server.GameModIds,
-		Status:        server.Status,
-		LastError:     server.LastError,
-		AutoRestart:   server.AutoRestart,
-		UserID:        server.UserID,
-		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
-		ServerArgs:    serverArgs,
-		GeneratedArgs: serverArgs.GenerateArgsString(server),
-	}
+	response := toResponse(server)
+	response.ServerArgs = serverArgs
+	response.GeneratedArgs = serverArgs.GenerateArgsString(server)
 
 	// 读取配置文件内容
 	dockerManager, err := docker_manager.GetDockerManager()
@@ -497,6 +469,17 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	if req.GameModIds != nil {
 		server.GameModIds = *req.GameModIds
 	}
+	if req.AutoRestart != nil {
+		server.AutoRestart = *req.AutoRestart
+	}
+	if req.AutoUpdate != nil {
+		server.AutoUpdate = *req.AutoUpdate
+	}
+	clusterID, modIDs, err := normalizeServerFields(server.ClusterID, server.GameModIds)
+	if err != nil {
+		return nil, false, err
+	}
+	server.ClusterID, server.GameModIds = clusterID, modIDs
 
 	// 端口有变化时才检查，避免历史数据里已有的冲突让无关字段也保存不了
 	if [3]int{server.Port, server.QueryPort, server.RCONPort} != oldPorts {
@@ -577,25 +560,8 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	}
 
 	// 构建响应
-	response := models.ServerResponse{
-		ID:          server.ID,
-		Identifier:  server.Identifier,
-		SessionName: server.SessionName,
-		ClusterID:   server.ClusterID,
-		Port:        server.Port,
-		QueryPort:   server.QueryPort,
-		RCONPort:    server.RCONPort,
-		Map:         server.Map,
-		MaxPlayers:  server.MaxPlayers,
-		GameModIds:  server.GameModIds,
-		Status:      server.Status,
-		LastError:   server.LastError,
-		AutoRestart: server.AutoRestart,
-		UserID:      server.UserID,
-		CreatedAt:   server.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   server.UpdatedAt.Format("2006-01-02 15:04:05"),
-		ServerArgs:  serverArgsFromJSON(server),
-	}
+	response := toResponse(server)
+	response.ServerArgs = serverArgsFromJSON(server)
 
 	// 读取配置文件内容
 	dockerManager, err := docker_manager.GetDockerManager()
@@ -610,8 +576,8 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 
 // DeleteServer 删除服务器：只允许删除已停止的服务器。
 // 先删容器再软删数据库记录：容器删除失败时记录仍在，用户可以重试，不会留下没人管理的孤儿容器。
-// 数据卷不会被删除，数据保留在卷中
-func (s *ServerService) DeleteServer(userID uint, serverID string) error {
+// deleteData 为 false 时数据卷和备份保留；为 true 时删除服务器的三个卷和全部备份（集群卷是共享的，不删除）
+func (s *ServerService) DeleteServer(userID uint, serverID string, deleteData bool) error {
 	id, err := strconv.ParseUint(serverID, 10, 32)
 	if err != nil {
 		return ErrInvalidServerID
@@ -653,6 +619,27 @@ func (s *ServerService) DeleteServer(userID uint, serverID string) error {
 	}
 	if res.RowsAffected == 0 {
 		return ErrServerBusy
+	}
+
+	// 删除服务器关联的定时任务
+	database.DB.Where("server_id = ?", server.ID).Delete(&models.Schedule{})
+	runtimeMonitor.Forget(server.ID)
+
+	if deleteData {
+		var errs []error
+		if err := dockerManager.RemoveVolume(server.ID); err != nil {
+			errs = append(errs, err)
+		}
+		if err := os.RemoveAll(serverBackupDir(server.ID)); err != nil {
+			errs = append(errs, fmt.Errorf("删除备份失败: %w", err))
+		}
+		if len(errs) > 0 {
+			// 记录已经删除，这里只能提示用户手动清理
+			return fmt.Errorf("服务器已删除，但清理数据失败，请手动删除卷 %s: %w",
+				strings.Join([]string{utils.GetServerFilesVolumeName(server.ID), utils.GetServerVolumeName(server.ID), utils.GetServerPluginsVolumeName(server.ID)}, "、"),
+				errors.Join(errs...))
+		}
+		utils.Info("已删除服务器数据", zap.Uint("server_id", server.ID))
 	}
 	return nil
 }
@@ -799,6 +786,13 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 		return err
 	}
 
+	// 开启了自动更新：清除安装标记，入口脚本会重新校验游戏本体并重新下载 Mod
+	if server.AutoUpdate {
+		if err := dockerManager.RemoveInstallMarkers(server.ID, true, server.GameModIds != ""); err != nil {
+			return err
+		}
+	}
+
 	// 检查容器是否存在
 	containerExists, err := dockerManager.ContainerExists(containerName)
 	if err != nil {
@@ -828,6 +822,22 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 			// 检查其他参数
 			if !needRecreateContainer {
 				if server.GameModIds != envVars["GameModIds"] {
+					needRecreateContainer = true
+				}
+			}
+
+			// 集群卷挂载与当前 cluster_id 不一致（包括升级前创建、没有挂载集群卷的旧容器）
+			if !needRecreateContainer && envVars["CLUSTER_VOLUME"] != docker_manager.ExpectedClusterVolume(server.ClusterID) {
+				needRecreateContainer = true
+			}
+
+			// 自动重启开关改过，重启策略需要重建容器才能生效
+			if !needRecreateContainer {
+				wantPolicy := "unless-stopped"
+				if !server.AutoRestart {
+					wantPolicy = "no"
+				}
+				if policy, err := dockerManager.GetContainerRestartPolicy(containerName); err != nil || policy != wantPolicy {
 					needRecreateContainer = true
 				}
 			}
@@ -1123,30 +1133,54 @@ func (s *ServerService) UpdateImage(imageName string, userID uint, restartRunnin
 
 // restartServer 停止并重新启动服务器，启动时会按当前镜像和配置重建容器
 func (s *ServerService) restartServer(server models.Server, dockerManager *docker_manager.DockerManager) {
+	if err := s.restartWith(server, dockerManager, nil); err == nil {
+		utils.Info("服务器已重启", zap.String("identifier", server.Identifier))
+	}
+}
+
+// restartWith 停止（如果在运行）并重新启动服务器；beforeStart 在容器停止之后、启动之前执行（可为 nil），
+// 失败时不再启动，错误写入 last_error。整个过程同步执行，调用方需要时自行放进协程
+func (s *ServerService) restartWith(server models.Server, dockerManager *docker_manager.DockerManager, beforeStart func() error) error {
 	containerName := utils.GetServerContainerName(server.ID)
 
-	ok, err := transitionStatus(server.ID, []string{"stopped", "stopping", "starting"}, "stopping")
-	if err != nil || !ok {
-		utils.Warn("服务器状态已变化，跳过重启", zap.Uint("server_id", server.ID), zap.Error(err))
-		return
-	}
-	server.Status = "stopping"
-	if !s.stopServerAsync(server, dockerManager, containerName) {
-		utils.Warn("停止服务器失败，跳过启动", zap.Uint("server_id", server.ID))
-		return
+	var latest models.Server
+	if err := database.DB.Select("status").First(&latest, server.ID).Error; err != nil {
+		return err
 	}
 
-	ok, err = transitionStatus(server.ID, []string{"running", "starting"}, "starting")
+	if latest.Status != "stopped" {
+		ok, err := transitionStatus(server.ID, []string{"stopped", "stopping", "starting"}, "stopping")
+		if err != nil || !ok {
+			utils.Warn("服务器状态已变化，跳过重启", zap.Uint("server_id", server.ID), zap.Error(err))
+			return ErrServerBusy
+		}
+		server.Status = "stopping"
+		if !s.stopServerAsync(server, dockerManager, containerName) {
+			utils.Warn("停止服务器失败，跳过启动", zap.Uint("server_id", server.ID))
+			return fmt.Errorf("停止服务器失败")
+		}
+	}
+
+	ok, err := transitionStatus(server.ID, []string{"running", "starting", "stopping"}, "starting")
 	if err != nil || !ok {
 		utils.Warn("服务器状态已变化，跳过启动", zap.Uint("server_id", server.ID), zap.Error(err))
-		return
+		return ErrServerBusy
 	}
 	server.Status = "starting"
-	if err := s.runStart(server, dockerManager, containerName); err != nil {
-		return
+
+	if beforeStart != nil {
+		if err := beforeStart(); err != nil {
+			finishOperation(server.ID, "stopped", err.Error())
+			return err
+		}
 	}
 
-	utils.Info("服务器已重启并应用新镜像", zap.String("identifier", server.Identifier))
+	// 重新读取，使用停止期间可能已经保存的最新配置
+	if err := database.DB.First(&server, server.ID).Error; err != nil {
+		finishOperation(server.ID, "stopped", "读取服务器配置失败: "+err.Error())
+		return err
+	}
+	return s.runStart(server, dockerManager, containerName)
 }
 
 // GetAffectedServers 获取使用指定镜像的服务器列表

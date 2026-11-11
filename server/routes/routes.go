@@ -4,6 +4,7 @@ import (
 	"ark-server-commander/controllers/auth"
 	"ark-server-commander/controllers/images"
 	"ark-server-commander/controllers/servers"
+	"ark-server-commander/controllers/system"
 	"ark-server-commander/middleware"
 	"fmt"
 
@@ -44,6 +45,13 @@ func RegisterRoutes(r *gin.Engine) {
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/profile", auth.GetProfile)
+			protected.PUT("/auth/password", auth.ChangePassword)
+
+			// 系统信息
+			protected.GET("/system/overview", system.GetOverview)
+			protected.GET("/system/info", system.GetInfo)
+			protected.GET("/system/suggest-ports", system.SuggestPorts)
+			protected.GET("/mods", system.GetMods)
 
 			// 服务器管理路由
 			serverRoutes := protected.Group("/servers")
@@ -57,6 +65,27 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.POST("/:id/stop", servers.StopServer)
 				serverRoutes.POST("/:id/recreate", servers.RecreateContainer)
 				serverRoutes.GET("/:id/rcon", servers.GetServerRCON)
+				serverRoutes.POST("/:id/restart", servers.RestartServer)
+				serverRoutes.POST("/:id/update-game", servers.UpdateGame)
+				serverRoutes.GET("/:id/logs", servers.GetLogs)
+				serverRoutes.GET("/:id/logs/stream", servers.StreamLogs)
+				serverRoutes.POST("/:id/rcon/command", servers.RconCommand)
+				serverRoutes.GET("/:id/players", servers.ListPlayers)
+
+				// 存档备份
+				serverRoutes.GET("/:id/backups", servers.ListBackups)
+				serverRoutes.POST("/:id/backups", servers.CreateBackup)
+				serverRoutes.POST("/:id/backups/upload", servers.UploadBackup)
+				serverRoutes.GET("/:id/backups/:name", servers.DownloadBackup)
+				serverRoutes.DELETE("/:id/backups/:name", servers.DeleteBackup)
+				serverRoutes.POST("/:id/backups/:name/restore", servers.RestoreBackup)
+
+				// 定时任务
+				serverRoutes.GET("/:id/schedules", servers.ListSchedules)
+				serverRoutes.POST("/:id/schedules", servers.CreateSchedule)
+				serverRoutes.PUT("/:id/schedules/:scheduleId", servers.UpdateSchedule)
+				serverRoutes.DELETE("/:id/schedules/:scheduleId", servers.DeleteSchedule)
+				serverRoutes.POST("/:id/schedules/:scheduleId/run", servers.RunSchedule)
 			}
 
 			// 镜像管理路由

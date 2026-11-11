@@ -55,7 +55,7 @@ func CreateServer(c *gin.Context) {
 
 	var req models.ServerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		respondBadRequest(c)
 		return
 	}
 
@@ -150,7 +150,7 @@ func UpdateServer(c *gin.Context) {
 
 	var req models.ServerUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		respondBadRequest(c)
 		return
 	}
 
@@ -181,6 +181,7 @@ func UpdateServer(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param id path int true "服务器ID"
+// @Param delete_data query bool false "同时删除服务器的数据卷和备份"
 // @Success 200 {object} map[string]string "删除成功"
 // @Failure 400 {object} map[string]string "请求错误"
 // @Failure 404 {object} map[string]string "服务器不存在"
@@ -191,7 +192,8 @@ func DeleteServer(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	serverID := c.Param("id")
 
-	err := serverService.DeleteServer(userID, serverID)
+	deleteData := c.Query("delete_data") == "true"
+	err := serverService.DeleteServer(userID, serverID, deleteData)
 	if err != nil {
 		respondServiceError(c, err)
 		return
