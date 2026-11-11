@@ -73,7 +73,7 @@ export function ModList({ ids, compact = false }: { ids: string; compact?: boole
   return (
     <ul className={compact ? 'space-y-1' : 'space-y-1.5'}>
       {mods.map((m, i) => (
-        <li key={`${m.id}-${i}`} className="flex items-center justify-between gap-2 rounded border bg-white px-2 py-1 text-xs">
+        <li key={`${m.id}-${i}`} className="flex items-center justify-between gap-2 rounded-sm border bg-muted/50 px-2 py-1 text-xs">
           <span className="flex min-w-0 items-center gap-2">
             <span className="text-gray-400">{i + 1}.</span>
             <span

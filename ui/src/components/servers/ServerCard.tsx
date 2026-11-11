@@ -27,14 +27,19 @@ interface ServerCardProps {
 export function MapBand({ server, className, children }: { server: Server; className?: string; children?: React.ReactNode }) {
   const mapName = useMapName();
   const live = server.status !== 'stopped';
+  const color = mapColor(server.map);
   return (
     <div
-      className={cn('relative flex items-center justify-between gap-3 overflow-hidden px-4 text-white', !live && 'saturate-[.3]', className)}
-      style={{ backgroundColor: mapColor(server.map) }}
+      className={cn('relative flex items-center justify-between gap-3 border-b px-4 text-white', !live && 'opacity-60 saturate-[.25]', className)}
+      style={{
+        background: `linear-gradient(90deg, ${color}d9 0%, ${color}59 55%, transparent 100%)`,
+        boxShadow: `inset 3px 0 0 ${color}`,
+        borderBottomColor: `${color}80`,
+      }}
     >
-      {/* 右侧渐暗，让人数更清楚 */}
-      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent to-black/20" />
-      <span className="font-display relative truncate text-lg font-semibold tracking-wide">{mapName(server.map)}</span>
+      <span className="font-display hud-caps relative truncate text-lg font-semibold [text-shadow:0_1px_6px_rgb(0_0_0/0.6)]">
+        {mapName(server.map)}
+      </span>
       {children && <span className="relative flex-shrink-0">{children}</span>}
     </div>
   );
@@ -79,10 +84,10 @@ export function ServerCard({ server, canStartServer, publicHost }: ServerCardPro
   };
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-[0_1px_2px_rgb(30_51_40/0.05)] transition-shadow hover:shadow-md">
+    <article className="hud relative flex h-full flex-col rounded-sm border bg-card backdrop-blur-sm transition-colors hover:border-primary/50">
       <MapBand server={server} className="h-12">
         {ready && (
-          <span className="font-display flex items-center gap-1.5 text-lg font-semibold" title={t('players')}>
+          <span className="font-display flex items-center gap-1.5 text-lg font-semibold text-primary [text-shadow:0_0_10px_rgb(57_195_236/0.6)]" title={t('players')}>
             <Users className="h-4 w-4 opacity-80" />
             {runtime.players}
             <span className="text-sm font-normal opacity-75">/{runtime.max_players || server.max_players}</span>
@@ -194,7 +199,7 @@ export function ServerCard({ server, canStartServer, publicHost }: ServerCardPro
         </div>
       </div>
 
-      <footer className="flex items-center justify-between gap-2 border-t bg-muted/40 px-4 py-2.5">
+      <footer className="flex items-center justify-between gap-2 border-t bg-black/20 px-4 py-2.5">
         <ServerActions server={server} canStart={canStartServer} />
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
           <Link href={`/servers/${server.id}`}>

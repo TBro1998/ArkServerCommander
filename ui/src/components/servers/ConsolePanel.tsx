@@ -189,16 +189,16 @@ export function ConsolePanel({ server, active }: { server: Server; active: boole
             <CardTitle className="text-base">{t('rconConsole')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div ref={outputRef} className="h-72 overflow-auto rounded-lg bg-gray-950 p-3 font-mono text-xs leading-5">
+            <div ref={outputRef} className="h-72 overflow-auto rounded-sm border bg-terminal p-3 font-mono text-xs leading-5">
               {history.length === 0 ? (
-                <div className="text-gray-500">{t('consoleHint')}</div>
+                <div className="text-muted-foreground">{t('consoleHint')}</div>
               ) : (
                 history.map((h, i) => (
                   <div key={i} className="mb-2">
-                    <div className="text-sky-300">
+                    <div className="text-primary">
                       <span className="text-gray-500">[{h.time}]</span> &gt; {h.command}
                     </div>
-                    <div className={`whitespace-pre-wrap break-all ${h.ok ? 'text-gray-200' : 'text-red-400'}`}>{h.output}</div>
+                    <div className={`whitespace-pre-wrap break-all ${h.ok ? 'text-terminal-foreground' : 'text-red-700'}`}>{h.output}</div>
                   </div>
                 ))
               )}

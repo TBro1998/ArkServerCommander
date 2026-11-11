@@ -3,41 +3,117 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* 把现有代码里的 gray / green / blue 统一调成带绿调的石色、蕨绿和方尖碑蓝 */
+/* 深色 HUD 主题：色阶整体反转，数字小的是深色背景色调，数字大的是浅色文字。
+   这样旧代码里的 bg-red-50 text-red-800 之类自动变成"深色底 + 浅色字"。
+   新代码按这个约定写：背景用 50–200，图标 / 圆点用 400–600，文字用 600–900 */
 @theme {
-  --color-gray-50: oklch(0.977 0.004 140);
-  --color-gray-100: oklch(0.951 0.006 140);
-  --color-gray-200: oklch(0.912 0.008 140);
-  --color-gray-300: oklch(0.858 0.01 145);
-  --color-gray-400: oklch(0.71 0.012 150);
-  --color-gray-500: oklch(0.535 0.014 150);
-  --color-gray-600: oklch(0.455 0.015 152);
-  --color-gray-700: oklch(0.375 0.016 155);
-  --color-gray-800: oklch(0.29 0.017 157);
-  --color-gray-900: oklch(0.235 0.018 158);
-  --color-gray-950: oklch(0.19 0.017 160);
+  --color-gray-50: oklch(0.22 0.018 232);
+  --color-gray-100: oklch(0.26 0.018 232);
+  --color-gray-200: oklch(0.34 0.020 232);
+  --color-gray-300: oklch(0.43 0.020 232);
+  --color-gray-400: oklch(0.55 0.022 232);
+  --color-gray-500: oklch(0.66 0.022 232);
+  --color-gray-600: oklch(0.73 0.022 232);
+  --color-gray-700: oklch(0.8 0.016 232);
+  --color-gray-800: oklch(0.86 0.016 232);
+  --color-gray-900: oklch(0.92 0.016 232);
+  --color-gray-950: oklch(0.96 0.016 232);
 
-  --color-green-50: oklch(0.972 0.016 155);
-  --color-green-100: oklch(0.938 0.035 155);
-  --color-green-200: oklch(0.885 0.06 155);
-  --color-green-300: oklch(0.81 0.09 155);
-  --color-green-400: oklch(0.70 0.11 155);
-  --color-green-500: oklch(0.6 0.115 155);
-  --color-green-600: oklch(0.5 0.095 158);
-  --color-green-700: oklch(0.44 0.08 160);
-  --color-green-800: oklch(0.37 0.065 160);
-  --color-green-900: oklch(0.31 0.05 162);
+  --color-red-50: oklch(0.22 0.060 25);
+  --color-red-100: oklch(0.26 0.060 25);
+  --color-red-200: oklch(0.34 0.115 25);
+  --color-red-300: oklch(0.43 0.115 25);
+  --color-red-400: oklch(0.55 0.170 25);
+  --color-red-500: oklch(0.66 0.170 25);
+  --color-red-600: oklch(0.73 0.170 25);
+  --color-red-700: oklch(0.8 0.080 25);
+  --color-red-800: oklch(0.86 0.080 25);
+  --color-red-900: oklch(0.92 0.080 25);
+  --color-red-950: oklch(0.96 0.080 25);
 
-  --color-blue-50: oklch(0.973 0.01 225);
-  --color-blue-100: oklch(0.935 0.025 225);
-  --color-blue-200: oklch(0.875 0.045 225);
-  --color-blue-300: oklch(0.79 0.07 225);
-  --color-blue-400: oklch(0.68 0.09 228);
-  --color-blue-500: oklch(0.58 0.1 230);
-  --color-blue-600: oklch(0.5 0.095 232);
-  --color-blue-700: oklch(0.44 0.085 235);
-  --color-blue-800: oklch(0.38 0.07 237);
-  --color-blue-900: oklch(0.32 0.055 240);
+  --color-green-50: oklch(0.22 0.050 152);
+  --color-green-100: oklch(0.26 0.050 152);
+  --color-green-200: oklch(0.34 0.100 152);
+  --color-green-300: oklch(0.43 0.100 152);
+  --color-green-400: oklch(0.55 0.150 152);
+  --color-green-500: oklch(0.66 0.150 152);
+  --color-green-600: oklch(0.73 0.150 152);
+  --color-green-700: oklch(0.8 0.080 152);
+  --color-green-800: oklch(0.86 0.080 152);
+  --color-green-900: oklch(0.92 0.080 152);
+  --color-green-950: oklch(0.96 0.080 152);
+
+  --color-amber-50: oklch(0.22 0.050 72);
+  --color-amber-100: oklch(0.26 0.050 72);
+  --color-amber-200: oklch(0.34 0.100 72);
+  --color-amber-300: oklch(0.43 0.100 72);
+  --color-amber-400: oklch(0.55 0.150 72);
+  --color-amber-500: oklch(0.66 0.150 72);
+  --color-amber-600: oklch(0.73 0.150 72);
+  --color-amber-700: oklch(0.8 0.090 72);
+  --color-amber-800: oklch(0.86 0.090 72);
+  --color-amber-900: oklch(0.92 0.090 72);
+  --color-amber-950: oklch(0.96 0.090 72);
+
+  --color-yellow-50: oklch(0.22 0.050 92);
+  --color-yellow-100: oklch(0.26 0.050 92);
+  --color-yellow-200: oklch(0.34 0.100 92);
+  --color-yellow-300: oklch(0.43 0.100 92);
+  --color-yellow-400: oklch(0.55 0.150 92);
+  --color-yellow-500: oklch(0.66 0.150 92);
+  --color-yellow-600: oklch(0.73 0.150 92);
+  --color-yellow-700: oklch(0.8 0.090 92);
+  --color-yellow-800: oklch(0.86 0.090 92);
+  --color-yellow-900: oklch(0.92 0.090 92);
+  --color-yellow-950: oklch(0.96 0.090 92);
+
+  --color-blue-50: oklch(0.22 0.050 232);
+  --color-blue-100: oklch(0.26 0.050 232);
+  --color-blue-200: oklch(0.34 0.090 232);
+  --color-blue-300: oklch(0.43 0.090 232);
+  --color-blue-400: oklch(0.55 0.130 232);
+  --color-blue-500: oklch(0.66 0.130 232);
+  --color-blue-600: oklch(0.73 0.130 232);
+  --color-blue-700: oklch(0.8 0.070 232);
+  --color-blue-800: oklch(0.86 0.070 232);
+  --color-blue-900: oklch(0.92 0.070 232);
+  --color-blue-950: oklch(0.96 0.070 232);
+
+  --color-sky-50: oklch(0.22 0.050 225);
+  --color-sky-100: oklch(0.26 0.050 225);
+  --color-sky-200: oklch(0.34 0.090 225);
+  --color-sky-300: oklch(0.43 0.090 225);
+  --color-sky-400: oklch(0.55 0.130 225);
+  --color-sky-500: oklch(0.66 0.130 225);
+  --color-sky-600: oklch(0.73 0.130 225);
+  --color-sky-700: oklch(0.8 0.070 225);
+  --color-sky-800: oklch(0.86 0.070 225);
+  --color-sky-900: oklch(0.92 0.070 225);
+  --color-sky-950: oklch(0.96 0.070 225);
+
+  --color-purple-50: oklch(0.22 0.050 300);
+  --color-purple-100: oklch(0.26 0.050 300);
+  --color-purple-200: oklch(0.34 0.095 300);
+  --color-purple-300: oklch(0.43 0.095 300);
+  --color-purple-400: oklch(0.55 0.140 300);
+  --color-purple-500: oklch(0.66 0.140 300);
+  --color-purple-600: oklch(0.73 0.140 300);
+  --color-purple-700: oklch(0.8 0.070 300);
+  --color-purple-800: oklch(0.86 0.070 300);
+  --color-purple-900: oklch(0.92 0.070 300);
+  --color-purple-950: oklch(0.96 0.070 300);
+
+  --color-orange-50: oklch(0.22 0.050 50);
+  --color-orange-100: oklch(0.26 0.050 50);
+  --color-orange-200: oklch(0.34 0.105 50);
+  --color-orange-300: oklch(0.43 0.105 50);
+  --color-orange-400: oklch(0.55 0.160 50);
+  --color-orange-500: oklch(0.66 0.160 50);
+  --color-orange-600: oklch(0.73 0.160 50);
+  --color-orange-700: oklch(0.8 0.080 50);
+  --color-orange-800: oklch(0.86 0.080 50);
+  --color-orange-900: oklch(0.92 0.080 50);
+  --color-orange-950: oklch(0.96 0.080 50);
 }
 
 @theme inline {
@@ -50,6 +126,8 @@
   --color-chrome-foreground: var(--chrome-foreground);
   --color-chrome-muted: var(--chrome-muted);
   --color-amber-accent: var(--amber);
+  --color-terminal: var(--terminal);
+  --color-terminal-foreground: var(--terminal-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -86,43 +164,46 @@
 }
 
 :root {
-  /* 野外考察站：苔藓绿外框、石灰岩底色、琥珀色只用于"进行中" */
-  --radius: 0.5rem;
-  --background: #eceee8;
-  --foreground: #1f2a24;
-  --card: #fcfdfb;
-  --card-foreground: #1f2a24;
-  --popover: #fcfdfb;
-  --popover-foreground: #1f2a24;
-  --primary: #2e6b4f;
-  --primary-foreground: #f4f8f5;
-  --secondary: #e3e7e0;
-  --secondary-foreground: #1f2a24;
-  --muted: #e9ece5;
-  --muted-foreground: #5c665f;
-  --accent: #e2e8e1;
-  --accent-foreground: #1f2a24;
-  --destructive: #b23a2b;
-  --border: #d6dbd3;
-  --input: #c9cfc6;
-  --ring: #2e6b4f;
-  --chrome: #1e3328;
-  --chrome-foreground: #e6ede7;
-  --chrome-muted: #9fb3a6;
-  --amber: #c7841a;
-  --chart-1: #2e6b4f;
-  --chart-2: #2f6f7a;
-  --chart-3: #c7841a;
-  --chart-4: #6b4fa0;
-  --chart-5: #b23a2b;
-  --sidebar: #fcfdfb;
-  --sidebar-foreground: #1f2a24;
-  --sidebar-primary: #2e6b4f;
-  --sidebar-primary-foreground: #f4f8f5;
-  --sidebar-accent: #e2e8e1;
-  --sidebar-accent-foreground: #1f2a24;
-  --sidebar-border: #d6dbd3;
-  --sidebar-ring: #2e6b4f;
+  /* 方舟风格 HUD：深蓝半透明面板、青色高亮、细描边 */
+  color-scheme: dark;
+  --radius: 0.25rem;
+  --background: #0a141e;
+  --foreground: #d3ecf6;
+  --card: rgb(15 30 43 / 0.88);
+  --card-foreground: #d3ecf6;
+  --popover: #0f1f2d;
+  --popover-foreground: #d3ecf6;
+  --primary: #39c3ec;
+  --primary-foreground: #03121c;
+  --secondary: #16293b;
+  --secondary-foreground: #d3ecf6;
+  --muted: #13253a;
+  --muted-foreground: #7f9cb0;
+  --accent: rgb(57 195 236 / 0.1);
+  --accent-foreground: #e6f6fc;
+  --destructive: #e5533d;
+  --border: rgb(84 170 210 / 0.2);
+  --input: rgb(84 170 210 / 0.32);
+  --ring: #39c3ec;
+  --chrome: rgb(6 14 22 / 0.94);
+  --chrome-foreground: #d3ecf6;
+  --chrome-muted: #7f9cb0;
+  --amber: #f0ac2e;
+  --terminal: #050b11;
+  --terminal-foreground: #b9dcea;
+  --chart-1: #39c3ec;
+  --chart-2: #4fd18b;
+  --chart-3: #f0ac2e;
+  --chart-4: #a77bf0;
+  --chart-5: #e5533d;
+  --sidebar: #0f1f2d;
+  --sidebar-foreground: #d3ecf6;
+  --sidebar-primary: #39c3ec;
+  --sidebar-primary-foreground: #03121c;
+  --sidebar-accent: rgb(57 195 236 / 0.1);
+  --sidebar-accent-foreground: #e6f6fc;
+  --sidebar-border: rgb(84 170 210 / 0.2);
+  --sidebar-ring: #39c3ec;
 }
 
 @layer base {
@@ -130,8 +211,15 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "tnum" 0;
+    @apply text-foreground antialiased;
+    /* 顶部一圈很淡的青色光，面板之外不放任何图案 */
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgb(30 110 150 / 0.28), transparent 70%),
+      var(--background);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: rgb(57 195 236 / 0.35);
   }
   /* 键盘操作时始终能看到焦点 */
   :where(a, button, [role="button"], [role="tab"], [role="menuitem"], summary):focus-visible {
@@ -140,15 +228,49 @@
   }
 }
 
-@layer utilities {
-  /* 标题、数字、地图名使用 Saira 半窄体 */
-  .font-display {
-    font-family: var(--font-display);
-    font-stretch: 88%;
-    font-feature-settings: "tnum" 1, "lnum" 1;
+/* 标题、数字、地图名使用 Saira 半窄体 */
+@utility font-display {
+  font-family: var(--font-display);
+  font-stretch: 88%;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 英文界面的标题、导航和按钮用大写加字距，与游戏内菜单一致；中文不受影响 */
+@utility hud-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@utility glow-text {
+  text-shadow: 0 0 12px rgb(57 195 236 / 0.55);
+}
+
+/* HUD 角标：面板左上和右下各一个青色直角。元素本身要有定位（relative / fixed 等） */
+@utility hud {
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    z-index: 1;
   }
-  .num {
-    font-variant-numeric: tabular-nums;
+  &::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid var(--primary);
+    border-left: 2px solid var(--primary);
+  }
+  &::after {
+    right: -1px;
+    bottom: -1px;
+    border-right: 2px solid var(--primary);
+    border-bottom: 2px solid var(--primary);
   }
 }
 

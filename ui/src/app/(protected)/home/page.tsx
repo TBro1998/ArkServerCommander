@@ -64,9 +64,9 @@ interface UpdateTarget {
 // 仪表条里的一格：标签在上，读数用 Saira 大号数字
 function Readout({ label, value, sub, live }: { label: string; value: string; sub?: string; live?: boolean }) {
   return (
-    <div className="min-w-0 bg-card px-4 py-3.5">
-      <div className="truncate text-xs text-muted-foreground">{label}</div>
-      <div className={cn('font-display mt-0.5 truncate text-[1.75rem] leading-tight font-semibold', live && 'text-primary')}>{value}</div>
+    <div className="min-w-0 bg-[#0d1b28] px-4 py-3.5">
+      <div className="hud-caps truncate text-xs text-muted-foreground">{label}</div>
+      <div className={cn('font-display mt-0.5 truncate text-[1.75rem] leading-tight font-semibold', live && 'glow-text text-primary')}>{value}</div>
       <div className="h-4 truncate text-xs text-muted-foreground">{sub}</div>
     </div>
   );
@@ -270,7 +270,7 @@ export default function HomePage() {
       />
 
       {/* 仪表条：一行读完全局状态 */}
-      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 xl:grid-cols-6">
+      <section className="hud relative grid grid-cols-2 gap-px rounded-sm border bg-border sm:grid-cols-3 xl:grid-cols-6">
         <Readout label={t('servers')} value={String(ov?.total_servers ?? '-')} />
         <Readout
           label={t('running')}
@@ -286,7 +286,7 @@ export default function HomePage() {
 
       {/* 最近的错误 */}
       {ov && ov.recent_errors.length > 0 && (
-        <section className="rounded-lg border border-l-4 border-red-200 border-l-red-600 bg-red-50/70 px-4 py-3">
+        <section className="rounded-sm border border-l-4 border-red-200 border-l-red-500 bg-red-50/80 px-4 py-3">
           <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-800">
             <AlertTriangle className="h-4 w-4" />
             {t('recentErrors')}
@@ -306,7 +306,7 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         {/* 服务器名单：在首页就能启停 */}
-        <Card className="gap-0 overflow-hidden py-0">
+        <Card className="gap-0 py-0">
           <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-3">
             <CardTitle className="font-display text-lg">{t('servers')}</CardTitle>
             {servers.length > 0 && (

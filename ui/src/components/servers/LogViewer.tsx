@@ -16,11 +16,11 @@ type StreamState = 'connecting' | 'live' | 'ended' | 'error';
 
 // 按内容给日志行着色：错误、警告、脚本的阶段提示
 function lineClass(line: string): string {
-  if (/\[!\]|error|failed|fatal/i.test(line)) return 'text-red-400';
-  if (/warn/i.test(line)) return 'text-amber-300';
-  if (/^\s*\[\*\]|^\s*\[i\]/.test(line)) return 'text-sky-300';
-  if (/Update state|progress:/i.test(line)) return 'text-gray-400';
-  return 'text-gray-200';
+  if (/\[!\]|error|failed|fatal/i.test(line)) return 'text-red-700';
+  if (/warn/i.test(line)) return 'text-amber-700';
+  if (/^\s*\[\*\]|^\s*\[i\]/.test(line)) return 'text-primary';
+  if (/Update state|progress:/i.test(line)) return 'text-muted-foreground';
+  return 'text-terminal-foreground';
 }
 
 export function LogViewer({ serverId, active }: { serverId: number; active: boolean }) {
@@ -179,7 +179,7 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
         <div
           ref={containerRef}
           onScroll={onScroll}
-          className="h-[55vh] min-h-[320px] overflow-auto rounded-lg bg-gray-950 p-3 font-mono text-xs leading-5"
+          className="h-[55vh] min-h-[320px] overflow-auto rounded-sm border bg-terminal p-3 font-mono text-xs leading-5"
         >
           {visible.length === 0 ? (
             <div className="text-gray-500">{state === 'connecting' ? t('connecting') : t('empty')}</div>

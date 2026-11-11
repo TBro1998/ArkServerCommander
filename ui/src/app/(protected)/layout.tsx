@@ -56,7 +56,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       >
         {tLayout('skipToContent')}
       </a>
-      <header className="sticky top-0 z-40 bg-chrome text-chrome-foreground">
+      <header className="sticky top-0 z-40 border-b border-primary/25 bg-chrome text-chrome-foreground shadow-[0_1px_16px_-6px] shadow-primary/40 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex h-full min-w-0 items-center gap-8">
             <Link href="/home" className="truncate text-chrome-foreground">
@@ -71,12 +71,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'relative flex items-center px-3 text-sm font-medium transition-colors',
-                      active ? 'text-chrome-foreground' : 'text-chrome-muted hover:text-chrome-foreground',
+                      'hud-caps relative flex items-center px-3 text-sm font-medium transition-colors',
+                      active ? 'glow-text text-primary' : 'text-chrome-muted hover:text-chrome-foreground',
                     )}
                   >
                     {t(item.key)}
-                    {active && <span className="absolute inset-x-3 bottom-0 h-[3px] rounded-t bg-amber-accent" />}
+                    {active && <span className="absolute inset-x-3 -bottom-px h-0.5 bg-primary shadow-[0_0_8px] shadow-primary" />}
                   </Link>
                 );
               })}
@@ -123,7 +123,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
                         aria-current={active ? 'page' : undefined}
                         className={cn(
                           'block rounded-md border-l-[3px] px-3 py-2.5 text-base font-medium',
-                          active ? 'border-amber-accent bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:bg-accent',
+                          active ? 'border-primary bg-accent text-primary' : 'border-transparent text-muted-foreground hover:bg-accent',
                         )}
                       >
                         {t(item.key)}
@@ -149,7 +149,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </header>
-      <main id="main" className="mx-auto w-full max-w-[1600px] px-4 pt-6 pb-12 sm:px-6 sm:pt-8 lg:px-8">
+      <main id="main" className="mx-auto w-full max-w-[1600px] px-4 pt-6 pb-16 sm:px-6 sm:pt-8 lg:px-8">
         {children}
       </main>
     </div>

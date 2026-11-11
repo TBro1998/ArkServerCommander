@@ -189,10 +189,10 @@ export default function ServerDetailPage() {
       </Link>
 
       {/* 顶部：地图色带 + 名称、状态、操作 */}
-      <div className="mb-6 overflow-hidden rounded-lg border bg-card">
+      <div className="hud relative mb-6 rounded-sm border bg-card backdrop-blur-sm">
         <MapBand server={server} className="h-10 text-sm">
           {server.status === 'running' && server.runtime?.phase === 'ready' && (
-            <span className="font-display flex items-center gap-1.5 text-base font-semibold">
+            <span className="font-display flex items-center gap-1.5 text-base font-semibold text-primary [text-shadow:0_0_10px_rgb(57_195_236/0.6)]">
               <Users className="h-4 w-4 opacity-80" />
               {server.runtime.players}
               <span className="text-sm font-normal opacity-75">/{server.runtime.max_players || server.max_players}</span>
@@ -201,7 +201,7 @@ export default function ServerDetailPage() {
         </MapBand>
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0">
-            <h1 className="font-display truncate text-2xl font-semibold tracking-tight lg:text-[1.75rem]">{server.session_name}</h1>
+            <h1 className="font-display truncate text-2xl font-semibold lg:text-[1.75rem]">{server.session_name}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <StatusBadge server={server} />
               {server.image_outdated && (
