@@ -1,113 +1,85 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useParams } from 'next/navigation';
-import { Server } from '@/stores/servers';
-import { serversActions } from '@/stores/servers';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Save, Eye, EyeOff } from 'lucide-react';
-import { GameUserSettingsEditor } from '@/components/servers/GameUserSettingsEditor';
-import { GameIniEditor } from '@/components/servers/GameIniEditor';
-import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
-import { MapSelector } from '@/components/servers/MapSelector';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getErrorMessage } from '@/lib/api-error';
+import { ServerForm } from '@/components/servers/ServerForm';
+import { serversActions, type Server } from '@/stores/servers';
+import { useApiError } from '@/lib/api-error';
+import { toast } from '@/lib/toast';
 
 export default function ServerEditPage() {
   const tServers = useTranslations('servers');
-  const tServersEdit = useTranslations('servers.edit');
+  const tEdit = useTranslations('servers.edit');
+  const tForm = useTranslations('serverForm');
   const tCommon = useTranslations('common');
   const router = useRouter();
   const params = useParams();
   const serverId = Number(params.id);
-
-  const { getServer, updateServer } = serversActions;
+  const apiError = useApiError();
 
   const [server, setServer] = useState<Server | null>(null);
-  const [formData, setFormData] = useState<Partial<Server>>({});
-  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    const loadServer = async () => {
-      try {
-        setLoading(true);
-        const serverData = await getServer(serverId);
-        setServer(serverData);
-        setFormData(serverData);
-      } catch {
-        setError(tServersEdit('loadServerInfoFailed'));
-      } finally {
-        setLoading(false);
-      }
+    if (!serverId) return;
+    let cancelled = false;
+    serversActions
+      .getServer(serverId)
+      .then((data) => {
+        if (!cancelled) setServer(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(apiError(err, tEdit('loadServerInfoFailed')));
+      });
+    return () => {
+      cancelled = true;
     };
+  }, [serverId, apiError, tEdit]);
 
-    if (serverId) {
-      loadServer();
-    }
-  }, [serverId, getServer, tServersEdit]);
+  const backToDetail = () => router.push(`/servers/${serverId}`);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const isNumber = type === 'number';
-    setFormData((prev) => ({ ...prev, [name]: isNumber ? Number(value) : value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
+  const handleSubmit = async (form: Partial<Server>, { restart }: { restart: boolean }) => {
+    if (!server) return false;
     // 配置文件只在内容有变化时提交，避免每次保存都重写数据卷里的文件。
     // 服务器未停止时后端会先暂存，下次启动时再写入
-    const payload: Partial<Server> = { ...formData };
-    if (payload.game_user_settings === server?.game_user_settings) delete payload.game_user_settings;
-    if (payload.game_ini === server?.game_ini) delete payload.game_ini;
+    const payload: Partial<Server> = { ...form };
+    if (payload.game_user_settings === server.game_user_settings) delete payload.game_user_settings;
+    if (payload.game_ini === server.game_ini) delete payload.game_ini;
+    // 密码留空表示不修改
+    if (!payload.admin_password) delete payload.admin_password;
 
+    setSaving(true);
     try {
-      setSaving(true);
-      const updated = await updateServer(serverId, payload);
-      setServer(updated);
-      setSuccess(tServers('serverUpdateSuccess'));
-      // 可选：保存成功后跳转回服务器列表
-      // router.push('/servers');
+      const updated = await serversActions.updateServer(serverId, payload);
+      setServer({ ...updated, admin_password: undefined });
+      if (restart) {
+        await serversActions.restartServer(serverId);
+        toast.success(tForm('savedAndRestarting'));
+        backToDetail();
+      } else {
+        toast.success(updated.status === 'stopped' ? tServers('serverUpdateSuccess') : tForm('savedPending'));
+      }
+      return true;
     } catch (err) {
-      setError(getErrorMessage(err, tServers('serverUpdateError')));
+      toast.error(apiError(err, tServers('serverUpdateError')));
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
-  const handleBack = () => {
-    router.push('/servers');
-  };
-
-  if (loading) {
-    return (
-      <div className="w-full max-w-none py-8">
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">{tCommon('loading')}</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !server) {
+  if (loadError) {
     return (
       <div className="w-full max-w-none py-8">
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{loadError}</AlertDescription>
         </Alert>
-        <Button onClick={handleBack} className="mt-4">
+        <Button onClick={() => router.push('/servers')} className="mt-4">
           <ArrowLeft className="mr-2 h-4 w-4" />
           {tCommon('back')}
         </Button>
@@ -115,179 +87,41 @@ export default function ServerEditPage() {
     );
   }
 
+  if (!server) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">{tCommon('loading')}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full max-w-none py-8">
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {tCommon('back')}
-          </Button>
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{tServersEdit('editTitle')}</h1>
-            <p className="text-gray-600">{server?.session_name}</p>
-          </div>
+    <div className="w-full max-w-none py-4 sm:py-8">
+      <div className="mb-6 flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={backToDetail} aria-label="back">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">{tEdit('editTitle')}</h1>
+          <p className="truncate text-gray-600">{server.session_name}</p>
         </div>
-
-        {server && (server.status !== 'stopped' || server.config_pending) && (
-          <Alert className="mb-4 border-amber-300 bg-amber-50 text-amber-900">
-            <AlertDescription>
-              {server.config_pending ? tServersEdit('configPending') : tServersEdit('configAppliesOnRestart')}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {success && (
-          <Alert className="mb-4">
-            <AlertDescription>{success}</AlertDescription>
-          </Alert>
-        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{tServersEdit('editTitle')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="basic">
-            <TabsList>
-              <TabsTrigger value="basic">{tServersEdit('basicParams')}</TabsTrigger>
-              <TabsTrigger value="game_user_settings">{tServersEdit('gameUserSettings')}</TabsTrigger>
-              <TabsTrigger value="game_ini">{tServersEdit('gameIni')}</TabsTrigger>
-              <TabsTrigger value="server_args">{tServersEdit('serverArgs')}</TabsTrigger>
-            </TabsList>
+      {(server.status !== 'stopped' || server.config_pending) && (
+        <Alert className="mb-4 border-amber-300 bg-amber-50 text-amber-900">
+          <AlertDescription>{server.config_pending ? tEdit('configPending') : tEdit('configAppliesOnRestart')}</AlertDescription>
+        </Alert>
+      )}
 
-            <TabsContent value="basic">
-              <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="session_name">{tServersEdit('serverName')}</Label>
-                    <Input id="session_name" name="session_name" value={formData.session_name || ''} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <MapSelector
-                      value={formData.map || ''}
-                      onChange={(value) => setFormData(prev => ({ ...prev, map: value }))}
-                      label={tServersEdit('map')}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="identifier">{tServersEdit('serverIdentifier')}</Label>
-                    <Input
-                      id="identifier"
-                      name="identifier"
-                      value={formData.identifier || ''}
-                      onChange={handleChange}
-                      placeholder={tServersEdit('serverIdentifierPlaceholder')}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cluster_id">{tServersEdit('clusterId')}</Label>
-                    <Input
-                      id="cluster_id"
-                      name="cluster_id"
-                      value={formData.cluster_id || ''}
-                      onChange={handleChange}
-                      placeholder={tServersEdit('clusterIdPlaceholder')}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="port">{tServersEdit('gamePort')}</Label>
-                    <Input id="port" name="port" type="number" value={formData.port || ''} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <Label htmlFor="query_port">{tServersEdit('queryPort')}</Label>
-                    <Input id="query_port" name="query_port" type="number" value={formData.query_port || ''} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <Label htmlFor="rcon_port">{tServersEdit('rconPort')}</Label>
-                    <Input id="rcon_port" name="rcon_port" type="number" value={formData.rcon_port || ''} onChange={handleChange} />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="admin_password">{tServersEdit('adminPassword')}</Label>
-                  <div className="relative">
-                    <Input 
-                      id="admin_password" 
-                      name="admin_password" 
-                      type={showPassword ? 'text' : 'password'} 
-                      value={formData.admin_password || ''} 
-                      onChange={handleChange} 
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="max_players">{tServersEdit('maxPlayers')}</Label>
-                  <Input id="max_players" name="max_players" type="number" value={formData.max_players || ''} onChange={handleChange} />
-                </div>
-                <div>
-                  <Label htmlFor="game_mod_ids">{tServersEdit('modIds')}</Label>
-                  <Input
-                    id="game_mod_ids"
-                    name="game_mod_ids"
-                    value={formData.game_mod_ids || ''}
-                    onChange={handleChange}
-                    placeholder={tServersEdit('modIdsPlaceholder')}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">{tServersEdit('modIdsDesc')}</p>
-                </div>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="game_user_settings">
-              <GameUserSettingsEditor
-                value={formData.game_user_settings}
-                maxPlayers={formData.max_players}
-                onChange={(v) => setFormData(p => ({ ...p, game_user_settings: v }))}
-              />
-            </TabsContent>
-
-            <TabsContent value="game_ini">
-              <GameIniEditor
-                value={formData.game_ini}
-                onChange={(v) => setFormData(p => ({ ...p, game_ini: v }))}
-              />
-            </TabsContent>
-
-            <TabsContent value="server_args">
-              <ServerArgsEditor value={formData.server_args} onChange={(v) => setFormData(p => ({ ...p, server_args: v }))} />
-            </TabsContent>
-          </Tabs>
-
-          <div className="flex justify-end gap-2 mt-6 pt-6 border-t">
-            <Button variant="outline" onClick={handleBack}>
-              {tCommon('cancel')}
-            </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Save className="mr-2 h-4 w-4" />
-              {tServersEdit('saveChanges')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ServerForm
+        mode="edit"
+        initial={server}
+        running={server.status === 'running'}
+        saving={saving}
+        onSubmit={handleSubmit}
+        onCancel={backToDetail}
+      />
     </div>
   );
 }

@@ -1,239 +1,85 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { Server } from '@/stores/servers';
-import { serversActions } from '@/stores/servers';
+import axios from 'axios';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Plus, Eye, EyeOff } from 'lucide-react';
-import { GameUserSettingsEditor } from '@/components/servers/GameUserSettingsEditor';
-import { GameIniEditor } from '@/components/servers/GameIniEditor';
-import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
-import { MapSelector } from '@/components/servers/MapSelector';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getErrorMessage } from '@/lib/api-error';
+import { ServerForm } from '@/components/servers/ServerForm';
+import { serversActions, type Server } from '@/stores/servers';
+import { useApiError } from '@/lib/api-error';
+import { toast } from '@/lib/toast';
+
+const DEFAULTS: Partial<Server> = {
+  identifier: '',
+  session_name: 'ARK Server',
+  cluster_id: '',
+  port: 7777,
+  query_port: 27015,
+  rcon_port: 32330,
+  map: 'TheIsland',
+  max_players: 70,
+  game_mod_ids: '',
+  auto_restart: true,
+  auto_update: false,
+  server_args: {
+    query_params: {},
+    command_line_args: {},
+    custom_args: [],
+  },
+};
 
 export default function ServerNewPage() {
   const t = useTranslations('servers.edit');
-  const tCommon = useTranslations('common');
+  const tForm = useTranslations('serverForm');
   const router = useRouter();
-
-  const { createServer } = serversActions;
-
-  const [formData, setFormData] = useState<Partial<Server>>({
-    identifier: '',
-    session_name: 'ARK Server',
-    cluster_id: '',
-    port: 7777,
-    query_port: 27015,
-    rcon_port: 32330,
-    map: 'TheIsland',
-    max_players: 70,
-    game_mod_ids: '',
-    server_args: {
-      query_params: {},
-      command_line_args: {},
-      custom_args: []
-    },
-  });
+  const apiError = useApiError();
+  const [initial, setInitial] = useState<Partial<Server>>(DEFAULTS);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const isNumber = type === 'number';
-    setFormData((prev) => ({ ...prev, [name]: isNumber ? Number(value) : value }));
-  };
+  // 默认端口已被其他服务器占用时，换成第一组空闲端口
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get('/api/system/suggest-ports')
+      .then((res) => {
+        const p = res.data.data;
+        if (!cancelled && p) setInitial((prev) => ({ ...prev, port: p.port, query_port: p.query_port, rcon_port: p.rcon_port }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.identifier?.trim()) {
-      setError(t('identifierRequired'));
-      return;
-    }
-    setError('');
+  const handleSubmit = async (data: Partial<Server>) => {
+    setSaving(true);
     try {
-      setSaving(true);
-      await createServer({ ...formData, identifier: formData.identifier.trim() });
-      // 创建成功后跳转回服务器列表
-      router.push('/servers');
+      const created = await serversActions.createServer(data);
+      toast.success(tForm('created'));
+      router.push(`/servers/${created.id}`);
+      return true;
     } catch (err) {
-      setError(getErrorMessage(err, t('serverCreateError')));
+      toast.error(apiError(err, t('serverCreateError')));
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
-  const handleBack = () => {
-    router.push('/servers');
-  };
-
   return (
-    <div className="w-full max-w-none py-8">
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {tCommon('back')}
-          </Button>
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{t('createTitle')}</h1>
-            <p className="text-gray-600">{t('createServerDesc')}</p>
-          </div>
+    <div className="w-full max-w-none py-4 sm:py-8">
+      <div className="mb-6 flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.push('/servers')} aria-label="back">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">{t('createTitle')}</h1>
+          <p className="text-gray-600">{t('createServerDesc')}</p>
         </div>
-
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('createTitle')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="basic">
-            <TabsList>
-              <TabsTrigger value="basic">{t('basicParams')}</TabsTrigger>
-              <TabsTrigger value="game_user_settings">{t('gameUserSettings')}</TabsTrigger>
-              <TabsTrigger value="game_ini">{t('gameIni')}</TabsTrigger>
-              <TabsTrigger value="server_args">{t('serverArgs')}</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="basic">
-              <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="session_name">{t('serverName')}</Label>
-                    <Input id="session_name" name="session_name" value={formData.session_name || ''} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <MapSelector
-                      value={formData.map || ''}
-                      onChange={(value) => setFormData(prev => ({ ...prev, map: value }))}
-                      label={t('map')}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="identifier">{t('serverIdentifierRequired')}</Label>
-                    <Input
-                      id="identifier"
-                      name="identifier"
-                      value={formData.identifier || ''}
-                      onChange={handleChange}
-                      placeholder={t('serverIdentifierPlaceholder')}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cluster_id">{t('clusterId')}</Label>
-                    <Input
-                      id="cluster_id"
-                      name="cluster_id"
-                      value={formData.cluster_id || ''}
-                      onChange={handleChange}
-                      placeholder={t('clusterIdPlaceholder')}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="port">{t('gamePort')}</Label>
-                    <Input id="port" name="port" type="number" value={formData.port || ''} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <Label htmlFor="query_port">{t('queryPort')}</Label>
-                    <Input id="query_port" name="query_port" type="number" value={formData.query_port || ''} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <Label htmlFor="rcon_port">{t('rconPort')}</Label>
-                    <Input id="rcon_port" name="rcon_port" type="number" value={formData.rcon_port || ''} onChange={handleChange} />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="admin_password">{t('adminPassword')}</Label>
-                  <div className="relative">
-                    <Input 
-                      id="admin_password" 
-                      name="admin_password" 
-                      type={showPassword ? 'text' : 'password'} 
-                      value={formData.admin_password || ''} 
-                      onChange={handleChange} 
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="max_players">{t('maxPlayers')}</Label>
-                  <Input id="max_players" name="max_players" type="number" value={formData.max_players || ''} onChange={handleChange} />
-                </div>
-                <div>
-                  <Label htmlFor="game_mod_ids">{t('modIds')}</Label>
-                  <Input
-                    id="game_mod_ids"
-                    name="game_mod_ids"
-                    value={formData.game_mod_ids || ''}
-                    onChange={handleChange}
-                    placeholder={t('modIdsPlaceholder')}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">{t('modIdsDesc')}</p>
-                </div>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="game_user_settings">
-              <GameUserSettingsEditor
-                value={formData.game_user_settings}
-                maxPlayers={formData.max_players}
-                onChange={(v) => setFormData(p => ({ ...p, game_user_settings: v }))}
-              />
-            </TabsContent>
-
-            <TabsContent value="game_ini">
-              <GameIniEditor
-                value={formData.game_ini}
-                onChange={(v) => setFormData(p => ({ ...p, game_ini: v }))}
-              />
-            </TabsContent>
-
-            <TabsContent value="server_args">
-              <ServerArgsEditor value={formData.server_args} onChange={(v) => setFormData(p => ({ ...p, server_args: v }))} />
-            </TabsContent>
-          </Tabs>
-
-          <div className="flex justify-end gap-2 mt-6 pt-6 border-t">
-            <Button variant="outline" onClick={handleBack}>
-              {tCommon('cancel')}
-            </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Plus className="mr-2 h-4 w-4" />
-              {t('createServer')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ServerForm mode="create" initial={initial} saving={saving} onSubmit={handleSubmit} onCancel={() => router.push('/servers')} />
     </div>
   );
 }

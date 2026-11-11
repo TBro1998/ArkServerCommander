@@ -23,10 +23,17 @@ interface AuthState {
 // 定义认证操作类型
 interface AuthActions {
   checkInit: () => Promise<boolean>;
-  init: (credentials: Credentials) => Promise<{ success: boolean; message: string }>;
-  login: (credentials: Credentials) => Promise<{ success: boolean; message: string }>;
+  init: (credentials: Credentials) => Promise<AuthResult>;
+  login: (credentials: Credentials) => Promise<AuthResult>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
+}
+
+// 登录 / 初始化结果；code 是后端的错误码（如 too_many_attempts），界面据此显示对应语言的提示
+export interface AuthResult {
+  success: boolean;
+  message: string;
+  code?: string;
 }
 
 // 定义登录凭据类型
@@ -43,7 +50,7 @@ interface AuthResponse {
 
 const useAuthStore = create<AuthState>((set) => {
   // 登录和初始化共用：成功后服务端已写入 cookie，这里只更新状态
-  const submit = async (url: string, credentials: Credentials, fallback: string) => {
+  const submit = async (url: string, credentials: Credentials, fallback: string): Promise<AuthResult> => {
     set({ isLoading: true });
     try {
       const response = await axios.post<AuthResponse>(url, credentials);
@@ -52,7 +59,7 @@ const useAuthStore = create<AuthState>((set) => {
       return { success: true, message };
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return { success: false, message: error.response.data?.error || fallback };
+        return { success: false, message: error.response.data?.error || fallback, code: error.response.data?.code };
       }
       return { success: false, message: fallback };
     } finally {

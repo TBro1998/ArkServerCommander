@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from '@/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,8 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function LoginPage() {
   const t = useTranslations('auth');
+  const tApi = useTranslations('apiErrors');
+  const locale = useLocale();
   const router = useRouter();
   const { login, checkInit } = useAuthActions();
   const isAuthenticated = useIsAuthenticated();
@@ -64,7 +66,8 @@ export default function LoginPage() {
       if (result.success) {
         router.replace('/home');
       } else {
-        setError(result.message || t('loginError'));
+        // 中文界面显示后端原文；其他语言按错误码显示翻译
+        setError(result.code && locale !== 'zh' && tApi.has(result.code) ? tApi(result.code) : result.message || t('loginError'));
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : t('loginError');

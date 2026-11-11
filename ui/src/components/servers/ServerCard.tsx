@@ -2,85 +2,42 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Server, serversActions } from '@/stores/servers';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Play,
-  Square,
-  Loader2,
-  HelpCircle,
-  Info,
-  Edit,
-  Trash2,
-  Wifi,
-  Lock,
-  Eye,
-  EyeOff,
-  Copy,
-  AlertTriangle,
-  RotateCcw,
-} from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Lock, Eye, EyeOff, Copy, AlertTriangle, Users, Cpu, MemoryStick, Map as MapIcon } from 'lucide-react';
+import { serversActions, type Server } from '@/stores/servers';
+import { StatusBadge } from './StatusBadge';
+import { ServerActions } from './ServerActions';
+import { ConnectionInfo } from './ConnectionInfo';
+import { copyText, formatBytes, formatPercent } from '@/lib/format';
+import { toast } from '@/lib/toast';
+import { useApiError } from '@/lib/api-error';
 
 interface ServerCardProps {
   server: Server;
   canStartServer: boolean;
-  onStart: (server: Server) => void;
-  onStop: (server: Server) => void;
-  onEdit: (server: Server) => void;
-  onDelete: (server: Server) => void;
-  onRecreate: (server: Server) => void;
+  publicHost: string;
 }
 
-export function ServerCard({
-  server,
-  canStartServer,
-  onStart,
-  onStop,
-  onEdit,
-  onDelete,
-  onRecreate,
-}: ServerCardProps) {
-  const t = useTranslations('servers');
-  const [showPassword, setShowPassword] = useState(false);
+export function ServerCard({ server, canStartServer, publicHost }: ServerCardProps) {
+  const t = useTranslations('serverCard');
+  const tMaps = useTranslations('servers.edit.maps');
+  const apiError = useApiError();
   const [password, setPassword] = useState<string | null>(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
 
-  // 获取地图的显示名称（翻译名称或原始名称）
-  const getMapDisplayName = (mapName: string) => {
-    const mapKey = `edit.maps.${mapName}`;
-    const translatedName = t(mapKey);
-    // 如果翻译存在且不等于key本身，返回翻译；否则返回原始名称
-    return translatedName !== mapKey ? translatedName : mapName;
-  };
+  const mapName = tMaps.has(server.map) ? tMaps(server.map) : server.map;
+  const runtime = server.status === 'running' ? server.runtime : undefined;
 
-  const getStatusVariant = (status: Server['status']): 'default' | 'destructive' | 'secondary' | 'outline' => {
-    switch (status) {
-      case 'running':
-        return 'default';
-      case 'stopped':
-        return 'destructive';
-      case 'starting':
-      case 'stopping':
-        return 'secondary';
-      default:
-        return 'outline';
-    }
-  };
-
-  // 密码不再随列表返回，显示或复制时按需请求，且不做缓存
+  // 密码不随列表返回，显示或复制时按需请求，且不做缓存
   const fetchPassword = async (): Promise<string | null> => {
     setLoadingPassword(true);
     try {
       return await serversActions.getServerPassword(server.id);
-    } catch {
+    } catch (err) {
+      toast.error(apiError(err, t('passwordFailed')));
       return null;
     } finally {
       setLoadingPassword(false);
@@ -88,246 +45,133 @@ export function ServerCard({
   };
 
   const togglePassword = async () => {
-    if (showPassword) {
-      setShowPassword(false);
+    if (password !== null) {
       setPassword(null);
       return;
     }
-    const value = await fetchPassword();
-    if (value !== null) {
-      setPassword(value);
-      setShowPassword(true);
-    }
+    setPassword(await fetchPassword());
   };
 
   const copyPassword = async () => {
     const value = await fetchPassword();
-    if (value !== null) {
-      navigator.clipboard.writeText(value);
-      // You might want to add a toast notification here
-    }
-  };
-
-  const StartStopButton = () => {
-    switch (server.status) {
-      case 'running':
-        return (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={() => onStop(server)}
-          >
-            <Square className="h-4 w-4" />
-          </Button>
-        );
-      case 'stopped':
-        return (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-            onClick={() => onStart(server)}
-            disabled={!canStartServer}
-          >
-            <Play className="h-4 w-4" />
-          </Button>
-        );
-      case 'starting':
-      case 'stopping':
-        return (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-blue-600"
-            disabled
-          >
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </Button>
-        );
-      default:
-        return (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-gray-400"
-            disabled
-          >
-            <HelpCircle className="h-4 w-4" />
-          </Button>
-        );
-    }
+    if (value === null) return;
+    if (await copyText(value)) toast.success(t('passwordCopied'));
+    else toast.error(t('copyFailed'));
   };
 
   return (
-    <Card className="h-full hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
+    <Card className="flex h-full flex-col border-0 shadow-sm transition-all duration-200 hover:shadow-lg">
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-start mb-2">
-          <CardTitle className="text-base font-semibold truncate pr-2">{server.session_name}</CardTitle>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {/* 启动/停止按钮 */}
-            {StartStopButton()}
-
-            {/* 删除按钮 */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent>
-                <div className="space-y-2">
-                  <p className="text-sm">{t('card.confirmDeleteMessage', { identifier: server.session_name })}</p>
-                  <Button size="sm" variant="destructive" onClick={() => onDelete(server)}>{t('deleteServer')}</Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* 重建容器按钮 */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                  title={t('card.recreateServer')}
-                  disabled={server.status === 'starting' || server.status === 'stopping'}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent>
-                <div className="space-y-2">
-                  <p className="text-sm">{t('card.confirmRecreateMessage')}</p>
-                  <Button size="sm" onClick={() => onRecreate(server)}>{t('card.recreateServer')}</Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* 编辑按钮 */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-              onClick={() => onEdit(server)}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <CardTitle className="min-w-0 text-base font-semibold">
+            <Link href={`/servers/${server.id}`} className="block truncate hover:text-blue-700 hover:underline" title={server.session_name}>
+              {server.session_name}
+            </Link>
+          </CardTitle>
+          <ServerActions server={server} canStart={canStartServer} />
         </div>
-        <div className="flex items-center gap-1">
-          <Badge
-            variant={getStatusVariant(server.status)}
-            className="w-fit text-xs px-2 py-1"
-          >
-            {server.status}
-          </Badge>
+        <div className="flex flex-wrap items-center gap-1">
+          <StatusBadge server={server} />
           {server.image_outdated && (
-            <Badge
-              variant="secondary"
-              className="w-fit text-xs px-2 py-1 text-yellow-700 bg-yellow-100"
-              title={t('card.imageOutdatedTip')}
-            >
-              {t('card.imageOutdated')}
-            </Badge>
+            <span className="rounded-md bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800" title={t('imageOutdatedTip')}>
+              {t('imageOutdated')}
+            </span>
           )}
           {server.config_pending && (
-            <Badge
-              variant="secondary"
-              className="w-fit text-xs px-2 py-1 text-blue-700 bg-blue-100"
-              title={t('card.configPendingTip')}
-            >
-              {t('card.configPending')}
-            </Badge>
+            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs text-blue-800" title={t('configPendingTip')}>
+              {t('configPending')}
+            </span>
+          )}
+          {server.cluster_id && (
+            <span className="rounded-md bg-purple-100 px-2 py-0.5 text-xs text-purple-800" title={t('clusterTip')}>
+              {t('cluster', { id: server.cluster_id })}
+            </span>
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-0 space-y-3">
+      <CardContent className="flex flex-1 flex-col space-y-3 pt-0">
         {/* 最近一次启停失败的原因，下次启停时清空 */}
         {server.last_error && (
           <div className="flex items-start gap-1.5 rounded-lg bg-red-50 p-2 text-xs text-red-700">
-            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
             <span className="break-all">
-              <span className="font-medium">{t('card.lastError')}:</span> {server.last_error}
+              <span className="font-medium">{t('lastError')}:</span> {server.last_error}
             </span>
           </div>
         )}
 
-        {/* 端口配置 - 紧凑显示 */}
-        <div className="bg-gray-50 rounded-lg p-3">
-          <div className="flex items-center mb-2">
-            <Wifi className="h-3.5 w-3.5 text-blue-600 mr-1.5" />
-            <span className="text-xs font-medium text-gray-700">{t('card.portConfig')}</span>
+        {/* 下载服务端时显示进度条 */}
+        {runtime?.phase === 'downloading' && (
+          <div className="space-y-1">
+            <Progress value={runtime.progress ?? 0} className="h-1.5" />
+            <p className="text-xs text-gray-500">{t('downloadHint')}</p>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="text-center">
-              <div className="text-gray-500">{t('card.gamePort')}</div>
-              <div className="font-mono font-semibold">{server.port}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-gray-500">{t('card.queryPort')}</div>
-              <div className="font-mono font-semibold">{server.query_port}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-gray-500">RCON</div>
-              <div className="font-mono font-semibold">{server.rcon_port}</div>
-            </div>
-          </div>
-        </div>
+        )}
+        {runtime?.phase === 'launching' && <p className="text-xs text-gray-500">{t('launchingHint')}</p>}
 
-        {/* 服务器信息 */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600 flex items-center">
-              <Info className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-              {t('card.map')}
-            </span>
-            <span className="font-medium truncate ml-2">{getMapDisplayName(server.map)}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">{t('card.maxPlayers')}</span>
-            <span className="font-medium">{server.max_players}</span>
-          </div>
-        </div>
-
-        {/* 管理员密码 */}
-        <div className="bg-amber-50 rounded-lg p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Lock className="h-3.5 w-3.5 text-amber-600 mr-1.5" />
-              <span className="text-xs font-medium text-gray-700">{t('card.adminPassword')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="font-mono text-xs">
-                {showPassword && password !== null ? password : '••••••••'}
+        {/* 运行中：人数和资源 */}
+        {runtime && (
+          <div className="grid grid-cols-3 gap-2 rounded-lg bg-gray-50 p-2 text-xs">
+            <div className="text-center" title={t('players')}>
+              <Users className="mx-auto mb-0.5 h-3.5 w-3.5 text-green-600" />
+              <span className="font-semibold">
+                {runtime.phase === 'ready' ? `${runtime.players}/${runtime.max_players || server.max_players}` : '-'}
               </span>
+            </div>
+            <div className="text-center" title="CPU">
+              <Cpu className="mx-auto mb-0.5 h-3.5 w-3.5 text-blue-600" />
+              <span className="font-semibold">{formatPercent(runtime.cpu_percent, 0)}</span>
+            </div>
+            <div className="text-center" title={t('memory')}>
+              <MemoryStick className="mx-auto mb-0.5 h-3.5 w-3.5 text-purple-600" />
+              <span className="font-semibold">{formatBytes(runtime.memory_bytes)}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-1.5 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center text-gray-600">
+              <MapIcon className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+              {t('map')}
+            </span>
+            <span className="ml-2 truncate font-medium">{mapName}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>{t('ports')}</span>
+            <span className="font-mono">
+              {server.port} / {server.query_port} / {server.rcon_port}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-auto space-y-2">
+          <ConnectionInfo server={server} host={publicHost} compact />
+
+          {/* 管理员密码 */}
+          <div className="flex items-center justify-between rounded-lg bg-amber-50 px-2 py-1.5">
+            <span className="flex items-center text-xs font-medium text-gray-700">
+              <Lock className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+              {t('adminPassword')}
+            </span>
+            <span className="flex min-w-0 items-center gap-1">
+              <span className="truncate font-mono text-xs">{password ?? '••••••••'}</span>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0"
                 onClick={togglePassword}
                 disabled={loadingPassword}
+                title={password !== null ? t('hidePassword') : t('showPassword')}
               >
-                {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {password !== null ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={copyPassword}
-                disabled={loadingPassword}
-              >
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={copyPassword} disabled={loadingPassword} title={t('copyPassword')}>
                 <Copy className="h-3 w-3" />
               </Button>
-            </div>
+            </span>
           </div>
         </div>
-
-
       </CardContent>
     </Card>
   );
