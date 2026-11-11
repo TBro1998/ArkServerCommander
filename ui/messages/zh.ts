@@ -55,12 +55,13 @@ const messages = {
 
   // 认证
   auth: {
+    tagline: '在一个页面里创建、启停和维护你的 ARK: Survival Evolved 服务器。',
     login: '登录',
     logout: '退出登录',
     username: '用户名',
     password: '密码',
     loginTitle: 'ARK 服务器管理器',
-    loginSubtitle: '安全登录您的管理账户',
+    loginSubtitle: '使用管理员账户登录',
     loginButton: '登录',
     loginLoading: '登录中...',
     loginError: '登录失败',
@@ -351,9 +352,11 @@ const messages = {
         Genesis2: '创世纪2',
         CrystalIsles: '水晶群岛',
         LostIsland: '失落岛',
-        Fjordur: '冰封群岛'
+        Fjordur: '冰封群岛',
+        Ragnarok: '仙境'
       },
       selectMapPlaceholder: '选择地图或输入地图名称',
+      clearMap: '清除地图',
       searchMaps: '搜索地图',
       officialMaps: '官方地图',
       customMapPlaceholder: '输入自定义地图名称',
@@ -955,6 +958,8 @@ BabyImprintAmountMultiplier=1.0`
 
   // 布局
   layout: {
+    skipToContent: '跳到主要内容',
+    redirecting: '正在跳转...',
     initializing: '初始化中...',
     verifying: '验证身份中...',
     menu: '菜单'
@@ -1024,6 +1029,13 @@ BabyImprintAmountMultiplier=1.0`
 
   // 服务器列表
   serverList: {
+    filter: '按状态筛选',
+    filterEmpty: '没有符合条件的服务器',
+    filters: {
+      all: '全部',
+      active: '运行中',
+      stopped: '已停止'
+    },
     summary: '共 {total} 台，{running} 台运行中，{players} 名玩家在线',
     refresh: '刷新',
     imageNotReadyGoHome: '启动服务器需要的镜像还没有下载，请到首页的"镜像管理"中下载。'
@@ -1031,6 +1043,8 @@ BabyImprintAmountMultiplier=1.0`
 
   // 服务器卡片
   serverCard: {
+    resources: '资源占用',
+    viewLogs: '查看日志',
     passwordFailed: '获取管理员密码失败',
     passwordCopied: '管理员密码已复制',
     copyFailed: '复制失败，请手动复制',
@@ -1322,6 +1336,8 @@ BabyImprintAmountMultiplier=1.0`
 
   // 服务器表单
   serverForm: {
+    unsaved: '有未保存的修改',
+    saveShortcut: '保存（Ctrl+S）',
     sectionBasic: '基本信息',
     sectionNetwork: '端口和密码',
     sectionMods: 'Mod 和集群',
@@ -1360,6 +1376,10 @@ BabyImprintAmountMultiplier=1.0`
 
   // 首页概览
   dashboard: {
+    hostCopied: '公网地址已复制',
+    copyHost: '复制公网地址',
+    viewAll: '全部服务器',
+    createFirst: '创建第一台服务器',
     title: '概览',
     publicHost: '公网地址',
     manageServers: '管理服务器',

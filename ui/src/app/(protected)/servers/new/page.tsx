@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { PageHeader } from '@/components/PageHeader';
 import { ServerForm } from '@/components/servers/ServerForm';
 import { serversActions, type Server } from '@/stores/servers';
 import { useApiError } from '@/lib/api-error';
@@ -33,6 +34,7 @@ const DEFAULTS: Partial<Server> = {
 export default function ServerNewPage() {
   const t = useTranslations('servers.edit');
   const tForm = useTranslations('serverForm');
+  const tList = useTranslations('detail');
   const router = useRouter();
   const apiError = useApiError();
   const [initial, setInitial] = useState<Partial<Server>>(DEFAULTS);
@@ -69,16 +71,12 @@ export default function ServerNewPage() {
   };
 
   return (
-    <div className="w-full max-w-none py-4 sm:py-8">
-      <div className="mb-6 flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => router.push('/servers')} aria-label="back">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">{t('createTitle')}</h1>
-          <p className="text-gray-600">{t('createServerDesc')}</p>
-        </div>
-      </div>
+    <div className="w-full">
+      <Link href="/servers" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-1 h-4 w-4" />
+        {tList('backToList')}
+      </Link>
+      <PageHeader title={t('createTitle')} description={t('createServerDesc')} />
       <ServerForm mode="create" initial={initial} saving={saving} onSubmit={handleSubmit} onCancel={() => router.push('/servers')} />
     </div>
   );

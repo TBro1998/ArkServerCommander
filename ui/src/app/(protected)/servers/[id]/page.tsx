@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, AlertTriangle, Users, Cpu, MemoryStick, Loader2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { PageLoader } from '@/components/ui/page-loader';
 import {
   useServers,
   useServersLoaded,
@@ -26,6 +27,8 @@ import { ConsolePanel } from '@/components/servers/ConsolePanel';
 import { BackupsPanel } from '@/components/servers/BackupsPanel';
 import { SchedulesPanel } from '@/components/servers/SchedulesPanel';
 import { ModList } from '@/components/servers/ModList';
+import { MapBand } from '@/components/servers/ServerCard';
+import { useMapName } from '@/hooks/use-map-name';
 import { usePolling } from '@/hooks/use-polling';
 import { formatBytes, formatPercent } from '@/lib/format';
 
@@ -35,7 +38,7 @@ type Tab = (typeof TABS)[number];
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-1.5 text-sm">
-      <span className="flex-shrink-0 text-gray-600">{label}</span>
+      <span className="flex-shrink-0 text-muted-foreground">{label}</span>
       <span className="min-w-0 text-right font-medium break-all">{children}</span>
     </div>
   );
@@ -43,48 +46,43 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function Overview({ server, publicHost }: { server: Server; publicHost: string }) {
   const t = useTranslations('detail');
-  const tMaps = useTranslations('servers.edit.maps');
+  const mapName = useMapName();
   const tPhase = useTranslations('phase');
   const copying = server.status === 'starting' && server.runtime?.phase === 'copying';
   const runtime = server.status === 'running' || copying ? server.runtime : undefined;
-  const mapName = tMaps.has(server.map) ? tMaps(server.map) : server.map;
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('runtime')}</CardTitle>
+          <CardTitle className="font-display text-base">{t('runtime')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {!runtime ? (
-            <p className="text-sm text-gray-500">{server.status === 'running' ? t('collecting') : t('notRunning')}</p>
+            <p className="text-sm text-muted-foreground">{server.status === 'running' ? t('collecting') : t('notRunning')}</p>
           ) : (
             <>
-              <div className="text-sm text-gray-700">{tPhase(`${runtime.phase || 'unknown'}Desc`)}</div>
+              <div className="text-sm">{tPhase(`${runtime.phase || 'unknown'}Desc`)}</div>
               {runtime.phase === 'downloading' && <Progress value={runtime.progress ?? 0} className="h-2" />}
               {runtime.phase === 'installing_mods' && runtime.mod_total ? (
                 <Progress value={((runtime.mod_current ?? 0) / runtime.mod_total) * 100} className="h-2" />
               ) : null}
               {!copying && (
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-gray-50 p-3 text-center">
-                  <Users className="mx-auto mb-1 h-4 w-4 text-green-600" />
-                  <div className="text-lg font-semibold">
-                    {runtime.phase === 'ready' ? `${runtime.players}/${runtime.max_players || server.max_players}` : '-'}
-                  </div>
-                  <div className="text-xs text-gray-500">{t('players')}</div>
+                <div className="grid grid-cols-3 gap-px overflow-hidden rounded-md border bg-border">
+                  {[
+                    {
+                      label: t('players'),
+                      value: runtime.phase === 'ready' ? `${runtime.players}/${runtime.max_players || server.max_players}` : '-',
+                    },
+                    { label: 'CPU', value: formatPercent(runtime.cpu_percent) },
+                    { label: t('memory'), value: formatBytes(runtime.memory_bytes) },
+                  ].map((item) => (
+                    <div key={item.label} className="bg-card px-3 py-2.5">
+                      <div className="text-xs text-muted-foreground">{item.label}</div>
+                      <div className="font-display text-xl font-semibold">{item.value}</div>
+                    </div>
+                  ))}
                 </div>
-                <div className="rounded-lg bg-gray-50 p-3 text-center">
-                  <Cpu className="mx-auto mb-1 h-4 w-4 text-blue-600" />
-                  <div className="text-lg font-semibold">{formatPercent(runtime.cpu_percent)}</div>
-                  <div className="text-xs text-gray-500">CPU</div>
-                </div>
-                <div className="rounded-lg bg-gray-50 p-3 text-center">
-                  <MemoryStick className="mx-auto mb-1 h-4 w-4 text-purple-600" />
-                  <div className="text-lg font-semibold">{formatBytes(runtime.memory_bytes)}</div>
-                  <div className="text-xs text-gray-500">{t('memory')}</div>
-                </div>
-              </div>
               )}
               {runtime.server_name && <Row label={t('advertisedName')}>{runtime.server_name}</Row>}
             </>
@@ -94,10 +92,10 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('connection')}</CardTitle>
+          <CardTitle className="font-display text-base">{t('connection')}</CardTitle>
         </CardHeader>
         <CardContent>
-          {publicHost ? <ConnectionInfo server={server} host={publicHost} /> : <p className="text-sm text-gray-500">{t('noPublicHost')}</p>}
+          {publicHost ? <ConnectionInfo server={server} host={publicHost} /> : <p className="text-sm text-muted-foreground">{t('noPublicHost')}</p>}
           <div className="mt-3 border-t pt-2">
             <Row label={t('gamePort')}>{`${server.port} (+${server.port + 1})`}</Row>
             <Row label={t('queryPort')}>{server.query_port}</Row>
@@ -108,11 +106,11 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('config')}</CardTitle>
+          <CardTitle className="font-display text-base">{t('config')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Row label={t('identifier')}>{server.identifier}</Row>
-          <Row label={t('map')}>{mapName}</Row>
+          <Row label={t('map')}>{mapName(server.map)}</Row>
           <Row label={t('maxPlayers')}>{server.max_players}</Row>
           <Row label={t('cluster')}>{server.cluster_id || t('none')}</Row>
           <Row label={t('autoRestart')}>{server.auto_restart ? t('on') : t('off')}</Row>
@@ -123,10 +121,10 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('mods')}</CardTitle>
+          <CardTitle className="font-display text-base">{t('mods')}</CardTitle>
         </CardHeader>
         <CardContent>
-          {server.game_mod_ids ? <ModList ids={server.game_mod_ids} /> : <p className="text-sm text-gray-500">{t('noMods')}</p>}
+          {server.game_mod_ids ? <ModList ids={server.game_mod_ids} /> : <p className="text-sm text-muted-foreground">{t('noMods')}</p>}
         </CardContent>
       </Card>
     </div>
@@ -169,18 +167,12 @@ export default function ServerDetailPage() {
     window.history.replaceState(null, '', url.toString());
   };
 
-  if (!loaded) {
-    return (
-      <div className="py-12 text-center">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
+  if (!loaded) return <PageLoader />;
 
   if (!server) {
     return (
       <div className="py-12 text-center">
-        <p className="mb-4 text-gray-600">{t('notFound')}</p>
+        <p className="mb-4 text-muted-foreground">{t('notFound')}</p>
         <Button onClick={() => router.push('/servers')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           {t('backToList')}
@@ -190,19 +182,34 @@ export default function ServerDetailPage() {
   }
 
   return (
-    <div className="w-full max-w-none py-4 sm:py-8">
-      <div className="mb-6 space-y-3">
-        <Link href="/servers" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          {t('backToList')}
-        </Link>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full">
+      <Link href="/servers" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-1 h-4 w-4" />
+        {t('backToList')}
+      </Link>
+
+      {/* 顶部：地图色带 + 名称、状态、操作 */}
+      <div className="mb-6 overflow-hidden rounded-lg border bg-card">
+        <MapBand server={server} className="h-10 text-sm">
+          {server.status === 'running' && server.runtime?.phase === 'ready' && (
+            <span className="font-display flex items-center gap-1.5 text-base font-semibold">
+              <Users className="h-4 w-4 opacity-80" />
+              {server.runtime.players}
+              <span className="text-sm font-normal opacity-75">/{server.runtime.max_players || server.max_players}</span>
+            </span>
+          )}
+        </MapBand>
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold text-gray-900 lg:text-3xl">{server.session_name}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <h1 className="font-display truncate text-2xl font-semibold tracking-tight lg:text-[1.75rem]">{server.session_name}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <StatusBadge server={server} />
-              {server.image_outdated && <span className="rounded-md bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">{t('imageOutdated')}</span>}
-              {server.config_pending && <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs text-blue-800">{t('configPending')}</span>}
+              {server.image_outdated && (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">{t('imageOutdated')}</span>
+              )}
+              {server.config_pending && (
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800">{t('configPending')}</span>
+              )}
             </div>
           </div>
           <ServerActions
@@ -213,11 +220,12 @@ export default function ServerDetailPage() {
           />
         </div>
         {server.last_error && (
-          <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="flex items-start gap-2 border-t border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 sm:px-5">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span className="break-all">
-              <span className="font-medium">{t('lastError')}:</span> {server.last_error}
-              <button type="button" className="ml-2 underline" onClick={() => changeTab('logs')}>
+              <span className="font-medium">{t('lastError')}:</span>{' '}
+              {server.last_error}
+              <button type="button" className="ml-2 font-medium underline underline-offset-2" onClick={() => changeTab('logs')}>
                 {t('viewLogs')}
               </button>
             </span>
@@ -227,7 +235,7 @@ export default function ServerDetailPage() {
 
       <Tabs value={tab} onValueChange={changeTab}>
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <TabsList>
+          <TabsList variant="line">
             {TABS.map((v) => (
               <TabsTrigger key={v} value={v}>
                 {t(`tabs.${v}`)}

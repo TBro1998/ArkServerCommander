@@ -22,22 +22,26 @@ export function ConnectionInfo({ server, host, compact = false }: { server: Serv
 
   if (compact) {
     return (
-      <div className="flex items-center justify-between gap-2 rounded-lg bg-blue-50 px-2 py-1.5 text-xs">
-        <span className="text-gray-600">{t('address')}</span>
-        <span className="flex min-w-0 items-center gap-1">
+      // 整行都可以点击复制，目标更大
+      <button
+        type="button"
+        onClick={() => copy(gameAddress)}
+        title={t('copyAddress')}
+        className="group flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2.5 py-1.5 text-left text-xs transition-colors hover:border-primary/40 hover:bg-accent"
+      >
+        <span className="text-muted-foreground">{t('address')}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-mono font-medium">{gameAddress}</span>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => copy(gameAddress)} title={t('copyAddress')}>
-            <Copy className="h-3 w-3" />
-          </Button>
+          <Copy className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground group-hover:text-primary" />
         </span>
-      </div>
+      </button>
     );
   }
 
   return (
     <div className="space-y-2 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-gray-600">{t('address')}</span>
+        <span className="text-muted-foreground">{t('address')}</span>
         <span className="flex items-center gap-1">
           <span className="font-mono font-medium">{gameAddress}</span>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copy(gameAddress)} title={t('copyAddress')}>
@@ -46,9 +50,9 @@ export function ConnectionInfo({ server, host, compact = false }: { server: Serv
         </span>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-gray-600">{t('steamConnect')}</span>
+        <span className="text-muted-foreground">{t('steamConnect')}</span>
         <span className="flex items-center gap-1">
-          <a href={steamUrl} className="inline-flex items-center gap-1 font-mono text-blue-600 hover:underline">
+          <a href={steamUrl} className="inline-flex items-center gap-1 font-mono text-primary hover:underline">
             {host}:{server.query_port}
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
@@ -57,7 +61,7 @@ export function ConnectionInfo({ server, host, compact = false }: { server: Serv
           </Button>
         </span>
       </div>
-      <p className="text-xs text-gray-500">{t('hint')}</p>
+      <p className="text-xs text-muted-foreground">{t('hint')}</p>
     </div>
   );
 }

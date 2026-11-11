@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { getLocale } from '@/lib/locale-server';
 import { Toaster } from '@/components/ui/toaster';
+import '@fontsource-variable/saira/standard.css'
 import './globals.css'
 
 export const metadata: Metadata = {

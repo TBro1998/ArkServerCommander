@@ -99,57 +99,54 @@ export function ServerActions({ server, canStart, variant = 'card', onDeleted }:
 
   const iconButton = 'h-8 w-8 p-0';
   const isCard = variant === 'card';
+  const startBlocked = !canStart || !stopped;
 
+  // 主操作始终带文字：卡片和详情页都能一眼看出点下去会发生什么
   let primary;
   if (busy) {
     primary = (
-      <Button variant={isCard ? 'ghost' : 'outline'} size="sm" className={isCard ? `${iconButton} text-blue-600` : ''} disabled>
+      <Button variant="outline" size="sm" disabled className="min-w-[5.5rem]">
         <Loader2 className="h-4 w-4 animate-spin" />
-        {!isCard && <span className="ml-2">{t('working')}</span>}
+        {t('working')}
       </Button>
     );
   } else if (running) {
     primary = (
       <Button
-        variant={isCard ? 'ghost' : 'outline'}
+        variant="outline"
         size="sm"
-        className={isCard ? `${iconButton} text-red-600 hover:bg-red-50 hover:text-red-700` : 'text-red-600'}
-        title={t('stop')}
+        className="min-w-[5.5rem] hover:border-red-200 hover:bg-red-50 hover:text-red-800"
         onClick={() => (players > 0 || !isCard ? openDialog('stop') : stop().catch(() => {}))}
       >
-        <Square className="h-4 w-4" />
-        {!isCard && <span className="ml-2">{t('stop')}</span>}
+        <Square className="size-2.5 fill-red-600 text-red-600" />
+        {t('stop')}
       </Button>
     );
   } else {
     primary = (
-      <Button
-        variant={isCard ? 'ghost' : 'default'}
-        size="sm"
-        className={isCard ? `${iconButton} text-green-600 hover:bg-green-50 hover:text-green-700` : ''}
-        title={canStart ? t('start') : t('imageNotReady')}
-        onClick={start}
-        disabled={!canStart || !stopped}
-      >
-        <Play className="h-4 w-4" />
-        {!isCard && <span className="ml-2">{t('start')}</span>}
-      </Button>
+      // 按钮禁用时浏览器不显示 title，原因放在外层
+      <span title={canStart ? undefined : t('imageNotReady')} className="inline-flex">
+        <Button size="sm" className="min-w-[5.5rem]" onClick={start} disabled={startBlocked}>
+          <Play className="size-3.5 fill-current" />
+          {t('start')}
+        </Button>
+      </span>
     );
   }
 
   return (
     <>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         {primary}
         {!isCard && (
           <Button variant="outline" size="sm" onClick={() => openDialog('restart')} disabled={busy || (!running && !canStart)}>
-            <RotateCw className="mr-2 h-4 w-4" />
+            <RotateCw className="h-4 w-4" />
             {t('restart')}
           </Button>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className={iconButton} aria-label={t('more')}>
+            <Button variant={isCard ? 'ghost' : 'outline'} size="sm" className={iconButton} aria-label={t('more')} title={t('more')}>
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

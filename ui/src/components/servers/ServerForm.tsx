@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Eye, EyeOff, Dices, Save, Plus, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -113,6 +113,22 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
     }
   };
 
+  // Ctrl+S / Cmd+S 保存（用 ref 拿到最新的 submit，监听只注册一次）
+  const submitRef = useRef(submit);
+  useEffect(() => {
+    submitRef.current = submit;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        submitRef.current(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const cancel = () => {
     if (dirty && !window.confirm(t('discardConfirm'))) return;
     onCancel();
@@ -121,11 +137,11 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
   const hasErrors = Object.values(errors).some(Boolean);
 
   return (
-    <Card>
-      <CardContent className="pt-6">
+    <Card className="pt-3">
+      <CardContent>
         <Tabs defaultValue="basic">
           <div className="-mx-2 overflow-x-auto px-2">
-            <TabsList>
+            <TabsList variant="line">
               <TabsTrigger value="basic">
                 {tEdit('basicParams')}
                 {hasErrors && <span className="ml-1 h-2 w-2 rounded-full bg-red-500" />}
@@ -145,7 +161,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               className="space-y-6 py-4"
             >
               <section className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900">{t('sectionBasic')}</h3>
+                <h3 className="font-display text-base font-semibold">{t('sectionBasic')}</h3>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Field label={tEdit('serverName')} htmlFor="session_name" hint={t('sessionNameHint')}>
                     <Input id="session_name" name="session_name" value={form.session_name || ''} onChange={handleChange} />
@@ -170,7 +186,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               </section>
 
               <section className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900">{t('sectionNetwork')}</h3>
+                <h3 className="font-display text-base font-semibold">{t('sectionNetwork')}</h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <Field label={tEdit('gamePort')} htmlFor="port" hint={t('gamePortHint')} error={errors.port}>
                     <Input id="port" name="port" type="number" value={form.port || ''} onChange={handleChange} />
@@ -228,7 +244,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               </section>
 
               <section className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900">{t('sectionMods')}</h3>
+                <h3 className="font-display text-base font-semibold">{t('sectionMods')}</h3>
                 <Field label={tEdit('modIds')} htmlFor="game_mod_ids" hint={t('modsHint')} error={errors.game_mod_ids}>
                   <Input
                     id="game_mod_ids"
@@ -252,7 +268,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               </section>
 
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900">{t('sectionMaintenance')}</h3>
+                <h3 className="font-display text-base font-semibold">{t('sectionMaintenance')}</h3>
                 <label className="flex items-start justify-between gap-4 rounded-lg border p-3">
                   <span>
                     <span className="text-sm font-medium">{t('autoRestart')}</span>
@@ -290,9 +306,18 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
           </TabsContent>
         </Tabs>
 
-        {hasErrors && <p className="mt-4 text-sm text-red-600">{t('fixErrors')}</p>}
-
-        <div className="mt-6 flex flex-col-reverse gap-2 border-t pt-6 sm:flex-row sm:justify-end">
+        {/* 操作栏固定在视口底部，长表单不用滚回去找保存按钮 */}
+        <div className="sticky bottom-0 z-10 -mx-6 mt-6 -mb-6 flex flex-col-reverse gap-2 rounded-b-lg border-t bg-card/95 px-6 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-end">
+          <div className="text-sm sm:mr-auto" aria-live="polite">
+            {hasErrors ? (
+              <span className="text-red-700">{t('fixErrors')}</span>
+            ) : dirty ? (
+              <span className="flex items-center gap-2 text-amber-800">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                {t('unsaved')}
+              </span>
+            ) : null}
+          </div>
           <Button variant="outline" onClick={cancel} disabled={saving}>
             {tCommon('cancel')}
           </Button>
@@ -302,7 +327,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               {t('saveAndRestart')}
             </Button>
           )}
-          <Button onClick={() => submit(false)} disabled={saving}>
+          <Button onClick={() => submit(false)} disabled={saving} title={t('saveShortcut')}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : mode === 'create' ? <Plus className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
             {mode === 'create' ? tEdit('createServer') : tEdit('saveChanges')}
           </Button>

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthUser } from '@/stores/auth';
+import { PageHeader } from '@/components/PageHeader';
+import { FormError } from '@/components/AuthShell';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 
@@ -44,8 +46,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full max-w-2xl space-y-6 py-4 sm:py-8">
-      <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">{t('title')}</h1>
+    <div className="w-full max-w-2xl space-y-6">
+      <PageHeader title={t('title')} />
 
       <Card>
         <CardHeader>
@@ -53,7 +55,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="text-sm">
           <div className="flex justify-between py-1">
-            <span className="text-gray-600">{t('username')}</span>
+            <span className="text-muted-foreground">{t('username')}</span>
             <span className="font-medium">{user?.username}</span>
           </div>
         </CardContent>
@@ -102,7 +104,7 @@ export default function SettingsPage() {
                 required
               />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            <FormError message={error} />
             <Button type="submit" disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('submit')}

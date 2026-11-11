@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useParams } from 'next/navigation';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PageLoader } from '@/components/ui/page-loader';
+import { PageHeader } from '@/components/PageHeader';
 import { ServerForm } from '@/components/servers/ServerForm';
 import { serversActions, type Server } from '@/stores/servers';
 import { useApiError } from '@/lib/api-error';
@@ -75,12 +78,12 @@ export default function ServerEditPage() {
 
   if (loadError) {
     return (
-      <div className="w-full max-w-none py-8">
+      <div className="w-full">
         <Alert variant="destructive">
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
         <Button onClick={() => router.push('/servers')} className="mt-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
           {tCommon('back')}
         </Button>
       </div>
@@ -88,25 +91,16 @@ export default function ServerEditPage() {
   }
 
   if (!server) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">{tCommon('loading')}</span>
-      </div>
-    );
+    return <PageLoader text={tCommon('loading')} />;
   }
 
   return (
-    <div className="w-full max-w-none py-4 sm:py-8">
-      <div className="mb-6 flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={backToDetail} aria-label="back">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">{tEdit('editTitle')}</h1>
-          <p className="truncate text-gray-600">{server.session_name}</p>
-        </div>
-      </div>
+    <div className="w-full">
+      <Link href={`/servers/${serverId}`} className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-1 h-4 w-4" />
+        {server.session_name}
+      </Link>
+      <PageHeader title={tEdit('editTitle')} />
 
       {(server.status !== 'stopped' || server.config_pending) && (
         <Alert className="mb-4 border-amber-300 bg-amber-50 text-amber-900">

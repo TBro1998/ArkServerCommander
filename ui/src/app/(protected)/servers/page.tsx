@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Plus, Loader2, Server as ServerIcon, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Server as ServerIcon, AlertCircle, RefreshCw } from 'lucide-react';
 import {
   useServers,
   useServersLoaded,
@@ -12,17 +12,29 @@ import {
   usePublicHost,
   serversActions,
   isTransitioning,
+  type Server,
 } from '@/stores/servers';
 import { ServerCard } from '@/components/servers/ServerCard';
+import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
+import { PageLoader } from '@/components/ui/page-loader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePolling } from '@/hooks/use-polling';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 
 // 有服务器在启停时快速刷新，平时也定期刷新，以便发现崩溃、阶段变化和在线人数
 const TRANSITION_POLL_INTERVAL = 3000;
 const IDLE_POLL_INTERVAL = 10000;
+
+type Filter = 'all' | 'active' | 'stopped';
+const FILTERS: { key: Filter; match: (s: Server) => boolean }[] = [
+  { key: 'all', match: () => true },
+  // "运行中"包括启动中、停止中，这些服务器都占着资源
+  { key: 'active', match: (s) => s.status !== 'stopped' },
+  { key: 'stopped', match: (s) => s.status === 'stopped' },
+];
 
 export default function ServersPage() {
   const t = useTranslations('servers');
@@ -35,6 +47,7 @@ export default function ServersPage() {
   const publicHost = usePublicHost();
   const apiError = useApiError();
   const { fetchServers, getImageStatus, fetchPublicHost } = serversActions;
+  const [filter, setFilter] = useState<Filter>('all');
 
   const refresh = useCallback(() => fetchServers(), [fetchServers]);
 
@@ -54,67 +67,94 @@ export default function ServersPage() {
 
   const runningCount = servers.filter((s) => s.status === 'running').length;
   const playerCount = servers.reduce((sum, s) => sum + (s.status === 'running' ? s.runtime?.players ?? 0 : 0), 0);
+  const visible = servers.filter(FILTERS.find((f) => f.key === filter)!.match);
+
+  // 按钮禁用时浏览器不显示 title，原因放在外层
+  const addButton = (
+    <span title={canCreate ? undefined : t('imageNotReady')} className="inline-flex">
+      <Button onClick={handleAddServer} disabled={!canCreate}>
+        <Plus className="h-4 w-4" />
+        {t('addServer')}
+      </Button>
+    </span>
+  );
 
   return (
-    <div className="w-full max-w-none py-4 sm:py-8">
-      <div className="mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">{t('title')}</h1>
-            {servers.length > 0 && (
-              <p className="mt-1 text-sm text-gray-500">
-                {tList('summary', { total: servers.length, running: runningCount, players: playerCount })}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => refresh().catch(() => {})} disabled={isLoading} title={tList('refresh')}>
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+    <div className="w-full">
+      <PageHeader
+        title={t('title')}
+        description={servers.length > 0 ? tList('summary', { total: servers.length, running: runningCount, players: playerCount }) : undefined}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => refresh().catch(() => {})}
+              disabled={isLoading}
+              title={tList('refresh')}
+              aria-label={tList('refresh')}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
             </Button>
-            <Button onClick={handleAddServer} disabled={!canCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t('addServer')}
-            </Button>
-          </div>
-        </div>
-        {imageStatus && !imageStatus.can_start_server && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{imageStatus.any_pulling ? t('imageDownloading') : t('imageNotReady')}</AlertTitle>
-            <AlertDescription>
-              {imageStatus.any_pulling ? t('imageDownloadingDesc') : tList('imageNotReadyGoHome')}
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
+            {addButton}
+          </>
+        }
+      />
+
+      {imageStatus && !imageStatus.can_start_server && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{imageStatus.any_pulling ? t('imageDownloading') : t('imageNotReady')}</AlertTitle>
+          <AlertDescription>{imageStatus.any_pulling ? t('imageDownloadingDesc') : tList('imageNotReadyGoHome')}</AlertDescription>
+        </Alert>
+      )}
 
       {!loaded ? (
-        <div className="py-12 text-center">
-          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
-        </div>
+        <PageLoader />
       ) : servers.length === 0 ? (
-        <div className="px-4 py-16 text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-            <ServerIcon className="h-8 w-8 text-gray-400" />
+        <div className="rounded-lg border border-dashed bg-card/60 px-6 py-16 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent">
+            <ServerIcon className="h-7 w-7 text-primary" />
           </div>
-          <h3 className="mb-3 text-xl font-medium text-gray-900">{t('noServers')}</h3>
-          <p className="mx-auto mb-8 max-w-md text-gray-500">{t('noServersDesc')}</p>
-          <Button onClick={handleAddServer} disabled={!canCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('addServer')}
-          </Button>
+          <h2 className="font-display mb-2 text-xl font-semibold">{t('noServers')}</h2>
+          <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">{t('noServersDesc')}</p>
+          {addButton}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4 2xl:grid-cols-5">
-          {servers.map((server) => (
-            <ServerCard
-              key={server.id}
-              server={server}
-              canStartServer={imageStatus?.can_start_server ?? false}
-              publicHost={publicHost}
-            />
-          ))}
-        </div>
+        <>
+          {/* 状态筛选：服务器多时快速找到运行中或已停止的 */}
+          <div role="group" aria-label={tList('filter')} className="mb-4 inline-flex rounded-lg border bg-card p-0.5">
+            {FILTERS.map((f) => {
+              const count = servers.filter(f.match).length;
+              const selected = filter === f.key;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setFilter(f.key)}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    selected ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  {tList(`filters.${f.key}`)}
+                  <span className={cn('num text-xs', selected ? 'opacity-80' : 'opacity-60')}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {visible.length === 0 ? (
+            <p className="rounded-lg border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">{tList('filterEmpty')}</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {visible.map((server) => (
+                <ServerCard key={server.id} server={server} canStartServer={imageStatus?.can_start_server ?? false} publicHost={publicHost} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

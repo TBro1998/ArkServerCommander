@@ -6,9 +6,10 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageLoader } from '@/components/ui/page-loader';
+import { AuthShell, FormError } from '@/components/AuthShell';
 import { useAuthActions, useIsAuthenticated } from '@/stores/auth';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const t = useTranslations('auth');
@@ -77,16 +78,7 @@ export default function LoginPage() {
     }
   };
 
-  if (checkingInit) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p>{t('initCheck')}</p>
-        </div>
-      </div>
-    );
-  }
+  if (checkingInit) return <PageLoader fullScreen text={t('initCheck')} />;
 
   if (needsInit) {
     router.replace('/init');
@@ -94,66 +86,42 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="flex justify-end">
-          <LanguageSwitcher />
+    <AuthShell tagline={t('tagline')} title={t('login')} subtitle={t('loginSubtitle')}>
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="username">{t('username')}</Label>
+          <Input
+            id="username"
+            type="text"
+            autoComplete="username"
+            autoFocus
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={isLoading}
+            className="h-10"
+          />
         </div>
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">{t('loginTitle')}</CardTitle>
-            <CardDescription className="text-center">
-              {t('loginSubtitle')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">{t('username')}</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={t('enterUsername')}
-                  disabled={isLoading}
-                />
-              </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">{t('password')}</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
+            className="h-10"
+          />
+        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">{t('password')}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t('enterPassword')}
-                  disabled={isLoading}
-                />
-              </div>
+        <FormError message={error} />
 
-              {error && (
-                <div className="text-red-600 text-sm text-center">
-                  {error}
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? t('loginLoading') : t('loginButton')}
-              </Button>
-            </form>
-
-            <div className="mt-4 text-center text-sm text-gray-600">
-              {t('firstTimeTip')}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        <Button type="submit" className="h-10 w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isLoading ? t('loginLoading') : t('loginButton')}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

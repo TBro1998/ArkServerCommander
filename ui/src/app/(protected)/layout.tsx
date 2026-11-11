@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut, CircleUser } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/navigation';
 import { useIsAuthenticated, useAuthActions, useAuthIsInitialized, useAuthUser } from '@/stores/auth';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { Wordmark } from '@/components/Wordmark';
 import { Button } from '@/components/ui/button';
+import { PageLoader } from '@/components/ui/page-loader';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
@@ -15,17 +17,6 @@ const NAV_ITEMS = [
   { href: '/servers', key: 'servers', match: (p: string) => p.startsWith('/servers') },
   { href: '/settings', key: 'settings', match: (p: string) => p.startsWith('/settings') },
 ] as const;
-
-function Spinner({ text }: { text: string }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
-        <p>{text}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -51,80 +42,116 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     }
   }, [isAuthenticated, isInitialized, router]);
 
-  if (!isInitialized) return <Spinner text={tLayout('initializing')} />;
+  if (!isInitialized) return <PageLoader fullScreen text={tLayout('initializing')} />;
   // 初始化完成但未认证，很快会跳转
-  if (!isAuthenticated) return <Spinner text={tLayout('verifying')} />;
+  if (!isAuthenticated) return <PageLoader fullScreen text={tLayout('verifying')} />;
 
-  const navLink = (item: (typeof NAV_ITEMS)[number], mobile = false) => (
-    <Link
-      key={item.href}
-      href={item.href}
-      onClick={() => setMenuOpen(false)}
-      className={cn(
-        'rounded-md px-3 py-2 text-sm font-medium',
-        mobile && 'block text-base',
-        item.match(pathname) ? 'bg-gray-200 text-gray-900' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-      )}
-    >
-      {t(item.key)}
-    </Link>
-  );
+  const headerButton = 'text-chrome-muted hover:bg-white/10 hover:text-chrome-foreground';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-40 border-b bg-white shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex h-14 items-center justify-between sm:h-16">
-            <div className="flex min-w-0 items-center">
-              <Link href="/home" className="truncate text-lg font-semibold text-gray-900 sm:text-xl">
-                ARK Server Commander
-              </Link>
-              <nav className="ml-8 hidden items-baseline space-x-2 md:flex">{NAV_ITEMS.map((item) => navLink(item))}</nav>
-            </div>
-            <div className="hidden items-center space-x-2 md:flex">
-              {user && <span className="text-sm text-gray-500">{user.username}</span>}
-              <LanguageSwitcher />
-              <Button variant="ghost" size="sm" onClick={logout} className="text-gray-500 hover:text-gray-700">
-                <LogOut className="mr-1 h-4 w-4" />
-                {t('logout')}
-              </Button>
-            </div>
+    <div className="min-h-screen bg-background">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm"
+      >
+        {tLayout('skipToContent')}
+      </a>
+      <header className="sticky top-0 z-40 bg-chrome text-chrome-foreground">
+        <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex h-full min-w-0 items-center gap-8">
+            <Link href="/home" className="truncate text-chrome-foreground">
+              <Wordmark />
+            </Link>
+            <nav className="hidden h-full items-stretch gap-1 md:flex" aria-label={tLayout('menu')}>
+              {NAV_ITEMS.map((item) => {
+                const active = item.match(pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'relative flex items-center px-3 text-sm font-medium transition-colors',
+                      active ? 'text-chrome-foreground' : 'text-chrome-muted hover:text-chrome-foreground',
+                    )}
+                  >
+                    {t(item.key)}
+                    {active && <span className="absolute inset-x-3 bottom-0 h-[3px] rounded-t bg-amber-accent" />}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+          <div className="hidden items-center gap-1 md:flex">
+            {user && (
+              <span className="mr-2 flex items-center gap-1.5 text-sm text-chrome-muted">
+                <CircleUser className="h-4 w-4" />
+                {user.username}
+              </span>
+            )}
+            <LanguageSwitcher className={headerButton} />
+            <Button variant="ghost" size="sm" onClick={logout} className={headerButton}>
+              <LogOut className="h-4 w-4" />
+              {t('logout')}
+            </Button>
+          </div>
 
-            {/* 手机端菜单 */}
-            <div className="flex items-center gap-1 md:hidden">
-              <LanguageSwitcher />
-              <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label={tLayout('menu')}>
-                    <Menu className="h-5 w-5" />
+          {/* 手机端菜单 */}
+          <div className="flex items-center gap-1 md:hidden">
+            <LanguageSwitcher className={headerButton} />
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={tLayout('menu')} className={headerButton}>
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-64">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <CircleUser className="h-4 w-4" />
+                    {user?.username ?? 'ARK Server Commander'}
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="space-y-1 px-4">
+                  {NAV_ITEMS.map((item) => {
+                    const active = item.match(pathname);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        aria-current={active ? 'page' : undefined}
+                        className={cn(
+                          'block rounded-md border-l-[3px] px-3 py-2.5 text-base font-medium',
+                          active ? 'border-amber-accent bg-accent text-foreground' : 'border-transparent text-muted-foreground hover:bg-accent',
+                        )}
+                      >
+                        {t(item.key)}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <div className="mt-4 border-t px-4 pt-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      logout();
+                    }}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {t('logout')}
                   </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-64">
-                  <SheetHeader>
-                    <SheetTitle>{user?.username ?? 'ARK Server Commander'}</SheetTitle>
-                  </SheetHeader>
-                  <nav className="space-y-1 px-4">{NAV_ITEMS.map((item) => navLink(item, true))}</nav>
-                  <div className="mt-4 border-t px-4 pt-4">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        logout();
-                      }}
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      {t('logout')}
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
-      <main className="w-full px-4 py-2 sm:px-6 sm:py-6 lg:px-8">{children}</main>
+      <main id="main" className="mx-auto w-full max-w-[1600px] px-4 pt-6 pb-12 sm:px-6 sm:pt-8 lg:px-8">
+        {children}
+      </main>
     </div>
   );
 }
-

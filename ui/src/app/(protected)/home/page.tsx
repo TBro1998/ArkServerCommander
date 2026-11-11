@@ -4,16 +4,31 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import axios from 'axios';
 import Link from 'next/link';
-import { Server, Play, Users, Cpu, MemoryStick, HardDrive, RefreshCw, AlertTriangle, Globe, ArrowRight } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Copy, ChevronRight, Plus, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useImageStatus, serversActions, type Server as ServerInfo } from '@/stores/servers';
+import { PageLoader } from '@/components/ui/page-loader';
+import { PageHeader } from '@/components/PageHeader';
+import {
+  useImageStatus,
+  useServers,
+  useServersLoaded,
+  usePublicHost,
+  serversActions,
+  isTransitioning,
+  type Server as ServerInfo,
+} from '@/stores/servers';
 import { ImageStatus } from '@/components/docker/ImageStatus';
 import { ImageUpdateConfirmModal } from '@/components/docker/ImageUpdateConfirmModal';
+import { StatusBadge } from '@/components/servers/StatusBadge';
+import { ServerActions } from '@/components/servers/ServerActions';
 import { usePolling } from '@/hooks/use-polling';
+import { useMapName } from '@/hooks/use-map-name';
 import { useApiError } from '@/lib/api-error';
-import { formatBytes, formatPercent } from '@/lib/format';
+import { copyText, formatBytes, formatPercent } from '@/lib/format';
+import { mapColor } from '@/lib/maps';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 
 interface DiskUsage {
   server_id: number;
@@ -46,20 +61,54 @@ interface UpdateTarget {
   servers: ServerInfo[];
 }
 
-function Stat({ icon: Icon, label, value, sub, color }: { icon: React.ElementType; label: string; value: string; sub?: string; color: string }) {
+// 仪表条里的一格：标签在上，读数用 Saira 大号数字
+function Readout({ label, value, sub, live }: { label: string; value: string; sub?: string; live?: boolean }) {
   return (
-    <Card className="border-0 shadow-sm">
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${color}`}>
-          <Icon className="h-5 w-5" />
+    <div className="min-w-0 bg-card px-4 py-3.5">
+      <div className="truncate text-xs text-muted-foreground">{label}</div>
+      <div className={cn('font-display mt-0.5 truncate text-[1.75rem] leading-tight font-semibold', live && 'text-primary')}>{value}</div>
+      <div className="h-4 truncate text-xs text-muted-foreground">{sub}</div>
+    </div>
+  );
+}
+
+// 服务器名单的一行：地图色条、名称、状态、人数和启停按钮
+function RosterRow({ server, canStart }: { server: ServerInfo; canStart: boolean }) {
+  const mapName = useMapName();
+  const runtime = server.status === 'running' && server.runtime?.phase === 'ready' ? server.runtime : undefined;
+  return (
+    <li className="flex items-center gap-3 px-4 py-2.5">
+      <span
+        aria-hidden
+        className={cn('h-9 w-1.5 flex-shrink-0 rounded-full', server.status === 'stopped' && 'saturate-[.3]')}
+        style={{ backgroundColor: mapColor(server.map) }}
+      />
+      <div className="min-w-0 flex-1">
+        <Link href={`/servers/${server.id}`} className="block truncate font-medium hover:text-primary hover:underline">
+          {server.session_name}
+        </Link>
+        <div className="hidden truncate text-xs text-muted-foreground sm:block">{mapName(server.map)}</div>
+        {/* 窄屏放不下状态列，状态挪到名称下面 */}
+        <div className="mt-1 sm:hidden">
+          <StatusBadge server={server} />
         </div>
-        <div className="min-w-0">
-          <div className="text-xs text-gray-500">{label}</div>
-          <div className="truncate text-xl font-semibold text-gray-900">{value}</div>
-          {sub && <div className="truncate text-xs text-gray-500">{sub}</div>}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="hidden sm:block">
+        <StatusBadge server={server} />
+      </div>
+      <div className="num hidden w-16 items-center justify-end gap-1 text-sm md:flex">
+        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+        {runtime ? (
+          <span>
+            {runtime.players}
+            <span className="text-muted-foreground">/{runtime.max_players || server.max_players}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
+      </div>
+      <ServerActions server={server} canStart={canStart} />
+    </li>
   );
 }
 
@@ -67,8 +116,11 @@ export default function HomePage() {
   const t = useTranslations('dashboard');
   const tImages = useTranslations('servers.dockerImages');
   const imageStatus = useImageStatus();
+  const servers = useServers();
+  const serversLoaded = useServersLoaded();
+  const publicHost = usePublicHost();
   const apiError = useApiError();
-  const { getImageStatus } = serversActions;
+  const { getImageStatus, fetchServers, fetchPublicHost } = serversActions;
   const [overview, setOverview] = useState<Overview | null>(null);
   const [refreshingDisk, setRefreshingDisk] = useState(false);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
@@ -81,6 +133,7 @@ export default function HomePage() {
   }, []);
 
   const refreshImageStatus = useCallback(() => getImageStatus().catch(() => {}), [getImageStatus]);
+  const refreshServers = useCallback(() => fetchServers(), [fetchServers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,14 +144,19 @@ export default function HomePage() {
       })
       .catch(() => {});
     refreshImageStatus();
+    fetchServers().catch(() => {});
+    fetchPublicHost();
     return () => {
       cancelled = true;
     };
-  }, [refreshImageStatus]);
+  }, [refreshImageStatus, fetchServers, fetchPublicHost]);
 
   // 概览每 15 秒刷新；有镜像在下载时每 2 秒刷新进度（刷新页面后也会继续）
   usePolling(() => loadOverview(), 15000);
   usePolling(refreshImageStatus, 2000, imageStatus?.any_pulling ?? false);
+  // 名单里的状态：有服务器在启停或准备时快速刷新
+  const fast = servers.some((s) => isTransitioning(s.status) || (s.status === 'running' && s.runtime?.phase !== 'ready'));
+  usePolling(refreshServers, fast ? 3000 : 10000);
 
   const getImageLabel = (imageName: string): string => {
     switch (imageName) {
@@ -181,161 +239,198 @@ export default function HomePage() {
   };
 
   const ov = overview;
+  const host = ov?.public_host || publicHost;
+  const canStart = imageStatus?.can_start_server ?? false;
+
+  const copyHost = async () => {
+    if (host && (await copyText(host))) toast.success(t('hostCopied'));
+  };
 
   return (
-    <div className="w-full max-w-none space-y-6 py-4 sm:py-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">{t('title')}</h1>
-          {ov?.public_host && (
-            <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
-              <Globe className="h-4 w-4" />
-              {t('publicHost')}: <span className="font-mono">{ov.public_host}</span>
-            </p>
-          )}
-        </div>
-        <Button asChild>
-          <Link href="/servers">
-            {t('manageServers')}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
+    <div className="w-full space-y-6">
+      <PageHeader
+        title={t('title')}
+        description={
+          host ? (
+            <button type="button" onClick={copyHost} title={t('copyHost')} className="group inline-flex items-center gap-1.5 rounded hover:text-foreground">
+              {t('publicHost')}
+              <span className="font-mono text-foreground">{host}</span>
+              <Copy className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100" />
+            </button>
+          ) : undefined
+        }
+        actions={
+          <Button asChild variant="outline">
+            <Link href="/servers">
+              {t('manageServers')}
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        }
+      />
 
-      {/* 统计 */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Stat icon={Server} label={t('servers')} value={String(ov?.total_servers ?? '-')} color="bg-gray-100 text-gray-700" />
-        <Stat
-          icon={Play}
+      {/* 仪表条：一行读完全局状态 */}
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 xl:grid-cols-6">
+        <Readout label={t('servers')} value={String(ov?.total_servers ?? '-')} />
+        <Readout
           label={t('running')}
           value={String(ov?.running_servers ?? '-')}
           sub={ov ? t('readyCount', { count: ov.ready_servers }) : undefined}
-          color="bg-green-100 text-green-700"
+          live={!!ov && ov.running_servers > 0}
         />
-        <Stat icon={Users} label={t('players')} value={String(ov?.online_players ?? '-')} color="bg-blue-100 text-blue-700" />
-        <Stat icon={Cpu} label="CPU" value={ov ? formatPercent(ov.cpu_percent) : '-'} sub={t('cpuHint')} color="bg-orange-100 text-orange-700" />
-        <Stat icon={MemoryStick} label={t('memory')} value={ov ? formatBytes(ov.memory_bytes) : '-'} color="bg-purple-100 text-purple-700" />
-        <Stat icon={HardDrive} label={t('disk')} value={ov ? formatBytes(ov.disk_total) : '-'} color="bg-amber-100 text-amber-700" />
-      </div>
+        <Readout label={t('players')} value={String(ov?.online_players ?? '-')} live={!!ov && ov.online_players > 0} />
+        <Readout label="CPU" value={ov ? formatPercent(ov.cpu_percent, 0) : '-'} sub={t('cpuHint')} />
+        <Readout label={t('memory')} value={ov ? formatBytes(ov.memory_bytes) : '-'} />
+        <Readout label={t('disk')} value={ov ? formatBytes(ov.disk_total) : '-'} />
+      </section>
 
       {/* 最近的错误 */}
       {ov && ov.recent_errors.length > 0 && (
-        <Card className="border-red-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-red-700">
-              <AlertTriangle className="h-4 w-4" />
-              {t('recentErrors')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {ov.recent_errors.map((e) => (
-                <li key={e.server_id} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                  <Link href={`/servers/${e.server_id}?tab=logs`} className="flex-shrink-0 font-medium text-gray-900 hover:underline">
-                    {e.session_name}
-                  </Link>
-                  <span className="break-all text-red-700">{e.error}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <section className="rounded-lg border border-l-4 border-red-200 border-l-red-600 bg-red-50/70 px-4 py-3">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-800">
+            <AlertTriangle className="h-4 w-4" />
+            {t('recentErrors')}
+          </h2>
+          <ul className="space-y-1.5 text-sm">
+            {ov.recent_errors.map((e) => (
+              <li key={e.server_id} className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
+                <Link href={`/servers/${e.server_id}?tab=logs`} className="flex-shrink-0 font-medium hover:underline">
+                  {e.session_name}
+                </Link>
+                <span className="break-all text-red-800">{e.error}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        {/* 镜像管理 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t('imageManagement')}</CardTitle>
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        {/* 服务器名单：在首页就能启停 */}
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-3">
+            <CardTitle className="font-display text-lg">{t('servers')}</CardTitle>
+            {servers.length > 0 && (
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                <Link href="/servers">
+                  {t('viewAll')}
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
           </CardHeader>
-          <CardContent>
-            {imageStatus ? (
-              <ImageStatus
-                imageStatus={imageStatus}
-                checkingUpdates={checkingUpdates}
-                onRefresh={refreshImageStatus}
-                onManualDownload={handleManualDownload}
-                onCheckUpdates={handleCheckUpdates}
-                onDownloadImage={handleDownloadImage}
-                onUpdateImage={handleUpdateImage}
-              />
-            ) : (
-              <div className="py-8 text-center">
-                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                <p className="mt-2 text-gray-600">{tImages('loadingStatus')}</p>
-              </div>
-            )}
-            {updateTarget && (
-              <ImageUpdateConfirmModal
-                key={updateTarget.imageName}
-                open
-                imageName={updateTarget.imageName}
-                imageLabel={getImageLabel(updateTarget.imageName)}
-                affectedServers={updateTarget.servers}
-                submitting={submittingUpdate}
-                onCancel={() => setUpdateTarget(null)}
-                onConfirm={handleConfirmUpdate}
-              />
-            )}
-          </CardContent>
+          {!serversLoaded ? (
+            <PageLoader />
+          ) : servers.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <p className="mb-4 text-sm text-muted-foreground">{t('noServers')}</p>
+              <Button asChild>
+                <Link href="/servers/new">
+                  <Plus className="h-4 w-4" />
+                  {t('createFirst')}
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <ul className="divide-y">
+              {servers.map((s) => (
+                <RosterRow key={s.id} server={s} canStart={canStart} />
+              ))}
+            </ul>
+          )}
         </Card>
 
-        {/* 磁盘占用 */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">{t('diskUsage')}</CardTitle>
-              <p className="mt-1 text-xs text-gray-500">{t('diskHint')}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={refreshDisk} disabled={refreshingDisk}>
-              <RefreshCw className={`mr-1 h-3.5 w-3.5 ${refreshingDisk ? 'animate-spin' : ''}`} />
-              {t('recalculate')}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {ov?.disk_error && <p className="mb-2 text-xs text-red-600">{ov.disk_error}</p>}
-            {!ov ? null : ov.disk.length === 0 ? (
-              <p className="text-sm text-gray-500">{t('noServers')}</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs text-gray-500">
-                      <th className="py-2 pr-3 font-medium">{t('server')}</th>
-                      <th className="py-2 pr-3 text-right font-medium">{t('files')}</th>
-                      <th className="py-2 pr-3 text-right font-medium">{t('saves')}</th>
-                      <th className="py-2 pr-3 text-right font-medium">{t('backups')}</th>
-                      <th className="py-2 text-right font-medium">{t('total')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ov.disk.map((d) => (
-                      <tr key={d.server_id} className="border-b last:border-0">
-                        <td className="max-w-[10rem] truncate py-2 pr-3">
-                          <Link href={`/servers/${d.server_id}`} className="hover:underline">
-                            {d.session_name}
-                          </Link>
-                        </td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">{formatBytes(d.files)}</td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">{formatBytes(d.data + d.plugins)}</td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">{formatBytes(d.backups)}</td>
-                        <td className="py-2 text-right font-medium whitespace-nowrap">{formatBytes(d.total)}</td>
-                      </tr>
-                    ))}
-                    {Object.entries(ov.cluster_volumes).map(([name, size]) => (
-                      <tr key={name} className="border-b text-gray-600 last:border-0">
-                        <td className="py-2 pr-3" colSpan={4}>
-                          {t('clusterVolume', { name })}
-                        </td>
-                        <td className="py-2 text-right whitespace-nowrap">{formatBytes(size)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        <div className="space-y-6">
+          {/* 镜像管理 */}
+          <Card className="gap-4">
+            <CardHeader>
+              <CardTitle className="font-display text-lg">{t('imageManagement')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {imageStatus ? (
+                <ImageStatus
+                  imageStatus={imageStatus}
+                  checkingUpdates={checkingUpdates}
+                  onRefresh={refreshImageStatus}
+                  onManualDownload={handleManualDownload}
+                  onCheckUpdates={handleCheckUpdates}
+                  onDownloadImage={handleDownloadImage}
+                  onUpdateImage={handleUpdateImage}
+                />
+              ) : (
+                <PageLoader text={tImages('loadingStatus')} className="py-8" />
+              )}
+              {updateTarget && (
+                <ImageUpdateConfirmModal
+                  key={updateTarget.imageName}
+                  open
+                  imageName={updateTarget.imageName}
+                  imageLabel={getImageLabel(updateTarget.imageName)}
+                  affectedServers={updateTarget.servers}
+                  submitting={submittingUpdate}
+                  onCancel={() => setUpdateTarget(null)}
+                  onConfirm={handleConfirmUpdate}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 磁盘占用 */}
+          <Card className="gap-4">
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle className="font-display text-lg">{t('diskUsage')}</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">{t('diskHint')}</p>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <Button variant="outline" size="sm" onClick={refreshDisk} disabled={refreshingDisk}>
+                <RefreshCw className={cn('h-3.5 w-3.5', refreshingDisk && 'animate-spin')} />
+                {t('recalculate')}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {ov?.disk_error && <p className="mb-2 text-xs text-red-700">{ov.disk_error}</p>}
+              {!ov ? null : ov.disk.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('noServers')}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="num w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs text-muted-foreground">
+                        <th className="py-2 pr-3 font-medium">{t('server')}</th>
+                        <th className="py-2 pr-3 text-right font-medium">{t('files')}</th>
+                        <th className="py-2 pr-3 text-right font-medium">{t('saves')}</th>
+                        <th className="py-2 pr-3 text-right font-medium">{t('backups')}</th>
+                        <th className="py-2 text-right font-medium">{t('total')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ov.disk.map((d) => (
+                        <tr key={d.server_id} className="border-b last:border-0">
+                          <td className="max-w-[10rem] truncate py-2 pr-3">
+                            <Link href={`/servers/${d.server_id}`} className="hover:underline">
+                              {d.session_name}
+                            </Link>
+                          </td>
+                          <td className="py-2 pr-3 text-right whitespace-nowrap text-muted-foreground">{formatBytes(d.files)}</td>
+                          <td className="py-2 pr-3 text-right whitespace-nowrap text-muted-foreground">{formatBytes(d.data + d.plugins)}</td>
+                          <td className="py-2 pr-3 text-right whitespace-nowrap text-muted-foreground">{formatBytes(d.backups)}</td>
+                          <td className="py-2 text-right font-medium whitespace-nowrap">{formatBytes(d.total)}</td>
+                        </tr>
+                      ))}
+                      {Object.entries(ov.cluster_volumes).map(([name, size]) => (
+                        <tr key={name} className="border-b text-muted-foreground last:border-0">
+                          <td className="py-2 pr-3" colSpan={4}>
+                            {t('clusterVolume', { name })}
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">{formatBytes(size)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

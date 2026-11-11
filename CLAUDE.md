@@ -118,6 +118,9 @@ docker-compose down            # 停止
 - `lib/backend-server.ts`：`getApiBase`、令牌 cookie 读写、`authProxy`
 - `lib/api-error.ts`：`useApiError()`（中文界面显示后端 `error`，其他语言按 `apiErrors.<code>` 翻译）和旧的 `getErrorMessage`；`lib/toast.ts`：全局通知（`toast.success/error`）；`lib/format.ts`：大小、时间、随机密码、复制；`hooks/use-polling.ts`：页面可见时轮询；`lib/ini.ts`：`mergeIni`，INI 文本的就地合并
 - `stores/`：Zustand（`auth.ts`、`servers.ts`），HTTP 用 Axios
+- 视觉风格（"野外考察站"）：`globals.css` 定义主题变量（苔藓绿 `--chrome` 顶栏、石灰岩底色、蕨绿 `--primary`、琥珀色 `--amber` 只表示进行中），并在 `@theme` 里把 Tailwind 的 `gray` / `green` / `blue` 色阶整体调成带绿调的版本，所以旧代码里的 `text-gray-500` 等也会跟着变。标题和数字用 `font-display`（Saira，来自 `@fontsource-variable/saira`，本地打包，构建时不访问 Google Fonts），正文用系统字体；等宽字体只用于地址、端口、日志等需要复制的值。状态徽章只用三种颜色：绿色可用、琥珀色进行中、石色已停止
+- 地图颜色：`lib/maps.ts` 的 `mapColor` 给每张地图一个固定颜色，服务器卡片、详情页顶部（`MapBand`，停止时变灰）、首页名单和地图选择器都用它；`hooks/use-map-name.ts` 取地图显示名
+- 公共组件：`PageHeader`（页面标题行）、`AuthShell`（登录 / 初始化外框，含 `FormError`）、`Wordmark`、`components/ui/page-loader.tsx`（统一加载状态）；`TabsList variant="line"` 用于页面级标签（详情页、服务器表单）
 - `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`ModList`、`ConnectionInfo`、ini 可视化编辑器；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
 
@@ -187,6 +190,8 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 详情页用列表接口 `/api/servers` 轮询，不要轮询 `GET /servers/:id`（它会用临时容器读取配置文件，开销大）
 - 翻译用 ICU 格式：文案里不能直接写 `<xxx>`（会被当成标签）或不传参数的 `{xxx}`；新增键时中英文都要加
 - 错误提示用 `useApiError()` + `toast`，不要在 store 里写死中文
+- `Button` 会给没有 `size-*` 类的图标强制设为 `size-4`，按钮里的图标要改大小时用 `size-3.5` 这类写法，`h-3 w-3` 不生效
+- 按钮禁用时浏览器不显示 `title`，需要说明原因时把 `title` 放在外层 `span` 上（见 `ServerActions`、服务器列表的"添加服务器"）
 
 ### 提交前检查
 

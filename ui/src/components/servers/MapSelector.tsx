@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { ChevronDown, X, Check, Map } from 'lucide-react';
+import { ChevronDown, X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { mapColor } from '@/lib/maps';
 
 interface MapSelectorProps {
   value: string;
@@ -27,6 +28,7 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
     'ScorchedEarth_P': t('maps.ScorchedEarth_P'),
     'Aberration_P': t('maps.Aberration_P'),
     'Extinction': t('maps.Extinction'),
+    'Ragnarok': t('maps.Ragnarok'),
     'Valguero_P': t('maps.Valguero_P'),
     'Genesis': t('maps.Genesis'),
     'Genesis2': t('maps.Genesis2'),
@@ -72,43 +74,41 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
       {label && <Label>{label}</Label>}
 
       <Popover open={open} onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            <div className="flex items-center gap-2">
-              <Map className="h-4 w-4 opacity-50" />
-              <span className={cn(
-                "truncate",
-                !value && "text-muted-foreground"
-              )}>
-                {value ? getDisplayName(value) : t('selectMapPlaceholder')}
+        <div className="relative">
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className={cn('w-full justify-between', value && 'pr-14')}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  aria-hidden
+                  className={cn('h-3 w-3 flex-shrink-0 rounded-sm', !value && 'opacity-30')}
+                  style={{ backgroundColor: mapColor(value) }}
+                />
+                <span className={cn('truncate', !value && 'text-muted-foreground')}>
+                  {value ? getDisplayName(value) : t('selectMapPlaceholder')}
+                </span>
               </span>
-            </div>
-            <div className="flex items-center gap-1">
-              {value && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-4 w-4 p-0 hover:bg-transparent"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleClear();
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-              <ChevronDown className={cn(
-                "h-4 w-4 shrink-0 opacity-50 transition-transform duration-200",
-                open && "rotate-180"
-              )} />
-            </div>
-          </Button>
-        </PopoverTrigger>
+              <ChevronDown
+                className={cn('h-4 w-4 shrink-0 opacity-50 transition-transform duration-200', open && 'rotate-180')}
+              />
+            </Button>
+          </PopoverTrigger>
+          {value && (
+            <button
+              type="button"
+              onClick={handleClear}
+              aria-label={t('clearMap')}
+              title={t('clearMap')}
+              className="absolute top-1/2 right-8 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
 
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
           <Command>
@@ -126,8 +126,9 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
                     key={key}
                     value={key}
                     onSelect={() => handleMapSelect(key)}
-                    className="flex items-center justify-between"
+                    className="flex items-center gap-2"
                   >
+                    <span aria-hidden className="h-3 w-3 flex-shrink-0 rounded-sm" style={{ backgroundColor: mapColor(key) }} />
                     <div className="flex flex-col">
                       <span className="font-medium">{displayName}</span>
                       {displayName !== key && (
@@ -135,7 +136,7 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
                       )}
                     </div>
                     {value === key && (
-                      <Check className="h-4 w-4" />
+                      <Check className="ml-auto h-4 w-4" />
                     )}
                   </CommandItem>
                 ))}
@@ -147,8 +148,9 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
                   <CommandItem
                     value={searchValue}
                     onSelect={() => handleMapSelect(searchValue)}
-                    className="flex items-center justify-between"
+                    className="flex items-center gap-2"
                   >
+                    <span aria-hidden className="h-3 w-3 flex-shrink-0 rounded-sm" style={{ backgroundColor: mapColor(searchValue) }} />
                     <div className="flex flex-col">
                       <span className="font-medium">{searchValue}</span>
                       <span className="text-xs text-muted-foreground">

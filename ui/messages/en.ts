@@ -55,14 +55,15 @@ const messages = {
 
   // Authentication
   auth: {
-    login: 'Login',
+    tagline: 'Create, run and maintain your ARK: Survival Evolved servers from one place.',
+    login: 'Sign in',
     logout: 'Logout',
     username: 'Username',
     password: 'Password',
     loginTitle: 'Ark Server Commander',
-    loginSubtitle: 'Secure login to your management account',
-    loginButton: 'Login',
-    loginLoading: 'Logging in...',
+    loginSubtitle: 'Sign in with your admin account',
+    loginButton: 'Sign in',
+    loginLoading: 'Signing in...',
     loginError: 'Login failed',
     loginSuccess: 'Login successful',
     logoutSuccess: 'Logged out successfully',
@@ -352,9 +353,11 @@ const messages = {
         Genesis2: 'Genesis 2',
         CrystalIsles: 'Crystal Isles',
         LostIsland: 'Lost Island',
-        Fjordur: 'Fjordur'
+        Fjordur: 'Fjordur',
+        Ragnarok: 'Ragnarok'
       },
       selectMapPlaceholder: 'Select map or enter map name',
+      clearMap: 'Clear map',
       customMapPlaceholder: 'Enter custom map name',
       customMap: 'Custom Map',
       noMatchingMaps: 'No matching maps',
@@ -955,6 +958,8 @@ BabyImprintAmountMultiplier=1.0`
 
   // Layout
   layout: {
+    skipToContent: 'Skip to content',
+    redirecting: 'Redirecting...',
     initializing: 'Initializing...',
     verifying: 'Verifying session...',
     menu: 'Menu'
@@ -1024,6 +1029,13 @@ BabyImprintAmountMultiplier=1.0`
 
   // Server list
   serverList: {
+    filter: 'Filter by status',
+    filterEmpty: 'No servers match this filter',
+    filters: {
+      all: 'All',
+      active: 'Running',
+      stopped: 'Stopped'
+    },
     summary: '{total} servers, {running} running, {players} players online',
     refresh: 'Refresh',
     imageNotReadyGoHome: 'The images required to start servers have not been downloaded yet. Download them under "Image management" on the home page.'
@@ -1031,6 +1043,8 @@ BabyImprintAmountMultiplier=1.0`
 
   // Server card
   serverCard: {
+    resources: 'Usage',
+    viewLogs: 'View logs',
     passwordFailed: 'Failed to load the admin password',
     passwordCopied: 'Admin password copied',
     copyFailed: 'Copy failed, please copy manually',
@@ -1322,6 +1336,8 @@ BabyImprintAmountMultiplier=1.0`
 
   // Server form
   serverForm: {
+    unsaved: 'Unsaved changes',
+    saveShortcut: 'Save (Ctrl+S)',
     sectionBasic: 'Basics',
     sectionNetwork: 'Ports and password',
     sectionMods: 'Mods and cluster',
@@ -1360,6 +1376,10 @@ BabyImprintAmountMultiplier=1.0`
 
   // Dashboard
   dashboard: {
+    hostCopied: 'Public address copied',
+    copyHost: 'Copy public address',
+    viewAll: 'All servers',
+    createFirst: 'Create your first server',
     title: 'Overview',
     publicHost: 'Public address',
     manageServers: 'Manage servers',

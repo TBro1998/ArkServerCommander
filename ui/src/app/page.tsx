@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { PageLoader } from '@/components/ui/page-loader';
 import { useRouter } from '@/navigation';
 import { useIsAuthenticated, useAuthActions, useAuthIsInitialized } from '@/stores/auth';
 
@@ -9,6 +11,7 @@ export default function HomePage() {
   const isAuthenticated = useIsAuthenticated();
   const isInitialized = useAuthIsInitialized();
   const { restoreSession } = useAuthActions();
+  const t = useTranslations('layout');
 
   useEffect(() => {
     if (!isInitialized) {
@@ -27,13 +30,5 @@ export default function HomePage() {
     }
   }, [isAuthenticated, isInitialized, router]);
 
-  // 显示加载状态
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-        <p>{isInitialized ? '正在跳转...' : '正在加载...'}</p>
-      </div>
-    </div>
-  );
+  return <PageLoader fullScreen text={isInitialized ? t('redirecting') : t('initializing')} />;
 }
