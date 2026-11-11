@@ -1,0 +1,2 @@
+# 容器内执行的脚本必须保持 LF，否则 Windows 上 core.autocrlf 会转换成 CRLF 导致入口脚本无法执行
+*.sh text eol=lf
