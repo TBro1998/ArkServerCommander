@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"fmt"
+	"math"
 	"net/http"
+	"sync"
 
 	"ark-server-commander/database"
 	"ark-server-commander/models"
@@ -38,6 +41,9 @@ func CheckInit(c *gin.Context) {
 // @Failure 400 {object} map[string]string "请求错误"
 // @Failure 500 {object} map[string]string "服务器错误"
 // @Router /auth/init [post]
+// initMu 让"检查是否已有用户"和"创建用户"成为一个整体，避免并发请求创建出多个管理员
+var initMu sync.Mutex
+
 func InitUser(c *gin.Context) {
 	var req models.UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -54,6 +60,9 @@ func InitUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "密码长度需要在 8 到 72 个字节之间"})
 		return
 	}
+
+	initMu.Lock()
+	defer initMu.Unlock()
 
 	// 检查是否已有用户
 	var count int64
@@ -117,18 +126,33 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	ip := c.ClientIP()
+	if wait := limiter.retryAfter(ip, req.Username); wait > 0 {
+		minutes := int(math.Ceil(wait.Minutes()))
+		c.Header("Retry-After", fmt.Sprint(int(wait.Seconds())))
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error":   fmt.Sprintf("登录失败次数过多，请 %d 分钟后再试", minutes),
+			"code":    "too_many_attempts",
+			"minutes": minutes,
+		})
+		return
+	}
+
 	// 查找用户
 	var user models.User
 	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
+		limiter.fail(ip, req.Username)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误", "code": "invalid_credentials"})
 		return
 	}
 
 	// 验证密码
 	if !utils.CheckPassword(req.Password, user.Password) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
+		limiter.fail(ip, req.Username)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误", "code": "invalid_credentials"})
 		return
 	}
+	limiter.success(ip, req.Username)
 
 	// 生成token
 	token, err := utils.GenerateToken(user.ID, user.Username)
@@ -145,6 +169,56 @@ func Login(c *gin.Context) {
 			Username: user.Username,
 		},
 	})
+}
+
+// ChangePasswordRequest 修改密码请求
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}
+
+// ChangePassword 修改登录密码
+// @Summary 修改登录密码
+// @Description 校验当前密码后设置新密码（8 到 72 字节）
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body ChangePasswordRequest true "当前密码和新密码"
+// @Success 200 {object} map[string]string "修改成功"
+// @Failure 400 {object} map[string]string "请求错误或当前密码错误"
+// @Router /auth/password [put]
+func ChangePassword(c *gin.Context) {
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误", "code": "bad_request"})
+		return
+	}
+	if len(req.NewPassword) < 8 || len(req.NewPassword) > 72 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "密码长度需要在 8 到 72 个字节之间", "code": "invalid_password_length"})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, c.GetUint("user_id")).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+		return
+	}
+	if !utils.CheckPassword(req.OldPassword, user.Password) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "当前密码错误", "code": "wrong_password"})
+		return
+	}
+
+	hashed, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "密码加密失败"})
+		return
+	}
+	if err := database.DB.Model(&user).Update("password", hashed).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "密码修改失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "密码已修改"})
 }
 
 // GetProfile 获取用户信息
