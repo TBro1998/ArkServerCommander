@@ -1098,11 +1098,11 @@ BabyImprintAmountMultiplier=1.0`
     updateModsOptionDesc: '重新下载全部 Mod',
     noMods: '没有配置 Mod',
     recreateTitle: '重建 {name} 的容器？',
-    recreateDesc: '将先停止运行中的服务器（玩家会掉线），再按当前配置重建容器，完成后需要手动启动。存档和服务端文件保存在卷中，不会丢失。',
+    recreateDesc: '将先停止运行中的服务器（玩家会掉线），再按当前配置重建容器，完成后需要手动启动。存档和服务端文件保存在数据目录中，不会丢失。',
     deleteTitle: '删除 {name}？',
     deleteDesc: '服务器记录和容器会被删除。',
     deleteData: '同时删除全部数据',
-    deleteDataOff: '保留数据卷（存档、服务端文件）和备份，可以之后手动清理',
+    deleteDataOff: '保留数据目录中的服务器文件（存档、服务端文件）和备份，可以之后手动清理',
     deleteDataOn: '存档、配置、服务端文件、插件和全部备份都会被永久删除，无法恢复',
     typeNameToConfirm: '输入服务器名称 "{name}" 确认'
   },

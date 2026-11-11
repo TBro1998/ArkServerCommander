@@ -59,6 +59,7 @@ docker-compose down            # 停止
 - `CORS_ALLOWED_ORIGINS`：跨域来源白名单，逗号分隔；为空表示仅同源
 - `PUBLIC_HOST`：玩家连接用的公网地址（IP 或域名）；为空时自动探测公网 IP（ipify / ifconfig.me，缓存 1 小时）
 - `BACKUP_DIR`：存档备份目录（默认数据库所在目录下的 `backups`，镜像内为 `/data/backups`）
+- `HOST_DATA_DIR`：数据目录在宿主机上的绝对路径，可选。ARK 服务器的卷绑定到数据目录下，Docker 需要宿主机路径；为空时后端检查自身容器的挂载自动探测（目标为数据目录的那一项的 Source），探测失败会拒绝启动并提示设置它；后端直接运行在宿主机上时使用数据目录本身
 - `GIN_MODE`、`LOG_LEVEL`、`LOG_FORMAT`：Gin 模式和日志配置
 
 前端（Next 服务端）：
@@ -137,16 +138,18 @@ docker-compose down            # 停止
 - 服务端文件卷：名称见 `utils.GetServerFilesVolumeName`
 - 镜像：`tbro98/ase-server:latest`（子模块 `ASE-Server-Docker` 是该镜像的源码）
 
+卷是绑定到数据目录的命名卷（local 驱动，`type=none, o=bind`，见 `docker_manager/storage.go`、`docker_volume.go`）：卷名不变，数据实际放在后端容器的 `/data`（宿主机 `./data`）下，宿主机上可以直接管理文件：`servers/<id>/files`（服务端文件）、`servers/<id>/saved`（存档和配置）、`servers/<id>/plugins`（插件）、`clusters/<cluster_id>`（集群共享）。后端启动时 `InitStorage` 确定数据目录的宿主机路径，失败则退出。删除卷不会删除目录里的文件，需要再调用 `RemoveServerDirs`；集群卷在创建容器前由 `EnsureClusterVolume` 建好，否则 Docker 会自动创建一个普通卷。磁盘占用由 `LocalVolumeSizes` 遍历目录统计（Docker 的 DiskUsage 查不到绑定卷的大小），key 仍是卷名。
+
 容器挂载三个卷：服务端文件卷挂到 `/home/steam/arkserver`，数据卷嵌套挂到 `ShooterGame/Saved`，插件卷嵌套挂到 `ArkApi/Plugins`。设置了 `cluster_id` 时再挂共享的集群卷 `ase-cluster-<cluster_id>` 到 ARK 默认集群目录 `Saved/clusters`（容器环境变量 `CLUSTER_VOLUME` 记录挂载的卷，用于判断是否需要重建）。镜像不再预下载游戏本体，入口脚本在首次启动时把服务端文件下载到文件卷；安装标记 `.install_complete` 和已装 Mod 记录 `.installed_mods` 也在卷里，所以重建容器不会重新下载，新增 Mod 时只下载缺少的。ArkApi 随镜像放在 `/home/steam/arkapi`，每次启动同步到卷里（已存在的 `config.json` 不覆盖）。镜像侧的改动需要重新构建并推送镜像后才生效。
 
 ### 服务器生命周期
 
-1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建三个卷（服务端文件卷、数据卷、插件卷）并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷（`committed` 标记）
+1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建三个卷（服务端文件卷、数据卷、插件卷）并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷和数据目录（`committed` 标记；事务回滚后 ID 可能被复用，残留文件会串到下一台服务器）
 2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；服务端文件卷里还没有服务端主程序时，`seed.go` 从另一台已安装完成（有 `.install_complete` 和主程序，优先已停止）的服务器复制整个文件卷（含 Mod 和 `.installed_mods`），再删掉 `.install_complete`，入口脚本启动时 validate 只下载差异，复制期间 `runtime.phase` 为 `copying`，复制失败只记日志、照常从 Steam 下载；开启 `auto_update` 时清除安装标记；如果 `SERVER_ARGS`、`GameModIds`、`CLUSTER_VOLUME`、重启策略（`auto_restart`）与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。管理员密码不在启动参数和环境变量里，每次启动前由 `syncAdminPassword` 以数据库里的值写入 `GameUserSettings.ini` 的 `[ServerSettings]`（读取失败时不会覆盖整个文件，只有 `ErrConfigNotFound` 才视为空文件）。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
 3. **运行阶段**：容器 running 不代表能连接。`runtime.go` 每 10 秒对运行中的服务器读取最近 400 行日志判断阶段（`downloading` 含 steamcmd 进度、`installing_mods` 含 x/y、`launching`），再在容器内发 A2S_INFO，有响应即 `ready` 并拿到在线人数；同时采样 CPU/内存。结果缓存在内存，随服务器列表返回 `runtime`。阶段标志行来自 `ASE-Server-Docker/scripts/start_server.sh`，改脚本输出时要同步改 `applyPhase`
 4. **重启 / 更新游戏**：`restartWith` 先停止（如果在运行）、执行可选的 `beforeStart`、再启动；更新游戏的 `beforeStart` 是删除文件卷里的 `.install_complete` / `.installed_mods`，入口脚本会重新 `app_update validate` 并重新下载 Mod
 5. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（服务器卡片上有重建按钮）
-6. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，同时删除定时任务。默认保留 Docker 卷和备份；`delete_data=true` 时删除三个卷和备份目录（集群卷共享，不删）
+6. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，同时删除定时任务。默认保留数据目录和备份；`delete_data=true` 时删除三个卷、`servers/<id>/` 目录和备份目录（集群卷和 `clusters/<id>` 共享，不删）
 
 ### 存档备份
 
@@ -202,7 +205,8 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 修改登录密码后，旧 JWT 在 24 小时有效期内仍然可用
 - `npm audit` 有来自 ESLint 依赖链（`minimatch`）的中等级别告警，仅影响开发期
 - 入口脚本已转发 SIGTERM，但游戏进程能否在 `docker stop` 的 30 秒内完成存档，没有在真实环境验证过，停服前的 `SaveWorld` 继续保留。steamcmd 下载阶段还没设置 trap，停止下载中的服务器要等满 30 秒（已实测）
-- 集群卷不会随服务器删除；不再使用的集群卷需要手动 `docker volume rm ase-cluster-<id>`。已有服务器改成集群后，原数据卷里 `Saved/clusters` 的旧数据会被集群卷遮住
+- 集群卷和 `data/clusters/<id>` 不会随服务器删除；不再使用时需要手动 `docker volume rm ase-cluster-<id>` 并删除该目录。已有服务器改成集群后，原数据卷里 `Saved/clusters` 的旧数据会被集群卷遮住
+- 服务器数据在宿主机 `./data/servers/<id>/` 下，文件属主是 root，外部编辑需要 sudo；运行中修改 `GameUserSettings.ini` 会在停服时被 ARK 覆盖，要在停止后再改；`data` 所在磁盘要容纳每台服务器约 20 GB。早期版本创建的普通 Docker 卷不会被识别，也没有做迁移（工具未上线），需要删除旧服务器后重建
 - 运行阶段依赖入口脚本的日志文本；游戏本身的 `ShooterGame.log` 在数据卷 `Saved/Logs` 下，界面上看不到
 - 创意工坊名称查询依赖访问 `api.steampowered.com`，访问不了时只显示 ID
 - 管理员密码现在存放在卷里的 `GameUserSettings.ini`，`docker inspect` 看不到；数据库里仍是明文，并且每次启动都以数据库的值为准，在 ini 里直接改 `ServerAdminPassword` 会被覆盖

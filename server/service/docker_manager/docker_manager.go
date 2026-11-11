@@ -235,8 +235,11 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 	}
 
 	// 集群：同一 cluster_id 的服务器共享 ARK 默认的集群目录 Saved/clusters，跨服传送的角色和物品存放在这里。
-	// 命名卷不存在时 Docker 会自动创建
+	// 先把卷建成绑定到数据目录 clusters/<cluster_id> 的命名卷，否则 Docker 会自动创建一个普通卷
 	if cv := ExpectedClusterVolume(server.ClusterID); cv != "" {
+		if err := dm.EnsureClusterVolume(server.ClusterID); err != nil {
+			return "", fmt.Errorf("创建集群卷失败: %v", err)
+		}
 		hostConfig.Binds = append(hostConfig.Binds, cv+":/home/steam/arkserver/ShooterGame/Saved/clusters")
 	}
 

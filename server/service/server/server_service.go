@@ -174,6 +174,10 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		if err := dockerManager.RemoveVolume(server.ID); err != nil {
 			utils.Warn("创建服务器失败后清理Docker卷失败", zap.Uint("server_id", server.ID), zap.Error(err))
 		}
+		// 绑定目录不会随卷删除；事务回滚后 ID 可能被复用，残留文件会串到下一台服务器
+		if err := docker_manager.RemoveServerDirs(server.ID); err != nil {
+			utils.Warn("创建服务器失败后清理数据目录失败", zap.Uint("server_id", server.ID), zap.Error(err))
+		}
 	}()
 
 	// 处理配置文件
@@ -628,13 +632,17 @@ func (s *ServerService) DeleteServer(userID uint, serverID string, deleteData bo
 		if err := dockerManager.RemoveVolume(server.ID); err != nil {
 			errs = append(errs, err)
 		}
+		// 卷绑定在数据目录 servers/<id>/ 下，删除卷不会删除文件，需要单独清理
+		if err := docker_manager.RemoveServerDirs(server.ID); err != nil {
+			errs = append(errs, fmt.Errorf("删除数据目录失败: %w", err))
+		}
 		if err := os.RemoveAll(serverBackupDir(server.ID)); err != nil {
 			errs = append(errs, fmt.Errorf("删除备份失败: %w", err))
 		}
 		if len(errs) > 0 {
 			// 记录已经删除，这里只能提示用户手动清理
-			return fmt.Errorf("服务器已删除，但清理数据失败，请手动删除卷 %s: %w",
-				strings.Join([]string{utils.GetServerFilesVolumeName(server.ID), utils.GetServerVolumeName(server.ID), utils.GetServerPluginsVolumeName(server.ID)}, "、"),
+			return fmt.Errorf("服务器已删除，但清理数据失败，请手动删除数据目录 servers/%d 和对应的 Docker 卷: %w",
+				server.ID,
 				errors.Join(errs...))
 		}
 		utils.Info("已删除服务器数据", zap.Uint("server_id", server.ID))

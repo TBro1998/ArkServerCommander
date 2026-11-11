@@ -79,11 +79,8 @@ func cachedVolumeSizes(refresh bool) (map[string]int64, time.Time, error) {
 	if !refresh && volumeSizes.sizes != nil && time.Since(volumeSizes.fetched) < 5*time.Minute {
 		return volumeSizes.sizes, volumeSizes.fetched, nil
 	}
-	dm, err := docker_manager.GetDockerManager()
-	if err != nil {
-		return nil, time.Time{}, err
-	}
-	sizes, err := dm.VolumeSizes()
+	// 卷绑定在数据目录下，直接统计目录大小（Docker 的 DiskUsage 查不到绑定卷）
+	sizes, err := docker_manager.LocalVolumeSizes()
 	if err != nil {
 		return volumeSizes.sizes, volumeSizes.fetched, err
 	}

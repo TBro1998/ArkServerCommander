@@ -67,6 +67,11 @@ func main() {
 	}
 	defer docker_manager.CloseDockerManager()
 
+	// 确定数据目录在宿主机上的路径，ARK 服务器的卷会绑定到其中
+	if err := docker_manager.InitStorage(); err != nil {
+		utils.Fatal("初始化数据目录失败", zap.Error(err))
+	}
+
 	// 上次退出时未完成的启停操作，按容器实际状态校正
 	if err := server.NewServerService().ReconcileStatuses(); err != nil {
 		utils.Warn("校正服务器状态失败", zap.Error(err))

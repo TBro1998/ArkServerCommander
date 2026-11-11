@@ -35,6 +35,11 @@ var (
 
 	// PublicHost 玩家连接用的公网地址（IP 或域名），为空时自动探测公网 IP
 	PublicHost string
+	// DataDir 数据目录（数据库所在目录，镜像内为 /data）。ARK 服务器的服务端文件、存档、插件和集群数据
+	// 放在其下的 servers/<id>/ 和 clusters/<cluster_id>/，宿主机上可以直接管理
+	DataDir string
+	// HostDataDir DataDir 在宿主机上的路径，通过 HOST_DATA_DIR 指定；为空时自动探测（见 docker_manager.InitStorage）
+	HostDataDir string
 )
 
 // 弱密钥黑名单，仅用于校验手动指定的 JWT_SECRET
@@ -75,6 +80,13 @@ func InitConfig() error {
 		BackupDir = filepath.Join(filepath.Dir(DBPath), "backups")
 	}
 	PublicHost = strings.TrimSpace(os.Getenv("PUBLIC_HOST"))
+
+	dataDir, err := filepath.Abs(filepath.Dir(DBPath))
+	if err != nil {
+		return fmt.Errorf("解析数据目录失败: %w", err)
+	}
+	DataDir = dataDir
+	HostDataDir = strings.TrimSpace(os.Getenv("HOST_DATA_DIR"))
 
 	secret, err := loadJWTSecret()
 	if err != nil {

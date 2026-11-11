@@ -1098,11 +1098,11 @@ BabyImprintAmountMultiplier=1.0`
     updateModsOptionDesc: 'Download all mods again',
     noMods: 'No mods configured',
     recreateTitle: 'Recreate the container of {name}?',
-    recreateDesc: 'A running server is stopped first (players will be disconnected), then the container is recreated with the current config. Start it manually afterwards. Saves and server files are kept in volumes.',
+    recreateDesc: 'A running server is stopped first (players will be disconnected), then the container is recreated with the current config. Start it manually afterwards. Saves and server files are kept in the data directory.',
     deleteTitle: 'Delete {name}?',
     deleteDesc: 'The server record and container will be deleted.',
     deleteData: 'Also delete all data',
-    deleteDataOff: 'Data volumes (saves, server files) and backups are kept and can be cleaned up manually later',
+    deleteDataOff: 'Files in the data directory (saves, server files) and backups are kept and can be cleaned up manually later',
     deleteDataOn: 'Saves, config, server files, plugins and all backups will be permanently deleted',
     typeNameToConfirm: 'Type the server name "{name}" to confirm'
   },
