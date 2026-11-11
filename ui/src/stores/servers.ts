@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import axios from 'axios';
 
 export type ServerStatus = 'running' | 'stopped' | 'starting' | 'stopping';
-export type ServerPhase = 'downloading' | 'installing_mods' | 'launching' | 'ready' | '';
+export type ServerPhase = 'copying' | 'downloading' | 'installing_mods' | 'launching' | 'ready' | '';
 
 // 运行中服务器的实时信息，由后端每 10 秒采集一次
 export interface RuntimeInfo {
@@ -13,6 +13,8 @@ export interface RuntimeInfo {
     players: number;
     max_players?: number;
     server_name?: string;
+    // copying 阶段（启动前复制服务端文件）的来源服务器名称
+    copy_source?: string;
     cpu_percent: number;
     memory_bytes: number;
     memory_limit?: number;

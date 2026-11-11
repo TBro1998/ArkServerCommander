@@ -13,6 +13,7 @@
 | 1.4 | 前端：卡片显示运行阶段 | [x] | `StatusBadge.tsx`：下载 x% / 安装 Mod x/y / 加载中 / 可连接；卡片下载阶段显示进度条 |
 | 2.1 | 集群：按 cluster_id 共享集群卷 | [x] | 卷 `ase-cluster-<cluster_id>` 挂到 ARK 默认集群目录 `Saved/clusters`（不用 `-ClusterDirOverride`，避免 Proton 下的路径问题）。容器环境变量 `CLUSTER_VOLUME` 用于判断是否重建；cluster_id 格式校验 |
 | 2.2 | 游戏本体 / Mod 更新 | [x] | `POST /servers/:id/update-game {game, mods}`：停止 → 删除文件卷里的 `.install_complete` / `.installed_mods` → 启动，入口脚本会重新 `app_update validate` 和下载 Mod。服务器开关 `auto_update`：每次启动前都清除标记。不需要重新构建镜像 |
+| 2.4 | 新服务器首次启动复用已下载的服务端文件 | [x] | steamcmd 装完即删除下载分块，没有可共用的缓存，改为复制：`service/server/seed.go` 在启动前检查目标文件卷是否已有服务端主程序，没有时从已安装完成的服务器（优先已停止）用临时 alpine 容器 `cp -a` 复制整个文件卷（含 Mod），再删掉 `.install_complete`，入口脚本 validate 只下载差异。界面显示"复制服务端文件"阶段。实测 1.5 GB 约 1.4 秒（本机 SSD）。用真实服务端文件时 validate 只下载差异这一点依赖 steamcmd 行为，未用真实安装验证 |
 | 2.3 | 存档备份：手动备份、列表、下载、恢复、删除 | [x] | 存放在 `BACKUP_DIR/<server_id>/`，tar.gz 内为 `Saved/`（跳过 Logs 和 clusters）。运行中先 SaveWorld。恢复要求已停止，先自动做 pre-restore 备份，再清空 SavedArks 和 Config 后解压。支持上传（校验路径和文件类型） |
 
 ## 二、运维功能

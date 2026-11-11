@@ -13,6 +13,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const PHASE_STYLES: Record<string, string> = {
+  copying: 'bg-cyan-100 text-cyan-800 border-cyan-200',
   downloading: 'bg-sky-100 text-sky-800 border-sky-200',
   installing_mods: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   launching: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -29,7 +30,8 @@ export function StatusBadge({ server, className }: { server: Server; className?:
   let style: string;
   let busy = false;
 
-  if (server.status === 'running' && runtime?.phase) {
+  // 运行中按阶段显示；启动中正在复制服务端文件时也显示阶段
+  if (runtime?.phase && (server.status === 'running' || (server.status === 'starting' && runtime.phase === 'copying'))) {
     const phase = runtime.phase;
     style = PHASE_STYLES[phase] ?? STATUS_STYLES.running;
     busy = phase !== 'ready';

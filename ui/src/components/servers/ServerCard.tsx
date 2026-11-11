@@ -108,6 +108,9 @@ export function ServerCard({ server, canStartServer, publicHost }: ServerCardPro
           </div>
         )}
         {runtime?.phase === 'launching' && <p className="text-xs text-gray-500">{t('launchingHint')}</p>}
+        {server.status === 'starting' && server.runtime?.phase === 'copying' && (
+          <p className="text-xs text-gray-500">{t('copyingHint', { source: server.runtime.copy_source ?? '' })}</p>
+        )}
 
         {/* 运行中：人数和资源 */}
         {runtime && (

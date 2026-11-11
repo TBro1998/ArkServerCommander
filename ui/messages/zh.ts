@@ -1007,12 +1007,14 @@ BabyImprintAmountMultiplier=1.0`
 
   // 运行阶段
   phase: {
+    copying: '复制服务端文件',
     downloading: '下载服务端',
     downloadingProgress: '下载服务端 {progress}%',
     installing_mods: '安装 Mod',
     installingModsProgress: '安装 Mod {current}/{total}',
     launching: '加载中',
     ready: '可连接',
+    copyingDesc: '正在从已安装的服务器复制服务端文件和 Mod，通常几分钟。复制完成后启动时会校验文件，只下载与最新版本的差异。',
     downloadingDesc: '正在下载或校验服务端文件。首次启动需要下载约 20 GB，耗时取决于网络速度。',
     installing_modsDesc: '正在下载并安装 Mod，已安装的 Mod 会跳过。',
     launchingDesc: '游戏进程已启动，正在加载地图和 Mod，通常需要几分钟，期间还不能连接。',
@@ -1040,6 +1042,7 @@ BabyImprintAmountMultiplier=1.0`
     clusterTip: '与相同集群ID的服务器共享角色和物品传送数据',
     lastError: '上次操作失败',
     downloadHint: '首次启动需要下载服务端文件，请耐心等待',
+    copyingHint: '正在从「{source}」复制服务端文件，省去首次下载',
     launchingHint: '正在加载地图，通常需要几分钟',
     players: '在线玩家',
     memory: '内存',

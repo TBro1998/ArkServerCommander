@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"ark-server-commander/models"
+	"ark-server-commander/service/docker_manager"
 )
 
 func TestApplyPhase(t *testing.T) {
@@ -127,5 +128,38 @@ func TestBackupNamePattern(t *testing.T) {
 		if backupNamePattern.MatchString(n) {
 			t.Fatalf("%q should not match", n)
 		}
+	}
+}
+
+func TestPickSeedSource(t *testing.T) {
+	installed := docker_manager.ServerFilesState{Installed: true, Executable: true}
+	candidates := []models.Server{
+		{ID: 2, Status: "running"},
+		{ID: 3, Status: "stopped"},
+		{ID: 4, Status: "stopped"},
+		{ID: 5, Status: "stopped"},
+	}
+	states := map[uint]docker_manager.ServerFilesState{
+		2: installed,
+		3: {Installed: false, Executable: true}, // 正在更新（标记已清除），不能作为来源
+		4: installed,
+		5: installed,
+	}
+
+	// 已停止的优先，其次按 ID
+	if got, ok := pickSeedSource(false, candidates, states); !ok || got.ID != 4 {
+		t.Fatalf("expected server 4, got %+v %v", got, ok)
+	}
+	// 只有运行中的服务器已安装时也可以作为来源
+	if got, ok := pickSeedSource(false, candidates[:2], states); !ok || got.ID != 2 {
+		t.Fatalf("expected server 2, got %+v %v", got, ok)
+	}
+	// 目标已有服务端文件（例如更新游戏刚清除了标记）时不复制
+	if _, ok := pickSeedSource(true, candidates, states); ok {
+		t.Fatal("should not copy when the target already has server files")
+	}
+	// 没有已安装完成的服务器
+	if _, ok := pickSeedSource(false, candidates[1:2], states); ok {
+		t.Fatal("should not copy from an incomplete install")
 	}
 }

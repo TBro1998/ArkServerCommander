@@ -68,9 +68,7 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 		response := toResponse(server)
 		response.Status = realTimeStatus
 		response.ImageOutdated = imageOutdated
-		if realTimeStatus != "running" {
-			response.Runtime = nil
-		}
+		response.Runtime = runtimeFor(server.ID, realTimeStatus)
 		serverResponses = append(serverResponses, response)
 	}
 
@@ -785,6 +783,9 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 	if err := syncAdminPassword(server, dockerManager); err != nil {
 		return err
 	}
+
+	// 还没下载过服务端时，从另一台已安装的服务器复制，省去首次下载
+	seedServerFiles(server, dockerManager)
 
 	// 开启了自动更新：清除安装标记，入口脚本会重新校验游戏本体并重新下载 Mod
 	if server.AutoUpdate {

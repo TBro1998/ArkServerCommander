@@ -1007,12 +1007,14 @@ BabyImprintAmountMultiplier=1.0`
 
   // Runtime phase
   phase: {
+    copying: 'Copying server files',
     downloading: 'Downloading server',
     downloadingProgress: 'Downloading {progress}%',
     installing_mods: 'Installing mods',
     installingModsProgress: 'Mods {current}/{total}',
     launching: 'Loading',
     ready: 'Joinable',
+    copyingDesc: 'Copying server files and mods from an installed server, usually a few minutes. On start the files are validated and only differences from the latest version are downloaded.',
     downloadingDesc: 'Downloading or validating server files. The first start downloads about 20 GB, depending on your network speed.',
     installing_modsDesc: 'Downloading and installing mods. Mods that are already installed are skipped.',
     launchingDesc: 'The game process has started and is loading the map and mods. This usually takes a few minutes; players cannot join yet.',
@@ -1040,6 +1042,7 @@ BabyImprintAmountMultiplier=1.0`
     clusterTip: 'Shares character and item transfers with servers using the same cluster ID',
     lastError: 'Last operation failed',
     downloadHint: 'The first start downloads the server files, please be patient',
+    copyingHint: 'Copying server files from "{source}" instead of downloading them',
     launchingHint: 'Loading the map, this usually takes a few minutes',
     players: 'Players online',
     memory: 'Memory',

@@ -45,7 +45,8 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
   const t = useTranslations('detail');
   const tMaps = useTranslations('servers.edit.maps');
   const tPhase = useTranslations('phase');
-  const runtime = server.status === 'running' ? server.runtime : undefined;
+  const copying = server.status === 'starting' && server.runtime?.phase === 'copying';
+  const runtime = server.status === 'running' || copying ? server.runtime : undefined;
   const mapName = tMaps.has(server.map) ? tMaps(server.map) : server.map;
 
   return (
@@ -64,6 +65,7 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
               {runtime.phase === 'installing_mods' && runtime.mod_total ? (
                 <Progress value={((runtime.mod_current ?? 0) / runtime.mod_total) * 100} className="h-2" />
               ) : null}
+              {!copying && (
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg bg-gray-50 p-3 text-center">
                   <Users className="mx-auto mb-1 h-4 w-4 text-green-600" />
@@ -83,6 +85,7 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
                   <div className="text-xs text-gray-500">{t('memory')}</div>
                 </div>
               </div>
+              )}
               {runtime.server_name && <Row label={t('advertisedName')}>{runtime.server_name}</Row>}
             </>
           )}

@@ -110,6 +110,7 @@ type ServerUpdateRequest struct {
 
 // 运行阶段：容器运行后，入口脚本依次下载服务端、安装 Mod、启动游戏，游戏加载完地图后才能连接
 const (
+	PhaseCopying        = "copying"         // 启动前从另一台已安装的服务器复制服务端文件（此时状态为 starting）
 	PhaseDownloading    = "downloading"     // 下载或校验服务端文件
 	PhaseInstallingMods = "installing_mods" // 下载、安装 Mod
 	PhaseLaunching      = "launching"       // 游戏进程已启动，正在加载地图
@@ -125,6 +126,7 @@ type RuntimeInfo struct {
 	Players     int     `json:"players"`                // 在线人数（查询端口返回）
 	MaxPlayers  int     `json:"max_players,omitempty"`  // 查询端口返回的人数上限
 	ServerName  string  `json:"server_name,omitempty"`  // 查询端口返回的名称，带游戏版本号
+	CopySource  string  `json:"copy_source,omitempty"`  // copying 阶段的来源服务器名称
 	CPUPercent  float64 `json:"cpu_percent"`            // CPU 占用率，100 表示占满一个核心
 	MemoryBytes uint64  `json:"memory_bytes"`           // 内存占用
 	MemoryLimit uint64  `json:"memory_limit,omitempty"` // 内存上限（宿主机内存）

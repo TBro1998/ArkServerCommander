@@ -23,6 +23,9 @@ definitions:
     type: object
   models.RuntimeInfo:
     properties:
+      copy_source:
+        description: copying 阶段的来源服务器名称
+        type: string
       cpu_percent:
         description: CPU 占用率，100 表示占满一个核心
         type: number
