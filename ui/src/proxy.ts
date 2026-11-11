@@ -1,63 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { defaultLocale } from './lib/locale-server';
 
+const LOCALES = ['en', 'zh'];
+const LOCALE_COOKIE = {
+  maxAge: 365 * 24 * 60 * 60, // 1年
+  path: '/',
+  sameSite: 'lax' as const,
+};
+
+// 需要登录的页面前缀
+const PROTECTED_PREFIXES = ['/home', '/servers', '/settings'];
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // 检查是否有语言切换请求
-  const searchParams = request.nextUrl.searchParams;
-  const localeParam = searchParams.get('locale');
 
-  if (localeParam && ['en', 'zh'].includes(localeParam)) {
-    // 设置新的语言cookie
-    const response = NextResponse.redirect(new URL(request.nextUrl.pathname, request.url));
-    response.cookies.set('NEXT_LOCALE', localeParam, {
-      maxAge: 365 * 24 * 60 * 60, // 1年
-      path: '/',
-      sameSite: 'lax'
-    });
+  // 语言切换请求：写入 cookie 后去掉参数重新访问
+  const localeParam = request.nextUrl.searchParams.get('locale');
+  if (localeParam && LOCALES.includes(localeParam)) {
+    const response = NextResponse.redirect(new URL(pathname, request.url));
+    response.cookies.set('NEXT_LOCALE', localeParam, LOCALE_COOKIE);
     return response;
   }
 
-  // 确保有语言cookie
+  // 缺少语言 cookie 时补上，但仍然继续做登录检查
   const currentLocale = request.cookies.get('NEXT_LOCALE')?.value;
-  if (!currentLocale || !['en', 'zh'].includes(currentLocale)) {
-    const response = NextResponse.next();
-    response.cookies.set('NEXT_LOCALE', defaultLocale, {
-      maxAge: 365 * 24 * 60 * 60, // 1年
-      path: '/',
-      sameSite: 'lax'
-    });
+  const needLocale = !currentLocale || !LOCALES.includes(currentLocale);
+  const withLocale = (response: NextResponse) => {
+    if (needLocale) response.cookies.set('NEXT_LOCALE', defaultLocale, LOCALE_COOKIE);
     return response;
-  }
+  };
 
-  // 认证检查
+  // 认证检查：这里只看 cookie 是否存在，令牌真伪由后端校验
   const token = request.cookies.get('auth-token')?.value;
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/init');
-  const isProtectedPage = pathname.startsWith('/home') || pathname.startsWith('/servers');
-  const isRootPage = pathname === '/';
+  const isProtectedPage = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-  // 如果访问受保护页面但没有token，重定向到登录页
+  if (pathname === '/') {
+    return withLocale(NextResponse.redirect(new URL(token ? '/home' : '/login', request.url)));
+  }
   if (isProtectedPage && !token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return withLocale(NextResponse.redirect(new URL('/login', request.url)));
   }
-
-  // 如果访问根页面且有token，重定向到home页面
-  if (isRootPage && token) {
-    return NextResponse.redirect(new URL('/home', request.url));
-  }
-
-  // 如果访问根页面且没有token，重定向到登录页
-  if (isRootPage && !token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // 如果已登录但访问认证页面，重定向到home页面
   if (isAuthPage && token) {
-    return NextResponse.redirect(new URL('/home', request.url));
+    return withLocale(NextResponse.redirect(new URL('/home', request.url)));
   }
 
-  return NextResponse.next();
+  return withLocale(NextResponse.next());
 }
 
 export const config = {

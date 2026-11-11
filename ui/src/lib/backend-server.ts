@@ -33,15 +33,19 @@ export async function authProxy(request: Request, endpoint: 'login' | 'init', fa
   }
 
   try {
+    // 转发客户端地址，后端按来源 IP 做登录失败限流
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    if (forwardedFor) headers['X-Forwarded-For'] = forwardedFor;
     const res = await fetch(`${getApiBase()}/auth/${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
       cache: 'no-store',
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || typeof data.token !== 'string') {
-      return NextResponse.json({ error: data?.error || fallbackError }, { status: res.ok ? 502 : res.status });
+      return NextResponse.json({ error: data?.error || fallbackError, code: data?.code }, { status: res.ok ? 502 : res.status });
     }
     const { token, ...rest } = data;
     const response = NextResponse.json(rest);
