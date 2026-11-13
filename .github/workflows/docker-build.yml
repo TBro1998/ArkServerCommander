@@ -74,21 +74,44 @@ jobs:
       contents: write
 
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    # 更新说明写在附注 tag 的正文里（第一行是概括，空一行后是 Markdown 正文），见 .claude/skills/release
+    - name: Prepare release notes
+      env:
+        TAG: ${{ github.ref_name }}
+        IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        VERSION: ${{ needs.build.outputs.version }}
+        DIGEST: ${{ needs.build.outputs.digest }}
+      run: |
+        # actions/checkout 只把 tag 指向的提交取下来，附注 tag 对象会丢失，单独取一次
+        git fetch --force --depth=1 origin "refs/tags/${TAG}:refs/tags/${TAG}"
+        : > release-notes.md
+        if [ "$(git cat-file -t "$TAG")" = tag ]; then
+          git tag -l --format='%(contents:body)' "$TAG" > release-notes.md
+        fi
+        if [ -s release-notes.md ]; then
+          echo >> release-notes.md
+        fi
+        {
+          echo '## 镜像'
+          echo
+          echo '```'
+          echo "${IMAGE}:${VERSION}"
+          echo "${IMAGE}:latest"
+          echo '```'
+          echo
+          echo "digest: \`${DIGEST}\`"
+        } >> release-notes.md
+        cat release-notes.md
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v3
       with:
         name: ${{ github.ref_name }}
-        # 由 GitHub 根据上一个 Release 到本 tag 之间的合并 PR 生成 "What's Changed"
-        # 末尾会自动附上 Full Changelog 的 compare 链接
+        # 仓库直接提交到 main，没有 PR 可汇总，这里主要是为了末尾的 Full Changelog compare 链接
         generate_release_notes: true
         # v0.0.2-b1 这类带后缀的当作预发布，不出现在 /releases/latest 里
         prerelease: ${{ contains(github.ref_name, '-') }}
-        body: |
-          ## 镜像
-
-          ```
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.version }}
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          ```
-
-          digest: `${{ needs.build.outputs.digest }}`
+        body_path: release-notes.md
