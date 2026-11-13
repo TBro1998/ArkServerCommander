@@ -104,6 +104,11 @@ export function ServerCard({ server, canStartServer, publicHost }: ServerCardPro
           </h3>
           <div className="flex flex-wrap items-center gap-1.5">
             <StatusBadge server={server} />
+            {server.arkapi && (
+              <span className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-800" title={t('arkapiTip')}>
+                {t('arkapi')}
+              </span>
+            )}
             {server.image_outdated && (
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800" title={t('imageOutdatedTip')}>
                 {t('imageOutdated')}
@@ -158,6 +163,9 @@ export function ServerCard({ server, canStartServer, publicHost }: ServerCardPro
         {runtime?.phase === 'launching' && <p className="text-xs text-muted-foreground">{t('launchingHint')}</p>}
         {server.status === 'starting' && server.runtime?.phase === 'copying' && (
           <p className="text-xs text-muted-foreground">{t('copyingHint', { source: server.runtime.copy_source ?? '' })}</p>
+        )}
+        {server.status === 'starting' && server.runtime?.phase === 'pulling_image' && (
+          <p className="text-xs text-muted-foreground">{t('pullingImageHint', { image: server.runtime.image ?? '' })}</p>
         )}
 
         <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1 text-xs">

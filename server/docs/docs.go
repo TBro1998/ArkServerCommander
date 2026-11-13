@@ -24,6 +24,132 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/arkapi/versions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "内置版本、已下载或上传到数据目录 arkapi/ 的版本，以及 GitHub（Michidu/ARK-Server-API）上发布的版本，从新到旧。GitHub 结果缓存 6 小时，refresh=true 时重新查询",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "ArkApi 版本列表",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "重新查询 GitHub",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "版本列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.ArkApiVersions"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "上传 ArkApi zip（multipart 字段 file）到版本库，压缩包里要有 version.dll。版本号从文件名（如 ArkApi_3.56.zip）识别，识别不出时用 version 指定；同版本会被覆盖",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "上传 ArkApi",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "ArkApi zip",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "版本号",
+                        "name": "version",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "版本号",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "压缩包无效",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/arkapi/versions/{version}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除版本库里下载或上传的压缩包，不影响已经安装到服务器的文件；内置版本不能删除",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "删除 ArkApi 版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "版本号",
+                        "name": "version",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已删除",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/check-init": {
             "get": {
                 "description": "检查系统是否已经初始化过用户",
@@ -981,6 +1107,64 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "已保存",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/arkapi/install": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把版本库里的指定版本安装到服务器的 ShooterGame/Binaries/Win64（只在 GitHub 上的版本先下载），保留已有的 config.json。只能在服务器停止时操作；version 为空时安装最新版本",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "安装 ArkApi",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "版本",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.InstallArkApiRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "安装的版本",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "服务器未停止",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2692,6 +2876,10 @@ const docTemplate = `{
                     "description": "CPU 占用率，100 表示占满一个核心",
                     "type": "number"
                 },
+                "image": {
+                    "description": "pulling_image 阶段正在下载的镜像",
+                    "type": "string"
+                },
                 "max_players": {
                     "description": "查询端口返回的人数上限",
                     "type": "integer"
@@ -2876,6 +3064,10 @@ const docTemplate = `{
                 "admin_password": {
                     "type": "string"
                 },
+                "arkapi": {
+                    "description": "启用 ArkApi（Proton 镜像），默认关闭（Linux 镜像）",
+                    "type": "boolean"
+                },
                 "auto_restart": {
                     "description": "是否自动重启（可选）",
                     "type": "boolean"
@@ -2944,6 +3136,10 @@ const docTemplate = `{
         "models.ServerResponse": {
             "type": "object",
             "properties": {
+                "arkapi": {
+                    "description": "启用 ArkApi（Proton 镜像运行 Windows 版服务端）",
+                    "type": "boolean"
+                },
                 "auto_restart": {
                     "type": "boolean"
                 },
@@ -2980,6 +3176,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "identifier": {
+                    "type": "string"
+                },
+                "image": {
+                    "description": "服务器使用的镜像，由 arkapi 决定",
                     "type": "string"
                 },
                 "image_outdated": {
@@ -3049,6 +3249,10 @@ const docTemplate = `{
             "properties": {
                 "admin_password": {
                     "type": "string"
+                },
+                "arkapi": {
+                    "description": "切换后下次启动时重建容器",
+                    "type": "boolean"
                 },
                 "auto_restart": {
                     "type": "boolean"
@@ -3136,6 +3340,64 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "server.ArkApiVersion": {
+            "type": "object",
+            "properties": {
+                "builtin": {
+                    "description": "随管理端发布",
+                    "type": "boolean"
+                },
+                "deletable": {
+                    "description": "本地文件，可以从版本库删除",
+                    "type": "boolean"
+                },
+                "local": {
+                    "description": "已在本地（内置、已下载或上传），安装时不需要联网",
+                    "type": "boolean"
+                },
+                "on_github": {
+                    "description": "GitHub 上有这个版本",
+                    "type": "boolean"
+                },
+                "published_at": {
+                    "description": "GitHub 发布时间",
+                    "type": "string"
+                },
+                "release_url": {
+                    "description": "GitHub 发布页",
+                    "type": "string"
+                },
+                "size": {
+                    "description": "本地压缩包大小",
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.ArkApiVersions": {
+            "type": "object",
+            "properties": {
+                "checked_at": {
+                    "type": "string"
+                },
+                "github_error": {
+                    "description": "查询 GitHub 失败的原因，此时只列出本地版本",
+                    "type": "string"
+                },
+                "latest": {
+                    "type": "string"
+                },
+                "versions": {
+                    "description": "从新到旧",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.ArkApiVersion"
+                    }
                 }
             }
         },
@@ -3327,7 +3589,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "arkapi_version": {
-                    "description": "镜像写入的版本号，旧镜像没有",
+                    "description": "安装时写入的版本号（.arkapi_version），手动放进去的没有",
                     "type": "string"
                 },
                 "plugins": {
@@ -3474,6 +3736,15 @@ const docTemplate = `{
                 },
                 "release_url": {
                     "description": "最新版本的发布说明",
+                    "type": "string"
+                }
+            }
+        },
+        "servers.InstallArkApiRequest": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "description": "为空时安装最新版本",
                     "type": "string"
                 }
             }

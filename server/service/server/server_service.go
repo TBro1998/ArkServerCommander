@@ -20,8 +20,9 @@ import (
 
 // managedImages 由本系统管理的镜像，只允许对这些镜像执行拉取和更新
 var managedImages = []string{
-	utils.ArkServerImage,
-	"alpine:latest", // 用于读写卷中的配置文件
+	utils.ArkServerLinuxImage,
+	utils.ArkServerProtonImage,
+	utils.AlpineImage, // 用于读写卷中的配置文件
 }
 
 // ServerService 服务器管理业务逻辑服务
@@ -49,7 +50,13 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 	if listErr != nil {
 		utils.Warn("列出服务器容器失败，状态沿用数据库记录", zap.Error(listErr))
 	}
-	currentImageID, imageErr := dockerManager.GetImageID(utils.ArkServerImage)
+	// 两个 ARK 镜像当前的 ID；镜像还没下载时没有记录，对应服务器不显示"旧镜像"
+	currentImageIDs := map[string]string{}
+	for _, name := range utils.ArkServerImages {
+		if id, err := dockerManager.GetImageID(name); err == nil {
+			currentImageIDs[name] = id
+		}
+	}
 
 	var serverResponses []models.ServerResponse
 	for _, server := range servers {
@@ -60,7 +67,10 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 			dockerStatus := "not_found"
 			if c, ok := containers[utils.GetServerContainerName(server.ID)]; ok {
 				dockerStatus = c.Status
-				imageOutdated = imageErr == nil && c.ImageID != currentImageID
+				// 容器用的不是服务器当前应使用的镜像（镜像更新过，或切换了 ArkApi）时，下次启动会重建
+				if want, ok := currentImageIDs[utils.ArkServerImageFor(server.ArkApi)]; ok {
+					imageOutdated = c.ImageID != want
+				}
 			}
 			realTimeStatus = syncStatusWithDocker(server, dockerStatus)
 		}
@@ -126,6 +136,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		Status:        "stopped",
 		AutoRestart:   *req.AutoRestart,
 		AutoUpdate:    req.AutoUpdate != nil && *req.AutoUpdate,
+		ArkApi:        req.ArkApi != nil && *req.ArkApi,
 		UserID:        userID,
 	}
 
@@ -477,6 +488,10 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	if req.AutoUpdate != nil {
 		server.AutoUpdate = *req.AutoUpdate
 	}
+	// 切换 ArkApi 即切换镜像，下次启动时发现容器的镜像不对会重建
+	if req.ArkApi != nil {
+		server.ArkApi = *req.ArkApi
+	}
 	clusterID, modIDs, err := normalizeServerFields(server.ClusterID, server.GameModIds)
 	if err != nil {
 		return nil, false, err
@@ -775,13 +790,15 @@ func (s *ServerService) StartServer(userID uint, serverID string) error {
 
 // startServerAsync 异步启动服务器
 func (s *ServerService) startServerAsync(server models.Server, dockerManager *docker_manager.DockerManager, containerName string) error {
-	// 严格验证必要镜像是否存在
-	missingImages, err := dockerManager.ValidateRequiredImages()
-	if err != nil {
-		return fmt.Errorf("验证镜像失败: %w", err)
+	// 读写卷用的 Alpine 镜像必须已经存在；ARK 镜像按是否启用 ArkApi 选择，没有时自动下载
+	imageName := utils.ArkServerImageFor(server.ArkApi)
+	if exists, err := dockerManager.ImageExists(utils.AlpineImage); err != nil {
+		return fmt.Errorf("检查镜像失败: %w", err)
+	} else if !exists {
+		return fmt.Errorf("无法启动服务器，缺失必要镜像 %s，请在首页镜像管理中下载", utils.AlpineImage)
 	}
-	if len(missingImages) > 0 {
-		return fmt.Errorf("无法启动服务器，缺失必要镜像: %v。请手动下载镜像后再启动服务器", missingImages)
+	if err := ensureServerImage(server.ID, imageName, dockerManager); err != nil {
+		return err
 	}
 
 	if err := applyPendingConfig(server.ID, dockerManager); err != nil {
@@ -794,6 +811,14 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 
 	// 还没下载过服务端时，从另一台已安装的服务器复制，省去首次下载
 	seedServerFiles(server, dockerManager)
+
+	// 启用了 ArkApi 但文件卷里还没有（新服务器，或刚打开开关）：安装版本库里最新的版本。
+	// 放在复制服务端文件之后，复制来源带有 ArkApi 时沿用它的版本
+	if server.ArkApi {
+		if err := ensureArkApiInstalled(server.ID); err != nil {
+			return err
+		}
+	}
 
 	// 开启了自动更新：清除安装标记，入口脚本会重新校验游戏本体并重新下载 Mod
 	if server.AutoUpdate {
@@ -851,9 +876,9 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 				}
 			}
 
-			// 镜像更新后，旧容器仍指向旧镜像，需要重建才能使用新镜像
+			// 镜像更新后，旧容器仍指向旧镜像，需要重建才能使用新镜像；切换了 ArkApi（换了镜像）时同样重建
 			if !needRecreateContainer {
-				outdated, err := dockerManager.IsContainerImageOutdated(containerName, utils.ArkServerImage)
+				outdated, err := dockerManager.IsContainerImageOutdated(containerName, imageName)
 				if err != nil || outdated {
 					needRecreateContainer = true
 				}
@@ -1017,16 +1042,6 @@ func (s *ServerService) stopServerAsync(server models.Server, dockerManager *doc
 	return false
 }
 
-// ValidateRequiredImages 验证启动服务器所需的镜像是否存在
-func (s *ServerService) ValidateRequiredImages() (missing []string, err error) {
-	dockerManager, err := docker_manager.GetDockerManager()
-	if err != nil {
-		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
-	}
-
-	return dockerManager.ValidateRequiredImages()
-}
-
 // CheckImageUpdates 检查所有管理的镜像更新
 func (s *ServerService) CheckImageUpdates() (map[string]bool, error) {
 	dockerManager, err := docker_manager.GetDockerManager()
@@ -1037,6 +1052,10 @@ func (s *ServerService) CheckImageUpdates() (map[string]bool, error) {
 	updateStatus := make(map[string]bool)
 	var lastErr error
 	for _, imageName := range managedImages {
+		// 还没下载的镜像（例如没有服务器启用 ArkApi 时的 Proton 镜像）不算"有更新"，界面上显示的是下载按钮
+		if exists, err := dockerManager.ImageExists(imageName); err == nil && !exists {
+			continue
+		}
 		hasUpdate, err := dockerManager.CheckImageUpdate(imageName)
 		if err != nil {
 			utils.Warn("检查镜像更新失败", zap.String("image", imageName), zap.Error(err))
@@ -1114,12 +1133,13 @@ func (s *ServerService) UpdateImage(imageName string, userID uint, restartRunnin
 		}
 		utils.Info("镜像更新完成", zap.String("image", imageName))
 
-		if !restartRunning || imageName != utils.ArkServerImage {
+		if !restartRunning || !slices.Contains(utils.ArkServerImages, imageName) {
 			return
 		}
 
+		// 只重启使用这个镜像的服务器
 		var running []models.Server
-		if err := database.DB.Where("user_id = ? AND status = ?", userID, "running").Find(&running).Error; err != nil {
+		if err := database.DB.Where("user_id = ? AND status = ? AND arkapi = ?", userID, "running", imageName == utils.ArkServerProtonImage).Find(&running).Error; err != nil {
 			utils.Error("获取运行中的服务器失败", zap.Error(err))
 			return
 		}
@@ -1194,13 +1214,21 @@ func (s *ServerService) restartWith(server models.Server, dockerManager *docker_
 
 // GetAffectedServers 获取使用指定镜像的服务器列表
 func (s *ServerService) GetAffectedServers(imageName string, userID uint) ([]models.ServerResponse, error) {
-	// 目前所有ARK服务器都使用相同的镜像
-	if imageName == utils.ArkServerImage {
-		return s.GetServers(userID)
+	affected := []models.ServerResponse{}
+	if !slices.Contains(utils.ArkServerImages, imageName) {
+		// Alpine 镜像只用于临时容器，不影响服务器
+		return affected, nil
 	}
-
-	// 对于其他镜像，返回空列表
-	return []models.ServerResponse{}, nil
+	servers, err := s.GetServers(userID)
+	if err != nil {
+		return nil, err
+	}
+	for _, server := range servers {
+		if server.Image == imageName {
+			affected = append(affected, server)
+		}
+	}
+	return affected, nil
 }
 
 // RecreateContainer 按当前配置重建服务器容器。
@@ -1291,6 +1319,11 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("获取Docker管理器失败: %w", err)
 	}
 
+	required, err := requiredImages()
+	if err != nil {
+		return nil, err
+	}
+
 	imageStatuses := make(map[string]*docker_manager.ImageStatus)
 	allReady := true
 	anyPulling := false
@@ -1298,9 +1331,11 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 
 	for _, imageName := range managedImages {
 		status := dockerManager.GetImageStatus(imageName)
+		status.Required = required[imageName]
 		imageStatuses[imageName] = status
 
-		if !status.Ready {
+		// 没有服务器用到的 ARK 镜像不算未就绪，启动用到它的服务器时会自动下载
+		if !status.Ready && status.Required {
 			allReady = false
 		}
 
@@ -1310,9 +1345,10 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		}
 	}
 
-	// 创建服务器要往数据卷写配置文件，只依赖 alpine 镜像；ARK 镜像在启动时才用到
+	// 创建服务器要往数据卷写配置文件，只依赖 alpine 镜像；ARK 镜像在启动时才用到，缺失时启动会自动下载，
+	// 所以能否启动也只取决于 alpine 镜像
 	canCreate := false
-	if st, ok := imageStatuses["alpine:latest"]; ok {
+	if st, ok := imageStatuses[utils.AlpineImage]; ok {
 		canCreate = st.Ready
 	}
 
@@ -1331,7 +1367,7 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		"any_pulling":       anyPulling,
 		"any_not_ready":     !allReady,
 		"can_create_server": canCreate,
-		"can_start_server":  allReady,
+		"can_start_server":  canCreate,
 		"overall_status":    overallStatus,
 		"pulling_count":     pullingCount,
 		"total_images":      len(managedImages),

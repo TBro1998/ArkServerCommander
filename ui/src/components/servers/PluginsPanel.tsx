@@ -3,18 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import axios from 'axios';
-import { AlertTriangle, FileCog, Loader2, Puzzle, Settings2, Trash2, Upload } from 'lucide-react';
+import { AlertTriangle, Download, FileCog, Loader2, Puzzle, RefreshCw, Settings2, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useApiError } from '@/lib/api-error';
 import { formatBytes } from '@/lib/format';
 import { toast } from '@/lib/toast';
-import type { Server } from '@/stores/servers';
+import { serversActions, type Server } from '@/stores/servers';
 
 interface Plugin {
   name: string;
@@ -33,6 +34,41 @@ interface PluginsOverview {
   arkapi_installed: boolean;
   arkapi_version?: string;
   plugins: Plugin[];
+}
+
+// ArkApi 版本库（所有服务器共用）：内置、已下载或上传的版本，以及 GitHub 上的版本
+interface ArkApiVersion {
+  version: string;
+  builtin?: boolean;
+  local: boolean;
+  deletable?: boolean;
+  on_github?: boolean;
+  size?: number;
+  published_at?: string;
+}
+
+interface ArkApiVersions {
+  versions: ArkApiVersion[];
+  latest?: string;
+  github_error?: string;
+}
+
+// 按点分隔的数字比较版本号，与后端 compareVersions 一致
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.');
+  const pb = b.split('.');
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? '';
+    const y = pb[i] ?? '';
+    const nx = /^\d+$/.test(x) ? Number(x) : NaN;
+    const ny = /^\d+$/.test(y) ? Number(y) : NaN;
+    if (!Number.isNaN(nx) && !Number.isNaN(ny)) {
+      if (nx !== ny) return nx < ny ? -1 : 1;
+    } else if (x !== y) {
+      return x < y ? -1 : 1;
+    }
+  }
+  return 0;
 }
 
 // 正在编辑的配置：name 为 null 表示 ArkApi 本体
@@ -58,8 +94,18 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
   const [configError, setConfigError] = useState('');
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [versions, setVersions] = useState<ArkApiVersions | null>(null);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [selected, setSelected] = useState('');
+  const [installingApi, setInstallingApi] = useState(false);
+  const [uploadingApi, setUploadingApi] = useState(false);
+  const [apiVersionInput, setApiVersionInput] = useState('');
+  const [deleteVersion, setDeleteVersion] = useState<string | null>(null);
+  const [togglingApi, setTogglingApi] = useState(false);
+  const apiFileRef = useRef<HTMLInputElement>(null);
 
   const stopped = server.status === 'stopped';
+  const arkApiEnabled = server.arkapi ?? false;
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +116,21 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     }
   }, [server.id, apiError, t]);
 
+  const loadVersions = useCallback(
+    async (refresh = false) => {
+      setLoadingVersions(true);
+      try {
+        const res = await axios.get('/api/arkapi/versions', { params: refresh ? { refresh: true } : undefined });
+        setVersions(res.data.data);
+      } catch (err) {
+        toast.error(apiError(err, t('versionsLoadFailed')));
+      } finally {
+        setLoadingVersions(false);
+      }
+    },
+    [apiError, t],
+  );
+
   useEffect(() => {
     if (!active) return;
     const timer = setTimeout(() => {
@@ -77,6 +138,88 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     }, 0);
     return () => clearTimeout(timer);
   }, [active, load, server.status]);
+
+  // 版本库变化不频繁，标签第一次打开时读取一次
+  const versionsRequested = useRef(false);
+  useEffect(() => {
+    if (!active || versionsRequested.current) return;
+    versionsRequested.current = true;
+    const timer = setTimeout(() => {
+      loadVersions();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [active, loadVersions]);
+
+  const installedVersion = data?.arkapi_installed ? data.arkapi_version : undefined;
+  const latest = versions?.latest;
+  const hasUpdate = !!(installedVersion && latest && compareVersions(latest, installedVersion) > 0);
+  // 没有手动选择时默认最新版本
+  const chosen = selected && versions?.versions.some((v) => v.version === selected) ? selected : (latest ?? '');
+  const chosenInfo = versions?.versions.find((v) => v.version === chosen);
+
+  const toggleArkApi = async (enabled: boolean) => {
+    setTogglingApi(true);
+    try {
+      await serversActions.updateServer(server.id, { arkapi: enabled });
+      toast.success(enabled ? t('arkapiEnabledToast') : t('arkapiDisabledToast'));
+    } catch (err) {
+      toast.error(apiError(err, t('arkapiToggleFailed')));
+    } finally {
+      setTogglingApi(false);
+    }
+  };
+
+  const installArkApi = async () => {
+    if (!chosen) return;
+    setInstallingApi(true);
+    try {
+      const res = await axios.post(`/api/servers/${server.id}/arkapi/install`, { version: chosen });
+      toast.success(t('arkapiInstalledToast', { version: res.data.data ?? chosen }));
+      load();
+      // 只在 GitHub 上的版本安装时会下载进版本库
+      if (chosenInfo && !chosenInfo.local) loadVersions();
+    } catch (err) {
+      toast.error(apiError(err, t('arkapiInstallFailed')));
+    } finally {
+      setInstallingApi(false);
+    }
+  };
+
+  const uploadArkApi = async (file: File) => {
+    setUploadingApi(true);
+    const form = new FormData();
+    form.append('file', file);
+    if (apiVersionInput.trim()) form.append('version', apiVersionInput.trim());
+    try {
+      const res = await axios.post('/api/arkapi/versions', form);
+      const version = res.data.data as string;
+      toast.success(t('arkapiUploaded', { version }));
+      setApiVersionInput('');
+      setSelected(version);
+      loadVersions();
+    } catch (err) {
+      toast.error(apiError(err, t('arkapiUploadFailed')));
+    } finally {
+      setUploadingApi(false);
+      if (apiFileRef.current) apiFileRef.current.value = '';
+    }
+  };
+
+  const removeVersion = async () => {
+    if (!deleteVersion) return;
+    try {
+      await axios.delete(`/api/arkapi/versions/${encodeURIComponent(deleteVersion)}`);
+      toast.success(t('versionDeleted', { version: deleteVersion }));
+      if (selected === deleteVersion) setSelected('');
+      loadVersions();
+    } catch (err) {
+      toast.error(apiError(err, t('versionDeleteFailed')));
+      throw err;
+    }
+  };
+
+  const versionTags = (v: ArkApiVersion) =>
+    [v.builtin ? t('builtinTag') : v.local ? t('localTag') : t('githubTag'), v.size ? formatBytes(v.size) : ''].filter(Boolean).join(' · ');
 
   const upload = async (file: File) => {
     setUploading(true);
@@ -163,20 +306,101 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-2">
-          <CardTitle className="font-display flex items-center gap-2 text-base">
+          <CardTitle className="font-display flex flex-wrap items-center gap-2 text-base">
             <Puzzle className="h-4 w-4 text-primary" />
             ArkApi
-            {data?.arkapi_installed && (
-              <span className="text-sm font-normal text-muted-foreground">{data.arkapi_version ? `v${data.arkapi_version}` : t('versionUnknown')}</span>
+            <span className="text-sm font-normal text-muted-foreground">
+              {data?.arkapi_installed ? (installedVersion ? `v${installedVersion}` : t('versionUnknown')) : data ? t('notInstalled') : ''}
+            </span>
+            {hasUpdate && (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-normal text-amber-800">
+                {t('updateAvailable', { version: latest ?? '' })}
+              </span>
             )}
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={() => openConfig(null)} disabled={!data?.arkapi_installed}>
-            <FileCog className="mr-1.5" />
-            {t('arkapiConfig')}
-          </Button>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              {t('arkapiEnable')}
+              <Switch checked={arkApiEnabled} onCheckedChange={toggleArkApi} disabled={togglingApi} aria-label={t('arkapiEnable')} />
+            </label>
+            <Button variant="outline" size="sm" onClick={() => openConfig(null)} disabled={!data?.arkapi_installed}>
+              <FileCog className="mr-1.5" />
+              {t('arkapiConfig')}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-1 text-sm text-muted-foreground">
-          <p>{data && !data.arkapi_installed ? t('arkapiNotInstalled') : t('arkapiHint')}</p>
+        <CardContent className="space-y-3 text-sm">
+          {!arkApiEnabled && (
+            <p className="flex items-start gap-1.5 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <AlertTriangle className="mt-0.5 size-3.5 flex-shrink-0" />
+              {t('arkapiDisabled')}
+            </p>
+          )}
+          <p className="text-muted-foreground">{data && !data.arkapi_installed ? t('arkapiNotInstalled') : t('arkapiHint')}</p>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select value={chosen} onValueChange={setSelected} disabled={!versions?.versions.length}>
+              <SelectTrigger className="sm:w-72">
+                <SelectValue placeholder={t('selectVersion')} />
+              </SelectTrigger>
+              <SelectContent>
+                {versions?.versions.map((v) => (
+                  <SelectItem key={v.version} value={v.version}>
+                    v{v.version}
+                    <span className="ml-2 text-xs text-muted-foreground">{versionTags(v)}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span title={stopped ? undefined : t('stopFirst')}>
+              <Button onClick={installArkApi} disabled={!stopped || !chosen || installingApi}>
+                {installingApi ? <Loader2 className="mr-1.5 animate-spin" /> : <Download className="mr-1.5" />}
+                {chosen && chosen === installedVersion ? t('reinstallArkApi') : hasUpdate && chosen === latest ? t('updateArkApi') : t('installArkApi')}
+              </Button>
+            </span>
+            {chosenInfo?.deletable && (
+              <Button variant="outline" size="sm" onClick={() => setDeleteVersion(chosenInfo.version)} aria-label={t('deleteVersion')} title={t('deleteVersion')}>
+                <Trash2 className="text-red-600" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => loadVersions(true)}
+              disabled={loadingVersions}
+              title={t('refreshVersions')}
+              aria-label={t('refreshVersions')}
+            >
+              <RefreshCw className={loadingVersions ? 'animate-spin' : ''} />
+            </Button>
+          </div>
+          {versions?.github_error && <p className="text-xs text-muted-foreground">{t('githubUnavailable')}</p>}
+
+          <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center">
+            <Input
+              value={apiVersionInput}
+              onChange={(e) => setApiVersionInput(e.target.value)}
+              placeholder={t('arkapiVersionPlaceholder')}
+              className="sm:max-w-48"
+              disabled={uploadingApi}
+            />
+            <Button variant="outline" onClick={() => apiFileRef.current?.click()} disabled={uploadingApi}>
+              {uploadingApi ? <Loader2 className="mr-1.5 animate-spin" /> : <Upload className="mr-1.5" />}
+              {t('uploadArkApi')}
+            </Button>
+            <input
+              ref={apiFileRef}
+              type="file"
+              accept=".zip,application/zip"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadArkApi(file);
+              }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">{t('uploadArkApiHint')}</p>
         </CardContent>
       </Card>
 
@@ -265,6 +489,16 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteVersion}
+        onOpenChange={(open) => !open && setDeleteVersion(null)}
+        title={t('deleteVersionTitle')}
+        description={t('deleteVersionDesc', { version: deleteVersion ?? '' })}
+        confirmText={t('delete')}
+        destructive
+        onConfirm={removeVersion}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

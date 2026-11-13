@@ -5,13 +5,13 @@
 [English](README.md) | [中文](README-zh.md)
 
 - ARK Survival Evolved server management tool for Linux.
-- ARK servers come with ArkApi plugin system built-in.
+- Runs the native Linux server by default; ArkApi can be enabled per server when you need plugins (the Windows server runs under GE-Proton).
 
 ## 🎮 Features
 
 ### ✅ Implemented Features
 - 🐳 Each ARK server runs in an independent Docker container
-- 🔌 Servers come with ArkApi pre-installed, with the plugin directory mounted separately
+- 🔌 ArkApi can be enabled per server: enabled servers run the Windows build on the Proton image, others run the native Linux build; switching takes effect on the next start
 - 🔄 Server containers support automatic restart on crash
 - ⬆️ Server files and mods are downloaded on first start and kept on their own volume, so recreating a container does not download them again; new servers copy server files from an already installed server
 - 💾 Saves, configs, plugins and server files live under `data/servers/<id>/` and can be managed directly on the host; they are kept when a server is deleted unless you choose to delete them
@@ -25,7 +25,7 @@
 - ⏰ Scheduled tasks: restart (with advance broadcast), backup, update, command, start/stop
 - ⚡ One-click server file and mod updates, or automatic update on every start
 - 🎨 Mod management: Workshop names and previews, paste a Workshop link to add a mod, drag to reorder, detect mod updates and update only the changed mods
-- 🔧 ArkApi plugin management: install from zip, enable/disable, delete, and edit plugin and ArkApi config.json online
+- 🔧 ArkApi management: 3.56 is built in, other versions can be downloaded from GitHub or uploaded as a zip and installed with one click; plugins can be installed from zip, enabled/disabled, deleted, and their config.json and ArkApi's edited online
 - 🖼️ Docker image management: download, check for updates, update; after an update, servers recreate their containers with the new image on next start, or running servers can be restarted right away
 - 🔐 Administrator login (JWT authentication, secret generated automatically by the backend, no configuration needed), with password change
 - 🔍 Tool version update checking (settings page)
@@ -128,7 +128,9 @@ Servers still on the old image show an "Old Image" badge on their card. Server f
 A: No. On first start the backend generates a strong random secret and stores it in `jwt_secret` in the data directory (the mounted `./data/jwt_secret`). Deleting that file and restarting the container invalidates all logged-in sessions.
 
 ### 🖼️ ARK Server Image
-- This system uses the `tbro98/ase-server:latest` image to run ARK servers
+- Servers without ArkApi use `tbro98/ase-server:linux` (native Linux server); servers with ArkApi use `tbro98/ase-server:proton` (Windows server under GE-Proton)
+- A missing image is downloaded automatically when a server that needs it starts; the images no longer ship ArkApi, the manager installs it into the server files
+- `tbro98/ase-server:latest` is no longer updated. It stays at the last version that bundled ArkApi, for older manager versions
 - Image source: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
 ## 📸 Interface Screenshots

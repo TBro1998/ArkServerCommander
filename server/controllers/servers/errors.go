@@ -18,7 +18,8 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrBackupNotFound),
 		errors.Is(err, server.ErrScheduleNotFound),
 		errors.Is(err, server.ErrPluginNotFound),
-		errors.Is(err, server.ErrArkApiNotInstalled):
+		errors.Is(err, server.ErrArkApiNotInstalled),
+		errors.Is(err, server.ErrArkApiNotFound):
 		status = http.StatusNotFound
 	case errors.Is(err, server.ErrInvalidServerID),
 		errors.Is(err, server.ErrIdentifierExists),
@@ -37,6 +38,8 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrInvalidSchedule),
 		errors.Is(err, server.ErrInvalidPlugin),
 		errors.Is(err, server.ErrInvalidPluginConfig),
+		errors.Is(err, server.ErrInvalidArkApi),
+		errors.Is(err, server.ErrArkApiBuiltin),
 		errors.Is(err, server.ErrImageNotAllowed):
 		status = http.StatusBadRequest
 	case errors.Is(err, server.ErrPortConflict),
@@ -46,7 +49,8 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrImagePulling),
 		errors.Is(err, server.ErrRconUnavailable):
 		status = http.StatusConflict
-	case errors.Is(err, server.ErrRconAuthFailed):
+	case errors.Is(err, server.ErrRconAuthFailed),
+		errors.Is(err, server.ErrArkApiDownload):
 		status = http.StatusBadGateway
 	}
 	body := gin.H{"error": err.Error()}

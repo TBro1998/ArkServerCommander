@@ -37,7 +37,11 @@ var (
 	ErrInvalidPlugin       = errors.New("插件压缩包无效")
 	ErrInvalidPluginConfig = errors.New("插件配置无效")
 	ErrClusterInUse        = errors.New("集群仍在使用中")
-	ErrArkApiNotInstalled  = errors.New("服务端文件里还没有 ArkApi，首次启动完成后才能编辑它的配置")
+	ErrArkApiNotInstalled  = errors.New("还没有安装 ArkApi，请先在插件页安装，或启用 ArkApi 后启动一次服务器")
+	ErrInvalidArkApi       = errors.New("ArkApi 压缩包无效")
+	ErrArkApiNotFound      = errors.New("没有这个 ArkApi 版本")
+	ErrArkApiDownload      = errors.New("下载 ArkApi 失败")
+	ErrArkApiBuiltin       = errors.New("内置的 ArkApi 版本不能删除")
 )
 
 // errorCodes 错误码，前端据此显示对应语言的提示；中文界面直接显示 error 字段（包含具体细节）
@@ -74,6 +78,10 @@ var errorCodes = []struct {
 	{ErrInvalidPlugin, "invalid_plugin"},
 	{ErrInvalidPluginConfig, "invalid_plugin_config"},
 	{ErrArkApiNotInstalled, "arkapi_not_installed"},
+	{ErrInvalidArkApi, "invalid_arkapi"},
+	{ErrArkApiNotFound, "arkapi_version_not_found"},
+	{ErrArkApiDownload, "arkapi_download_failed"},
+	{ErrArkApiBuiltin, "arkapi_builtin"},
 	{ErrClusterInUse, "cluster_in_use"},
 }
 

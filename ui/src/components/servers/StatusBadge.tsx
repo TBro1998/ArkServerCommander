@@ -28,8 +28,8 @@ export function StatusBadge({ server, className }: { server: Server; className?:
   let style: string;
   let busy = false;
 
-  // 运行中按阶段显示；启动中正在复制服务端文件时也显示阶段
-  if (runtime?.phase && (server.status === 'running' || (server.status === 'starting' && runtime.phase === 'copying'))) {
+  // 运行中按阶段显示；启动中正在下载镜像、复制服务端文件时也显示阶段
+  if (runtime?.phase && (server.status === 'running' || (server.status === 'starting' && (runtime.phase === 'copying' || runtime.phase === 'pulling_image')))) {
     const phase = runtime.phase;
     style = phase === 'ready' ? OK : BUSY;
     busy = phase !== 'ready';

@@ -58,7 +58,7 @@ type PluginInfo struct {
 // PluginsOverview 插件列表和 ArkApi 本体信息
 type PluginsOverview struct {
 	ArkApiInstalled bool         `json:"arkapi_installed"`         // 服务端文件里有 ArkApi（version.dll）
-	ArkApiVersion   string       `json:"arkapi_version,omitempty"` // 镜像写入的版本号，旧镜像没有
+	ArkApiVersion   string       `json:"arkapi_version,omitempty"` // 安装时写入的版本号（.arkapi_version），手动放进去的没有
 	Plugins         []PluginInfo `json:"plugins"`
 }
 
@@ -69,13 +69,7 @@ func (s *ServerService) ListPlugins(userID uint, serverID string) (*PluginsOverv
 		return nil, err
 	}
 	overview := &PluginsOverview{Plugins: []PluginInfo{}}
-	files := docker_manager.ServerFilesDir(server.ID)
-	if _, err := os.Stat(filepath.Join(files, "ShooterGame", "Binaries", "Win64", "version.dll")); err == nil {
-		overview.ArkApiInstalled = true
-	}
-	if data, err := os.ReadFile(filepath.Join(files, ".arkapi_version")); err == nil {
-		overview.ArkApiVersion = strings.TrimSpace(string(data))
-	}
+	overview.ArkApiVersion, overview.ArkApiInstalled = installedArkApiVersion(server.ID)
 
 	for _, dir := range []struct {
 		path    string
@@ -462,7 +456,7 @@ const arkApiConfigName = ""
 // pluginConfigPath 插件或 ArkApi 本体（name 为空）的 config.json 路径
 func pluginConfigPath(serverID uint, name string) (string, error) {
 	if name == arkApiConfigName {
-		return filepath.Join(docker_manager.ServerFilesDir(serverID), "ShooterGame", "Binaries", "Win64", "config.json"), nil
+		return filepath.Join(arkApiWin64Dir(serverID), "config.json"), nil
 	}
 	dir, _, err := findPlugin(serverID, name)
 	if err != nil {
@@ -511,7 +505,7 @@ func (s *ServerService) SavePluginConfig(userID uint, serverID, name, content st
 		return err
 	}
 	if name == arkApiConfigName {
-		if _, err := os.Stat(filepath.Dir(p)); err != nil {
+		if _, installed := installedArkApiVersion(server.ID); !installed {
 			return ErrArkApiNotInstalled
 		}
 	}

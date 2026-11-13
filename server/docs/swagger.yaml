@@ -29,6 +29,9 @@ definitions:
       cpu_percent:
         description: CPU 占用率，100 表示占满一个核心
         type: number
+      image:
+        description: pulling_image 阶段正在下载的镜像
+        type: string
       max_players:
         description: 查询端口返回的人数上限
         type: integer
@@ -153,6 +156,9 @@ definitions:
     properties:
       admin_password:
         type: string
+      arkapi:
+        description: 启用 ArkApi（Proton 镜像），默认关闭（Linux 镜像）
+        type: boolean
       auto_restart:
         description: 是否自动重启（可选）
         type: boolean
@@ -208,6 +214,9 @@ definitions:
     type: object
   models.ServerResponse:
     properties:
+      arkapi:
+        description: 启用 ArkApi（Proton 镜像运行 Windows 版服务端）
+        type: boolean
       auto_restart:
         type: boolean
       auto_update:
@@ -234,6 +243,9 @@ definitions:
       id:
         type: integer
       identifier:
+        type: string
+      image:
+        description: 服务器使用的镜像，由 arkapi 决定
         type: string
       image_outdated:
         description: 容器仍在使用旧镜像，下次启动时会重建
@@ -279,6 +291,9 @@ definitions:
     properties:
       admin_password:
         type: string
+      arkapi:
+        description: 切换后下次启动时重建容器
+        type: boolean
       auto_restart:
         type: boolean
       auto_update:
@@ -340,6 +355,47 @@ definitions:
         type: integer
       username:
         type: string
+    type: object
+  server.ArkApiVersion:
+    properties:
+      builtin:
+        description: 随管理端发布
+        type: boolean
+      deletable:
+        description: 本地文件，可以从版本库删除
+        type: boolean
+      local:
+        description: 已在本地（内置、已下载或上传），安装时不需要联网
+        type: boolean
+      on_github:
+        description: GitHub 上有这个版本
+        type: boolean
+      published_at:
+        description: GitHub 发布时间
+        type: string
+      release_url:
+        description: GitHub 发布页
+        type: string
+      size:
+        description: 本地压缩包大小
+        type: integer
+      version:
+        type: string
+    type: object
+  server.ArkApiVersions:
+    properties:
+      checked_at:
+        type: string
+      github_error:
+        description: 查询 GitHub 失败的原因，此时只列出本地版本
+        type: string
+      latest:
+        type: string
+      versions:
+        description: 从新到旧
+        items:
+          $ref: '#/definitions/server.ArkApiVersion'
+        type: array
     type: object
   server.BackupInfo:
     properties:
@@ -467,7 +523,7 @@ definitions:
         description: 服务端文件里有 ArkApi（version.dll）
         type: boolean
       arkapi_version:
-        description: 镜像写入的版本号，旧镜像没有
+        description: 安装时写入的版本号（.arkapi_version），手动放进去的没有
         type: string
       plugins:
         items:
@@ -570,6 +626,12 @@ definitions:
         description: 最新版本的发布说明
         type: string
     type: object
+  servers.InstallArkApiRequest:
+    properties:
+      version:
+        description: 为空时安装最新版本
+        type: string
+    type: object
   servers.PluginConfigRequest:
     properties:
       content:
@@ -615,6 +677,87 @@ info:
   title: ARK服务器管理器 API
   version: "1.0"
 paths:
+  /arkapi/versions:
+    get:
+      description: 内置版本、已下载或上传到数据目录 arkapi/ 的版本，以及 GitHub（Michidu/ARK-Server-API）上发布的版本，从新到旧。GitHub
+        结果缓存 6 小时，refresh=true 时重新查询
+      parameters:
+      - description: 重新查询 GitHub
+        in: query
+        name: refresh
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 版本列表
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.ArkApiVersions'
+            type: object
+      security:
+      - Bearer: []
+      summary: ArkApi 版本列表
+      tags:
+      - 插件管理
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传 ArkApi zip（multipart 字段 file）到版本库，压缩包里要有 version.dll。版本号从文件名（如
+        ArkApi_3.56.zip）识别，识别不出时用 version 指定；同版本会被覆盖
+      parameters:
+      - description: ArkApi zip
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 版本号
+        in: formData
+        name: version
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 版本号
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 压缩包无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 上传 ArkApi
+      tags:
+      - 插件管理
+  /arkapi/versions/{version}:
+    delete:
+      description: 删除版本库里下载或上传的压缩包，不影响已经安装到服务器的文件；内置版本不能删除
+      parameters:
+      - description: 版本号
+        in: path
+        name: version
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已删除
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除 ArkApi 版本
+      tags:
+      - 插件管理
   /auth/check-init:
     get:
       consumes:
@@ -1233,6 +1376,44 @@ paths:
       security:
       - Bearer: []
       summary: 保存 ArkApi 本体的 config.json
+      tags:
+      - 插件管理
+  /servers/{id}/arkapi/install:
+    post:
+      consumes:
+      - application/json
+      description: 把版本库里的指定版本安装到服务器的 ShooterGame/Binaries/Win64（只在 GitHub 上的版本先下载），保留已有的
+        config.json。只能在服务器停止时操作；version 为空时安装最新版本
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 版本
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/servers.InstallArkApiRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 安装的版本
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 服务器未停止
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 安装 ArkApi
       tags:
       - 插件管理
   /servers/{id}/backups:

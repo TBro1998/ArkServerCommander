@@ -100,6 +100,15 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.PUT("/:id/plugins/:name/config", servers.SavePluginConfig)
 				serverRoutes.GET("/:id/arkapi/config", servers.GetArkApiConfig)
 				serverRoutes.PUT("/:id/arkapi/config", servers.SaveArkApiConfig)
+				serverRoutes.POST("/:id/arkapi/install", servers.InstallArkApi)
+			}
+
+			// ArkApi 版本库（所有服务器共用）
+			arkApiRoutes := protected.Group("/arkapi")
+			{
+				arkApiRoutes.GET("/versions", servers.ListArkApiVersions)
+				arkApiRoutes.POST("/versions", servers.UploadArkApi)
+				arkApiRoutes.DELETE("/versions/:version", servers.DeleteArkApiVersion)
 			}
 
 			// 镜像管理路由

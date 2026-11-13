@@ -96,12 +96,13 @@ func TestCPUPercent(t *testing.T) {
 }
 
 func TestParseFilesStates(t *testing.T) {
-	out := "1 1 1\n2 0 1\n3 0 0\ngarbage\n4 1\n"
+	out := "1 1 1 0\n2 0 1 1\n3 0 0 0\n5 1 0 1\ngarbage\n4 1 1\n"
 	got := parseFilesStates(out)
 	want := map[uint]ServerFilesState{
-		1: {Installed: true, Executable: true},
-		2: {Installed: false, Executable: true},
+		1: {Installed: true, Windows: true},
+		2: {Installed: false, Windows: true, Linux: true},
 		3: {},
+		5: {Installed: true, Linux: true},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %+v", got)

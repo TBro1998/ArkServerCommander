@@ -35,8 +35,28 @@ func GetServerFilesVolumeName(serverID uint) string {
 	return fmt.Sprintf("ase-server-files-%d", serverID)
 }
 
-// ArkServerImage ARK服务器镜像（源码见子模块 ASE-Server-Docker）
-const ArkServerImage = "tbro98/ase-server:latest"
+// ARK 服务器镜像（源码见子模块 ASE-Server-Docker，同一个 dockerfile 的两个构建目标）。
+// 不再使用 latest：它停在最后一个自带 ArkApi 的版本，留给旧版管理端
+const (
+	// ArkServerLinuxImage 原生 Linux 版服务端，不使用 ArkApi 的服务器用它
+	ArkServerLinuxImage = "tbro98/ase-server:linux"
+	// ArkServerProtonImage 用 GE-Proton 运行 Windows 版服务端，启用 ArkApi 的服务器用它
+	ArkServerProtonImage = "tbro98/ase-server:proton"
+)
+
+// ArkServerImages 所有 ARK 服务器镜像
+var ArkServerImages = []string{ArkServerLinuxImage, ArkServerProtonImage}
+
+// ArkServerImageFor 服务器应使用的镜像：启用 ArkApi 时用 Proton 版（ArkApi 只能注入 Windows 版服务端）
+func ArkServerImageFor(arkApi bool) string {
+	if arkApi {
+		return ArkServerProtonImage
+	}
+	return ArkServerLinuxImage
+}
+
+// AlpineImage 读写卷内文件的临时容器使用的镜像
+const AlpineImage = "alpine:latest"
 
 // GetClusterVolumeName 集群共享卷名称：cluster_id 相同的服务器挂载同一个卷，跨服传送的数据存放在这里
 func GetClusterVolumeName(clusterID string) string {

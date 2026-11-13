@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import axios from 'axios';
 
 export type ServerStatus = 'running' | 'stopped' | 'starting' | 'stopping';
-export type ServerPhase = 'copying' | 'downloading' | 'installing_mods' | 'launching' | 'ready' | '';
+export type ServerPhase = 'pulling_image' | 'copying' | 'downloading' | 'installing_mods' | 'launching' | 'ready' | '';
 
 // 运行中服务器的实时信息，由后端每 10 秒采集一次
 export interface RuntimeInfo {
@@ -15,6 +15,8 @@ export interface RuntimeInfo {
     server_name?: string;
     // copying 阶段（启动前复制服务端文件）的来源服务器名称
     copy_source?: string;
+    // pulling_image 阶段（启动前下载镜像）正在下载的镜像
+    image?: string;
     cpu_percent: number;
     memory_bytes: number;
     memory_limit?: number;
@@ -39,6 +41,10 @@ export interface Server {
     game_mod_ids?: string;
     auto_restart?: boolean;
     auto_update?: boolean;
+    // 启用 ArkApi：用 Proton 镜像运行 Windows 版服务端；关闭时用原生 Linux 版
+    arkapi?: boolean;
+    // 服务器使用的镜像，由 arkapi 决定
+    image?: string;
     game_user_settings?: string;
     game_ini?: string;
     server_args?: {
@@ -68,6 +74,8 @@ export interface ImageStatus {
             ready: boolean;
             pulling: boolean;
             has_update?: boolean;
+            // 有服务器（或新建服务器默认）会用到；不需要的 ARK 镜像在启动用到它的服务器时自动下载
+            required?: boolean;
             error?: string;
             layers?: {
                 [layerId: string]: {

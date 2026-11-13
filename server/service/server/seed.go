@@ -28,14 +28,20 @@ func seedSourceName(serverID uint) (string, bool) {
 	return v.(string), true
 }
 
-// pickSeedSource 选出复制来源：必须已安装完成（有标记和主程序），优先已停止的服务器（文件不会在复制时变动），
-// 其次按 ID 顺序。targetHasFiles 为 true（目标已有服务端主程序，例如"更新游戏"刚清除了标记）时不复制
-func pickSeedSource(targetHasFiles bool, candidates []models.Server, states map[uint]docker_manager.ServerFilesState) (models.Server, bool) {
-	if targetHasFiles {
+// pickSeedSource 选出复制来源：必须已安装完成（有标记和任一平台的主程序）。优先已有目标平台主程序的
+// （arkApi 为 true 表示 Windows 版，否则 Linux 版；另一个平台的也能用，validate 时只补下载主程序），
+// 其次已停止的服务器（文件不会在复制时变动），最后按 ID 顺序。
+// 目标已有服务端主程序（例如"更新游戏"刚清除了标记，或切换了平台）时不复制
+func pickSeedSource(target docker_manager.ServerFilesState, arkApi bool, candidates []models.Server, states map[uint]docker_manager.ServerFilesState) (models.Server, bool) {
+	if target.HasExecutable() {
 		return models.Server{}, false
 	}
 	sorted := append([]models.Server(nil), candidates...)
 	sort.SliceStable(sorted, func(i, j int) bool {
+		pi, pj := states[sorted[i].ID].HasExecutableFor(arkApi), states[sorted[j].ID].HasExecutableFor(arkApi)
+		if pi != pj {
+			return pi
+		}
 		si, sj := sorted[i].Status == "stopped", sorted[j].Status == "stopped"
 		if si != sj {
 			return si
@@ -43,7 +49,7 @@ func pickSeedSource(targetHasFiles bool, candidates []models.Server, states map[
 		return sorted[i].ID < sorted[j].ID
 	})
 	for _, c := range sorted {
-		if st := states[c.ID]; st.Installed && st.Executable {
+		if st := states[c.ID]; st.Installed && st.HasExecutable() {
 			return c, true
 		}
 	}
@@ -78,7 +84,7 @@ func seedServerFiles(server models.Server, dm *docker_manager.DockerManager) {
 		return
 	}
 
-	source, ok := pickSeedSource(states[server.ID].Executable, others, states)
+	source, ok := pickSeedSource(states[server.ID], server.ArkApi, others, states)
 	if !ok {
 		return
 	}

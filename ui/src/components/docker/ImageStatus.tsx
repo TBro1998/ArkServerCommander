@@ -8,6 +8,7 @@ import { RefreshCw, Download, AlertCircle, Layers, ArrowUpCircle } from 'lucide-
 import { ImageStatus as ImageStatusType } from '@/stores/servers';
 import { formatBytes } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { imageLabelKey } from '@/lib/images';
 
 interface ImageStatusProps {
   imageStatus: ImageStatusType;
@@ -73,17 +74,12 @@ export function ImageStatus({
   const t = useTranslations('servers.dockerImages');
 
   const displayName = (imageName: string): string => {
-    switch (imageName) {
-      case 'tbro98/ase-server:latest':
-        return t('arkServer');
-      case 'alpine:latest':
-        return t('alpineSystem');
-      default:
-        return imageName;
-    }
+    const key = imageLabelKey(imageName);
+    return key ? t(key) : imageName;
   };
 
-  const missing = !imageStatus.can_start_server && !imageStatus.any_pulling;
+  // 有服务器要用的镜像还没下载（没有服务器用到的 ARK 镜像不算，启动时会自动下载）
+  const missing = imageStatus.any_not_ready && !imageStatus.any_pulling;
 
   return (
     <div className="space-y-4 text-sm">
@@ -106,7 +102,9 @@ export function ImageStatus({
 
       <ul className="divide-y rounded-md border">
         {Object.entries(imageStatus.images ?? {}).map(([imageName, status]) => {
-          const tone = status.pulling || status.has_update ? 'busy' : status.ready ? 'ok' : 'off';
+          // 没有服务器用到的镜像缺失时只是灰色，不算问题
+          const optional = status.required === false;
+          const tone = status.pulling || status.has_update ? 'busy' : status.ready ? 'ok' : optional ? 'idle' : 'off';
           const progress = status.pulling ? pullProgress(status) : 0;
           return (
             <li key={imageName} className="space-y-2 px-3 py-3">
@@ -118,11 +116,13 @@ export function ImageStatus({
                     tone === 'ok' && 'bg-green-500',
                     tone === 'busy' && 'bg-amber-500',
                     tone === 'off' && 'bg-red-500',
+                    tone === 'idle' && 'bg-gray-400',
                   )}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">{displayName(imageName)}</div>
                   <div className="truncate font-mono text-xs text-muted-foreground">{imageName}</div>
+                  {optional && !status.ready && !status.pulling && <div className="text-xs text-muted-foreground">{t('notRequired')}</div>}
                 </div>
 
                 {status.pulling ? (

@@ -41,6 +41,7 @@ type ImageStatus struct {
 	Ready        bool                    `json:"ready"`         // 是否准备就绪
 	Error        string                  `json:"error"`         // 错误信息
 	HasUpdate    bool                    `json:"has_update"`    // 最近一次检查更新的结果
+	Required     bool                    `json:"required"`      // 有服务器（或新建服务器默认）会用到；由服务层填写
 	CurrentLayer string                  `json:"current_layer"` // 当前下载的层级
 	Layers       map[string]*LayerStatus `json:"layers"`        // 所有层级的状态
 }

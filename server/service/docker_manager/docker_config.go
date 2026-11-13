@@ -19,10 +19,11 @@ import (
 const (
 	// 数据卷挂载到临时容器里的路径，与 ARK 容器内的路径一致
 	configSavedDir = "/home/steam/arkserver/ShooterGame/Saved"
-	// 配置文件相对 Saved 目录的位置（所有配置文件都在 Config/WindowsServer 目录）
+	// 配置文件相对 Saved 目录的位置（所有配置文件都在 Config/WindowsServer 目录；
+	// Linux 版服务端读的 Config/LinuxServer 由入口脚本建成指向它的符号链接）
 	configSubDir = "Config/WindowsServer"
 	// 用于访问数据卷的辅助镜像
-	configHelperImage = "alpine:latest"
+	configHelperImage = utils.AlpineImage
 	// 配置文件大小上限，防止异常文件占满内存
 	maxConfigFileSize = 10 << 20
 	// UTF-8 字节序标记，Windows 编辑器保存的配置文件可能带有

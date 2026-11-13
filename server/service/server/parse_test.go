@@ -132,7 +132,9 @@ func TestBackupNamePattern(t *testing.T) {
 }
 
 func TestPickSeedSource(t *testing.T) {
-	installed := docker_manager.ServerFilesState{Installed: true, Executable: true}
+	installed := docker_manager.ServerFilesState{Installed: true, Windows: true}
+	linux := docker_manager.ServerFilesState{Installed: true, Linux: true}
+	none := docker_manager.ServerFilesState{}
 	candidates := []models.Server{
 		{ID: 2, Status: "running"},
 		{ID: 3, Status: "stopped"},
@@ -141,25 +143,40 @@ func TestPickSeedSource(t *testing.T) {
 	}
 	states := map[uint]docker_manager.ServerFilesState{
 		2: installed,
-		3: {Installed: false, Executable: true}, // 正在更新（标记已清除），不能作为来源
+		3: {Installed: false, Windows: true}, // 正在更新（标记已清除），不能作为来源
 		4: installed,
 		5: installed,
 	}
 
 	// 已停止的优先，其次按 ID
-	if got, ok := pickSeedSource(false, candidates, states); !ok || got.ID != 4 {
+	if got, ok := pickSeedSource(none, true, candidates, states); !ok || got.ID != 4 {
 		t.Fatalf("expected server 4, got %+v %v", got, ok)
 	}
 	// 只有运行中的服务器已安装时也可以作为来源
-	if got, ok := pickSeedSource(false, candidates[:2], states); !ok || got.ID != 2 {
+	if got, ok := pickSeedSource(none, true, candidates[:2], states); !ok || got.ID != 2 {
 		t.Fatalf("expected server 2, got %+v %v", got, ok)
 	}
-	// 目标已有服务端文件（例如更新游戏刚清除了标记）时不复制
-	if _, ok := pickSeedSource(true, candidates, states); ok {
+	// 目标已有服务端文件（例如更新游戏刚清除了标记、切换了平台）时不复制
+	if _, ok := pickSeedSource(installed, true, candidates, states); ok {
 		t.Fatal("should not copy when the target already has server files")
 	}
+	if _, ok := pickSeedSource(linux, true, candidates, states); ok {
+		t.Fatal("should not copy when the target has files of the other platform")
+	}
 	// 没有已安装完成的服务器
-	if _, ok := pickSeedSource(false, candidates[1:2], states); ok {
+	if _, ok := pickSeedSource(none, true, candidates[1:2], states); ok {
 		t.Fatal("should not copy from an incomplete install")
+	}
+	// 优先同平台的来源：Linux 版目标选 Linux 版的 5，Windows 版目标仍选 4
+	states[5] = linux
+	if got, ok := pickSeedSource(none, false, candidates, states); !ok || got.ID != 5 {
+		t.Fatalf("expected linux server 5, got %+v %v", got, ok)
+	}
+	if got, ok := pickSeedSource(none, true, candidates, states); !ok || got.ID != 4 {
+		t.Fatalf("expected windows server 4, got %+v %v", got, ok)
+	}
+	// 没有同平台的来源时用另一个平台的
+	if got, ok := pickSeedSource(none, false, candidates[:3], states); !ok || got.ID != 4 {
+		t.Fatalf("expected server 4 as fallback, got %+v %v", got, ok)
 	}
 }

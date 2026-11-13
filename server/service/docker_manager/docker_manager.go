@@ -81,32 +81,6 @@ func CheckDockerStatus() error {
 	return nil
 }
 
-// ValidateRequiredImages 验证必要的镜像是否存在（不自动下载）
-func (dm *DockerManager) ValidateRequiredImages() ([]string, error) {
-	requiredImages := []string{
-		utils.ArkServerImage, // ARK服务器镜像
-		"alpine:latest",      // Alpine镜像（用于配置文件操作）
-	}
-
-	var missingImages []string
-	for _, imageName := range requiredImages {
-		exists, err := dm.ImageExists(imageName)
-		if err != nil {
-			utils.Warnf("检查镜像 %s 失败: %v", imageName, err)
-			return nil, fmt.Errorf("检查镜像 %s 失败: %v", imageName, err)
-		}
-
-		if !exists {
-			missingImages = append(missingImages, imageName)
-			utils.Error("镜像缺失", zap.String("image", imageName))
-		} else {
-			utils.Info("镜像已存在", zap.String("image", imageName))
-		}
-	}
-
-	return missingImages, nil
-}
-
 // CreateContainer 创建ARK服务器容器（不自动启动）
 // serverID: 服务器ID
 // serverName: 服务器名称
@@ -121,7 +95,13 @@ func (dm *DockerManager) ValidateRequiredImages() ([]string, error) {
 func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName, gameModIds string, autoRestart bool) (string, error) {
 	containerName := utils.GetServerContainerName(serverID)
 	volumeName := utils.GetServerVolumeName(serverID)
-	imageName := utils.ArkServerImage
+
+	// 查数据库获取Server对象：镜像由是否启用 ArkApi 决定
+	var server models.Server
+	if err := database.DB.Where("id = ?", serverID).First(&server).Error; err != nil {
+		return "", fmt.Errorf("获取服务器信息失败: %v", err)
+	}
+	imageName := utils.ArkServerImageFor(server.ArkApi)
 
 	// 检查容器是否已存在
 	if exists, err := dm.ContainerExists(containerName); err != nil {
@@ -142,13 +122,7 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 		return "", fmt.Errorf("镜像 %s 不存在，请等待镜像下载完成", imageName)
 	}
 
-	// 1. 查数据库获取Server对象
-	var server models.Server
-	if err := database.DB.Where("id = ?", serverID).First(&server).Error; err != nil {
-		return "", fmt.Errorf("获取服务器信息失败: %v", err)
-	}
-
-	// 2. 反序列化ServerArgsJSON
+	// 反序列化ServerArgsJSON
 	serverArgs := models.NewServerArgs()
 	if server.ServerArgsJSON != "" && server.ServerArgsJSON != "{}" {
 		_ = json.Unmarshal([]byte(server.ServerArgsJSON), serverArgs)
@@ -157,7 +131,7 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 	}
 	argsString := serverArgs.GenerateArgsString(server)
 
-	// 3. 构建环境变量
+	// 构建环境变量
 	envVars := []string{
 		"TZ=" + config.ContainerTZ,
 		fmt.Sprintf("SERVER_ARGS=%s", argsString),
@@ -226,7 +200,8 @@ func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port,
 				{HostPort: fmt.Sprintf("%d", rconPort)},
 			},
 		},
-		// 服务端文件卷挂到安装目录，数据卷和插件卷嵌套挂载在其中
+		// 服务端文件卷挂到安装目录，数据卷和插件卷嵌套挂载在其中。
+		// 插件卷只对 Proton 版有用，Linux 版也照样挂载（只是多出 Win64/ArkApi/Plugins 目录），切换时挂载不变
 		Binds: []string{
 			fmt.Sprintf("%s:/home/steam/arkserver", utils.GetServerFilesVolumeName(serverID)),
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),

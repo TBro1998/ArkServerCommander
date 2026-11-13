@@ -30,6 +30,7 @@ import { copyText, formatBytes, formatPercent } from '@/lib/format';
 import { mapColor } from '@/lib/maps';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+import { imageLabelKey } from '@/lib/images';
 
 interface DiskUsage {
   server_id: number;
@@ -162,14 +163,8 @@ export default function HomePage() {
   usePolling(refreshServers, fast ? 3000 : 10000);
 
   const getImageLabel = (imageName: string): string => {
-    switch (imageName) {
-      case 'tbro98/ase-server:latest':
-        return tImages('arkServer');
-      case 'alpine:latest':
-        return tImages('alpineSystem');
-      default:
-        return imageName;
-    }
+    const key = imageLabelKey(imageName);
+    return key ? tImages(key) : imageName;
   };
 
   const handleDownloadImage = async (imageName: string) => {
@@ -184,8 +179,8 @@ export default function HomePage() {
 
   const handleManualDownload = async () => {
     if (!imageStatus?.images) return;
-    // 依次下载所有未就绪的镜像
-    const notReady = Object.entries(imageStatus.images).filter(([, s]) => !s.ready && !s.pulling);
+    // 依次下载有服务器要用、还未就绪的镜像（没人用的 ARK 镜像留到启动时自动下载）
+    const notReady = Object.entries(imageStatus.images).filter(([, s]) => !s.ready && !s.pulling && s.required !== false);
     for (const [name] of notReady) {
       await handleDownloadImage(name);
     }

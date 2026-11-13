@@ -58,6 +58,11 @@ func (dm *DockerManager) ExportSaved(serverID uint, w io.Writer) error {
 		if backupSkipped(header.Name) {
 			continue
 		}
+		// 只保留普通文件和目录（与 ValidateBackup 一致）：Linux 版服务端的 Config/LinuxServer 是入口脚本建的符号链接，
+		// 打进归档会让这个备份无法恢复，启动时脚本会重新创建它
+		if header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeDir {
+			continue
+		}
 		if err := tw.WriteHeader(header); err != nil {
 			return fmt.Errorf("写入备份失败: %v", err)
 		}

@@ -26,6 +26,8 @@ func toResponse(server models.Server) models.ServerResponse {
 		LastError:     server.LastError,
 		AutoRestart:   server.AutoRestart,
 		AutoUpdate:    server.AutoUpdate,
+		ArkApi:        server.ArkApi,
+		Image:         utils.ArkServerImageFor(server.ArkApi),
 		ConfigPending: server.PendingGameUserSettings != "" || server.PendingGameIni != "",
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -37,12 +39,15 @@ func toResponse(server models.Server) models.ServerResponse {
 }
 
 // runtimeFor 返回应随响应展示的运行信息：运行中为监控采集的结果；
-// 启动中且正在复制服务端文件时为 copying 阶段；其他情况为 nil
+// 启动中且正在下载镜像、复制服务端文件时为 pulling_image / copying 阶段；其他情况为 nil
 func runtimeFor(serverID uint, status string) *models.RuntimeInfo {
 	switch status {
 	case "running":
 		return runtimeMonitor.Get(serverID)
 	case "starting":
+		if image, ok := pullingImageFor(serverID); ok {
+			return &models.RuntimeInfo{Phase: models.PhasePullingImage, Image: image, UpdatedAt: time.Now().Format(time.RFC3339)}
+		}
 		if source, ok := seedSourceName(serverID); ok {
 			return &models.RuntimeInfo{Phase: models.PhaseCopying, CopySource: source, UpdatedAt: time.Now().Format(time.RFC3339)}
 		}

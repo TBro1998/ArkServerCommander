@@ -282,6 +282,20 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               </section>
 
               <section className="space-y-3">
+                <h3 className="font-display text-base font-semibold">{t('sectionRuntime')}</h3>
+                <label className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                  <span>
+                    <span className="text-sm font-medium">{t('arkapi')}</span>
+                    <span className="block text-xs text-gray-500">{t('arkapiHint')}</span>
+                    {mode === 'edit' && (form.arkapi ?? false) !== (initial.arkapi ?? false) && (
+                      <span className="mt-1 block text-xs text-amber-800">{t('arkapiSwitchHint')}</span>
+                    )}
+                  </span>
+                  <Switch checked={form.arkapi ?? false} onCheckedChange={(v) => update({ arkapi: v })} />
+                </label>
+              </section>
+
+              <section className="space-y-3">
                 <h3 className="font-display text-base font-semibold">{t('sectionMaintenance')}</h3>
                 <label className="flex items-start justify-between gap-4 rounded-lg border p-3">
                   <span>

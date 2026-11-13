@@ -49,7 +49,8 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
   const t = useTranslations('detail');
   const mapName = useMapName();
   const tPhase = useTranslations('phase');
-  const copying = server.status === 'starting' && server.runtime?.phase === 'copying';
+  // 启动前的准备阶段（下载镜像、复制服务端文件）：还没有资源占用和人数
+  const copying = server.status === 'starting' && (server.runtime?.phase === 'copying' || server.runtime?.phase === 'pulling_image');
   const runtime = server.status === 'running' || copying ? server.runtime : undefined;
 
   return (
@@ -116,6 +117,7 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
           <Row label={t('cluster')}>{server.cluster_id || t('none')}</Row>
           <Row label={t('autoRestart')}>{server.auto_restart ? t('on') : t('off')}</Row>
           <Row label={t('autoUpdate')}>{server.auto_update ? t('on') : t('off')}</Row>
+          <Row label={t('serverBuild')}>{server.arkapi ? t('buildProton') : t('buildLinux')}</Row>
           <Row label={t('createdAt')}>{server.created_at}</Row>
         </CardContent>
       </Card>
