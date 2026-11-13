@@ -42,10 +42,14 @@ npx tsc --noEmit  # 类型检查
 
 ### Docker
 
+- `docker-compose.yml`：正式部署，拉取已发布的镜像 `tbro98/arkservercommander:latest`，不读取 `.env`（需要的环境变量直接写进 `environment`）
+- `docker-compose.dev.yml`：开发用，从本地源码构建（镜像 `arkservercommander:dev`，版本号 `dev`），可选读取 `.env`。服务名、容器名、端口和 `./data` 与正式部署相同，切换时替换同一个容器，不要同时运行
+
 ```bash
-docker-compose up -d --build   # 构建并启动
-docker-compose logs -f         # 查看日志
-docker-compose down            # 停止
+docker compose -f docker-compose.dev.yml up -d --build   # 从源码构建并启动
+docker compose -f docker-compose.dev.yml logs -f         # 查看日志
+docker compose -f docker-compose.dev.yml down            # 停止
+docker compose up -d                                     # 正式部署（拉取发布镜像）
 ```
 
 ## 环境变量
@@ -67,7 +71,7 @@ docker-compose down            # 停止
 - `NEXT_PUBLIC_API_BASE`：开发环境回退值；都未设置时回退到 `http://127.0.0.1:8080/api`
 - `COOKIE_SECURE`：通过 HTTPS 访问时设为 `true`，纯 HTTP 时保持 `false`，否则无法登录
 
-示例见 `.env.example`。`docker-compose.yml` 中 `.env` 是可选的（`required: false`），不建 `.env` 也能直接启动。
+示例见 `.env.example`。`docker-compose.dev.yml` 中 `.env` 是可选的（`required: false`），不建 `.env` 也能直接启动；正式的 `docker-compose.yml` 不读取 `.env`。
 
 ## 架构概览
 
