@@ -88,31 +88,32 @@ docker-compose down            # 停止
 
 分层：controllers（HTTP）→ service（业务）→ docker_manager（Docker SDK）。
 
-- `main.go`：初始化日志、配置、数据库，检查 Docker，启动运行信息监控（`StartRuntimeMonitor`）和定时任务调度（`StartScheduler`），注册 CORS 和路由
+- `main.go`：初始化日志、配置、数据库，检查 Docker，启动运行信息监控（`StartRuntimeMonitor`）、定时任务调度（`StartScheduler`）和 Mod 更新检查（`StartModUpdateChecker`），注册 CORS 和路由
 - `config/`：环境变量读取，JWT 密钥加载（环境变量优先，否则读取或生成 `jwt_secret` 文件）
 - `controllers/{auth,servers,images,system}/`：请求处理。`servers/errors.go` 的 `RespondServiceError` 用 `errors.Is` 把服务层错误映射为 HTTP 状态码，响应带 `error`（中文详情）和 `code`（错误码，见 `service/server/errors.go` 的 `errorCodes`）。`auth/ratelimit.go` 是登录失败限流
-- `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`response.go`（`toResponse`）
-- `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行 python3 脚本、`RunHelper` 跑一次性 alpine 容器）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）
+- `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`mods.go`（Mod 安装状态和更新检查，后台每 30 分钟）、`plugins.go`（ArkApi 插件）、`gamelog.go`（读取 ShooterGame.log）、`clusters.go`（未使用的集群）、`version.go`（GitHub 最新版本）、`response.go`（`toResponse`）
+- `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行 python3 脚本、`RunHelper` 跑一次性 alpine 容器）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）、`installed_mods.go`（读写 `.installed_mods`）、`clusters.go`（列出和删除集群卷）、`storage.go`（数据目录布局，`ServerFilesDir` 等返回后端本地路径，插件、Mod 记录、游戏日志直接读写这些目录，不经过临时容器）
 - `middleware/`：`auth.go`（JWT 校验）、`cors.go`（白名单 CORS）
-- `models/`：GORM 模型 User、Server、Schedule，以及请求和响应结构。`ServerResponse` 不包含管理员密码，`image_outdated` 表示容器仍在用旧镜像，`runtime` 是运行中服务器的实时信息（阶段、人数、资源）。注意：带 `default:true` 的 bool 字段（`AutoRestart`、`Schedule.Enabled`）创建时 GORM 会把 false 换成 true，需要创建后显式写回
-- `utils/`：日志、JWT、密码、命名和镜像名常量（`asm_info.go`，`ArkServerImage`）、配置文件模板（`config_files.go`）
+- `models/`：GORM 模型 User、Server、Schedule，以及请求和响应结构。`ServerResponse` 不包含管理员密码，`image_outdated` 表示容器仍在用旧镜像，`runtime` 是运行中服务器的实时信息（阶段、人数、资源），`mods_outdated` 是创意工坊上有更新的 Mod。注意：带 `default:true` 的 bool 字段（`AutoRestart`、`Schedule.Enabled`）创建时 GORM 会把 false 换成 true，需要创建后显式写回
+- `utils/`：日志、JWT、密码、命名和镜像名常量（`asm_info.go`，`ArkServerImage`）、配置文件模板（`config_files.go`）、版本号（`version.go`，构建时用 `-ldflags -X ark-server-commander/utils.Version=` 注入，默认 `dev`）
 - `docs/`：swag 生成的 Swagger 文件，不要手改
 
 ### API 路由（均以 `/api` 开头）
 
 - 公开：`GET /auth/check-init`、`POST /auth/init`、`POST /auth/login`
 - 需 JWT：`GET /profile`、`PUT /auth/password`
-- 服务器：`GET|POST /servers`、`GET|PUT|DELETE /servers/:id`（`?delete_data=true` 同时删卷和备份）、`POST /servers/:id/start|stop|restart|recreate`、`POST /servers/:id/update-game`（`{game, mods}`）、`GET /servers/:id/rcon`（管理员密码）
-- 运维：`GET /servers/:id/logs?tail=`、`GET /servers/:id/logs/stream`（SSE）、`POST /servers/:id/rcon/command`、`GET /servers/:id/players`
+- 服务器：`GET|POST /servers`、`GET|PUT|DELETE /servers/:id`（`?delete_data=true` 同时删卷和备份）、`POST /servers/:id/start|stop|restart|recreate`、`POST /servers/:id/update-game`（`{game, mods, mod_ids}`）、`GET /servers/:id/rcon`（管理员密码）
+- 运维：`GET /servers/:id/logs?tail=`、`GET /servers/:id/logs/stream`（SSE）、`GET /servers/:id/logs/game?tail=`（ShooterGame.log）、`POST /servers/:id/rcon/command`、`GET /servers/:id/players`、`GET /servers/:id/mods?refresh=`（Mod 安装和更新状态）
+- 插件：`GET|POST /servers/:id/plugins`（multipart `file`，可选 `name`）、`PUT|DELETE /servers/:id/plugins/:name`（`{enabled}`）、`GET|PUT /servers/:id/plugins/:name/config`、`GET|PUT /servers/:id/arkapi/config`（`{content}`）
 - 备份：`GET|POST /servers/:id/backups`、`POST /servers/:id/backups/upload`（multipart `file`）、`GET|DELETE /servers/:id/backups/:name`、`POST /servers/:id/backups/:name/restore`
 - 定时任务：`GET|POST /servers/:id/schedules`、`PUT|DELETE /servers/:id/schedules/:scheduleId`、`POST /servers/:id/schedules/:scheduleId/run`
-- 系统：`GET /system/overview`（`?refresh=true` 重新计算磁盘）、`GET /system/info`（公网地址）、`GET /system/suggest-ports`、`GET /mods?ids=`
+- 系统：`GET /system/overview`（`?refresh=true` 重新计算磁盘，含 `unused_clusters`）、`GET /system/info`（公网地址）、`GET /system/version`（`?refresh=true`）、`DELETE /system/clusters/:clusterId`、`GET /system/suggest-ports`、`GET /mods?ids=`
 - 镜像：`GET /images/status`、`POST /images/pull`、`GET /images/check-updates`、`POST /images/update`（`{image_name, restart_running}`）、`GET /images/affected`
 
 ### 前端结构（`ui/src/`）
 
 - `app/(auth)/`：登录、初始化页面
-- `app/(protected)/`：需登录页面（`home` 概览、`servers` 列表、`servers/new`、`servers/[id]` 详情（概览 / 控制台 / 日志 / 备份 / 定时任务，`?tab=` 选择标签）、`servers/[id]/edit`、`settings`）
+- `app/(protected)/`：需登录页面（`home` 概览、`servers` 列表、`servers/new`、`servers/[id]` 详情（概览 / 控制台 / 日志 / 备份 / 定时任务 / 插件，`?tab=` 选择标签）、`servers/[id]/edit`、`settings`）
 - `app/api/`：服务端路由。`auth/{login,init,logout}` 处理令牌 cookie；`[...path]` 是通配代理，请求体和响应体都以流转发（支持上传、下载和 SSE），并转发 `X-Forwarded-For`
 - `proxy.ts`：Next 16 中原 `middleware.ts` 的新约定。负责语言 cookie（`NEXT_LOCALE`）和登录重定向
 - `lib/backend-server.ts`：`getApiBase`、令牌 cookie 读写、`authProxy`
@@ -121,7 +122,7 @@ docker-compose down            # 停止
 - 视觉风格（方舟游戏内界面风格的深色 HUD）：根节点固定 `className="dark"`，`globals.css` 定义主题变量（深蓝底色、半透明面板 `--card`、青色 `--primary`、琥珀色 `--amber` 表示进行中、终端底色 `--terminal`）。`@theme` 里把 Tailwind 的 `gray/red/green/amber/yellow/blue/sky/purple/orange` 色阶整体**反转**：数字小的是深色背景色调，数字大的是浅色文字，所以 `bg-red-50 text-red-800` 这类写法在深色下自然是"深红底 + 浅红字"。新代码照此约定：背景用 50–200，图标和圆点用 400–600，文字用 600–900；不要用 `bg-white`、`text-gray-200` 这类按浅色主题思路写的类。自定义工具类（用 `@utility` 定义，可以加变体前缀）：`hud`（左上、右下青色角标，元素本身要有定位）、`hud-caps`（英文大写加字距，用于导航、标题和主要按钮，中文不受影响）、`glow-text`、`font-display`（Saira，来自 `@fontsource-variable/saira`，本地打包）、`num`（等宽数字）。不使用游戏的图片、Logo 或字体等素材，只借鉴界面风格。状态徽章三种颜色：绿色可用、琥珀色进行中、石色已停止
 - 地图颜色：`lib/maps.ts` 的 `mapColor` 给每张地图一个固定颜色，服务器卡片、详情页顶部（`MapBand`，停止时变灰）、首页名单和地图选择器都用它；`hooks/use-map-name.ts` 取地图显示名
 - 公共组件：`PageHeader`（页面标题行）、`AuthShell`（登录 / 初始化外框，含 `FormError`）、`Wordmark`、`components/ui/page-loader.tsx`（统一加载状态）；`TabsList variant="line"` 用于页面级标签（详情页、服务器表单）
-- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`ModList`、`ConnectionInfo`、ini 可视化编辑器；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
+- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ConnectionInfo`、ini 可视化编辑器；`components/settings/VersionCard`（版本和升级命令）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
 
 ### 认证流程
@@ -143,14 +144,14 @@ docker-compose down            # 停止
 
 卷是绑定到数据目录的命名卷（local 驱动，`type=none, o=bind`，见 `docker_manager/storage.go`、`docker_volume.go`）：卷名不变，数据实际放在后端容器的 `/data`（宿主机 `./data`）下，宿主机上可以直接管理文件：`servers/<id>/files`（服务端文件）、`servers/<id>/saved`（存档和配置）、`servers/<id>/plugins`（插件）、`clusters/<cluster_id>`（集群共享）。后端启动时 `InitStorage` 确定数据目录的宿主机路径，失败则退出。删除卷不会删除目录里的文件，需要再调用 `RemoveServerDirs`；集群卷在创建容器前由 `EnsureClusterVolume` 建好，否则 Docker 会自动创建一个普通卷。磁盘占用由 `LocalVolumeSizes` 遍历目录统计（Docker 的 DiskUsage 查不到绑定卷的大小），key 仍是卷名。
 
-容器挂载三个卷：服务端文件卷挂到 `/home/steam/arkserver`，数据卷嵌套挂到 `ShooterGame/Saved`，插件卷嵌套挂到 `ArkApi/Plugins`。设置了 `cluster_id` 时再挂共享的集群卷 `ase-cluster-<cluster_id>` 到 ARK 默认集群目录 `Saved/clusters`（容器环境变量 `CLUSTER_VOLUME` 记录挂载的卷，用于判断是否需要重建）。镜像不再预下载游戏本体，入口脚本在首次启动时把服务端文件下载到文件卷；安装标记 `.install_complete` 和已装 Mod 记录 `.installed_mods` 也在卷里，所以重建容器不会重新下载，新增 Mod 时只下载缺少的。ArkApi 随镜像放在 `/home/steam/arkapi`，每次启动同步到卷里（已存在的 `config.json` 不覆盖）。镜像侧的改动需要重新构建并推送镜像后才生效。
+容器挂载三个卷：服务端文件卷挂到 `/home/steam/arkserver`，数据卷嵌套挂到 `ShooterGame/Saved`，插件卷嵌套挂到 `ArkApi/Plugins`。设置了 `cluster_id` 时再挂共享的集群卷 `ase-cluster-<cluster_id>` 到 ARK 默认集群目录 `Saved/clusters`（容器环境变量 `CLUSTER_VOLUME` 记录挂载的卷，用于判断是否需要重建）。镜像不再预下载游戏本体，入口脚本在首次启动时把服务端文件下载到文件卷；安装标记 `.install_complete` 和已装 Mod 记录 `.installed_mods`（每行 `Mod ID 安装时间`，旧版只有 ID，后端用 `Content/Mods/<id>.mod` 的修改时间代替）也在卷里，所以重建容器不会重新下载，新增 Mod 时只下载缺少的。ArkApi 随镜像放在 `/home/steam/arkapi`（版本见镜像的 `ARKAPI_VERSION`，入口脚本写入文件卷的 `.arkapi_version`），每次启动同步到卷里（已存在的 `config.json` 不覆盖）。停用的插件移到不挂载进容器的 `servers/<id>/plugins-disabled/`；插件的安装、删除、启停只能在已停止时进行。镜像侧的改动需要重新构建并推送镜像后才生效。
 
 ### 服务器生命周期
 
 1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建三个卷（服务端文件卷、数据卷、插件卷）并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷和数据目录（`committed` 标记；事务回滚后 ID 可能被复用，残留文件会串到下一台服务器）
 2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；服务端文件卷里还没有服务端主程序时，`seed.go` 从另一台已安装完成（有 `.install_complete` 和主程序，优先已停止）的服务器复制整个文件卷（含 Mod 和 `.installed_mods`），再删掉 `.install_complete`，入口脚本启动时 validate 只下载差异，复制期间 `runtime.phase` 为 `copying`，复制失败只记日志、照常从 Steam 下载；开启 `auto_update` 时清除安装标记；如果 `SERVER_ARGS`、`GameModIds`、`CLUSTER_VOLUME`、重启策略（`auto_restart`）与当前配置不同，或容器的镜像 ID 不是 `ArkServerImage` 当前指向的镜像，会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。管理员密码不在启动参数和环境变量里，每次启动前由 `syncAdminPassword` 以数据库里的值写入 `GameUserSettings.ini` 的 `[ServerSettings]`（读取失败时不会覆盖整个文件，只有 `ErrConfigNotFound` 才视为空文件）。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
 3. **运行阶段**：容器 running 不代表能连接。`runtime.go` 每 10 秒对运行中的服务器读取最近 400 行日志判断阶段（`downloading` 含 steamcmd 进度、`installing_mods` 含 x/y、`launching`），再在容器内发 A2S_INFO，有响应即 `ready` 并拿到在线人数；同时采样 CPU/内存。结果缓存在内存，随服务器列表返回 `runtime`。阶段标志行来自 `ASE-Server-Docker/scripts/start_server.sh`，改脚本输出时要同步改 `applyPhase`
-4. **重启 / 更新游戏**：`restartWith` 先停止（如果在运行）、执行可选的 `beforeStart`、再启动；更新游戏的 `beforeStart` 是删除文件卷里的 `.install_complete` / `.installed_mods`，入口脚本会重新 `app_update validate` 并重新下载 Mod
+4. **重启 / 更新游戏**：`restartWith` 先停止（如果在运行）、执行可选的 `beforeStart`、再启动；更新游戏的 `beforeStart` 是删除文件卷里的 `.install_complete` / `.installed_mods`（`mod_ids` 时只删除这些 Mod 的行），入口脚本会重新 `app_update validate` 并重新下载 Mod
 5. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（服务器卡片上有重建按钮）
 6. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，同时删除定时任务。默认保留数据目录和备份；`delete_data=true` 时删除三个卷、`servers/<id>/` 目录和备份目录（集群卷和 `clusters/<id>` 共享，不删）
 
@@ -202,21 +203,23 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ## 测试
 
-测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）。启停流程、RCON、配置暂存、备份恢复和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）。启停流程、RCON、配置暂存、备份恢复和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 
 - 登录限流按 IP（`X-Forwarded-For`，由 Next 转发）计数，客户端能伪造该头绕过 IP 限制，用户名维度的上限仍然有效；限流记录在内存，重启后清零
 - 修改登录密码后，旧 JWT 在 24 小时有效期内仍然可用
 - `npm audit` 有来自 ESLint 依赖链（`minimatch`）的中等级别告警，仅影响开发期
-- 入口脚本已转发 SIGTERM，但游戏进程能否在 `docker stop` 的 30 秒内完成存档，没有在真实环境验证过，停服前的 `SaveWorld` 继续保留。steamcmd 下载阶段还没设置 trap，停止下载中的服务器要等满 30 秒（已实测）
-- 集群卷和 `data/clusters/<id>` 不会随服务器删除；不再使用时需要手动 `docker volume rm ase-cluster-<id>` 并删除该目录。已有服务器改成集群后，原数据卷里 `Saved/clusters` 的旧数据会被集群卷遮住
+- 入口脚本已转发 SIGTERM，但游戏进程能否在 `docker stop` 的 30 秒内完成存档，没有在真实环境验证过，停服前的 `SaveWorld` 继续保留。steamcmd 下载阶段的 trap 已加（用 `setsid` 单独进程组），只用模拟进程测过，需要重新构建镜像后才生效
+- 集群卷和 `data/clusters/<id>` 不会随服务器删除；没有服务器使用后会出现在首页磁盘明细的"未使用的集群数据"里，可以在那里删除。已有服务器改成集群后，原数据卷里 `Saved/clusters` 的旧数据会被集群卷遮住
 - 服务器数据在宿主机 `./data/servers/<id>/` 下，文件属主是 root，外部编辑需要 sudo；运行中修改 `GameUserSettings.ini` 会在停服时被 ARK 覆盖，要在停止后再改；`data` 所在磁盘要容纳每台服务器约 20 GB。早期版本创建的普通 Docker 卷不会被识别，也没有做迁移（工具未上线），需要删除旧服务器后重建
-- 运行阶段依赖入口脚本的日志文本；游戏本身的 `ShooterGame.log` 在数据卷 `Saved/Logs` 下，界面上看不到
+- 运行阶段依赖入口脚本的日志文本；`ShooterGame.log` 的编码（UTF-8 / UTF-16LE）是自动识别的，没有用真实服务器的日志验证
 - 创意工坊名称查询依赖访问 `api.steampowered.com`，访问不了时只显示 ID
 - 管理员密码现在存放在卷里的 `GameUserSettings.ini`，`docker inspect` 看不到；数据库里仍是明文，并且每次启动都以数据库的值为准，在 ini 里直接改 `ServerAdminPassword` 会被覆盖
-- 每台服务器各有一份完整的服务端文件卷，磁盘占用大（新服务器从已安装的服务器复制，省的是下载，不省磁盘）；Mod 平时只下载尚未安装的，已装 Mod 需要用"更新游戏/Mod"或开启 `auto_update` 才会重新下载
-- 默认 Game.ini 模板里的倍率类 key（如 `XPMultiplier`、`TamingSpeedMultiplier`）可能应该放在 GameUserSettings.ini 的 `[ServerSettings]` 下，未验证
+- 每台服务器各有一份完整的服务端文件卷，磁盘占用大（新服务器从已安装的服务器复制，省的是下载，不省磁盘）；Mod 平时只下载尚未安装的，创意工坊有更新时详情页会提示，需要手动更新所选 Mod、"更新游戏/Mod"或开启 `auto_update` 才会重新下载
+- 默认配置模板按 `docs/ASE_Game.ini.md` / `docs/ASE_GameUserSetting.md` 分配：倍率、难度、昼夜速度在 GameUserSettings.ini 的 `[ServerSettings]`，Game.ini 只放自己的选项，都在 `[/script/shootergame.shootergamemode]`。旧服务器的 Game.ini 里可能还留着这些无效的键，可视化编辑器不再显示它们。未在真实服务器验证
+- 创意工坊搜索接口需要 Steam Web API Key，没有做站内搜索，只支持粘贴链接
+- 版本检查依赖访问 `api.github.com`（未认证每小时 60 次，结果缓存 6 小时）
 - `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`），`can_create_server` 取决于 alpine 镜像是否就绪
 
 ## 故障排除

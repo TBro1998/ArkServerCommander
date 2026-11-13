@@ -85,6 +85,31 @@ func clusterVolumeSpec(clusterID string) volumeSpec {
 	return volumeSpec{Name: utils.GetClusterVolumeName(clusterID), Rel: "clusters/" + clusterID}
 }
 
+// ServerFilesDir 服务端文件卷在后端本地的目录（对应容器内 /home/steam/arkserver）
+func ServerFilesDir(serverID uint) string {
+	return filepath.Join(config.DataDir, "servers", fmt.Sprint(serverID), "files")
+}
+
+// ServerSavedDir 游戏数据卷在后端本地的目录（对应容器内 ShooterGame/Saved）
+func ServerSavedDir(serverID uint) string {
+	return filepath.Join(config.DataDir, "servers", fmt.Sprint(serverID), "saved")
+}
+
+// ServerPluginsDir 插件卷在后端本地的目录（对应容器内 ArkApi/Plugins）
+func ServerPluginsDir(serverID uint) string {
+	return filepath.Join(config.DataDir, "servers", fmt.Sprint(serverID), "plugins")
+}
+
+// ServerDisabledPluginsDir 停用的插件存放目录，不挂载进容器，ArkApi 看不到
+func ServerDisabledPluginsDir(serverID uint) string {
+	return filepath.Join(config.DataDir, "servers", fmt.Sprint(serverID), "plugins-disabled")
+}
+
+// ServerDir 服务器在数据目录下的根目录
+func ServerDir(serverID uint) string {
+	return filepath.Join(config.DataDir, "servers", fmt.Sprint(serverID))
+}
+
 // RemoveServerDirs 删除服务器在数据目录下的全部文件。
 // 删除命名卷不会删除绑定目录里的内容，所以要在 RemoveVolume 之后单独调用
 func RemoveServerDirs(serverID uint) error {

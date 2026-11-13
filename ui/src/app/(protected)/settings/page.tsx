@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { FormError } from '@/components/AuthShell';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
+import { VersionCard } from '@/components/settings/VersionCard';
 
 export default function SettingsPage() {
   const t = useTranslations('settings');
@@ -113,6 +114,8 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      <VersionCard />
     </div>
   );
 }

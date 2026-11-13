@@ -899,6 +899,98 @@ const docTemplate = `{
                 }
             }
         },
+        "/servers/{id}/arkapi/config": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "读取 ArkApi 本体的 config.json",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "配置内容",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "ArkApi 还没有安装",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "内容必须是合法 JSON，重启服务器后生效。入口脚本不会用镜像里的默认配置覆盖它",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "保存 ArkApi 本体的 config.json",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "配置内容",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.PluginConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已保存",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/servers/{id}/backups": {
             "get": {
                 "security": [
@@ -1227,6 +1319,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/servers/{id}/logs/game": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回存档目录 Logs/ShooterGame.log 最后 tail 行（默认 1000，最多 5000）。直接读数据目录，服务器停止后也能看",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "获取游戏日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "行数",
+                        "name": "tail",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "游戏日志",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.GameLog"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/servers/{id}/logs/stream": {
             "get": {
                 "security": [
@@ -1258,6 +1393,52 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {}
+            }
+        },
+        "/servers/{id}/mods": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "按加载顺序返回服务器配置的 Mod，附带创意工坊信息、是否已安装、安装时间和是否有更新。refresh=true 时忽略缓存重新查询 Steam",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "服务器的 Mod 及更新状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "重新查询 Steam",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mod 列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/server.ServerMod"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/servers/{id}/players": {
@@ -1294,6 +1475,301 @@ const docTemplate = `{
                                 "items": {
                                     "$ref": "#/definitions/server.Player"
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/plugins": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "列出插件卷里的插件和已停用的插件（PluginInfo.json 中的名称、版本等），以及 ArkApi 版本",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "ArkApi 插件列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "插件列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.PluginsOverview"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "上传插件 zip（multipart 字段 file）。压缩包里每个 \u003c名称\u003e/\u003c名称\u003e.dll 所在目录安装为一个插件；识别不出时用 name 指定插件名称。覆盖安装时保留原 config.json。只能在服务器停止时操作",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "上传安装插件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "插件 zip",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "插件名称（压缩包结构识别不出时填写）",
+                        "name": "name",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "安装的插件名称",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "压缩包无效或服务器未停止",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/plugins/{name}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "停用的插件移出插件卷，ArkApi 不再加载。只能在服务器停止时操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "启用或停用插件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "插件名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "是否启用",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.SetPluginStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已更新",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除插件目录（包括配置）。只能在服务器停止时操作",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "删除插件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "插件名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已删除",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/plugins/{name}/config": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "读取插件 config.json",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "插件名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "配置内容，文件不存在时为空",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "内容必须是合法 JSON。运行中也可以保存，插件重新加载或服务器重启后生效",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "保存插件 config.json",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "插件名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "配置内容",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.PluginConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已保存",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -1938,7 +2414,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "清除安装标记后启动服务器（运行中的先停止），入口脚本在启动时用 steamcmd 校验更新游戏本体、重新下载 Mod",
+                "description": "清除安装标记后启动服务器（运行中的先停止），入口脚本在启动时用 steamcmd 校验更新游戏本体、重新下载全部 Mod 或 mod_ids 指定的 Mod",
                 "consumes": [
                     "application/json"
                 ],
@@ -1988,6 +2464,52 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "服务器正在启停",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/system/clusters/{clusterId}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除集群卷 ase-cluster-\u003cid\u003e 和数据目录 clusters/\u003cid\u003e（跨服传送的角色和物品）。仍有服务器设置该集群 ID，或卷仍被容器挂载时返回 409",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "删除未使用的集群数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已删除",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "集群仍在使用中",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2084,6 +2606,42 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": {
                                 "$ref": "#/definitions/server.SuggestedPorts"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/system/version": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "当前版本和 GitHub 上的最新发布版本（结果缓存 6 小时，查询失败 10 分钟后重试）。当前为开发版本（dev）时 has_update 始终为 false",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "版本信息",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "重新查询最新版本",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "版本信息",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.VersionInfo"
                             }
                         }
                     }
@@ -2439,6 +2997,13 @@ const docTemplate = `{
                     "description": "最大玩家数",
                     "type": "integer"
                 },
+                "mods_outdated": {
+                    "description": "创意工坊上有更新的 Mod ID（更新时间晚于安装时间），由后台定期检查",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "port": {
                     "type": "integer"
                 },
@@ -2591,6 +3156,26 @@ const docTemplate = `{
                 }
             }
         },
+        "server.GameLog": {
+            "type": "object",
+            "properties": {
+                "exists": {
+                    "type": "boolean"
+                },
+                "lines": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "modified_at": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
         "server.ModInfo": {
             "type": "object",
             "properties": {
@@ -2669,6 +3254,13 @@ const docTemplate = `{
                 },
                 "total_servers": {
                     "type": "integer"
+                },
+                "unused_clusters": {
+                    "description": "没有服务器使用、可以删除的集群数据（删除服务器或改集群 ID 后留下的）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.UnusedCluster"
+                    }
                 }
             }
         },
@@ -2683,6 +3275,66 @@ const docTemplate = `{
                 },
                 "steam_id": {
                     "type": "string"
+                }
+            }
+        },
+        "server.PluginInfo": {
+            "type": "object",
+            "properties": {
+                "dependencies": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "description": "false 表示已停用（不在插件卷里）",
+                    "type": "boolean"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "has_config": {
+                    "type": "boolean"
+                },
+                "has_dll": {
+                    "description": "目录里有 \u003c名称\u003e.dll，没有时 ArkApi 加载会失败",
+                    "type": "boolean"
+                },
+                "min_api_version": {
+                    "type": "string"
+                },
+                "name": {
+                    "description": "目录名",
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.PluginsOverview": {
+            "type": "object",
+            "properties": {
+                "arkapi_installed": {
+                    "description": "服务端文件里有 ArkApi（version.dll）",
+                    "type": "boolean"
+                },
+                "arkapi_version": {
+                    "description": "镜像写入的版本号，旧镜像没有",
+                    "type": "string"
+                },
+                "plugins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.PluginInfo"
+                    }
                 }
             }
         },
@@ -2730,6 +3382,45 @@ const docTemplate = `{
                 }
             }
         },
+        "server.ServerMod": {
+            "type": "object",
+            "properties": {
+                "checked": {
+                    "description": "是否从 Steam 拿到了结果；为 false 时表示查询失败（例如无法访问 Steam），Found 无意义",
+                    "type": "boolean"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "found": {
+                    "type": "boolean"
+                },
+                "has_update": {
+                    "description": "创意工坊上的更新时间晚于安装时间",
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "installed": {
+                    "description": "服务端文件卷里已安装",
+                    "type": "boolean"
+                },
+                "installed_at": {
+                    "description": "安装时间（Unix 秒），未知时没有",
+                    "type": "integer"
+                },
+                "preview_url": {
+                    "type": "string"
+                },
+                "time_updated": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "server.SuggestedPorts": {
             "type": "object",
             "properties": {
@@ -2744,6 +3435,57 @@ const docTemplate = `{
                 }
             }
         },
+        "server.UnusedCluster": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "size": {
+                    "description": "数据目录 clusters/\u003cid\u003e 的大小，来自磁盘统计缓存",
+                    "type": "integer"
+                }
+            }
+        },
+        "server.VersionInfo": {
+            "type": "object",
+            "properties": {
+                "checked_at": {
+                    "type": "string"
+                },
+                "current": {
+                    "type": "string"
+                },
+                "error": {
+                    "description": "查询失败的原因",
+                    "type": "string"
+                },
+                "has_update": {
+                    "description": "当前是开发版本（dev）时始终为 false",
+                    "type": "boolean"
+                },
+                "latest": {
+                    "description": "最新发布版本（不含预发布），查询失败时为空",
+                    "type": "string"
+                },
+                "published_at": {
+                    "description": "最新版本的发布时间",
+                    "type": "string"
+                },
+                "release_url": {
+                    "description": "最新版本的发布说明",
+                    "type": "string"
+                }
+            }
+        },
+        "servers.PluginConfigRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                }
+            }
+        },
         "servers.RconCommandRequest": {
             "type": "object",
             "required": [
@@ -2755,13 +3497,30 @@ const docTemplate = `{
                 }
             }
         },
+        "servers.SetPluginStateRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "servers.UpdateGameRequest": {
             "type": "object",
             "properties": {
                 "game": {
+                    "description": "校验并更新游戏本体",
                     "type": "boolean"
                 },
+                "mod_ids": {
+                    "description": "只重新下载这些 Mod（mods 为 false 时生效）",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "mods": {
+                    "description": "重新下载全部 Mod",
                     "type": "boolean"
                 }
             }

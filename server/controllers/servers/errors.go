@@ -16,7 +16,9 @@ func RespondServiceError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, server.ErrServerNotFound),
 		errors.Is(err, server.ErrBackupNotFound),
-		errors.Is(err, server.ErrScheduleNotFound):
+		errors.Is(err, server.ErrScheduleNotFound),
+		errors.Is(err, server.ErrPluginNotFound),
+		errors.Is(err, server.ErrArkApiNotInstalled):
 		status = http.StatusNotFound
 	case errors.Is(err, server.ErrInvalidServerID),
 		errors.Is(err, server.ErrIdentifierExists),
@@ -33,11 +35,14 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrInvalidCommand),
 		errors.Is(err, server.ErrInvalidBackup),
 		errors.Is(err, server.ErrInvalidSchedule),
+		errors.Is(err, server.ErrInvalidPlugin),
+		errors.Is(err, server.ErrInvalidPluginConfig),
 		errors.Is(err, server.ErrImageNotAllowed):
 		status = http.StatusBadRequest
 	case errors.Is(err, server.ErrPortConflict),
 		errors.Is(err, server.ErrServerBusy),
 		errors.Is(err, server.ErrBackupBusy),
+		errors.Is(err, server.ErrClusterInUse),
 		errors.Is(err, server.ErrImagePulling),
 		errors.Is(err, server.ErrRconUnavailable):
 		status = http.StatusConflict

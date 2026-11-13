@@ -19,22 +19,23 @@
 - ⚙️ Edit GameUserSettings.ini, Game.ini and launch arguments visually or as text
 - ▶️ One-click server start/stop/restart; containers are recreated automatically on start after launch arguments or mods change
 - 📊 Status monitoring: download and mod install progress, joinable state, online players, CPU/memory/disk
-- 📋 Live server log viewing
+- 📋 Live server log viewing (container output and the game's ShooterGame.log)
 - 🎮 RCON console: run commands, broadcast, save world; kick/ban online players
 - 💾 Save backups: manual backup, download, upload, restore
 - ⏰ Scheduled tasks: restart (with advance broadcast), backup, update, command, start/stop
 - ⚡ One-click server file and mod updates, or automatic update on every start
+- 🎨 Mod management: Workshop names and previews, paste a Workshop link to add a mod, drag to reorder, detect mod updates and update only the changed mods
+- 🔧 ArkApi plugin management: install from zip, enable/disable, delete, and edit plugin and ArkApi config.json online
 - 🖼️ Docker image management: download, check for updates, update; after an update, servers recreate their containers with the new image on next start, or running servers can be restarted right away
 - 🔐 Administrator login (JWT authentication, secret generated automatically by the backend, no configuration needed), with password change
+- 🔍 Tool version update checking (settings page)
+- 🧹 Clean up cluster data that is no longer used
 - 🌐 Chinese / English interface
 - 📝 API documentation (Swagger, available when running the backend locally)
 
 ### 🚧 Planned Features
 See [docs/DEV_PLAN.md](docs/DEV_PLAN.md) for the development plan and progress.
-- 🎨 Mod management integration with Steam Workshop (mod names are shown already)
-- 🔧 ArkApi plugin management
 - 👤 Multi-user management
-- 🔍 Tool version update checking
 - 🔌 MCP (Model Context Protocol) support
 
 ### 🚀 Future Plans
@@ -114,7 +115,7 @@ sudo docker-compose up -d
 A: Use the "Backups" tab on the server detail page to back up, download, upload and restore saves, or add a scheduled backup under "Schedules". Backups are stored in `data/backups/<server_id>/`. All server data lives under `data/servers/<server_id>/` on the host, which you can also back up yourself.
 
 ### ❓ Q: How to view ARK server logs?
-A: Open the "Logs" tab on the server detail page to follow logs live, pause, filter and download them. The game's own `ShooterGame.log` is under `data/servers/<server_id>/saved/Logs` and is not shown in the UI yet.
+A: Open the "Logs" tab on the server detail page to follow logs live, pause, filter and download them. Switch to "Game log" to see the game's own `ShooterGame.log` (stored under `data/servers/<server_id>/saved/Logs`).
 
 ### ❓ Q: How to update ARK server images?
 A: After logging in, click "Check Updates" under image management on the home page, then click "Update" when a new version is available. When confirming you can choose:

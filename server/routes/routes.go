@@ -50,6 +50,8 @@ func RegisterRoutes(r *gin.Engine) {
 			// 系统信息
 			protected.GET("/system/overview", system.GetOverview)
 			protected.GET("/system/info", system.GetInfo)
+			protected.GET("/system/version", system.GetVersion)
+			protected.DELETE("/system/clusters/:clusterId", system.DeleteCluster)
 			protected.GET("/system/suggest-ports", system.SuggestPorts)
 			protected.GET("/mods", system.GetMods)
 
@@ -67,8 +69,10 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.GET("/:id/rcon", servers.GetServerRCON)
 				serverRoutes.POST("/:id/restart", servers.RestartServer)
 				serverRoutes.POST("/:id/update-game", servers.UpdateGame)
+				serverRoutes.GET("/:id/mods", servers.ListServerMods)
 				serverRoutes.GET("/:id/logs", servers.GetLogs)
 				serverRoutes.GET("/:id/logs/stream", servers.StreamLogs)
+				serverRoutes.GET("/:id/logs/game", servers.GetGameLog)
 				serverRoutes.POST("/:id/rcon/command", servers.RconCommand)
 				serverRoutes.GET("/:id/players", servers.ListPlayers)
 
@@ -86,6 +90,16 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.PUT("/:id/schedules/:scheduleId", servers.UpdateSchedule)
 				serverRoutes.DELETE("/:id/schedules/:scheduleId", servers.DeleteSchedule)
 				serverRoutes.POST("/:id/schedules/:scheduleId/run", servers.RunSchedule)
+
+				// ArkApi 插件
+				serverRoutes.GET("/:id/plugins", servers.ListPlugins)
+				serverRoutes.POST("/:id/plugins", servers.InstallPlugin)
+				serverRoutes.PUT("/:id/plugins/:name", servers.SetPluginState)
+				serverRoutes.DELETE("/:id/plugins/:name", servers.DeletePlugin)
+				serverRoutes.GET("/:id/plugins/:name/config", servers.GetPluginConfig)
+				serverRoutes.PUT("/:id/plugins/:name/config", servers.SavePluginConfig)
+				serverRoutes.GET("/:id/arkapi/config", servers.GetArkApiConfig)
+				serverRoutes.PUT("/:id/arkapi/config", servers.SaveArkApiConfig)
 			}
 
 			// 镜像管理路由

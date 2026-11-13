@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, Eye, EyeOff, Dices, Save, Plus, RotateCw } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Dices, Save, Plus, RotateCw, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { GameUserSettingsEditor } from '@/components/servers/GameUserSettingsEdi
 import { GameIniEditor } from '@/components/servers/GameIniEditor';
 import { ServerArgsEditor } from '@/components/servers/ServerArgsEditor';
 import { MapSelector } from '@/components/servers/MapSelector';
-import { ModList, isValidModIds, normalizeModIds } from '@/components/servers/ModList';
+import { ModList, WORKSHOP_BROWSE_URL, isValidModIds, normalizeModIds } from '@/components/servers/ModList';
 import { randomPassword } from '@/lib/format';
 import type { Server } from '@/stores/servers';
 
@@ -251,10 +251,24 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
                     name="game_mod_ids"
                     value={form.game_mod_ids || ''}
                     onChange={handleChange}
+                    onBlur={() => {
+                      // 粘贴的创意工坊链接换成 ID
+                      const ids = form.game_mod_ids ?? '';
+                      if (isValidModIds(ids) && normalizeModIds(ids) !== ids) update({ game_mod_ids: normalizeModIds(ids) });
+                    }}
                     placeholder={tEdit('modIdsPlaceholder')}
                   />
                 </Field>
-                {form.game_mod_ids && <ModList ids={form.game_mod_ids} />}
+                <a
+                  href={WORKSHOP_BROWSE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  {t('browseWorkshop')}
+                  <ExternalLink className="size-3" />
+                </a>
+                {form.game_mod_ids && <ModList ids={form.game_mod_ids} onChange={(ids) => update({ game_mod_ids: ids })} />}
 
                 <Field label={tEdit('clusterId')} htmlFor="cluster_id" hint={t('clusterHint')} error={errors.cluster_id}>
                   <Input

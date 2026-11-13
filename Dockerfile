@@ -23,8 +23,11 @@ RUN go mod download
 # 复制后端源代码
 COPY server/ ./
 
+# 版本号由 CI 按 tag 传入（不带 v，例如 0.0.3），本地构建为 dev，用于界面显示和检查新版本
+ARG VERSION=dev
+
 # 整理依赖并构建后端应用
-RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -trimpath -ldflags="-s -w" -o main .
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -trimpath -ldflags="-s -w -X ark-server-commander/utils.Version=${VERSION}" -o main .
 
 # 最终运行阶段：Node 运行 Next.js（对外），Go 后端只在容器内回环地址监听
 FROM node:26-alpine

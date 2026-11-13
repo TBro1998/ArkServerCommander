@@ -89,6 +89,13 @@ func cachedVolumeSizes(refresh bool) (map[string]int64, time.Time, error) {
 	return sizes, volumeSizes.fetched, nil
 }
 
+// invalidateVolumeSizes 删除数据后让下次概览重新统计
+func invalidateVolumeSizes() {
+	volumeSizes.Lock()
+	volumeSizes.sizes = nil
+	volumeSizes.Unlock()
+}
+
 // ServerDiskUsage 一台服务器的磁盘占用（字节）
 type ServerDiskUsage struct {
 	ServerID    uint   `json:"server_id"`
@@ -111,10 +118,12 @@ type Overview struct {
 	MemoryBytes    uint64            `json:"memory_bytes"`
 	Disk           []ServerDiskUsage `json:"disk"`
 	ClusterVolumes map[string]int64  `json:"cluster_volumes"`
-	DiskTotal      int64             `json:"disk_total"`
-	DiskUpdatedAt  string            `json:"disk_updated_at,omitempty"`
-	DiskError      string            `json:"disk_error,omitempty"`
-	RecentErrors   []ServerError     `json:"recent_errors"`
+	// 没有服务器使用、可以删除的集群数据（删除服务器或改集群 ID 后留下的）
+	UnusedClusters []UnusedCluster `json:"unused_clusters"`
+	DiskTotal      int64           `json:"disk_total"`
+	DiskUpdatedAt  string          `json:"disk_updated_at,omitempty"`
+	DiskError      string          `json:"disk_error,omitempty"`
+	RecentErrors   []ServerError   `json:"recent_errors"`
 }
 
 // ServerError 最近一次启停失败的服务器
@@ -183,6 +192,14 @@ func (s *ServerService) GetOverview(userID uint, refreshDisk bool) (*Overview, e
 		ov.ClusterVolumes[cv] = sizes[cv]
 		ov.DiskTotal += sizes[cv]
 	}
+	ov.UnusedClusters, err = unusedClusters(sizes)
+	if err != nil {
+		utils.Warn("列出未使用的集群失败", zap.Error(err))
+		ov.UnusedClusters = []UnusedCluster{}
+	}
+	for _, c := range ov.UnusedClusters {
+		ov.DiskTotal += c.Size
+	}
 	return ov, nil
 }
 
@@ -240,10 +257,14 @@ func (s *ServerService) GetModInfo(ids string) ([]ModInfo, error) {
 	if len(list) > 100 {
 		list = list[:100]
 	}
+	return lookupMods(list, false), nil
+}
 
+// lookupMods 按顺序返回 Mod 信息，缓存过期或 refresh 为 true 时向 Steam 查询
+func lookupMods(list []string, refresh bool) []ModInfo {
 	var missing []string
 	for _, id := range list {
-		if c, ok := modCache.Load(id); !ok || expired(c.(cachedMod)) {
+		if c, ok := modCache.Load(id); refresh || !ok || expired(c.(cachedMod)) {
 			missing = append(missing, id)
 		}
 	}
@@ -269,7 +290,7 @@ func (s *ServerService) GetModInfo(ids string) ([]ModInfo, error) {
 			result = append(result, ModInfo{ID: id})
 		}
 	}
-	return result, nil
+	return result
 }
 
 // expired 成功结果缓存 6 小时，失败结果 5 分钟后重试

@@ -14,12 +14,37 @@ const (
 	ConfigDirectory = "Config/WindowsServer"
 )
 
-// GetDefaultGameUserSettings 获取默认的GameUserSettings.ini配置
+// GetDefaultGameUserSettings 获取默认的GameUserSettings.ini配置。
+// 倍率、难度和昼夜速度等服务器选项属于 GameUserSettings.ini 的 [ServerSettings]，写在 Game.ini 里不会生效
+// （见 docs/ASE_GameUserSetting.md）；ARK 停服时会重写这个文件，所以这里不写注释
 func GetDefaultGameUserSettings(serverName, mapName string, maxPlayers int) string {
 	return fmt.Sprintf(`[ServerSettings]
 SessionName=%s
 ServerPassword=
 MaxPlayers=%d
+DifficultyOffset=1.0
+OverrideOfficialDifficulty=5.0
+XPMultiplier=1.0
+TamingSpeedMultiplier=1.0
+HarvestAmountMultiplier=1.0
+HarvestHealthMultiplier=1.0
+ResourcesRespawnPeriodMultiplier=1.0
+DinoCountMultiplier=1.0
+DinoCharacterFoodDrainMultiplier=1.0
+DinoCharacterStaminaDrainMultiplier=1.0
+DinoCharacterHealthRecoveryMultiplier=1.0
+PlayerCharacterWaterDrainMultiplier=1.0
+PlayerCharacterFoodDrainMultiplier=1.0
+PlayerCharacterStaminaDrainMultiplier=1.0
+PlayerCharacterHealthRecoveryMultiplier=1.0
+DayCycleSpeedScale=1.0
+NightTimeSpeedScale=1.0
+StructureResistanceMultiplier=1.0
+StructureDamageMultiplier=1.0
+PvEStructureDecayPeriodMultiplier=1.0
+AllowFlyerCarryPvE=True
+DisableStructureDecayPvE=False
+EnablePvPGamma=False
 
 [SessionSettings]
 SessionName=%s
@@ -32,58 +57,19 @@ MaxPlayers=%d
 `, serverName, maxPlayers, serverName, serverName, maxPlayers)
 }
 
-// GetDefaultGameIni 获取默认的Game.ini配置
+// GetDefaultGameIni 获取默认的Game.ini配置。
+// 只放 Game.ini 的选项，全部在 [/script/shootergame.shootergamemode] 下（见 docs/ASE_Game.ini.md）
 func GetDefaultGameIni() string {
 	return `[/script/shootergame.shootergamemode]
-bUseSingleplayerSettings=false
-bDisableStructurePlacementCollision=false
-bAllowFlyerCarryPvE=true
-bDisableStructureDecayPvE=false
-bAllowUnlimitedRespecs=true
-bAllowPlatformSaddleMultiFloors=true
-bPassiveDefensesDamageRiderlessDinos=true
+bUseSingleplayerSettings=False
+bDisableStructurePlacementCollision=False
+bAllowUnlimitedRespecs=True
+bAllowPlatformSaddleMultiFloors=True
+bPassiveDefensesDamageRiderlessDinos=True
 MaxNumberOfPlayersInTribe=0
-
-[/Script/ShooterGame.ShooterGameMode]
-DifficultyOffset=1.0
-OverrideOfficialDifficulty=5.0
-
-# 资源重生倍率
-ResourcesRespawnPeriodMultiplier=1.0
-
-# 驯服相关设置
-TamingSpeedMultiplier=1.0
-DinoCharacterFoodDrainMultiplier=1.0
-DinoCharacterStaminaDrainMultiplier=1.0
-DinoCharacterHealthRecoveryMultiplier=1.0
-DinoCountMultiplier=1.0
-
-# 经验值倍率
-XPMultiplier=1.0
-PlayerCharacterWaterDrainMultiplier=1.0
-PlayerCharacterFoodDrainMultiplier=1.0
-PlayerCharacterStaminaDrainMultiplier=1.0
-PlayerCharacterHealthRecoveryMultiplier=1.0
-
-# 收集倍率
-HarvestAmountMultiplier=1.0
-HarvestHealthMultiplier=1.0
-
-# 白天/夜晚时间流逝速度
-DayCycleSpeedScale=1.0
-NightTimeSpeedScale=1.0
-
-# 结构相关
-StructureResistanceMultiplier=1.0
-StructureDamageMultiplier=1.0
 StructureDamageRepairCooldown=180
-PvEStructureDecayPeriodMultiplier=1.0
-
-# PvP相关设置
 bPvEDisableFriendlyFire=False
-bEnablePvPGamma=False
 bDisableFriendlyFire=False
-bAllowFlyerCarryPvE=True
 `
 }
 

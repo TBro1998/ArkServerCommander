@@ -26,13 +26,14 @@ import { LogViewer } from '@/components/servers/LogViewer';
 import { ConsolePanel } from '@/components/servers/ConsolePanel';
 import { BackupsPanel } from '@/components/servers/BackupsPanel';
 import { SchedulesPanel } from '@/components/servers/SchedulesPanel';
-import { ModList } from '@/components/servers/ModList';
+import { PluginsPanel } from '@/components/servers/PluginsPanel';
+import { ServerModsPanel } from '@/components/servers/ServerModsPanel';
 import { MapBand } from '@/components/servers/ServerCard';
 import { useMapName } from '@/hooks/use-map-name';
 import { usePolling } from '@/hooks/use-polling';
 import { formatBytes, formatPercent } from '@/lib/format';
 
-const TABS = ['overview', 'console', 'logs', 'backups', 'schedules'] as const;
+const TABS = ['overview', 'console', 'logs', 'backups', 'schedules', 'plugins'] as const;
 type Tab = (typeof TABS)[number];
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -119,14 +120,7 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="font-display text-base">{t('mods')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {server.game_mod_ids ? <ModList ids={server.game_mod_ids} /> : <p className="text-sm text-muted-foreground">{t('noMods')}</p>}
-        </CardContent>
-      </Card>
+      <ServerModsPanel server={server} />
     </div>
   );
 }
@@ -210,6 +204,11 @@ export default function ServerDetailPage() {
               {server.config_pending && (
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800">{t('configPending')}</span>
               )}
+              {!!server.mods_outdated?.length && (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">
+                  {t('modsOutdated', { count: server.mods_outdated.length })}
+                </span>
+              )}
             </div>
           </div>
           <ServerActions
@@ -257,6 +256,9 @@ export default function ServerDetailPage() {
         </TabsContent>
         <TabsContent value="schedules" className="mt-4">
           <SchedulesPanel server={server} active={tab === 'schedules'} />
+        </TabsContent>
+        <TabsContent value="plugins" className="mt-4">
+          <PluginsPanel server={server} active={tab === 'plugins'} />
         </TabsContent>
       </Tabs>
     </div>

@@ -30,37 +30,25 @@ interface GameIniParam {
 
 type GameIniCategoryKey =
   | 'gameBasic'
-  | 'experienceSettings'
   | 'breedingSettings'
   | 'itemSettings'
   | 'dinoSettings'
   | 'tribeSettings'
   | 'pvpSettings'
   | 'structureSettings'
-  | 'advancedSettings'
-  | 'customSettings';
+  | 'advancedSettings';
 
+// 只放 Game.ini 的选项（见 docs/ASE_Game.ini.md）。经验、驯服、采集、难度、昼夜速度等倍率属于
+// GameUserSettings.ini 的 [ServerSettings]，在那边的编辑器里，写在 Game.ini 里不会生效
 const gameIniParams: Record<GameIniCategoryKey, Record<string, GameIniParam>> = {
   gameBasic: {
     bUseSingleplayerSettings: { type: 'boolean', default: false },
     bDisableStructurePlacementCollision: { type: 'boolean', default: false },
-    bAllowFlyerCarryPvE: { type: 'boolean', default: true },
-    bDisableStructureDecayPvE: { type: 'boolean', default: false },
-    bAllowUnlimitedRespecs: { type: 'boolean', default: true },
-    bAllowPlatformSaddleMultiFloors: { type: 'boolean', default: true },
-    bPassiveDefensesDamageRiderlessDinos: { type: 'boolean', default: true },
+    bAllowUnlimitedRespecs: { type: 'boolean', default: false },
+    bAllowPlatformSaddleMultiFloors: { type: 'boolean', default: false },
+    bPassiveDefensesDamageRiderlessDinos: { type: 'boolean', default: false },
     bPvEDisableFriendlyFire: { type: 'boolean', default: false },
-    bDisableFriendlyFire: { type: 'boolean', default: false },
-    bEnablePvPGamma: { type: 'boolean', default: false },
-    DifficultyOffset: { type: 'number', default: 1.0, min: 0.0, max: 1.0, step: 0.1 },
-    OverrideOfficialDifficulty: { type: 'number', default: 5.0, min: 1.0, max: 10.0, step: 0.1 }
-  },
-  experienceSettings: {
-    XPMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    PlayerCharacterWaterDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    PlayerCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    PlayerCharacterStaminaDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    PlayerCharacterHealthRecoveryMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
+    bDisableFriendlyFire: { type: 'boolean', default: false }
   },
   breedingSettings: {
     MatingIntervalMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
@@ -69,29 +57,22 @@ const gameIniParams: Record<GameIniCategoryKey, Record<string, GameIniParam>> = 
     BabyFoodConsumptionSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
     BabyCuddleIntervalMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
     BabyCuddleGracePeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    BabyCuddleLoseImprintQualitySpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
+    BabyCuddleLoseImprintQualitySpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
+    BabyImprintingStatScaleMultiplier: { type: 'number', default: 1.0, min: 0.0, max: 10.0, step: 0.1 }
   },
   itemSettings: {
-    HarvestAmountMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    HarvestHealthMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    ResourcesRespawnPeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    ItemStackSizeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
     CropGrowthSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
     GlobalItemDecompositionTimeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
     GlobalCorpseDecompositionTimeMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   },
   dinoSettings: {
-    TamingSpeedMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 50.0, step: 0.1 },
-    DinoCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    DinoCharacterStaminaDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    DinoCharacterHealthRecoveryMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    DinoCountMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
     WildDinoCharacterFoodDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
     WildDinoTorporDrainMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   },
   tribeSettings: {
-    MaxNumberOfPlayersInTribe: { type: 'number', default: 0, min: 0, max: 100, step: 1 },
-    TribeNameChangeCooldown: { type: 'number', default: 15, min: 0, max: 1440, step: 1 },
+    MaxNumberOfPlayersInTribe: { type: 'number', default: 0, min: 0, max: 500, step: 1 },
+    MaxAlliancesPerTribe: { type: 'number', default: 10, min: 0, max: 100, step: 1 },
+    MaxTribesPerAlliance: { type: 'number', default: 10, min: 0, max: 100, step: 1 },
     bPvEAllowTribeWar: { type: 'boolean', default: false },
     bPvEAllowTribeWarCancel: { type: 'boolean', default: false }
   },
@@ -102,11 +83,7 @@ const gameIniParams: Record<GameIniCategoryKey, Record<string, GameIniParam>> = 
     IncreasePvPRespawnIntervalBaseAmount: { type: 'number', default: 60, min: 30, max: 600, step: 30 }
   },
   structureSettings: {
-    StructureDamageMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    StructureResistanceMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    StructureDamageRepairCooldown: { type: 'number', default: 180, min: 0, max: 3600, step: 60 },
-    PvEStructureDecayPeriodMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    MaxStructuresInRange: { type: 'number', default: 1300, min: 100, max: 10000, step: 100 }
+    StructureDamageRepairCooldown: { type: 'number', default: 180, min: 0, max: 3600, step: 60 }
   },
   advancedSettings: {
     bAutoPvETimer: { type: 'boolean', default: false },
@@ -121,11 +98,6 @@ const gameIniParams: Record<GameIniCategoryKey, Record<string, GameIniParam>> = 
     bDisableDinoRiding: { type: 'boolean', default: false },
     bDisableDinoTaming: { type: 'boolean', default: false },
     bAllowCustomRecipes: { type: 'boolean', default: true }
-  },
-  customSettings: {
-    DayCycleSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    NightTimeSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 },
-    DayTimeSpeedScale: { type: 'number', default: 1.0, min: 0.1, max: 10.0, step: 0.1 }
   }
 };
 
@@ -146,106 +118,8 @@ function buildDefaultConfig(): Record<string, string | number | boolean> {
   return defaultConfig;
 }
 
-// 生成默认的 Game.ini 模板，只在文件为空（新建服务器）时使用
-function buildDefaultGameIniText(visualConfig: Record<string, string | number | boolean>): string {
-  let iniContent = '';
-
-  // Add sections based on categories
-  iniContent += '[/script/shootergame.shootergamemode]\n';
-
-  // Basic game settings
-  const gameBasicParams = getGameIniParamsByCategory('gameBasic');
-  Object.keys(gameBasicParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // Tribe settings
-  const tribeParams = getGameIniParamsByCategory('tribeSettings');
-  Object.keys(tribeParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  iniContent += '\n[/Script/ShooterGame.ShooterGameMode]\n';
-
-  // Experience settings
-  const expParams = getGameIniParamsByCategory('experienceSettings');
-  Object.keys(expParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // Item settings
-  const itemParams = getGameIniParamsByCategory('itemSettings');
-  Object.keys(itemParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // Dino settings
-  const dinoParams = getGameIniParamsByCategory('dinoSettings');
-  Object.keys(dinoParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // Breeding settings
-  const breedingParams = getGameIniParamsByCategory('breedingSettings');
-  Object.keys(breedingParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // PvP settings
-  const pvpParams = getGameIniParamsByCategory('pvpSettings');
-  Object.keys(pvpParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // Structure settings
-  const structureParams = getGameIniParamsByCategory('structureSettings');
-  Object.keys(structureParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // Advanced settings
-  const advancedParams = getGameIniParamsByCategory('advancedSettings');
-  Object.keys(advancedParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-
-  // Custom settings
-  const customParams = getGameIniParamsByCategory('customSettings');
-  Object.keys(customParams).forEach(key => {
-    const value = visualConfig[key];
-    if (value !== undefined) {
-      iniContent += `${key}=${value}\n`;
-    }
-  });
-  return iniContent;
-}
+// Game.ini 的选项都在这个 section 下
+const GAME_MODE_SECTION = '[/script/shootergame.shootergamemode]';
 
 interface GameIniEditorProps {
   value?: string;
@@ -338,14 +212,9 @@ export function GameIniEditor({ value, onChange }: GameIniEditorProps) {
         if (value !== undefined) updates[key] = value;
       });
 
-      const base = textContent.trim() === '' ? buildDefaultGameIniText(config) : textContent;
-      const iniContent = mergeIni(base, updates, {
-        // 基础设置和部落设置属于 ShooterGameMode，其余沿用 shootergamemode
-        sectionForKey: (key) =>
-          key in gameIniParams.gameBasic || key in gameIniParams.tribeSettings
-            ? '[/Script/ShooterGame.ShooterGameMode]'
-            : '[/script/shootergame.shootergamemode]',
-      });
+      // 文件为空时只写 section 头，只有改过的键会写入，未改的保持游戏默认值
+      const base = textContent.trim() === '' ? `${GAME_MODE_SECTION}\n` : textContent;
+      const iniContent = mergeIni(base, updates, { sectionForKey: () => GAME_MODE_SECTION });
 
       setTextContent(iniContent);
       onChange?.(iniContent);

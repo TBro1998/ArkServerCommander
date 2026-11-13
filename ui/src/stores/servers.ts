@@ -47,6 +47,8 @@ export interface Server {
         custom_args: string[];
     };
     image_outdated?: boolean;
+    // 创意工坊上有更新的 Mod ID
+    mods_outdated?: string[];
     config_pending?: boolean;
     runtime?: RuntimeInfo;
     created_at: string;
@@ -103,7 +105,7 @@ interface ServersActions {
     startServer: (serverId: Server['id']) => Promise<void>;
     stopServer: (serverId: Server['id']) => Promise<void>;
     restartServer: (serverId: Server['id']) => Promise<void>;
-    updateGame: (serverId: Server['id'], game: boolean, mods: boolean) => Promise<void>;
+    updateGame: (serverId: Server['id'], game: boolean, mods: boolean, modIds?: string[]) => Promise<void>;
     recreateServer: (serverId: Server['id']) => Promise<void>;
     updateServerStatus: (serverId: Server['id'], status: Server['status']) => void;
 }
@@ -188,8 +190,8 @@ const useServersStore = create<ServersState>((set, get) => ({
             const server = get().servers.find((s) => s.id === serverId);
             get().actions.updateServerStatus(serverId, server?.status === 'running' ? 'stopping' : 'starting');
         },
-        updateGame: async (serverId, game, mods) => {
-            await axios.post(`/api/servers/${serverId}/update-game`, { game, mods });
+        updateGame: async (serverId, game, mods, modIds) => {
+            await axios.post(`/api/servers/${serverId}/update-game`, { game, mods, mod_ids: modIds });
             const server = get().servers.find((s) => s.id === serverId);
             get().actions.updateServerStatus(serverId, server?.status === 'running' ? 'stopping' : 'starting');
         },

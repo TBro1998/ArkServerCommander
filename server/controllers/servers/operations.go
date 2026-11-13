@@ -32,13 +32,14 @@ func RestartServer(c *gin.Context) {
 
 // UpdateGameRequest 更新游戏本体 / Mod 请求
 type UpdateGameRequest struct {
-	Game bool `json:"game"`
-	Mods bool `json:"mods"`
+	Game   bool     `json:"game"`              // 校验并更新游戏本体
+	Mods   bool     `json:"mods"`              // 重新下载全部 Mod
+	ModIDs []string `json:"mod_ids,omitempty"` // 只重新下载这些 Mod（mods 为 false 时生效）
 }
 
 // UpdateGame 更新游戏本体和 Mod
 // @Summary 更新游戏本体和 Mod
-// @Description 清除安装标记后启动服务器（运行中的先停止），入口脚本在启动时用 steamcmd 校验更新游戏本体、重新下载 Mod
+// @Description 清除安装标记后启动服务器（运行中的先停止），入口脚本在启动时用 steamcmd 校验更新游戏本体、重新下载全部 Mod 或 mod_ids 指定的 Mod
 // @Tags 服务器管理
 // @Accept json
 // @Produce json
@@ -55,7 +56,7 @@ func UpdateGame(c *gin.Context) {
 		respondBadRequest(c)
 		return
 	}
-	if err := serverService.UpdateGame(c.GetUint("user_id"), c.Param("id"), req.Game, req.Mods); err != nil {
+	if err := serverService.UpdateGame(c.GetUint("user_id"), c.Param("id"), req.Game, req.Mods, req.ModIDs); err != nil {
 		respondServiceError(c, err)
 		return
 	}
@@ -157,6 +158,48 @@ func RconCommand(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"output": out}})
+}
+
+// GetGameLog 游戏日志
+// @Summary 获取游戏日志
+// @Description 返回存档目录 Logs/ShooterGame.log 最后 tail 行（默认 1000，最多 5000）。直接读数据目录，服务器停止后也能看
+// @Tags 服务器管理
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param tail query int false "行数"
+// @Success 200 {object} map[string]server.GameLog "游戏日志"
+// @Router /servers/{id}/logs/game [get]
+func GetGameLog(c *gin.Context) {
+	tail, _ := strconv.Atoi(c.DefaultQuery("tail", "1000"))
+	if tail <= 0 || tail > 5000 {
+		tail = 1000
+	}
+	log, err := serverService.GetGameLog(c.GetUint("user_id"), c.Param("id"), tail)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": log})
+}
+
+// ListServerMods 服务器的 Mod 及更新状态
+// @Summary 服务器的 Mod 及更新状态
+// @Description 按加载顺序返回服务器配置的 Mod，附带创意工坊信息、是否已安装、安装时间和是否有更新。refresh=true 时忽略缓存重新查询 Steam
+// @Tags 服务器管理
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param refresh query bool false "重新查询 Steam"
+// @Success 200 {object} map[string][]server.ServerMod "Mod 列表"
+// @Router /servers/{id}/mods [get]
+func ListServerMods(c *gin.Context) {
+	mods, err := serverService.GetServerMods(c.GetUint("user_id"), c.Param("id"), c.Query("refresh") == "true")
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": mods})
 }
 
 // ListPlayers 在线玩家

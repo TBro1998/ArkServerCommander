@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import axios from 'axios';
 import Link from 'next/link';
-import { RefreshCw, AlertTriangle, Copy, ChevronRight, Plus, Users } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Copy, ChevronRight, Plus, Trash2, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/page-loader';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PageHeader } from '@/components/PageHeader';
 import {
   useImageStatus,
@@ -50,6 +51,7 @@ interface Overview {
   memory_bytes: number;
   disk: DiskUsage[];
   cluster_volumes: Record<string, number>;
+  unused_clusters: { id: string; size: number }[];
   disk_total: number;
   disk_updated_at?: string;
   disk_error?: string;
@@ -126,6 +128,7 @@ export default function HomePage() {
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [updateTarget, setUpdateTarget] = useState<UpdateTarget | null>(null);
   const [submittingUpdate, setSubmittingUpdate] = useState(false);
+  const [clusterTarget, setClusterTarget] = useState<{ id: string; size: number } | null>(null);
 
   const loadOverview = useCallback(async (refreshDisk = false) => {
     const res = await axios.get('/api/system/overview', { params: refreshDisk ? { refresh: true } : undefined });
@@ -235,6 +238,18 @@ export default function HomePage() {
       toast.error(apiError(err, t('diskFailed')));
     } finally {
       setRefreshingDisk(false);
+    }
+  };
+
+  const deleteCluster = async () => {
+    if (!clusterTarget) return;
+    try {
+      await axios.delete(`/api/system/clusters/${encodeURIComponent(clusterTarget.id)}`);
+      toast.success(t('clusterDeleted', { name: clusterTarget.id }));
+      await loadOverview();
+    } catch (err) {
+      toast.error(apiError(err, t('clusterDeleteFailed')));
+      throw err;
     }
   };
 
@@ -388,7 +403,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               {ov?.disk_error && <p className="mb-2 text-xs text-red-700">{ov.disk_error}</p>}
-              {!ov ? null : ov.disk.length === 0 ? (
+              {!ov ? null : ov.disk.length === 0 && !ov.unused_clusters?.length ? (
                 <p className="text-sm text-muted-foreground">{t('noServers')}</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -424,6 +439,19 @@ export default function HomePage() {
                           <td className="py-2 text-right whitespace-nowrap">{formatBytes(size)}</td>
                         </tr>
                       ))}
+                      {(ov.unused_clusters ?? []).map((c) => (
+                        <tr key={c.id} className="border-b text-muted-foreground last:border-0">
+                          <td className="py-2 pr-3" colSpan={4}>
+                            <span className="inline-flex items-center gap-2">
+                              {t('unusedCluster', { name: c.id })}
+                              <Button variant="ghost" size="sm" onClick={() => setClusterTarget(c)} aria-label={t('deleteCluster')} title={t('deleteCluster')}>
+                                <Trash2 className="text-red-600" />
+                              </Button>
+                            </span>
+                          </td>
+                          <td className="py-2 text-right whitespace-nowrap">{formatBytes(c.size)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -432,6 +460,16 @@ export default function HomePage() {
           </Card>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!clusterTarget}
+        onOpenChange={(open) => !open && setClusterTarget(null)}
+        title={t('deleteClusterTitle')}
+        description={t('deleteClusterDesc', { name: clusterTarget?.id ?? '', size: formatBytes(clusterTarget?.size ?? 0) })}
+        confirmText={t('deleteCluster')}
+        destructive
+        onConfirm={deleteCluster}
+      />
     </div>
   );
 }

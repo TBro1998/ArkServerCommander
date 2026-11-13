@@ -77,9 +77,10 @@ func main() {
 		utils.Warn("校正服务器状态失败", zap.Error(err))
 	}
 
-	// 后台采集运行阶段、在线人数和资源占用；定时任务调度
+	// 后台采集运行阶段、在线人数和资源占用；定时任务调度；检查 Mod 更新
 	server.StartRuntimeMonitor()
 	server.StartScheduler(server.NewServerService())
+	server.StartModUpdateChecker()
 
 	// 创建Gin实例
 	r := gin.Default()
@@ -96,6 +97,7 @@ func main() {
 	// 启动服务器
 	utils.Info("=========================================")
 	utils.Info("🚀 ARK服务器管理器后端启动成功")
+	utils.Infof("🏷️ 版本: %s", utils.Version)
 	addr := net.JoinHostPort(config.ListenHost, config.ServerPort)
 	utils.Infof("📍 服务器地址: http://%s", addr)
 	utils.Infof("📚 API文档: http://%s/swagger/index.html", addr)

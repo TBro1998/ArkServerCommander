@@ -32,6 +32,7 @@ func toResponse(server models.Server) models.ServerResponse {
 		UpdatedAt:     server.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 	response.Runtime = runtimeFor(server.ID, server.Status)
+	response.ModsOutdated = modsOutdatedFor(server.ID, server.GameModIds)
 	return response
 }
 

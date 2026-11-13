@@ -580,6 +580,9 @@ const messages = {
 
     // Game.ini 参数翻译
     gameIniParams: {
+      MaxAlliancesPerTribe: '每个部落最大联盟数',
+      MaxTribesPerAlliance: '每个联盟最大部落数',
+      BabyImprintingStatScaleMultiplier: '幼体印记属性倍率',
       // 基础设置
       bUseSingleplayerSettings: '使用单人游戏设置',
       bDisableStructurePlacementCollision: '禁用建筑放置碰撞检测',
@@ -983,6 +986,7 @@ BabyImprintAmountMultiplier=1.0`
     server_busy: '服务器正在启动或停止中，请稍后再试',
     image_not_allowed: '不允许操作该镜像',
     invalid_cluster_id: '集群ID格式无效',
+    cluster_in_use: '集群仍在使用中',
     invalid_mod_ids: 'Mod ID 只能是逗号分隔的数字',
     server_not_running: '服务器未运行',
     server_not_stopped: '请先停止服务器',
@@ -993,6 +997,10 @@ BabyImprintAmountMultiplier=1.0`
     schedule_not_found: '定时任务不存在',
     invalid_schedule: '定时任务配置无效',
     rcon_unavailable: 'RCON 端口没有响应，服务器可能还在下载、安装 Mod 或加载地图',
+    plugin_not_found: '插件不存在',
+    invalid_plugin: '插件压缩包无效',
+    invalid_plugin_config: '插件配置不是合法的 JSON',
+    arkapi_not_installed: '服务端文件里还没有 ArkApi',
     rcon_auth_failed: 'RCON 认证失败，重启服务器后会重新写入管理员密码',
     too_many_attempts: '登录失败次数过多，请稍后再试',
     invalid_credentials: '用户名或密码错误',
@@ -1052,6 +1060,8 @@ BabyImprintAmountMultiplier=1.0`
     imageOutdatedTip: '镜像已更新，下次启动时会用新镜像重建容器',
     configPending: '配置待生效',
     configPendingTip: '配置文件修改将在下次启动时应用',
+    modsOutdated: '{count} 个 Mod 有更新',
+    modsOutdatedTip: '创意工坊上有比已安装版本更新的 Mod，可在详情页更新',
     cluster: '集群 {id}',
     clusterTip: '与相同集群ID的服务器共享角色和物品传送数据',
     lastError: '上次操作失败',
@@ -1137,7 +1147,31 @@ BabyImprintAmountMultiplier=1.0`
     invalid: 'Mod ID 只能是逗号分隔的数字',
     loading: '查询名称中...',
     notFound: '创意工坊中找不到该 Mod',
-    unavailable: '无法连接 Steam，暂时查不到名称'
+    unavailable: '无法连接 Steam，暂时查不到名称',
+    orderHint: '拖动或用箭头调整加载顺序，排在前面的 Mod 优先加载',
+    moveUp: '上移',
+    moveDown: '下移',
+    remove: '移除',
+    updatedAt: '创意工坊更新于 {date}',
+    title: 'Mod',
+    none: '没有配置 Mod',
+    loadFailed: '读取 Mod 状态失败',
+    checkUpdates: '检查更新',
+    updateSelected: '更新所选（{count}）',
+    busy: '服务器正在启动或停止',
+    outdatedCount: '{count} 个有更新',
+    select: '选择 {name}',
+    installed: '已安装',
+    installedAt: '安装于 {date}',
+    notInstalled: '未安装，启动时下载',
+    hasUpdate: '有更新',
+    hint: '创意工坊的更新时间晚于安装时间时标记为有更新，后台每 30 分钟检查一次。更新所选 Mod 只重新下载这些 Mod，需要重启服务器。',
+    updateConfirmTitle: '更新所选 Mod',
+    updateConfirmRunning: '服务器会先保存世界并停止，然后启动并重新下载所选的 {count} 个 Mod。',
+    updateConfirmStopped: '服务器会启动并重新下载所选的 {count} 个 Mod。',
+    updateConfirm: '更新',
+    updateSent: '已开始更新，服务器启动时会重新下载所选 Mod',
+    updateFailed: '更新 Mod 失败'
   },
 
   // 服务器详情
@@ -1147,7 +1181,8 @@ BabyImprintAmountMultiplier=1.0`
       console: '控制台',
       logs: '日志',
       backups: '备份',
-      schedules: '定时任务'
+      schedules: '定时任务',
+      plugins: '插件'
     },
     backToList: '返回服务器列表',
     notFound: '服务器不存在或已被删除',
@@ -1173,12 +1208,55 @@ BabyImprintAmountMultiplier=1.0`
     on: '开启',
     off: '关闭',
     createdAt: '创建时间',
-    mods: 'Mod',
-    noMods: '没有配置 Mod',
     imageOutdated: '旧镜像',
     configPending: '配置待生效',
+    modsOutdated: '{count} 个 Mod 有更新',
     lastError: '上次操作失败',
     viewLogs: '查看日志'
+  },
+
+  // ArkApi 插件
+  plugins: {
+    title: '插件',
+    loadFailed: '读取插件列表失败',
+    versionUnknown: '版本未知',
+    arkapiConfig: 'ArkApi 配置',
+    arkapiHint: 'ArkApi 随服务器镜像安装，每次启动时同步到服务端文件；它的 config.json 修改后不会被覆盖。',
+    arkapiNotInstalled: '服务端文件里还没有 ArkApi，首次启动下载完成后才能编辑它的配置。',
+    namePlaceholder: '插件名称（可选，识别不出时填写）',
+    upload: '上传插件 zip',
+    uploadHint: '压缩包里每个"插件名/插件名.dll"所在的目录安装为一个插件，可以一次包含多个插件。覆盖安装时保留原来的 config.json。',
+    stopFirst: '请先停止服务器',
+    runningHint: '服务器运行中，只能修改配置。安装、删除和启停插件需要先停止服务器。',
+    installed: '已安装：{names}',
+    installFailed: '安装插件失败',
+    empty: '还没有安装插件',
+    disabled: '已停用',
+    enable: '启用',
+    disable: '停用',
+    enabledToast: '已启用 {name}',
+    disabledToast: '已停用 {name}',
+    toggleFailed: '修改插件状态失败',
+    missingDll: '缺少 dll',
+    missingDllTip: '目录里没有 {name}.dll，ArkApi 无法加载这个插件',
+    minApi: '最低 ArkApi {version}',
+    dependencies: '依赖 {names}',
+    config: '配置',
+    createConfig: '新建配置',
+    delete: '删除',
+    deleteTitle: '删除插件',
+    deleteDesc: '删除插件 {name} 的全部文件，包括 config.json。此操作不可撤销。',
+    deleted: '插件已删除',
+    deleteFailed: '删除插件失败',
+    configTitle: '{name} 配置',
+    configDesc: '编辑 config.json，下次启动服务器时生效。',
+    configDescRunning: '编辑 config.json。服务器运行中，需要重启服务器，或在控制台执行 plugins.unload / plugins.load 重新加载插件后生效。',
+    configLoadFailed: '读取配置失败',
+    configSaved: '配置已保存',
+    configSavedRunning: '配置已保存，重新加载插件或重启服务器后生效',
+    configSaveFailed: '保存配置失败',
+    invalidJson: 'JSON 格式错误：{message}',
+    format: '格式化'
   },
 
   // 日志
@@ -1197,7 +1275,13 @@ BabyImprintAmountMultiplier=1.0`
     downloadFailed: '下载日志失败',
     empty: '暂无日志（容器尚未创建或刚刚启动）',
     scrollToBottom: '回到底部',
-    hint: '这里是容器的输出：服务端下载进度、Mod 安装和游戏启动信息。游戏本身的详细日志在存档目录的 Logs 下。'
+    hint: '这里是容器的输出：服务端下载进度、Mod 安装和游戏启动信息。游戏本身的详细日志切换到"游戏日志"查看。',
+    source: '日志来源',
+    sourceContainer: '容器输出',
+    sourceGame: '游戏日志',
+    hideProgress: '隐藏下载进度',
+    gameEmpty: '还没有游戏日志（服务器启动并加载地图后才会生成）',
+    gameHint: '存档目录 Logs/ShooterGame.log 的最后 2000 行，每 5 秒刷新一次；服务器停止后仍可查看上次运行的日志。'
   },
 
   // 控制台
@@ -1352,7 +1436,8 @@ BabyImprintAmountMultiplier=1.0`
     passwordKeepHint: '留空则保持原密码不变',
     passwordKeepPlaceholder: '留空则不修改',
     generate: '随机生成',
-    modsHint: '创意工坊 Mod ID，多个用逗号分隔，下方会显示 Mod 名称',
+    modsHint: '创意工坊 Mod ID 或链接，多个用逗号分隔，下方会显示 Mod 名称',
+    browseWorkshop: '在创意工坊浏览 Mod',
     clusterHint: '填写相同集群ID的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -',
     autoRestart: '崩溃后自动重启',
     autoRestartHint: '游戏进程意外退出时由 Docker 自动重启',
@@ -1402,6 +1487,12 @@ BabyImprintAmountMultiplier=1.0`
     backups: '备份',
     total: '合计',
     clusterVolume: '集群共享存储 {name}',
+    unusedCluster: '未使用的集群数据 {name}',
+    deleteCluster: '删除',
+    deleteClusterTitle: '删除集群数据',
+    deleteClusterDesc: '删除集群 {name} 的共享存储（{size}），包括跨服传送的角色和物品。已经没有服务器使用它，此操作不可撤销。',
+    clusterDeleted: '已删除集群数据 {name}',
+    clusterDeleteFailed: '删除集群数据失败',
     downloadStarted: '已开始下载 {name}',
     downloadFailed: '下载镜像失败',
     diskFailed: '计算磁盘占用失败'
@@ -1423,7 +1514,23 @@ BabyImprintAmountMultiplier=1.0`
     tooLong: '新密码最多 72 个字节',
     mismatch: '两次输入的新密码不一致',
     changed: '密码已修改',
-    failed: '修改密码失败'
+    failed: '修改密码失败',
+    version: {
+      title: '关于',
+      check: '检查更新',
+      current: '当前版本',
+      latest: '最新版本',
+      dev: '开发版本',
+      loadFailed: '读取版本信息失败',
+      checkFailed: '检查新版本失败：{error}',
+      updateAvailable: '有新版本 v{version}。在 docker-compose.yml 所在目录执行：',
+      upgradeHint: '会拉取最新镜像并重建管理器容器，数据在 ./data 中，不受影响；运行中的 ARK 服务器容器也不会停止。',
+      copy: '复制命令',
+      copied: '命令已复制',
+      copyFailed: '复制失败，请手动复制',
+      upToDate: '已是最新版本',
+      devHint: '当前是本地构建的开发版本，不比较版本号'
+    }
   }
 }
 

@@ -66,15 +66,30 @@ func (s *ServerService) claimForRestart(server models.Server) error {
 	return nil
 }
 
-// UpdateGame 更新游戏本体（steamcmd 校验并更新）和/或 Mod（重新下载全部 Mod）。
+// UpdateGame 更新游戏本体（steamcmd 校验并更新）和/或 Mod：mods 为 true 时重新下载全部 Mod，
+// 否则只重新下载 modIDs 里的 Mod（必须是服务器配置的 Mod）。
 // 运行中的服务器会先停止；清除安装标记后启动，入口脚本在启动时完成下载。在后台执行
-func (s *ServerService) UpdateGame(userID uint, serverID string, game, mods bool) error {
-	if !game && !mods {
+func (s *ServerService) UpdateGame(userID uint, serverID string, game, mods bool, modIDs []string) error {
+	if mods {
+		modIDs = nil
+	}
+	if !game && !mods && len(modIDs) == 0 {
 		return fmt.Errorf("%w: 至少选择更新游戏本体或 Mod", ErrInvalidCommand)
 	}
 	server, err := getUserServer(userID, serverID)
 	if err != nil {
 		return err
+	}
+	if len(modIDs) > 0 {
+		configured := make(map[string]bool)
+		for _, id := range strings.Split(server.GameModIds, ",") {
+			configured[id] = true
+		}
+		for _, id := range modIDs {
+			if !configured[id] {
+				return fmt.Errorf("%w: Mod %s 不在服务器的 Mod 列表中", ErrInvalidModIDs, id)
+			}
+		}
 	}
 	if server.Status == "starting" || server.Status == "stopping" {
 		return ErrServerBusy
@@ -88,7 +103,16 @@ func (s *ServerService) UpdateGame(userID uint, serverID string, game, mods bool
 	}
 	go func() {
 		if err := s.restartWith(server, dockerManager, func() error {
-			return dockerManager.RemoveInstallMarkers(server.ID, game, mods && server.GameModIds != "")
+			if err := dockerManager.RemoveInstallMarkers(server.ID, game, mods && server.GameModIds != ""); err != nil {
+				return err
+			}
+			if err := docker_manager.RemoveInstalledMods(server.ID, modIDs); err != nil {
+				return err
+			}
+			if mods || len(modIDs) > 0 {
+				forgetOutdatedMods(server.ID, modIDs)
+			}
+			return nil
 		}); err != nil {
 			utils.Warn("更新游戏失败", zap.Uint("server_id", server.ID), zap.Error(err))
 		}

@@ -114,6 +114,15 @@ export function ServerCard({ server, canStartServer, publicHost }: ServerCardPro
                 {t('configPending')}
               </span>
             )}
+            {!!server.mods_outdated?.length && (
+              <Link
+                href={`/servers/${server.id}`}
+                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 hover:underline"
+                title={t('modsOutdatedTip')}
+              >
+                {t('modsOutdated', { count: server.mods_outdated.length })}
+              </Link>
+            )}
             {server.cluster_id && (
               <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground" title={t('clusterTip')}>
                 {t('cluster', { id: server.cluster_id })}

@@ -580,6 +580,9 @@ const messages = {
 
     // Game.ini parameter translations
     gameIniParams: {
+      MaxAlliancesPerTribe: 'Max Alliances Per Tribe',
+      MaxTribesPerAlliance: 'Max Tribes Per Alliance',
+      BabyImprintingStatScaleMultiplier: 'Baby Imprinting Stat Scale Multiplier',
       // Basic settings
       bUseSingleplayerSettings: 'Use Singleplayer Settings',
       bDisableStructurePlacementCollision: 'Disable Structure Placement Collision',
@@ -983,6 +986,7 @@ BabyImprintAmountMultiplier=1.0`
     server_busy: 'Server is starting or stopping, please try again later',
     image_not_allowed: 'This image cannot be managed',
     invalid_cluster_id: 'Invalid cluster ID',
+    cluster_in_use: 'The cluster is still in use',
     invalid_mod_ids: 'Mod IDs must be comma-separated numbers',
     server_not_running: 'Server is not running',
     server_not_stopped: 'Stop the server first',
@@ -993,6 +997,10 @@ BabyImprintAmountMultiplier=1.0`
     schedule_not_found: 'Scheduled task not found',
     invalid_schedule: 'Invalid scheduled task',
     rcon_unavailable: 'RCON is not responding; the server may still be downloading, installing mods or loading the map',
+    plugin_not_found: 'Plugin not found',
+    invalid_plugin: 'Invalid plugin archive',
+    invalid_plugin_config: 'The plugin config is not valid JSON',
+    arkapi_not_installed: 'ArkApi is not in the server files yet',
     rcon_auth_failed: 'RCON authentication failed; restart the server to rewrite the admin password',
     too_many_attempts: 'Too many failed attempts. Please try again later.',
     invalid_credentials: 'Invalid username or password',
@@ -1052,6 +1060,8 @@ BabyImprintAmountMultiplier=1.0`
     imageOutdatedTip: 'The image has been updated; the container will be recreated with the new image on next start',
     configPending: 'Config pending',
     configPendingTip: 'Config file changes will be applied on next start',
+    modsOutdated: '{count} mod update(s)',
+    modsOutdatedTip: 'Some mods have a newer version on the Workshop; update them from the details page',
     cluster: 'Cluster {id}',
     clusterTip: 'Shares character and item transfers with servers using the same cluster ID',
     lastError: 'Last operation failed',
@@ -1137,7 +1147,31 @@ BabyImprintAmountMultiplier=1.0`
     invalid: 'Mod IDs must be comma-separated numbers',
     loading: 'Looking up name...',
     notFound: 'Mod not found on the Workshop',
-    unavailable: 'Could not reach Steam to look up the name'
+    unavailable: 'Could not reach Steam to look up the name',
+    orderHint: 'Drag or use the arrows to change the load order; mods at the top load first',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    remove: 'Remove',
+    updatedAt: 'Workshop update {date}',
+    title: 'Mods',
+    none: 'No mods configured',
+    loadFailed: 'Failed to load mod status',
+    checkUpdates: 'Check for updates',
+    updateSelected: 'Update selected ({count})',
+    busy: 'The server is starting or stopping',
+    outdatedCount: '{count} outdated',
+    select: 'Select {name}',
+    installed: 'Installed',
+    installedAt: 'Installed {date}',
+    notInstalled: 'Not installed, downloaded on start',
+    hasUpdate: 'Update available',
+    hint: 'A mod is marked as outdated when its Workshop update is newer than its install time; this is checked every 30 minutes. Updating selected mods downloads only those mods again and restarts the server.',
+    updateConfirmTitle: 'Update selected mods',
+    updateConfirmRunning: 'The server will save the world and stop, then start and download the {count} selected mod(s) again.',
+    updateConfirmStopped: 'The server will start and download the {count} selected mod(s) again.',
+    updateConfirm: 'Update',
+    updateSent: 'Update started; the selected mods are downloaded again when the server starts',
+    updateFailed: 'Failed to update mods'
   },
 
   // Server details
@@ -1147,7 +1181,8 @@ BabyImprintAmountMultiplier=1.0`
       console: 'Console',
       logs: 'Logs',
       backups: 'Backups',
-      schedules: 'Schedules'
+      schedules: 'Schedules',
+      plugins: 'Plugins'
     },
     backToList: 'Back to servers',
     notFound: 'Server not found or deleted',
@@ -1173,12 +1208,55 @@ BabyImprintAmountMultiplier=1.0`
     on: 'On',
     off: 'Off',
     createdAt: 'Created',
-    mods: 'Mods',
-    noMods: 'No mods configured',
     imageOutdated: 'Old image',
     configPending: 'Config pending',
+    modsOutdated: '{count} mod update(s)',
     lastError: 'Last operation failed',
     viewLogs: 'View logs'
+  },
+
+  // ArkApi plugins
+  plugins: {
+    title: 'Plugins',
+    loadFailed: 'Failed to load plugins',
+    versionUnknown: 'Unknown version',
+    arkapiConfig: 'ArkApi config',
+    arkapiHint: 'ArkApi ships with the server image and is synced into the server files on every start; your changes to its config.json are kept.',
+    arkapiNotInstalled: 'ArkApi is not in the server files yet. Its config can be edited after the first start finishes downloading.',
+    namePlaceholder: 'Plugin name (optional, if it cannot be detected)',
+    upload: 'Upload plugin zip',
+    uploadHint: 'Every "PluginName/PluginName.dll" folder in the archive is installed as a plugin; one archive can contain several. Reinstalling keeps the existing config.json.',
+    stopFirst: 'Stop the server first',
+    runningHint: 'The server is running, so only configs can be edited. Stop the server to install, delete, enable or disable plugins.',
+    installed: 'Installed: {names}',
+    installFailed: 'Failed to install plugin',
+    empty: 'No plugins installed',
+    disabled: 'Disabled',
+    enable: 'Enable',
+    disable: 'Disable',
+    enabledToast: 'Enabled {name}',
+    disabledToast: 'Disabled {name}',
+    toggleFailed: 'Failed to change plugin state',
+    missingDll: 'Missing dll',
+    missingDllTip: 'There is no {name}.dll in the folder, so ArkApi cannot load this plugin',
+    minApi: 'Requires ArkApi {version}',
+    dependencies: 'Depends on {names}',
+    config: 'Config',
+    createConfig: 'New config',
+    delete: 'Delete',
+    deleteTitle: 'Delete plugin',
+    deleteDesc: 'Delete all files of plugin {name}, including config.json. This cannot be undone.',
+    deleted: 'Plugin deleted',
+    deleteFailed: 'Failed to delete plugin',
+    configTitle: '{name} config',
+    configDesc: 'Edit config.json. Changes take effect on the next server start.',
+    configDescRunning: 'Edit config.json. The server is running: restart it, or run plugins.unload / plugins.load in the console to reload the plugin.',
+    configLoadFailed: 'Failed to load config',
+    configSaved: 'Config saved',
+    configSavedRunning: 'Config saved; it takes effect after the plugin is reloaded or the server restarts',
+    configSaveFailed: 'Failed to save config',
+    invalidJson: 'Invalid JSON: {message}',
+    format: 'Format'
   },
 
   // Logs
@@ -1197,7 +1275,13 @@ BabyImprintAmountMultiplier=1.0`
     downloadFailed: 'Failed to download logs',
     empty: 'No logs yet (the container has not been created or just started)',
     scrollToBottom: 'Jump to bottom',
-    hint: 'This is the container output: server download progress, mod installation and game startup. Detailed game logs are in the Logs folder of the save directory.'
+    hint: 'This is the container output: server download progress, mod installation and game startup. Switch to "Game log" for the game\'s own log.',
+    source: 'Log source',
+    sourceContainer: 'Container output',
+    sourceGame: 'Game log',
+    hideProgress: 'Hide download progress',
+    gameEmpty: 'No game log yet (it is created once the server starts loading the map)',
+    gameHint: 'The last 2000 lines of Logs/ShooterGame.log in the save directory, refreshed every 5 seconds. The log of the last run is still available after the server stops.'
   },
 
   // Console
@@ -1352,7 +1436,8 @@ BabyImprintAmountMultiplier=1.0`
     passwordKeepHint: 'Leave empty to keep the current password',
     passwordKeepPlaceholder: 'Leave empty to keep unchanged',
     generate: 'Generate',
-    modsHint: 'Workshop mod IDs separated by commas; mod names are shown below',
+    modsHint: 'Workshop mod IDs or links separated by commas; mod names are shown below',
+    browseWorkshop: 'Browse mods on the Workshop',
     clusterHint: 'Servers with the same cluster ID can transfer characters, dinos and items (shared cluster storage). Letters, digits, _ . - only.',
     autoRestart: 'Restart on crash',
     autoRestartHint: 'Docker restarts the server automatically if the game process exits unexpectedly',
@@ -1402,6 +1487,12 @@ BabyImprintAmountMultiplier=1.0`
     backups: 'Backups',
     total: 'Total',
     clusterVolume: 'Cluster storage {name}',
+    unusedCluster: 'Unused cluster data {name}',
+    deleteCluster: 'Delete',
+    deleteClusterTitle: 'Delete cluster data',
+    deleteClusterDesc: 'Delete the shared storage of cluster {name} ({size}), including transferred characters and items. No server uses it any more. This cannot be undone.',
+    clusterDeleted: 'Deleted cluster data {name}',
+    clusterDeleteFailed: 'Failed to delete cluster data',
     downloadStarted: 'Started downloading {name}',
     downloadFailed: 'Failed to download the image',
     diskFailed: 'Failed to compute disk usage'
@@ -1423,7 +1514,23 @@ BabyImprintAmountMultiplier=1.0`
     tooLong: 'New password can be at most 72 bytes',
     mismatch: 'The new passwords do not match',
     changed: 'Password changed',
-    failed: 'Failed to change the password'
+    failed: 'Failed to change the password',
+    version: {
+      title: 'About',
+      check: 'Check for updates',
+      current: 'Current version',
+      latest: 'Latest version',
+      dev: 'Development build',
+      loadFailed: 'Failed to load version info',
+      checkFailed: 'Failed to check for a new version: {error}',
+      updateAvailable: 'Version v{version} is available. Run this in the directory containing docker-compose.yml:',
+      upgradeHint: 'This pulls the latest image and recreates the commander container. Data in ./data is kept, and running ARK server containers keep running.',
+      copy: 'Copy command',
+      copied: 'Command copied',
+      copyFailed: 'Copy failed, please copy manually',
+      upToDate: 'You are on the latest version',
+      devHint: 'This is a local development build, so versions are not compared'
+    }
   }
 }
 

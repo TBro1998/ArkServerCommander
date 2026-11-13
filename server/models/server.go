@@ -74,10 +74,12 @@ type ServerResponse struct {
 	// 有已保存但尚未写入数据卷的配置文件修改，下次启动时生效
 	ConfigPending bool `json:"config_pending"`
 	// 容器仍在使用旧镜像，下次启动时会重建
-	ImageOutdated bool   `json:"image_outdated"`
-	UserID        uint   `json:"user_id"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ImageOutdated bool `json:"image_outdated"`
+	// 创意工坊上有更新的 Mod ID（更新时间晚于安装时间），由后台定期检查
+	ModsOutdated []string `json:"mods_outdated,omitempty"`
+	UserID       uint     `json:"user_id"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
 	// 配置文件内容
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容

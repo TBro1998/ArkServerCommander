@@ -140,20 +140,15 @@ const gameUserSettingsParams: Record<GameUserSettingsCategoryKey, Record<string,
     AllowCaveBuildingPvP: { type: 'boolean', default: false },
     PvEAllowStructuresAtSupplyDrops: { type: 'boolean', default: false },
     AllowCrateSpawnsOnTopOfStructures: { type: 'boolean', default: false },
-    bAllowPlatformSaddleMultiFloors: { type: 'boolean', default: false },
     MaxGateFrameOnSaddles: { type: 'number', default: 0, min: 0, max: 100 }
   },
   tribeSettings: {
-    MaxNumberOfPlayersInTribe: { type: 'number', default: 0, min: 0, max: 500 },
     TribeNameChangeCooldown: { type: 'number', default: 15, min: 0, max: 1440 },
-    PreventTribeAlliances: { type: 'boolean', default: false },
-    MaxAlliancesPerTribe: { type: 'number', default: 10, min: 0, max: 100 },
-    MaxTribesPerAlliance: { type: 'number', default: 10, min: 0, max: 100 }
+    PreventTribeAlliances: { type: 'boolean', default: false }
   },
   breedingSettings: {
     AllowAnyoneBabyImprintCuddle: { type: 'boolean', default: false },
-    DisableImprintDinoBuff: { type: 'boolean', default: false },
-    BabyImprintingStatScaleMultiplier: { type: 'number', default: 1.0, min: 0.1, max: 10, step: 0.1 }
+    DisableImprintDinoBuff: { type: 'boolean', default: false }
   },
   itemSettings: {
     ClampItemSpoilingTimes: { type: 'boolean', default: false },
