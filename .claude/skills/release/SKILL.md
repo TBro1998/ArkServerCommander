@@ -95,25 +95,26 @@ gh release view vX.Y.Z
 
 ## ASE-Server-Docker 子模块的发布
 
-子模块的 CI（`ase-server.yml`）只构建并推送 Docker 镜像，不创建 GitHub Release。Release 完全由 Claude 手动创建，不需要写进 tag 正文。
+子模块的 CI（`ase-server.yml`）和主仓库一致：推送 `v*` tag 后构建推送镜像，再取附注 tag 的正文创建 GitHub Release，后面接上镜像名。所以子模块也用附注 tag，打 tag 流程和主仓库相同（`--cleanup=whitespace`、第一行概括、空行、正文）。
 
 变更收集：
 ```bash
 git log <上一个tag>..<新tag> --format='%h %ad %s%n%n%b%n----' --date=short
 ```
 
-创建 Release：
+读者是使用 ARK Server Commander 的服主：镜像改了什么、是否需要在首页"镜像管理"更新、对已运行的服务器有什么影响。不写 dockerfile 里的实现细节。
+
+创建附注 tag（同主仓库第 6 步）：
 ```bash
 NOTES=$(mktemp)
-# 写入说明（无需概括行，直接写正文）
-gh release create <tag> --repo TBro1998/ASE-Server-Docker --title <tag> --notes-file "$NOTES"
+# 写入 NOTES：第一行概括，空行，正文
+git tag -a vX.Y.Z -F "$NOTES" --cleanup=whitespace
+git tag -l --format='%(contents:body)' vX.Y.Z    # 检查 ## 标题都还在
+git push origin vX.Y.Z
 rm "$NOTES"
 ```
 
-注意：
-- 子模块的 tag 都是轻量 tag（`git tag v0.1.x`），不是附注 tag，取不到正文
-- 预发布判断同主仓库：tag 名含 `-` 时加 `--prerelease`，否则不加
-- 同样要给用户确认后再创建
+子模块的 tag 以前是轻量 tag，CI 会当作没有正文处理，Release 只含镜像信息。从下次发版起改用附注 tag。
 
 ## 给已发布的 Release 补写说明
 
