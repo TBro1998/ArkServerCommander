@@ -11,29 +11,31 @@
 
 ### ✅ Implemented Features
 - 🐳 Each ARK server runs in an independent Docker container
-- 🔌 Servers come with ArkApi pre-installed, with the plugin directory on its own Docker volume
+- 🔌 Servers come with ArkApi pre-installed, with the plugin directory mounted separately
 - 🔄 Server containers support automatic restart on crash
-- ⬆️ Server files are updated and mods downloaded on a container's first start (repeated after the container is recreated)
-- 💾 Docker volumes are created automatically for saves, configs and plugins, and are kept when a server is deleted
-- 🖥️ Add and manage multiple ARK servers
+- ⬆️ Server files and mods are downloaded on first start and kept on their own volume, so recreating a container does not download them again; new servers copy server files from an already installed server
+- 💾 Saves, configs, plugins and server files live under `data/servers/<id>/` and can be managed directly on the host; they are kept when a server is deleted unless you choose to delete them
+- 🖥️ Add and manage multiple ARK servers, with cluster support (shared cluster directory)
 - ⚙️ Edit GameUserSettings.ini, Game.ini and launch arguments visually or as text
-- ▶️ One-click server start/stop; containers are recreated automatically on start after launch arguments or mods change
+- ▶️ One-click server start/stop/restart; containers are recreated automatically on start after launch arguments or mods change
+- 📊 Status monitoring: download and mod install progress, joinable state, online players, CPU/memory/disk
+- 📋 Live server log viewing
+- 🎮 RCON console: run commands, broadcast, save world; kick/ban online players
+- 💾 Save backups: manual backup, download, upload, restore
+- ⏰ Scheduled tasks: restart (with advance broadcast), backup, update, command, start/stop
+- ⚡ One-click server file and mod updates, or automatic update on every start
 - 🖼️ Docker image management: download, check for updates, update; after an update, servers recreate their containers with the new image on next start, or running servers can be restarted right away
-- 🔐 Administrator login (JWT authentication, secret generated automatically by the backend, no configuration needed)
+- 🔐 Administrator login (JWT authentication, secret generated automatically by the backend, no configuration needed), with password change
 - 🌐 Chinese / English interface
 - 📝 API documentation (Swagger, available when running the backend locally)
 
 ### 🚧 Planned Features
-- 🎮 RCON command execution
-- 📊 Server running status monitoring
-- 🎨 Mod management integration with Steam Workshop
+See [docs/DEV_PLAN.md](docs/DEV_PLAN.md) for the development plan and progress.
+- 🎨 Mod management integration with Steam Workshop (mod names are shown already)
 - 🔧 ArkApi plugin management
-- 📋 Server log viewing
-- 💾 Server save and configuration backup
-- 👤 User management (password change, multiple users)
+- 👤 Multi-user management
 - 🔍 Tool version update checking
-- ⚡ Optional server files and mod updates
-- 🔌 MCP (Mod Configuration Protocol) support
+- 🔌 MCP (Model Context Protocol) support
 
 ### 🚀 Future Plans
 - ☸️ Multi-host management based on K8S
@@ -45,7 +47,7 @@
 ### 🔧 System Requirements
 
 - 8GB+ memory per ARK server (recommended)
-- 10GB+ disk space per ARK server
+- 20GB+ disk space per ARK server
 
 ### 📦 Install 1Panel
 We recommend installing 1Panel on your server to manage the Docker environment
@@ -109,17 +111,17 @@ sudo docker-compose up -d
 ## ❓ FAQ
 
 ### ❓ Q: How to backup ARK server data?
-A: Server data backup is not implemented yet. Saves and configs are stored in the Docker volume `ase-server-<server_number>` and ArkApi plugins in `ase-server-plugins-<server_number>`; you can back them up manually. Deleting a server does not remove these volumes; run `docker volume rm` when you no longer need them.
+A: Use the "Backups" tab on the server detail page to back up, download, upload and restore saves, or add a scheduled backup under "Schedules". Backups are stored in `data/backups/<server_id>/`. All server data lives under `data/servers/<server_id>/` on the host, which you can also back up yourself.
 
 ### ❓ Q: How to view ARK server logs?
-A: The server program currently cannot output logs directly in docker logs, you need to view the server log files, and we'll see how to optimize this later.
+A: Open the "Logs" tab on the server detail page to follow logs live, pause, filter and download them. The game's own `ShooterGame.log` is under `data/servers/<server_id>/saved/Logs` and is not shown in the UI yet.
 
 ### ❓ Q: How to update ARK server images?
 A: After logging in, click "Check Updates" under image management on the home page, then click "Update" when a new version is available. When confirming you can choose:
 - **Update Image Only**: running servers are not affected and recreate their containers with the new image on next start
 - **Update Image and Restart Running Servers**: once the download finishes, those servers are stopped, recreated and started again
 
-Servers still on the old image show an "Old Image" badge on their card. The first start after a container is recreated re-validates server files and re-downloads mods, which takes a while; saves and configs live in volumes and are not lost.
+Servers still on the old image show an "Old Image" badge on their card. Server files, saves and configs live in volumes, so recreating a container loses nothing and does not download them again.
 
 ### ❓ Q: Where is the login secret? Do I need to configure it?
 A: No. On first start the backend generates a strong random secret and stores it in `jwt_secret` in the data directory (the mounted `./data/jwt_secret`). Deleting that file and restarting the container invalidates all logged-in sessions.
