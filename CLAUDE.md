@@ -42,15 +42,20 @@ npx tsc --noEmit  # 类型检查
 
 ### Docker
 
-- `docker-compose.yml`：正式部署，拉取已发布的镜像 `tbro98/arkservercommander:latest`，不读取 `.env`（需要的环境变量直接写进 `environment`）
-- `docker-compose.dev.yml`：开发用，从本地源码构建（镜像 `arkservercommander:dev`，版本号 `dev`），可选读取 `.env`。服务名、容器名、端口和 `./data` 与正式部署相同，切换时替换同一个容器，不要同时运行
+`docker-compose.yml` 是正式部署文件，拉取已发布的镜像 `tbro98/arkservercommander:latest`，不读取 `.env`（需要的环境变量直接写进 `environment`）。
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d --build   # 从源码构建并启动
-docker compose -f docker-compose.dev.yml logs -f         # 查看日志
-docker compose -f docker-compose.dev.yml down            # 停止
-docker compose up -d                                     # 正式部署（拉取发布镜像）
+docker compose up -d       # 启动
+docker compose logs -f     # 查看日志
+docker compose down        # 停止
+docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 ```
+
+### 本地开发运行
+
+`bash dev.sh` 在本机同时运行后端（`go run .`，`127.0.0.1:8081`）和前端开发服务器（`next dev`，`http://localhost:3000`），不构建镜像，Ctrl+C 同时停止。默认值：`DB_PATH=data-dev/ark_server.db`（数据、`jwt_secret`、备份和 ARK 服务器文件都在 `data-dev/`，已加入 `.gitignore`）、`GIN_MODE=debug`、`LOG_FORMAT=console`，前端的 `API_BASE` 指向后端端口；都可以在运行前 export 覆盖，端口用 `SERVER_PORT` / `UI_PORT`。脚本不读取 `.env`（`.env.example` 里的 `DB_PATH=/data/...` 是容器内路径）。
+
+注意：ARK 服务器容器名是 `ase-server-<id>`，不要和正式部署在同一个 Docker 上同时使用；ARK 容器写入 `data-dev/servers/` 的文件属主是 root，以普通用户运行时删除服务器数据可能失败。
 
 ## 环境变量
 
@@ -71,7 +76,7 @@ docker compose up -d                                     # 正式部署（拉取
 - `NEXT_PUBLIC_API_BASE`：开发环境回退值；都未设置时回退到 `http://127.0.0.1:8080/api`
 - `COOKIE_SECURE`：通过 HTTPS 访问时设为 `true`，纯 HTTP 时保持 `false`，否则无法登录
 
-示例见 `.env.example`。`docker-compose.dev.yml` 中 `.env` 是可选的（`required: false`），不建 `.env` 也能直接启动；正式的 `docker-compose.yml` 不读取 `.env`。
+示例见 `.env.example`。`docker-compose.yml` 和 `dev.sh` 都不读取 `.env`。
 
 ## 架构概览
 
@@ -211,7 +216,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ## 测试
 
-测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）。启停流程、RCON、配置暂存、备份恢复和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）。启停流程、RCON、配置暂存、备份恢复和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 

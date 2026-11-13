@@ -20,17 +20,44 @@ interface ImageStatusProps {
 }
 
 type ImageEntry = ImageStatusType['images'][string];
+type LayerEntry = NonNullable<ImageEntry['layers']>[string];
 
-// 用各层的已下载字节估算整体进度；层大小未知时按已完成层数估算
-function pullProgress(status: ImageEntry): number {
-  const layers = Object.values(status.layers ?? {});
-  if (layers.length === 0) return 0;
-  const total = layers.reduce((sum, l) => sum + (l.size || 0), 0);
-  if (total > 0) {
-    const done = layers.reduce((sum, l) => sum + (l.status === 'complete' ? l.size : Math.min(l.progress, l.size)), 0);
-    return Math.min((done / total) * 100, 100);
+// 一层的工作分为下载和解压，下载占大头
+const DOWNLOAD_SHARE = 0.8;
+
+// 单层完成比例（0–1），progress 是当前阶段（下载或解压）的字节数
+function layerFraction(l: LayerEntry): number {
+  const ratio = l.size > 0 ? Math.min(l.progress / l.size, 1) : 0;
+  switch (l.status) {
+    case 'downloading':
+      return DOWNLOAD_SHARE * ratio;
+    case 'verifying':
+    case 'downloaded':
+      return DOWNLOAD_SHARE;
+    case 'extracting':
+      return DOWNLOAD_SHARE + (1 - DOWNLOAD_SHARE) * ratio;
+    case 'complete':
+      return 1;
+    default:
+      return 0;
   }
-  return (layers.filter((l) => l.status === 'complete').length / layers.length) * 100;
+}
+
+// 整体进度按层大小加权。排队中的层要等开始下载才知道大小，先按已知层的平均大小估算，
+// 否则只有一层开始下载时，已知总量就只有这一层，会显示 100%。本地已有的层不算在内
+function pullProgress(status: ImageEntry): number {
+  const layers = Object.values(status.layers ?? {}).filter((l) => l.status !== 'exists');
+  if (layers.length === 0) return 0;
+  const known = layers.filter((l) => l.size > 0);
+  const avg = known.length > 0 ? known.reduce((sum, l) => sum + l.size, 0) / known.length : 1;
+  let total = 0;
+  let done = 0;
+  for (const l of layers) {
+    const weight = l.size > 0 ? l.size : avg;
+    total += weight;
+    done += weight * layerFraction(l);
+  }
+  return Math.min((done / total) * 100, 100);
 }
 
 // 镜像管理：每个镜像一行，状态 + 当前能做的操作放在同一行
@@ -135,12 +162,18 @@ export function ImageStatus({
                             <li key={layerId} className="space-y-1.5">
                               <div className="flex items-center justify-between text-xs">
                                 <span className="font-mono text-muted-foreground">{layer.id.substring(0, 12)}</span>
-                                <span className={layer.status === 'complete' ? 'text-green-700' : 'text-muted-foreground'}>
+                                <span className={layer.status === 'complete' || layer.status === 'exists' ? 'text-green-700' : 'text-muted-foreground'}>
                                   {t(`layerStatus.${layer.status}`)}
                                 </span>
                               </div>
                               <Progress
-                                value={layer.size > 0 ? Math.min((layer.progress / layer.size) * 100, 100) : layer.status === 'complete' ? 100 : 0}
+                                value={
+                                  layer.status === 'complete' || layer.status === 'exists'
+                                    ? 100
+                                    : layer.size > 0
+                                      ? Math.min((layer.progress / layer.size) * 100, 100)
+                                      : 0
+                                }
                                 className="h-1.5"
                               />
                               <div className="num text-xs text-muted-foreground">

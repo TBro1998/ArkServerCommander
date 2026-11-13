@@ -223,7 +223,9 @@ const messages = {
         downloading: '下载中',
         extracting: '解压中',
         verifying: '验证中',
-        complete: '已完成'
+        downloaded: '已下载',
+        complete: '已完成',
+        exists: '本地已有'
       }
     },
     cannotDeleteRunning: '无法删除正在运行的服务器，请先停止服务器',

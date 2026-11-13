@@ -31,7 +31,7 @@ type LayerStatus struct {
 	ID       string `json:"id"`       // 层级ID
 	Size     int64  `json:"size"`     // 层级大小
 	Progress int64  `json:"progress"` // 已下载大小
-	Status   string `json:"status"`   // 层级状态：downloading, extracting, verifying, complete
+	Status   string `json:"status"`   // 层级状态：pending, downloading, verifying, downloaded, extracting, complete, exists（本地已有）
 }
 
 // ImageStatus 镜像状态信息
@@ -144,59 +144,9 @@ func (dm *DockerManager) pullImage(imageName string) error {
 		}
 
 		imagePullMutex.Lock()
-
-		// 处理层级信息
-		layerID := progressInfo.ID
-		if layerID != "" {
-			imagePullCurrentLayer[imageName] = layerID
-
-			// 确保层级存在
-			if imagePullLayers[imageName][layerID] == nil {
-				imagePullLayers[imageName][layerID] = &LayerStatus{
-					ID:       layerID,
-					Size:     0,
-					Progress: 0,
-					Status:   "pending",
-				}
-			}
-
-			// 更新层级大小信息
-			if progressInfo.ProgressDetail != nil {
-				if progressInfo.ProgressDetail.Total > 0 {
-					imagePullLayers[imageName][layerID].Size = progressInfo.ProgressDetail.Total
-				}
-				if progressInfo.ProgressDetail.Current > 0 {
-					imagePullLayers[imageName][layerID].Progress = progressInfo.ProgressDetail.Current
-				}
-			}
-
-			// 如果ProgressDetail中没有大小信息，尝试从Progress字符串中解析
-			if imagePullLayers[imageName][layerID].Size == 0 && progressInfo.Progress != "" {
-				if size := parseSizeFromProgress(progressInfo.Progress); size > 0 {
-					imagePullLayers[imageName][layerID].Size = size
-				}
-			}
-
-			// 更新层级状态
-			if strings.Contains(progressInfo.Status, "Downloading") {
-				imagePullLayers[imageName][layerID].Status = "downloading"
-			} else if strings.Contains(progressInfo.Status, "Extracting") {
-				imagePullLayers[imageName][layerID].Status = "extracting"
-			} else if strings.Contains(progressInfo.Status, "Verifying") {
-				imagePullLayers[imageName][layerID].Status = "verifying"
-			} else if strings.Contains(progressInfo.Status, "Pull complete") || strings.Contains(progressInfo.Status, "complete") {
-				imagePullLayers[imageName][layerID].Status = "complete"
-				// 完成时，如果没有大小信息，设置一个默认值
-				if imagePullLayers[imageName][layerID].Size == 0 {
-					imagePullLayers[imageName][layerID].Size = imagePullLayers[imageName][layerID].Progress
-					if imagePullLayers[imageName][layerID].Size == 0 {
-						imagePullLayers[imageName][layerID].Size = 1024 * 1024 // 默认1MB
-					}
-				}
-				imagePullLayers[imageName][layerID].Progress = imagePullLayers[imageName][layerID].Size
-			}
+		if applyPullProgress(imagePullLayers[imageName], &progressInfo) {
+			imagePullCurrentLayer[imageName] = progressInfo.ID
 		}
-
 		imagePullMutex.Unlock()
 	}
 
@@ -207,6 +157,57 @@ func (dm *DockerManager) pullImage(imageName string) error {
 	utils.Info("Docker镜像拉取成功", zap.String("image", imageName))
 
 	return nil
+}
+
+// applyPullProgress 把一条拉取进度消息记到对应层上，返回是否是层级消息。
+//
+// Docker 每层依次经过：Pulling fs layer → Waiting → Downloading → Verifying Checksum →
+// Download complete → Extracting → Pull complete；本地已有的层只有 Already exists。
+// 层的大小要等它开始下载才知道，所以排队中的层 Size 为 0，整体进度由前端估算。
+// "Pulling from <repo>" 的 ID 是镜像标签而不是层，不能记成一层
+func applyPullProgress(layers map[string]*LayerStatus, msg *ImagePullProgress) bool {
+	if msg.ID == "" || strings.HasPrefix(msg.Status, "Pulling from") {
+		return false
+	}
+
+	layer := layers[msg.ID]
+	if layer == nil {
+		layer = &LayerStatus{ID: msg.ID, Status: "pending"}
+		layers[msg.ID] = layer
+	}
+
+	var current, total int64
+	if msg.ProgressDetail != nil {
+		current, total = msg.ProgressDetail.Current, msg.ProgressDetail.Total
+	}
+	if total <= 0 && msg.Progress != "" {
+		total = parseSizeFromProgress(msg.Progress)
+	}
+	// 以下载阶段的大小（压缩后的层大小）为准，解压阶段的 total 只在还不知道大小时使用
+	if total > 0 && (layer.Size == 0 || strings.HasPrefix(msg.Status, "Downloading")) {
+		layer.Size = total
+	}
+
+	switch {
+	case strings.HasPrefix(msg.Status, "Downloading"):
+		layer.Status = "downloading"
+		layer.Progress = current
+	case strings.HasPrefix(msg.Status, "Verifying"):
+		layer.Status = "verifying"
+		layer.Progress = layer.Size
+	case strings.HasPrefix(msg.Status, "Download complete"):
+		layer.Status = "downloaded"
+		layer.Progress = layer.Size
+	case strings.HasPrefix(msg.Status, "Extracting"):
+		layer.Status = "extracting"
+		layer.Progress = current
+	case strings.HasPrefix(msg.Status, "Pull complete"):
+		layer.Status = "complete"
+		layer.Progress = layer.Size
+	case strings.HasPrefix(msg.Status, "Already exists"):
+		layer.Status = "exists"
+	}
+	return true
 }
 
 // ImageExists 检查Docker镜像是否存在

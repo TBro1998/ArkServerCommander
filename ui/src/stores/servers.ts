@@ -72,7 +72,7 @@ export interface ImageStatus {
             layers?: {
                 [layerId: string]: {
                     id: string;
-                    status: 'pending' | 'downloading' | 'extracting' | 'verifying' | 'complete';
+                    status: 'pending' | 'downloading' | 'verifying' | 'downloaded' | 'extracting' | 'complete' | 'exists';
                     progress: number;
                     size: number;
                 };

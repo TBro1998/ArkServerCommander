@@ -223,7 +223,9 @@ const messages = {
         downloading: 'Downloading',
         extracting: 'Extracting',
         verifying: 'Verifying',
-        complete: 'Complete'
+        downloaded: 'Downloaded',
+        complete: 'Complete',
+        exists: 'Already exists'
       }
     },
     cannotDeleteRunning: 'Cannot delete running server, please stop it first',
