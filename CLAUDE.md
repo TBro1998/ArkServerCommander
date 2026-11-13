@@ -194,6 +194,10 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - `Button` 会给没有 `size-*` 类的图标强制设为 `size-4`，按钮里的图标要改大小时用 `size-3.5` 这类写法，`h-3 w-3` 不生效
 - 按钮禁用时浏览器不显示 `title`，需要说明原因时把 `title` 放在外层 `span` 上（见 `ServerActions`、服务器列表的"添加服务器"）
 
+### 发布
+
+推送 `v*` tag 触发 `docker-build.yml`：构建推送镜像后创建 GitHub Release，内容取附注 tag 的正文（第一行概括之后的部分），再接上镜像信息。更新说明由 Claude 根据上一个 tag 以来的提交生成，流程见 `.claude/skills/release/SKILL.md`（打 tag 必须用 `--cleanup=whitespace`，否则 `##` 标题会被当注释删掉）。仓库直接提交到 main，GitHub 自动生成的 "What's Changed" 是空的。
+
 ### 提交前检查
 
 ```bash
