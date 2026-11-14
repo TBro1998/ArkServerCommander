@@ -8,7 +8,6 @@ import (
 
 type Server struct {
 	ID            uint   `json:"id" gorm:"primarykey"`
-	Identifier    string `json:"identifier" gorm:"not null"`
 	SessionName   string `json:"session_name" gorm:"default:'ARK Server'"` // 服务器名称
 	ClusterID     string `json:"cluster_id" gorm:"default:''"`             // 集群ID
 	Port          int    `json:"port" gorm:"not null;default:7777"`
@@ -38,7 +37,6 @@ type Server struct {
 }
 
 type ServerRequest struct {
-	Identifier    string `json:"identifier" binding:"required"`
 	SessionName   string `json:"session_name"` // 服务器名称
 	ClusterID     string `json:"cluster_id"`   // 集群ID
 	Port          int    `json:"port" binding:"required,min=1,max=65535"`
@@ -60,7 +58,6 @@ type ServerRequest struct {
 
 type ServerResponse struct {
 	ID          uint   `json:"id"`
-	Identifier  string `json:"identifier"`
 	SessionName string `json:"session_name"` // 服务器名称
 	ClusterID   string `json:"cluster_id"`   // 集群ID
 	Port        int    `json:"port"`
@@ -97,7 +94,6 @@ type ServerResponse struct {
 // ServerUpdateRequest 更新服务器请求：所有字段都是可选的，没传（或为零值）的字段保持不变。
 // ClusterID 和 GameModIds 使用指针，传空字符串表示清空
 type ServerUpdateRequest struct {
-	Identifier    string  `json:"identifier"`
 	SessionName   string  `json:"session_name"` // 服务器名称
 	ClusterID     *string `json:"cluster_id"`   // 集群ID，传空字符串表示清空
 	Port          int     `json:"port" binding:"omitempty,min=1,max=65535"`

@@ -3242,7 +3242,6 @@
             "type": "object",
             "required": [
                 "admin_password",
-                "identifier",
                 "port",
                 "query_port",
                 "rcon_port"
@@ -3277,9 +3276,6 @@
                 },
                 "game_user_settings": {
                     "description": "配置文件内容（可选）",
-                    "type": "string"
-                },
-                "identifier": {
                     "type": "string"
                 },
                 "map": {
@@ -3361,9 +3357,6 @@
                 },
                 "id": {
                     "type": "integer"
-                },
-                "identifier": {
-                    "type": "string"
                 },
                 "image": {
                     "description": "服务器使用的镜像，由 arkapi 决定",
@@ -3461,9 +3454,6 @@
                 },
                 "game_user_settings": {
                     "description": "配置文件内容（可选）",
-                    "type": "string"
-                },
-                "identifier": {
                     "type": "string"
                 },
                 "map": {

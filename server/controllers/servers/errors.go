@@ -22,7 +22,6 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrArkApiNotFound):
 		status = http.StatusNotFound
 	case errors.Is(err, server.ErrInvalidServerID),
-		errors.Is(err, server.ErrIdentifierExists),
 		errors.Is(err, server.ErrServerRunning),
 		errors.Is(err, server.ErrAlreadyRunning),
 		errors.Is(err, server.ErrAlreadyStarting),

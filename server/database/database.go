@@ -36,6 +36,13 @@ func InitDB() {
 		utils.Fatal("数据库迁移失败", zap.Error(err))
 	}
 
+	// 服务器标识已移除，旧库里的 identifier 列是 NOT NULL，不删掉会导致新建服务器失败
+	if DB.Migrator().HasColumn(&models.Server{}, "identifier") {
+		if err := DB.Migrator().DropColumn(&models.Server{}, "identifier"); err != nil {
+			utils.Fatal("数据库迁移失败", zap.Error(err))
+		}
+	}
+
 	if addingArkApi {
 		res := DB.Exec("UPDATE servers SET arkapi = ?", true)
 		if res.Error != nil {

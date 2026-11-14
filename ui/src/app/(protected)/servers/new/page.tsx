@@ -13,7 +13,6 @@ import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 
 const DEFAULTS: Partial<Server> = {
-  identifier: '',
   session_name: 'ARK Server',
   cluster_id: '',
   port: 7777,

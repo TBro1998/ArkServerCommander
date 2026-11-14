@@ -10,7 +10,6 @@ import (
 var (
 	ErrInvalidServerID     = errors.New("无效的服务器ID")
 	ErrServerNotFound      = errors.New("服务器不存在")
-	ErrIdentifierExists    = errors.New("服务器标识已存在")
 	ErrServerRunning       = errors.New("无法删除正在运行的服务器，请先停止服务器")
 	ErrAlreadyRunning      = errors.New("服务器已在运行中")
 	ErrAlreadyStarting     = errors.New("服务器正在启动中")
@@ -52,7 +51,6 @@ var errorCodes = []struct {
 }{
 	{ErrInvalidServerID, "invalid_server_id"},
 	{ErrServerNotFound, "server_not_found"},
-	{ErrIdentifierExists, "identifier_exists"},
 	{ErrServerRunning, "server_running"},
 	{ErrAlreadyRunning, "already_running"},
 	{ErrAlreadyStarting, "already_starting"},

@@ -43,7 +43,6 @@ func createTestServer(t *testing.T, port, queryPort, rconPort int) models.Server
 	t.Helper()
 
 	s := models.Server{
-		Identifier:    fmt.Sprintf("s%d", port),
 		SessionName:   "test",
 		Port:          port,
 		QueryPort:     queryPort,

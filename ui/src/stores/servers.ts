@@ -26,7 +26,6 @@ export interface RuntimeInfo {
 // 定义服务器对象类型
 export interface Server {
     id: number;
-    identifier?: string;
     cluster_id?: string;
     session_name: string;
     // 后端可能返回 restarting、unknown 等临时状态，只用于展示

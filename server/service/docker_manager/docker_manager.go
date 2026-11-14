@@ -83,7 +83,6 @@ func CheckDockerStatus() error {
 
 // CreateContainer 创建ARK服务器容器（不自动启动）
 // serverID: 服务器ID
-// serverName: 服务器名称
 // port: 游戏端口
 // queryPort: 查询端口
 // rconPort: RCON端口
@@ -92,7 +91,7 @@ func CheckDockerStatus() error {
 // gameModIds: 游戏模组ID列表，用逗号分隔
 // autoRestart: 是否自动重启
 // 返回: 容器ID和错误信息
-func (dm *DockerManager) CreateContainer(serverID uint, serverName string, port, queryPort, rconPort int, adminPassword, mapName, gameModIds string, autoRestart bool) (string, error) {
+func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPort int, adminPassword, mapName, gameModIds string, autoRestart bool) (string, error) {
 	containerName := utils.GetServerContainerName(serverID)
 	volumeName := utils.GetServerVolumeName(serverID)
 

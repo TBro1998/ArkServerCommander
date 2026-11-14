@@ -8,7 +8,6 @@ import (
 
 func testServer() Server {
 	return Server{
-		Identifier:    "survival",
 		SessionName:   "My Ark Server",
 		ClusterID:     "cluster-a",
 		Port:          7777,

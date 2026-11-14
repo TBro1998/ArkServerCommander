@@ -47,8 +47,7 @@ func (a *serverArgsInput) toRequest() *models.ServerArgsRequest {
 }
 
 type createServerInput struct {
-	Identifier       string           `json:"identifier" jsonschema:"Unique short identifier for the server, e.g. island-pve"`
-	SessionName      string           `json:"session_name,omitempty" jsonschema:"Name shown in the in-game server browser"`
+	SessionName      string           `json:"session_name,omitempty" jsonschema:"Name shown in the in-game server browser (default ARK Server)"`
 	Map              string           `json:"map,omitempty" jsonschema:"Map name: TheIsland (default), TheCenter, ScorchedEarth_P, Aberration_P, Extinction, Ragnarok, Valguero_P, Genesis, Genesis2, CrystalIsles, LostIsland, Fjordur, or a mod map name"`
 	MaxPlayers       int              `json:"max_players,omitempty" jsonschema:"Player slots, 1-200 (default 70)"`
 	Port             int              `json:"port,omitempty" jsonschema:"Game port (UDP, port+1 is also used). Omit to pick free ports automatically"`
@@ -67,7 +66,6 @@ type createServerInput struct {
 
 type updateServerInput struct {
 	ServerID         uint             `json:"server_id" jsonschema:"Server ID (from list_servers)"`
-	Identifier       string           `json:"identifier,omitempty" jsonschema:"New identifier"`
 	SessionName      string           `json:"session_name,omitempty" jsonschema:"New name shown in the server browser"`
 	Map              string           `json:"map,omitempty" jsonschema:"New map name"`
 	MaxPlayers       int              `json:"max_players,omitempty" jsonschema:"Player slots, 1-200"`
@@ -141,7 +139,6 @@ func registerServerTools(r *registry) {
 		"Create a new ARK server. Ports and admin password are filled in automatically when omitted. The container is created on first start; call start_server afterwards. The first start downloads about 20 GB unless another installed server can be copied.",
 		func(_ context.Context, userID uint, in createServerInput) (any, error) {
 			req := models.ServerRequest{
-				Identifier:       in.Identifier,
 				SessionName:      in.SessionName,
 				ClusterID:        in.ClusterID,
 				Port:             in.Port,
@@ -157,9 +154,6 @@ func registerServerTools(r *registry) {
 				GameUserSettings: in.GameUserSettings,
 				GameIni:          in.GameIni,
 				ServerArgs:       in.ServerArgs.toRequest(),
-			}
-			if req.SessionName == "" {
-				req.SessionName = req.Identifier
 			}
 			if req.MaxPlayers == 0 {
 				req.MaxPlayers = 70
@@ -203,7 +197,6 @@ func registerServerTools(r *registry) {
 		"Change server settings. Only the fields you pass are changed. Changes to ports, map, mods, name or launch arguments take effect after a restart; config file edits on a running server are stored as pending and applied on next start.",
 		func(_ context.Context, userID uint, in updateServerInput) (any, error) {
 			req := models.ServerUpdateRequest{
-				Identifier:       in.Identifier,
 				SessionName:      in.SessionName,
 				ClusterID:        in.ClusterID,
 				Port:             in.Port,

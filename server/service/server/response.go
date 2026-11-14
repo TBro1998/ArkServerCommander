@@ -13,7 +13,6 @@ import (
 func toResponse(server models.Server) models.ServerResponse {
 	response := models.ServerResponse{
 		ID:            server.ID,
-		Identifier:    server.Identifier,
 		SessionName:   server.SessionName,
 		ClusterID:     server.ClusterID,
 		Port:          server.Port,

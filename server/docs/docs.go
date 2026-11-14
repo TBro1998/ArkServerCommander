@@ -3248,7 +3248,6 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "admin_password",
-                "identifier",
                 "port",
                 "query_port",
                 "rcon_port"
@@ -3283,9 +3282,6 @@ const docTemplate = `{
                 },
                 "game_user_settings": {
                     "description": "配置文件内容（可选）",
-                    "type": "string"
-                },
-                "identifier": {
                     "type": "string"
                 },
                 "map": {
@@ -3367,9 +3363,6 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
-                },
-                "identifier": {
-                    "type": "string"
                 },
                 "image": {
                     "description": "服务器使用的镜像，由 arkapi 决定",
@@ -3467,9 +3460,6 @@ const docTemplate = `{
                 },
                 "game_user_settings": {
                     "description": "配置文件内容（可选）",
-                    "type": "string"
-                },
-                "identifier": {
                     "type": "string"
                 },
                 "map": {

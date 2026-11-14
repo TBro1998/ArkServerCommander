@@ -222,8 +222,6 @@ definitions:
       game_user_settings:
         description: 配置文件内容（可选）
         type: string
-      identifier:
-        type: string
       map:
         type: string
       max_players:
@@ -252,7 +250,6 @@ definitions:
         type: string
     required:
     - admin_password
-    - identifier
     - port
     - query_port
     - rcon_port
@@ -287,8 +284,6 @@ definitions:
         type: string
       id:
         type: integer
-      identifier:
-        type: string
       image:
         description: 服务器使用的镜像，由 arkapi 决定
         type: string
@@ -354,8 +349,6 @@ definitions:
         type: string
       game_user_settings:
         description: 配置文件内容（可选）
-        type: string
-      identifier:
         type: string
       map:
         type: string

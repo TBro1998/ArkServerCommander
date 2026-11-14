@@ -81,7 +81,6 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
 
   const validate = (): boolean => {
     const next: Record<string, string> = {};
-    if (!form.identifier?.trim()) next.identifier = t('identifierRequired');
     if (mode === 'create' && !form.admin_password) next.admin_password = t('passwordRequired');
     if (form.admin_password && /[\r\n]/.test(form.admin_password)) next.admin_password = t('passwordNoNewline');
     for (const key of ['port', 'query_port', 'rcon_port'] as const) {
@@ -102,7 +101,6 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
     if (!validate()) return;
     const data: Partial<Server> = {
       ...form,
-      identifier: form.identifier?.trim(),
       cluster_id: form.cluster_id?.trim() ?? '',
       game_mod_ids: normalizeModIds(form.game_mod_ids ?? ''),
     };
@@ -165,16 +163,6 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Field label={tEdit('serverName')} htmlFor="session_name" hint={t('sessionNameHint')}>
                     <Input id="session_name" name="session_name" value={form.session_name || ''} onChange={handleChange} />
-                  </Field>
-                  <Field label={`${tEdit('serverIdentifier')} *`} htmlFor="identifier" hint={t('identifierHint')} error={errors.identifier}>
-                    <Input
-                      id="identifier"
-                      name="identifier"
-                      value={form.identifier || ''}
-                      onChange={handleChange}
-                      placeholder={tEdit('serverIdentifierPlaceholder')}
-                      aria-invalid={!!errors.identifier}
-                    />
                   </Field>
                   <div className="space-y-1">
                     <MapSelector value={form.map || ''} onChange={(value) => update({ map: value })} label={tEdit('map')} />

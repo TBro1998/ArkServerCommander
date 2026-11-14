@@ -87,12 +87,6 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 
 // CreateServer 创建新服务器
 func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*models.ServerResponse, error) {
-	// 检查服务器标识是否已存在
-	var existingServer models.Server
-	if err := database.DB.Where("identifier = ? AND user_id = ?", req.Identifier, userID).First(&existingServer).Error; err == nil {
-		return nil, ErrIdentifierExists
-	}
-
 	if err := checkPorts(0, req.Port, req.QueryPort, req.RCONPort); err != nil {
 		return nil, err
 	}
@@ -104,6 +98,9 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	req.ClusterID, req.GameModIds = clusterID, modIDs
 
 	// 设置默认值
+	if req.SessionName == "" {
+		req.SessionName = "ARK Server"
+	}
 	if req.Map == "" {
 		req.Map = "TheIsland"
 	}
@@ -123,7 +120,6 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 
 	// 创建服务器
 	server := models.Server{
-		Identifier:    req.Identifier,
 		SessionName:   req.SessionName,
 		ClusterID:     req.ClusterID,
 		Port:          req.Port,
@@ -202,7 +198,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		}
 		gameUserSettings = req.GameUserSettings
 	} else {
-		gameUserSettings = utils.GetDefaultGameUserSettings(server.Identifier, server.Map, 70)
+		gameUserSettings = utils.GetDefaultGameUserSettings(server.SessionName, server.Map, 70)
 	}
 
 	if req.GameIni != "" {
@@ -425,10 +421,9 @@ func (s *ServerService) GetServerRCON(userID uint, serverID string) (map[string]
 	}
 
 	return map[string]interface{}{
-		"server_id":         server.ID,
-		"server_identifier": server.Identifier,
-		"rcon_port":         server.RCONPort,
-		"admin_password":    server.AdminPassword,
+		"server_id":      server.ID,
+		"rcon_port":      server.RCONPort,
+		"admin_password": server.AdminPassword,
 	}, nil
 }
 
@@ -442,15 +437,6 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	var server models.Server
 	if err = database.DB.Where("id = ? AND user_id = ?", id, userID).First(&server).Error; err != nil {
 		return nil, false, ErrServerNotFound
-	}
-
-	// 检查标识是否冲突
-	if req.Identifier != "" && req.Identifier != server.Identifier {
-		var existingServer models.Server
-		if err = database.DB.Where("identifier = ? AND user_id = ? AND id != ?", req.Identifier, userID, id).First(&existingServer).Error; err == nil {
-			return nil, false, ErrIdentifierExists
-		}
-		server.Identifier = req.Identifier
 	}
 
 	// 更新字段：字符串字段为空表示不修改；集群ID和模组ID用指针，传空字符串表示清空
@@ -894,7 +880,7 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 
 	// 创建容器
 	if !containerExists || needRecreateContainer {
-		_, err = dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.GameModIds, server.AutoRestart)
+		_, err = dockerManager.CreateContainer(server.ID, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.GameModIds, server.AutoRestart)
 		if err != nil {
 			return fmt.Errorf("创建容器失败: %w", err)
 		}
@@ -1163,7 +1149,7 @@ func (s *ServerService) UpdateImage(imageName string, userID uint, restartRunnin
 // restartServer 停止并重新启动服务器，启动时会按当前镜像和配置重建容器
 func (s *ServerService) restartServer(server models.Server, dockerManager *docker_manager.DockerManager) {
 	if err := s.restartWith(server, dockerManager, nil); err == nil {
-		utils.Info("服务器已重启", zap.String("identifier", server.Identifier))
+		utils.Info("服务器已重启", zap.Uint("server_id", server.ID))
 	}
 }
 
@@ -1301,7 +1287,7 @@ func (s *ServerService) runRecreate(server models.Server, dockerManager *docker_
 	}
 
 	// CreateContainer 发现同名容器时会先删除
-	_, err := dockerManager.CreateContainer(server.ID, server.Identifier, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.GameModIds, server.AutoRestart)
+	_, err := dockerManager.CreateContainer(server.ID, server.Port, server.QueryPort, server.RCONPort, server.AdminPassword, server.Map, server.GameModIds, server.AutoRestart)
 	if err != nil {
 		utils.Error("重建容器失败", zap.Uint("server_id", server.ID), zap.Error(err))
 		finishOperation(server.ID, "stopped", "重建容器失败: "+err.Error())
@@ -1309,7 +1295,7 @@ func (s *ServerService) runRecreate(server models.Server, dockerManager *docker_
 	}
 
 	finishOperation(server.ID, "stopped", "")
-	utils.Info("服务器容器重建完成", zap.String("identifier", server.Identifier))
+	utils.Info("服务器容器重建完成", zap.Uint("server_id", server.ID))
 }
 
 // GetImageStatus 获取镜像状态

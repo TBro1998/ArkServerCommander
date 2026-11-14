@@ -111,7 +111,6 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
           <CardTitle className="font-display text-base">{t('config')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Row label={t('identifier')}>{server.identifier}</Row>
           <Row label={t('map')}>{mapName(server.map)}</Row>
           <Row label={t('maxPlayers')}>{server.max_players}</Row>
           <Row label={t('cluster')}>{server.cluster_id || t('none')}</Row>
