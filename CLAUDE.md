@@ -55,6 +55,8 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 
 `bash dev.sh` 在本机同时运行后端（`go run .`，`127.0.0.1:8081`）和前端开发服务器（`next dev`，`http://localhost:3000`），不构建镜像，Ctrl+C 同时停止。默认值：`DB_PATH=data-dev/ark_server.db`（数据、`jwt_secret`、备份和 ARK 服务器文件都在 `data-dev/`，已加入 `.gitignore`）、`GIN_MODE=debug`、`LOG_FORMAT=console`，前端的 `API_BASE` 指向后端端口；都可以在运行前 export 覆盖，端口用 `SERVER_PORT` / `UI_PORT`。脚本不读取 `.env`（`.env.example` 里的 `DB_PATH=/data/...` 是容器内路径）。
 
+Windows 上用 PowerShell 运行 `.\dev.ps1`（执行策略不允许时 `powershell -ExecutionPolicy Bypass -File .\dev.ps1`），默认值和 `dev.sh` 相同，用 `$env:XXX = '...'` 覆盖。需要 Docker Desktop（Linux 容器）：数据目录用 `E:/...` 这样的 Windows 路径作为绑定卷的 `device`，Docker Desktop 能识别，不用设置 `HOST_DATA_DIR`；脚本按当前 `docker context` 设置 `DOCKER_HOST`（后端的 Docker SDK 不读 context）；前端直接用 `node` 运行 next，不经过 `npx.cmd`；退出时用 `taskkill /T` 结束两个进程树。`dev.ps1` 要保存为带 BOM 的 UTF-8，否则 Windows PowerShell 5.1 会把中文读成乱码。ARK 文件在 Windows 磁盘上，经文件共享挂进容器，读写较慢。
+
 注意：ARK 服务器容器名是 `ase-server-<id>`，不要和正式部署在同一个 Docker 上同时使用；ARK 容器写入 `data-dev/servers/` 的文件属主是 root，以普通用户运行时删除服务器数据可能失败。
 
 ## 环境变量
