@@ -49,8 +49,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 匹配所有路径，但排除静态文件和API路由
+  // 匹配所有路径，但排除静态文件、API 路由和 MCP 入口
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|mcp|_next/static|_next/image|favicon.ico).*)',
   ]
 };

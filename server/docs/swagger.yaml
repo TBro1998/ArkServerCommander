@@ -21,6 +21,51 @@ definitions:
     required:
     - image_name
     type: object
+  models.APIToken:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      name:
+        type: string
+      prefix:
+        description: 令牌开头几位，用于在列表中辨认
+        type: string
+      read_only:
+        description: 只读令牌只能调用查询类工具
+        type: boolean
+    type: object
+  models.APITokenCreated:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      name:
+        type: string
+      prefix:
+        description: 令牌开头几位，用于在列表中辨认
+        type: string
+      read_only:
+        description: 只读令牌只能调用查询类工具
+        type: boolean
+      token:
+        type: string
+    type: object
+  models.APITokenRequest:
+    properties:
+      name:
+        type: string
+      read_only:
+        type: boolean
+    required:
+    - name
+    type: object
   models.RuntimeInfo:
     properties:
       copy_source:
@@ -2475,6 +2520,86 @@ paths:
       summary: 版本信息
       tags:
       - 系统
+  /tokens:
+    get:
+      description: 列出当前用户的 MCP 访问令牌（不含令牌明文）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 令牌列表
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.APIToken'
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出 MCP 访问令牌
+      tags:
+      - 用户
+    post:
+      consumes:
+      - application/json
+      description: 生成一个长期有效的令牌，供 Agent 通过 /mcp 调用。响应中的 token 是明文，只返回这一次。read_only
+        为 true 时只能调用查询类工具
+      parameters:
+      - description: 令牌名称和权限
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.APITokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 新令牌
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.APITokenCreated'
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建 MCP 访问令牌
+      tags:
+      - 用户
+  /tokens/{id}:
+    delete:
+      description: 删除令牌，使用它的 Agent 立即失去访问权限
+      parameters:
+      - description: 令牌ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已撤销
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 令牌不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 撤销 MCP 访问令牌
+      tags:
+      - 用户
 securityDefinitions:
   Bearer:
     description: JWT token in the format "Bearer {token}"

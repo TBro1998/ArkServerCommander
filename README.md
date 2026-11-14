@@ -32,6 +32,7 @@
 - 🧹 Clean up cluster data that is no longer used
 - 🌐 Chinese / English interface
 - 📝 API documentation (Swagger, available when running the backend locally)
+- 🤖 MCP endpoint for agents (Claude Code, Claude Desktop, Cursor…), with full-control or read-only access tokens
 
 ### 🚧 Planned Features
 See [docs/DEV_PLAN.md](docs/DEV_PLAN.md) for the development plan and progress.
@@ -95,6 +96,25 @@ sudo docker-compose up -d
 ### 🖥️ Managing Servers
 1. After logging in, click "Server Management"
 2. Click "Add Server" to create a new server configuration
+
+### 🤖 Agent Access (MCP)
+The commander exposes an MCP (Model Context Protocol) server so agents can manage servers without the web UI: list status, start/stop/restart, create and edit servers, change individual config keys, run RCON commands, view logs and players, manage backups, schedules, plugins and images.
+
+1. Open **Settings → Agent access (MCP)**, enter a token name and click **Create** (turn on **Read-only** for an agent that should only look). The token is shown only once.
+2. Add the server to your agent. For Claude Code:
+   ```bash
+   claude mcp add --transport http ark-commander http://<host>:8080/mcp --header "Authorization: Bearer <token>"
+   ```
+   Other clients use the same URL (Streamable HTTP) and `Authorization` header; the settings page shows a ready-to-copy JSON config.
+3. Revoke a token on the same page; it stops working immediately.
+
+**Let your agent install it.** Replace `<host>` and `<token>` below, then paste the whole paragraph to your agent (Claude Code, Cursor, Codex, etc.):
+
+```text
+Please connect to my ARK Server Commander via MCP. Add an MCP server named "ark-commander" using the Streamable HTTP transport, URL http://<host>:8080/mcp, with the request header "Authorization: Bearer <token>". If you are Claude Code, run: claude mcp add --transport http --scope user ark-commander http://<host>:8080/mcp --header "Authorization: Bearer <token>". Otherwise add the equivalent entry to your MCP client config file ({"mcpServers": {"ark-commander": {"type": "http", "url": "http://<host>:8080/mcp", "headers": {"Authorization": "Bearer <token>"}}}}), merging it with any existing servers instead of overwriting them. Keep the token out of version control and do not echo it back to me. When done, tell me if a restart or reload is needed to load the server; once its tools are available, call list_servers and summarize each server's name, status, map and online players.
+```
+
+The endpoint uses the same port as the web UI. If it is reachable from the internet, put it behind an HTTPS reverse proxy, because the token is sent with every request. Uploading plugins and uploading/downloading backups are only available in the web UI.
 
 ### 🗺️ Supported Maps - Can be extended with custom additions later
 - The Island

@@ -32,6 +32,7 @@
 - 🧹 清理不再使用的集群数据
 - 🌐 中文/英文界面切换
 - 📝 API文档（Swagger，本地直接运行后端时可访问）
+- 🤖 MCP 接口，Claude Code、Claude Desktop、Cursor 等 Agent 可以直接管理服务器，支持完全控制和只读两种令牌
 
 ### 🚧 待实现功能
 开发计划和进度见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)。
@@ -95,6 +96,25 @@ sudo docker-compose up -d
 ### 🖥️ 管理服务器
 1. 登录后点击"服务器管理"
 2. 点击"添加服务器"创建新的服务器配置
+
+### 🤖 Agent 接入（MCP）
+管理器内置 MCP（Model Context Protocol）服务，Agent 不需要网页界面就能管理服务器：查看状态、启停和重启、创建和修改服务器、修改单个配置项、执行 RCON 命令、查看日志和在线玩家、管理备份、定时任务、插件和镜像。
+
+1. 打开 **设置 → Agent 接入（MCP）**，填写令牌名称后点击 **创建**（只想让 Agent 查看时打开 **只读**）。令牌只显示一次。
+2. 在 Agent 中添加 MCP 服务，以 Claude Code 为例：
+   ```bash
+   claude mcp add --transport http ark-commander http://<主机>:8080/mcp --header "Authorization: Bearer <令牌>"
+   ```
+   其他客户端使用同一个地址（Streamable HTTP）和 `Authorization` 请求头，设置页提供可直接复制的 JSON 配置。
+3. 在同一页面撤销令牌后立即失效。
+
+**让 Agent 自己安装。** 把下面的 `<主机>` 和 `<令牌>` 换成实际值，再把整段话发给你的 Agent（Claude Code、Cursor、Codex 等）：
+
+```text
+请通过 MCP 连接我的 ARK Server Commander。添加一个名为 "ark-commander" 的 MCP 服务，传输方式为 Streamable HTTP，地址 http://<主机>:8080/mcp，请求头 "Authorization: Bearer <令牌>"。如果你是 Claude Code，执行：claude mcp add --transport http --scope user ark-commander http://<主机>:8080/mcp --header "Authorization: Bearer <令牌>"；否则把等价的配置写进你的 MCP 客户端配置文件（{"mcpServers": {"ark-commander": {"type": "http", "url": "http://<主机>:8080/mcp", "headers": {"Authorization": "Bearer <令牌>"}}}}），与已有的服务合并，不要覆盖。令牌不要提交到版本库，也不要在回复里原样输出。完成后告诉我是否需要重启或重新加载才能生效；工具可用后调用 list_servers，汇总每台服务器的名称、状态、地图和在线人数。
+```
+
+MCP 地址和网页使用同一个端口。如果暴露在公网，请放在 HTTPS 反向代理后面，因为每次请求都会带上令牌。上传插件、上传和下载备份只能在网页上操作。
 
 ### 🗺️ 支持的地图 - 后续可扩展自定义增加
 - The Island (孤岛)

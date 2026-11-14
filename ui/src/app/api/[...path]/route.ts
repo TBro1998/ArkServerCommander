@@ -14,6 +14,10 @@ async function proxy(request: NextRequest, { params }: { params: Promise<{ path:
   if (path.some((segment) => segment === '.' || segment === '..')) {
     return NextResponse.json({ error: '请求路径无效' }, { status: 400 });
   }
+  // MCP 走单独的 /mcp 路由（用 API 令牌认证）；这里会带上登录 cookie，令牌校验失败时还会把 cookie 清掉
+  if (path[0] === 'mcp') {
+    return NextResponse.json({ error: 'MCP 地址是 /mcp', code: 'not_found' }, { status: 404 });
+  }
 
   const token = request.cookies.get(TOKEN_COOKIE)?.value;
   const headers: Record<string, string> = {};

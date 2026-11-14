@@ -2831,6 +2831,132 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/tokens": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "列出当前用户的 MCP 访问令牌（不含令牌明文）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "列出 MCP 访问令牌",
+                "responses": {
+                    "200": {
+                        "description": "令牌列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/models.APIToken"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "生成一个长期有效的令牌，供 Agent 通过 /mcp 调用。响应中的 token 是明文，只返回这一次。read_only 为 true 时只能调用查询类工具",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "创建 MCP 访问令牌",
+                "parameters": [
+                    {
+                        "description": "令牌名称和权限",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.APITokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "新令牌",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.APITokenCreated"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/tokens/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除令牌，使用它的 Agent 立即失去访问权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "撤销 MCP 访问令牌",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "令牌ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已撤销",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "令牌不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2861,6 +2987,73 @@ const docTemplate = `{
                 },
                 "restart_running": {
                     "description": "是否立即重启运行中的服务器以应用新镜像",
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.APIToken": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "prefix": {
+                    "description": "令牌开头几位，用于在列表中辨认",
+                    "type": "string"
+                },
+                "read_only": {
+                    "description": "只读令牌只能调用查询类工具",
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.APITokenCreated": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "prefix": {
+                    "description": "令牌开头几位，用于在列表中辨认",
+                    "type": "string"
+                },
+                "read_only": {
+                    "description": "只读令牌只能调用查询类工具",
+                    "type": "boolean"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.APITokenRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "read_only": {
                     "type": "boolean"
                 }
             }

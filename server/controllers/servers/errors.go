@@ -39,6 +39,7 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrInvalidPlugin),
 		errors.Is(err, server.ErrInvalidPluginConfig),
 		errors.Is(err, server.ErrInvalidArkApi),
+		errors.Is(err, server.ErrInvalidConfigValue),
 		errors.Is(err, server.ErrArkApiBuiltin),
 		errors.Is(err, server.ErrImageNotAllowed):
 		status = http.StatusBadRequest

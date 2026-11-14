@@ -5,6 +5,7 @@ import (
 	"ark-server-commander/controllers/images"
 	"ark-server-commander/controllers/servers"
 	"ark-server-commander/controllers/system"
+	"ark-server-commander/mcpserver"
 	"ark-server-commander/middleware"
 	"fmt"
 
@@ -40,12 +41,21 @@ func RegisterRoutes(r *gin.Engine) {
 			authRoutes.POST("/login", auth.Login)
 		}
 
+		// MCP：供 Agent 调用，使用 API 令牌认证（不接受登录 JWT），对外由 Next 的 /mcp 转发。
+		// 无状态模式只处理 POST，GET / DELETE 返回 405
+		api.Any("/mcp", gin.WrapH(mcpserver.Handler()))
+
 		// 需要认证的路由
 		protected := api.Group("") // 改为空字符串，避免双斜杠
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/profile", auth.GetProfile)
 			protected.PUT("/auth/password", auth.ChangePassword)
+
+			// MCP 访问令牌：只能用登录 JWT 管理，令牌本身不能创建或撤销令牌
+			protected.GET("/tokens", auth.ListAPITokens)
+			protected.POST("/tokens", auth.CreateAPIToken)
+			protected.DELETE("/tokens/:id", auth.DeleteAPIToken)
 
 			// 系统信息
 			protected.GET("/system/overview", system.GetOverview)

@@ -31,7 +31,7 @@ func InitDB() {
 	addingArkApi := DB.Migrator().HasTable(&models.Server{}) && !DB.Migrator().HasColumn(&models.Server{}, "arkapi")
 
 	// 自动迁移数据库结构
-	err = DB.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{})
+	err = DB.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{})
 	if err != nil {
 		utils.Fatal("数据库迁移失败", zap.Error(err))
 	}

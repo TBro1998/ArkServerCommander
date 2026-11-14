@@ -86,6 +86,7 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 
 ```
 浏览器 → Next.js（:8080，对外）→ Go 后端（127.0.0.1:8081，仅容器内）→ Docker Socket → ARK 服务器容器
+Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 ```
 
 - Go 后端不托管前端静态文件，只提供 `/api`、`/health` 和 `/swagger`
@@ -103,6 +104,8 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 - `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`mods.go`（Mod 安装状态和更新检查，后台每 30 分钟）、`plugins.go`（ArkApi 插件）、`arkapi.go`（ArkApi 版本库和安装）、`images.go`（启动时自动拉取镜像、哪些镜像是必需的）、`gamelog.go`（读取 ShooterGame.log）、`clusters.go`（未使用的集群）、`version.go`（GitHub 最新版本）、`response.go`（`toResponse`）
 - `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行 python3 脚本、`RunHelper` 跑一次性 alpine 容器）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）、`installed_mods.go`（读写 `.installed_mods`）、`clusters.go`（列出和删除集群卷）、`storage.go`（数据目录布局，`ServerFilesDir` 等返回后端本地路径，插件、Mod 记录、游戏日志直接读写这些目录，不经过临时容器）
 - `middleware/`：`auth.go`（JWT 校验）、`cors.go`（白名单 CORS）
+- `mcpserver/`：MCP 服务（官方 `github.com/modelcontextprotocol/go-sdk`），见下文"MCP 接口"
+- `service/apitoken/`：MCP 用的 API 令牌（创建、列出、撤销、校验），`controllers/auth/tokens.go` 是对应接口
 - `models/`：GORM 模型 User、Server、Schedule，以及请求和响应结构。`ServerResponse` 不包含管理员密码，`image_outdated` 表示容器用的不是服务器当前应使用的镜像（镜像更新过或切换了 ArkApi），`arkapi` 决定镜像，`image` 是由它得出的镜像名，`runtime` 是运行中服务器的实时信息（阶段、人数、资源），`mods_outdated` 是创意工坊上有更新的 Mod。注意：带 `default:true` 的 bool 字段（`AutoRestart`、`Schedule.Enabled`）创建时 GORM 会把 false 换成 true，需要创建后显式写回
 - `utils/`：日志、JWT、密码、命名和镜像名常量（`asm_info.go`，`ArkServerLinuxImage` / `ArkServerProtonImage`，`ArkServerImageFor(arkApi)` 选镜像）、配置文件模板（`config_files.go`）、版本号（`version.go`，构建时用 `-ldflags -X ark-server-commander/utils.Version=` 注入，默认 `dev`）
 - `docs/`：swag 生成的 Swagger 文件，不要手改
@@ -110,7 +113,8 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 ### API 路由（均以 `/api` 开头）
 
 - 公开：`GET /auth/check-init`、`POST /auth/init`、`POST /auth/login`
-- 需 JWT：`GET /profile`、`PUT /auth/password`
+- 需 JWT：`GET /profile`、`PUT /auth/password`、`GET|POST /tokens`、`DELETE /tokens/:id`（MCP 令牌，只能用 JWT 管理）
+- MCP：`POST /mcp`（API 令牌认证，不接受 JWT；无状态模式下 GET / DELETE 返回 405）
 - 服务器：`GET|POST /servers`、`GET|PUT|DELETE /servers/:id`（`?delete_data=true` 同时删卷和备份）、`POST /servers/:id/start|stop|restart|recreate`、`POST /servers/:id/update-game`（`{game, mods, mod_ids}`）、`GET /servers/:id/rcon`（管理员密码）
 - 运维：`GET /servers/:id/logs?tail=`、`GET /servers/:id/logs/stream`（SSE）、`GET /servers/:id/logs/game?tail=`（ShooterGame.log）、`POST /servers/:id/rcon/command`、`GET /servers/:id/players`、`GET /servers/:id/mods?refresh=`（Mod 安装和更新状态）
 - 插件：`GET|POST /servers/:id/plugins`（multipart `file`，可选 `name`）、`PUT|DELETE /servers/:id/plugins/:name`（`{enabled}`）、`GET|PUT /servers/:id/plugins/:name/config`、`GET|PUT /servers/:id/arkapi/config`（`{content}`）、`POST /servers/:id/arkapi/install`（`{version}`，为空装最新版本）
@@ -124,7 +128,8 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 
 - `app/(auth)/`：登录、初始化页面
 - `app/(protected)/`：需登录页面（`home` 概览、`servers` 列表、`servers/new`、`servers/[id]` 详情（概览 / 控制台 / 日志 / 备份 / 定时任务 / 插件，`?tab=` 选择标签）、`servers/[id]/edit`、`settings`）
-- `app/api/`：服务端路由。`auth/{login,init,logout}` 处理令牌 cookie；`[...path]` 是通配代理，请求体和响应体都以流转发（支持上传、下载和 SSE），并转发 `X-Forwarded-For`
+- `app/api/`：服务端路由。`auth/{login,init,logout}` 处理令牌 cookie；`[...path]` 是通配代理，请求体和响应体都以流转发（支持上传、下载和 SSE），并转发 `X-Forwarded-For`；它拒绝 `/api/mcp`（会带上登录 cookie，令牌无效时还会清 cookie）
+- `app/mcp/route.ts`：MCP 入口，原样转发到后端 `/api/mcp`，透传 `Authorization`、`Accept`、`Mcp-*` 头，不读 cookie。`proxy.ts` 的 matcher 排除了 `mcp`
 - `proxy.ts`：Next 16 中原 `middleware.ts` 的新约定。负责语言 cookie（`NEXT_LOCALE`）和登录重定向
 - `lib/backend-server.ts`：`getApiBase`、令牌 cookie 读写、`authProxy`
 - `lib/api-error.ts`：`useApiError()`（中文界面显示后端 `error`，其他语言按 `apiErrors.<code>` 翻译）和旧的 `getErrorMessage`；`lib/toast.ts`：全局通知（`toast.success/error`）；`lib/format.ts`：大小、时间、随机密码、复制；`hooks/use-polling.ts`：页面可见时轮询；`lib/ini.ts`：`mergeIni`，INI 文本的就地合并；`lib/images.ts`：镜像名常量和显示名称
@@ -132,7 +137,7 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 - 视觉风格（方舟游戏内界面风格的深色 HUD）：根节点固定 `className="dark"`，`globals.css` 定义主题变量（深蓝底色、半透明面板 `--card`、青色 `--primary`、琥珀色 `--amber` 表示进行中、终端底色 `--terminal`）。`@theme` 里把 Tailwind 的 `gray/red/green/amber/yellow/blue/sky/purple/orange` 色阶整体**反转**：数字小的是深色背景色调，数字大的是浅色文字，所以 `bg-red-50 text-red-800` 这类写法在深色下自然是"深红底 + 浅红字"。新代码照此约定：背景用 50–200，图标和圆点用 400–600，文字用 600–900；不要用 `bg-white`、`text-gray-200` 这类按浅色主题思路写的类。自定义工具类（用 `@utility` 定义，可以加变体前缀）：`hud`（左上、右下青色角标，元素本身要有定位）、`hud-caps`（英文大写加字距，用于导航、标题和主要按钮，中文不受影响）、`glow-text`、`font-display`（Saira，来自 `@fontsource-variable/saira`，本地打包）、`num`（等宽数字）。不使用游戏的图片、Logo 或字体等素材，只借鉴界面风格。状态徽章三种颜色：绿色可用、琥珀色进行中、石色已停止
 - 地图颜色：`lib/maps.ts` 的 `mapColor` 给每张地图一个固定颜色，服务器卡片、详情页顶部（`MapBand`，停止时变灰）、首页名单和地图选择器都用它；`hooks/use-map-name.ts` 取地图显示名
 - 公共组件：`PageHeader`（页面标题行）、`AuthShell`（登录 / 初始化外框，含 `FormError`）、`Wordmark`、`components/ui/page-loader.tsx`（统一加载状态）；`TabsList variant="line"` 用于页面级标签（详情页、服务器表单）
-- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ConnectionInfo`、ini 可视化编辑器；`components/settings/VersionCard`（版本和升级命令）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
+- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ConnectionInfo`、ini 可视化编辑器；`components/settings/VersionCard`（版本和升级命令）、`components/settings/McpCard`（MCP 地址和令牌管理）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
 
 ### 认证流程
@@ -142,6 +147,18 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 3. 其他 `/api/*` 请求经通配代理：从 cookie 取令牌，转成 `Authorization: Bearer <token>` 发给后端；后端返回 401 时清除 cookie
 4. 前端脚本读不到令牌，页面加载时通过 `restoreSession`（请求 `/api/profile`）确认登录状态；退出登录调用 `/api/auth/logout`
 5. `proxy.ts` 只检查 cookie 是否存在来做页面重定向，令牌真伪由后端校验
+
+## MCP 接口
+
+让 Agent 脱离前端管理服务器。`mcpserver/` 用 `mcp.NewStreamableHTTPHandler`（`Stateless` + `JSONResponse`）挂在后端 `/api/mcp`，外层 `auth.RequireBearerToken` 用 `apitoken.Verify` 校验令牌。
+
+- 令牌：`asc_` + 32 字节随机数（base64url），表 `api_tokens` 只存 SHA-256 和前几位 `prefix`，明文只在创建时返回一次；没有过期时间，撤销即失效；令牌所属用户不存在时无效；`last_used_at` 最多每分钟写一次
+- 权限：启动时建两个 `mcp.Server`，按令牌的 scope 选择。只读令牌的服务器只注册 `query` 工具；`action`（修改类）和 `secret`（如 `get_admin_password`）只注册到完全控制的服务器，只读令牌看不到也调用不了
+- 工具直接调用 service 层（不经过 HTTP），用户 ID 来自 `req.Extra.TokenInfo.UserID`。输入用 MCP 专用结构（带 `omitempty` 和 `jsonschema` 描述，jsonschema-go 把没有 `omitempty` 的字段当必填），再转成 `models` 请求并用 `binding.Validator.ValidateStruct` 套用 REST 的同一套校验。服务层错误返回为 `[错误码] 中文信息`
+- 列表结果包在对象里（`{"servers": [...]}`），结构化输出是对象
+- 不提供文件上传下载（插件 zip、备份上传 / 下载、ArkApi 压缩包上传）
+- `set_config_values` 调用 `ServerService.SetConfigValues`：以暂存配置或卷里的文件为基础用 `utils.SetIniValue` 改键，读取失败直接报错（不能当空文件覆盖）；同名键会合并，需要重复的键（如 `OverrideNamedEngramEntries`）要用 `update_server` 传完整内容
+- 新增工具时：在 `mcpserver/tools_*.go` 用 `query` / `secret` / `action(additive|idempotent|destructive)` 注册，描述用英文写清楚异步行为和前置条件；服务器说明在 `mcpserver.go` 的 `instructions`
 
 ## Docker 集成
 
@@ -217,7 +234,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ## 测试
 
-测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）。启停流程、RCON、配置暂存、备份恢复和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）、`server/service/apitoken/apitoken_test.go`（令牌生成、校验、撤销）、`server/mcpserver/mcpserver_test.go`（用 SDK 客户端走真实 HTTP：令牌认证、只读令牌的工具过滤、错误码）。启停流程、RCON、配置暂存、备份恢复和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 
@@ -236,6 +253,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 默认配置模板按 `docs/ASE_Game.ini.md` / `docs/ASE_GameUserSetting.md` 分配：倍率、难度、昼夜速度在 GameUserSettings.ini 的 `[ServerSettings]`，Game.ini 只放自己的选项，都在 `[/script/shootergame.shootergamemode]`。旧服务器的 Game.ini 里可能还留着这些无效的键，可视化编辑器不再显示它们。未在真实服务器验证
 - 创意工坊搜索接口需要 Steam Web API Key，没有做站内搜索，只支持粘贴链接
 - 版本检查依赖访问 `api.github.com`（未认证每小时 60 次，结果缓存 6 小时）
+- MCP 令牌长期有效、权限是整个账户（完全控制或只读两档），没有按服务器限制；MCP 和网页共用对外端口，公网暴露时需要 HTTPS 反向代理，否则令牌明文传输
 - `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`），`can_create_server` 取决于 alpine 镜像是否就绪
 
 ## 故障排除
