@@ -55,9 +55,6 @@ func ArkServerImageFor(arkApi bool) string {
 	return ArkServerLinuxImage
 }
 
-// AlpineImage 读写卷内文件的临时容器使用的镜像
-const AlpineImage = "alpine:latest"
-
 // GetClusterVolumeName 集群共享卷名称：cluster_id 相同的服务器挂载同一个卷，跨服传送的数据存放在这里
 func GetClusterVolumeName(clusterID string) string {
 	return "ase-cluster-" + clusterID

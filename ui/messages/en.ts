@@ -216,7 +216,6 @@ const messages = {
       arkServerLinux: 'ARK server (Linux)',
       arkServerProton: 'ARK server (Proton, ArkApi)',
       notRequired: 'Not used by any server yet. Downloaded automatically when a server needs it.',
-      alpineSystem: 'Alpine System',
       // Layer information
       layerDetails: 'Layer Details',
       layers: 'Layers',

@@ -18,14 +18,14 @@ type clusterInput struct {
 	ClusterID string `json:"cluster_id" jsonschema:"Cluster ID (from get_system_overview unused_clusters)"`
 }
 
-const imageNames = "tbro98/ase-server:linux (native Linux server, used when arkapi is off), tbro98/ase-server:proton (Windows server under Proton, used when arkapi is on) or alpine:latest (helper image)"
+const imageNames = "tbro98/ase-server:linux (native Linux server, used when arkapi is off) or tbro98/ase-server:proton (Windows server under Proton, used when arkapi is on)"
 
 type imageInput struct {
-	ImageName string `json:"image_name" jsonschema:"One of: tbro98/ase-server:linux (native Linux server, used when arkapi is off), tbro98/ase-server:proton (Windows server under Proton, used when arkapi is on), alpine:latest (helper image)"`
+	ImageName string `json:"image_name" jsonschema:"One of: tbro98/ase-server:linux (native Linux server, used when arkapi is off) or tbro98/ase-server:proton (Windows server under Proton, used when arkapi is on)"`
 }
 
 type updateImageInput struct {
-	ImageName      string `json:"image_name" jsonschema:"One of: tbro98/ase-server:linux, tbro98/ase-server:proton, alpine:latest"`
+	ImageName      string `json:"image_name" jsonschema:"One of: tbro98/ase-server:linux or tbro98/ase-server:proton"`
 	RestartRunning bool   `json:"restart_running,omitempty" jsonschema:"Also restart running servers that use this image right away (players are disconnected). Default false: they switch on their next start"`
 }
 

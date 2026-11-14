@@ -94,22 +94,3 @@ func TestCPUPercent(t *testing.T) {
 		t.Fatalf("expected 0 without previous sample, got %v", got)
 	}
 }
-
-func TestParseFilesStates(t *testing.T) {
-	out := "1 1 1 0\n2 0 1 1\n3 0 0 0\n5 1 0 1\ngarbage\n4 1 1\n"
-	got := parseFilesStates(out)
-	want := map[uint]ServerFilesState{
-		1: {Installed: true, Windows: true},
-		2: {Installed: false, Windows: true, Linux: true},
-		3: {},
-		5: {Installed: true, Linux: true},
-	}
-	if len(got) != len(want) {
-		t.Fatalf("got %+v", got)
-	}
-	for id, st := range want {
-		if got[id] != st {
-			t.Fatalf("server %d: got %+v, want %+v", id, got[id], st)
-		}
-	}
-}

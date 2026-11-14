@@ -57,7 +57,7 @@ docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 
 Windows 上用 PowerShell 运行 `.\dev.ps1`（执行策略不允许时 `powershell -ExecutionPolicy Bypass -File .\dev.ps1`），默认值和 `dev.sh` 相同，用 `$env:XXX = '...'` 覆盖。需要 Docker Desktop（Linux 容器）：数据目录用 `E:/...` 这样的 Windows 路径作为绑定卷的 `device`，Docker Desktop 能识别，不用设置 `HOST_DATA_DIR`；脚本按当前 `docker context` 设置 `DOCKER_HOST`（后端的 Docker SDK 不读 context）；前端直接用 `node` 运行 next，不经过 `npx.cmd`；退出时用 `taskkill /T` 结束两个进程树。`dev.ps1` 要保存为带 BOM 的 UTF-8，否则 Windows PowerShell 5.1 会把中文读成乱码。ARK 文件在 Windows 磁盘上，经文件共享挂进容器，读写较慢。
 
-注意：ARK 服务器容器名是 `ase-server-<id>`，不要和正式部署在同一个 Docker 上同时使用；ARK 容器写入 `data-dev/servers/` 的文件属主是 root，以普通用户运行时删除服务器数据可能失败。
+注意：ARK 服务器容器名是 `ase-server-<id>`，不要和正式部署在同一个 Docker 上同时使用；ARK 容器写入 `data-dev/servers/` 的文件属主是 root，在 Linux 上以普通用户运行后端时，写配置文件、恢复备份、复制服务端文件和删除服务器数据都可能因权限失败（正式部署的后端容器以 root 运行；Windows 的 Docker Desktop 文件共享没有这个问题）。
 
 ## 环境变量
 
@@ -104,7 +104,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - `config/`：环境变量读取，JWT 密钥加载（环境变量优先，否则读取或生成 `jwt_secret` 文件）
 - `controllers/{auth,servers,images,system}/`：请求处理。`servers/errors.go` 的 `RespondServiceError` 用 `errors.Is` 把服务层错误映射为 HTTP 状态码，响应带 `error`（中文详情）和 `code`（错误码，见 `service/server/errors.go` 的 `errorCodes`）。`auth/ratelimit.go` 是登录失败限流
 - `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`mods.go`（Mod 安装状态和更新检查，后台每 30 分钟）、`plugins.go`（ArkApi 插件）、`arkapi.go`（ArkApi 版本库和安装）、`images.go`（启动时自动拉取镜像、哪些镜像是必需的）、`gamelog.go`（读取 ShooterGame.log）、`clusters.go`（未使用的集群）、`version.go`（GitHub 最新版本）、`response.go`（`toResponse`）
-- `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行 python3 脚本、`RunHelper` 跑一次性 alpine 容器）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）、`installed_mods.go`（读写 `.installed_mods`）、`clusters.go`（列出和删除集群卷）、`storage.go`（数据目录布局，`ServerFilesDir` 等返回后端本地路径，插件、Mod 记录、游戏日志直接读写这些目录，不经过临时容器）
+- `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行 python3 脚本）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）、`docker_seed.go`（检查和复制服务端文件）、`localfs.go`（`copyTree`，相当于 `cp -a`）、`installed_mods.go`（读写 `.installed_mods`）、`clusters.go`（列出和删除集群卷）、`storage.go`（数据目录布局，`ServerFilesDir` 等返回后端本地路径。卷里的所有文件操作——配置文件、备份导出恢复、安装标记、复制服务端文件、插件、Mod 记录、游戏日志——都直接读写这些目录，不再用临时容器，也不需要 alpine 镜像；目录内容由 ARK 容器写入，访问时用 `os.Root`，符号链接不能指到目录外）
 - `middleware/`：`auth.go`（JWT 校验）、`cors.go`（白名单 CORS）
 - `mcpserver/`：MCP 服务（官方 `github.com/modelcontextprotocol/go-sdk`），见下文"MCP 接口"
 - `service/apitoken/`：MCP 用的 API 令牌（创建、列出、撤销、校验），`controllers/auth/tokens.go` 是对应接口
@@ -178,7 +178,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 ### 服务器生命周期
 
 1. **创建**：先检查端口冲突（`checkPorts`，含游戏端口+1），再在事务内写数据库记录、创建三个卷（服务端文件卷、数据卷、插件卷）并写入默认配置文件；容器不在创建时生成，首次启动时才创建。事务未提交时 `defer` 清理已创建的卷和数据目录（`committed` 标记；事务回滚后 ID 可能被复用，残留文件会串到下一台服务器）
-2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；服务端文件卷里还没有服务端主程序时，`seed.go` 从另一台已安装完成（有 `.install_complete` 和主程序，优先已停止）的服务器复制整个文件卷（含 Mod 和 `.installed_mods`），再删掉 `.install_complete`，入口脚本启动时 validate 只下载差异，复制期间 `runtime.phase` 为 `copying`，复制失败只记日志、照常从 Steam 下载（来源优先有目标平台主程序的；目标已有任一平台主程序时不复制）；服务器要用的 ARK 镜像不存在时先自动拉取（`images.go`，期间 `runtime.phase` 为 `pulling_image`），Alpine 镜像缺失则直接报错；开启 `auto_update` 时清除安装标记；如果 `SERVER_ARGS`、`GameModIds`、`CLUSTER_VOLUME`、重启策略（`auto_restart`）与当前配置不同，或容器的镜像 ID 不是 `ArkServerImageFor(arkapi)` 当前指向的镜像（镜像更新过或切换了 ArkApi），会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。管理员密码不在启动参数和环境变量里，每次启动前由 `syncAdminPassword` 以数据库里的值写入 `GameUserSettings.ini` 的 `[ServerSettings]`（读取失败时不会覆盖整个文件，只有 `ErrConfigNotFound` 才视为空文件）。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
+2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；服务端文件卷里还没有服务端主程序时，`seed.go` 从另一台已安装完成（有 `.install_complete` 和主程序，优先已停止）的服务器复制整个文件卷（含 Mod 和 `.installed_mods`），再删掉 `.install_complete`，入口脚本启动时 validate 只下载差异，复制期间 `runtime.phase` 为 `copying`，复制失败只记日志、照常从 Steam 下载（来源优先有目标平台主程序的；目标已有任一平台主程序时不复制）；服务器要用的 ARK 镜像不存在时先自动拉取（`images.go`，期间 `runtime.phase` 为 `pulling_image`）；开启 `auto_update` 时清除安装标记；如果 `SERVER_ARGS`、`GameModIds`、`CLUSTER_VOLUME`、重启策略（`auto_restart`）与当前配置不同，或容器的镜像 ID 不是 `ArkServerImageFor(arkapi)` 当前指向的镜像（镜像更新过或切换了 ArkApi），会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。管理员密码不在启动参数和环境变量里，每次启动前由 `syncAdminPassword` 以数据库里的值写入 `GameUserSettings.ini` 的 `[ServerSettings]`（读取失败时不会覆盖整个文件，只有 `ErrConfigNotFound` 才视为空文件）。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
 3. **运行阶段**：容器 running 不代表能连接。`runtime.go` 每 10 秒对运行中的服务器读取最近 400 行日志判断阶段（`downloading` 含 steamcmd 进度、`installing_mods` 含 x/y、`launching`），再在容器内发 A2S_INFO，有响应即 `ready` 并拿到在线人数；同时采样 CPU/内存。结果缓存在内存，随服务器列表返回 `runtime`。阶段标志行来自 `ASE-Server-Docker/scripts/start_server.sh`，改脚本输出时要同步改 `applyPhase`
 4. **重启 / 更新游戏**：`restartWith` 先停止（如果在运行）、执行可选的 `beforeStart`、再启动；更新游戏的 `beforeStart` 是删除文件卷里的 `.install_complete` / `.installed_mods`（`mod_ids` 时只删除这些 Mod 的行），入口脚本会重新 `app_update validate` 并重新下载 Mod
 5. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（服务器卡片上有重建按钮）
@@ -186,7 +186,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 ### 存档备份
 
-备份放在 `BACKUP_DIR/<server_id>/<时间>_<类型>.tar.gz`（类型：manual / scheduled / pre-restore / uploaded，时间按 `CONTAINER_TZ`），归档内是 `Saved/`（跳过 `Logs` 和 `clusters`）。运行中备份先 RCON `SaveWorld`。恢复只能在已停止时进行：先自动做 pre-restore 备份，占位为 stopping，用 `RunHelper` 清空 `SavedArks` 和 `Config`，再 `CopyToContainer` 解压，清除暂存配置。上传的归档要通过 `ValidateBackup`（gzip、只允许 `Saved/` 下的普通文件和目录、必须有 `SavedArks`）。同一服务器的备份 / 恢复由 `backupLocks` 串行化
+备份放在 `BACKUP_DIR/<server_id>/<时间>_<类型>.tar.gz`（类型：manual / scheduled / pre-restore / uploaded，时间按 `CONTAINER_TZ`），归档内是 `Saved/`（跳过 `Logs` 和 `clusters`）。运行中备份先 RCON `SaveWorld`。恢复只能在已停止时进行：先自动做 pre-restore 备份，占位为 stopping，直接在数据目录里清空 `SavedArks` 和 `Config` 再解压（逐项检查路径，只写普通文件和目录），清除暂存配置。上传的归档要通过 `ValidateBackup`（gzip、只允许 `Saved/` 下的普通文件和目录、必须有 `SavedArks`）。同一服务器的备份 / 恢复由 `backupLocks` 串行化
 
 ### 定时任务
 
@@ -196,11 +196,11 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 1. **检查更新**：`CheckImageUpdate` 用 `DistributionInspect` 取镜像仓库中该标签的 manifest digest，与本地镜像的 `RepoDigests` 比较，不下载镜像层。结果记录在内存中，由 `/images/status` 的 `has_update` 返回，拉取成功后清除。本地构建、没有 `RepoDigests` 的镜像会一直显示有更新
 2. **更新**：先用 `ClaimPull` 原子占用拉取权（并发请求返回 409），再后台拉取新镜像，失败原因记录在镜像状态的 `error` 字段并显示在首页；拉取成功且镜像 ID 变化时会清理被替换的旧镜像（不强删，仍被容器引用时只记日志），拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
-3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记。`/images/affected` 和 `restart_running` 只涉及使用该镜像的服务器。`/images/status` 里每个镜像带 `required`：Alpine 总是需要，ARK 镜像只有在服务器用到时才算（没有服务器时算 Linux 版），`any_not_ready` 只看需要的镜像；`can_start_server` 只取决于 Alpine（ARK 镜像启动时自动拉取）
+3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记。`/images/affected` 和 `restart_running` 只涉及使用该镜像的服务器。`/images/status` 里每个镜像带 `required`：ARK 镜像只有在服务器用到时才算（没有服务器时算 Linux 版），`any_not_ready` 只看需要的镜像；`can_create_server` / `can_start_server` 恒为 true（ARK 镜像启动时自动拉取），只为兼容前端保留。`alpine:latest` 已不再使用，也不在管理的镜像里
 
 ### 配置文件
 
-GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 创建一个挂载数据卷、不启动的临时 `alpine:latest` 容器，读用 `CopyFromContainer`，写用 `CopyToContainer`（tar 写入，不经过 shell）。所以 `alpine:latest` 也是必需镜像。服务器未停止时保存的配置先存入 `pending_game_user_settings` / `pending_game_ini`（ARK 停服时会覆盖 GameUserSettings.ini），下次启动或重建前写入数据卷，响应里 `config_pending` 为 true。前端的可视化编辑器（`GameUserSettingsEditor`、`GameIniEditor`）和文本模式互相同步，可视化修改通过 `lib/ini.ts` 的 `mergeIni` 在原文本上就地合并，只写入改过的键，未知键、注释和自定义 section 原样保留。
+GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 直接读写后端本地的 `servers/<id>/saved/Config/WindowsServer/`，写入先写临时文件再改名。服务器未停止时保存的配置先存入 `pending_game_user_settings` / `pending_game_ini`（ARK 停服时会覆盖 GameUserSettings.ini），下次启动或重建前写入数据卷，响应里 `config_pending` 为 true。前端的可视化编辑器（`GameUserSettingsEditor`、`GameIniEditor`）和文本模式互相同步，可视化修改通过 `lib/ini.ts` 的 `mergeIni` 在原文本上就地合并，只写入改过的键，未知键、注释和自定义 section 原样保留。
 
 ## 开发约定
 
@@ -217,7 +217,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - `eslint-config-next` 16 带 `react-hooks` 7 规则：不要在 `useEffect` 里同步调用 `setState`，不要在渲染中调用 `Date.now()` 等不纯函数。现有做法是在事件处理器里直接更新，或在渲染期间根据 props 变化调整状态
 - 构建时 Next 会自动维护 `tsconfig.json`（`jsx: react-jsx`、`include` 里的 `.next/dev/types`），不要手动还原
 - 管理员密码不随列表返回，卡片上点击时才请求 `/api/servers/:id/rcon`，不缓存
-- 详情页用列表接口 `/api/servers` 轮询，不要轮询 `GET /servers/:id`（它会用临时容器读取配置文件，开销大）
+- 详情页用列表接口 `/api/servers` 轮询，不要轮询 `GET /servers/:id`（它会读取配置文件和 Docker 状态，开销较大）
 - 翻译用 ICU 格式：文案里不能直接写 `<xxx>`（会被当成标签）或不传参数的 `{xxx}`；新增键时中英文都要加
 - 错误提示用 `useApiError()` + `toast`，不要在 store 里写死中文
 - `Button` 会给没有 `size-*` 类的图标强制设为 `size-4`，按钮里的图标要改大小时用 `size-3.5` 这类写法，`h-3 w-3` 不生效
@@ -236,7 +236,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ## 测试
 
-测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）、`server/service/apitoken/apitoken_test.go`（令牌生成、校验、撤销）、`server/mcpserver/mcpserver_test.go`（用 SDK 客户端走真实 HTTP：令牌认证、只读令牌的工具过滤、错误码）。启停流程、RCON、配置暂存、备份恢复和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`localfs_test.go`（配置文件读写、备份导出恢复、检查和复制服务端文件）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）、`server/service/apitoken/apitoken_test.go`（令牌生成、校验、撤销）、`server/mcpserver/mcpserver_test.go`（用 SDK 客户端走真实 HTTP：令牌认证、只读令牌的工具过滤、错误码）。启停流程、RCON、配置暂存和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 
@@ -256,7 +256,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 创意工坊搜索接口需要 Steam Web API Key，没有做站内搜索，只支持粘贴链接
 - 版本检查依赖访问 `api.github.com`（未认证每小时 60 次，结果缓存 6 小时）
 - MCP 令牌长期有效、权限是整个账户（完全控制或只读两档），没有按服务器限制；MCP 和网页共用对外端口，公网暴露时需要 HTTPS 反向代理，否则令牌明文传输
-- `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`），`can_create_server` 取决于 alpine 镜像是否就绪
+- `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`）
 
 ## 故障排除
 

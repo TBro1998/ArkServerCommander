@@ -216,7 +216,6 @@ const messages = {
       arkServerLinux: 'ARK 服务器（Linux 版）',
       arkServerProton: 'ARK 服务器（Proton 版，ArkApi）',
       notRequired: '暂无服务器使用，用到时启动会自动下载',
-      alpineSystem: 'Alpine系统',
       // 层级信息
       layerDetails: '层级详情',
       layers: '层级',

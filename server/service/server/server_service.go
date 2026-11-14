@@ -22,7 +22,6 @@ import (
 var managedImages = []string{
 	utils.ArkServerLinuxImage,
 	utils.ArkServerProtonImage,
-	utils.AlpineImage, // 用于读写卷中的配置文件
 }
 
 // ServerService 服务器管理业务逻辑服务
@@ -776,13 +775,8 @@ func (s *ServerService) StartServer(userID uint, serverID string) error {
 
 // startServerAsync 异步启动服务器
 func (s *ServerService) startServerAsync(server models.Server, dockerManager *docker_manager.DockerManager, containerName string) error {
-	// 读写卷用的 Alpine 镜像必须已经存在；ARK 镜像按是否启用 ArkApi 选择，没有时自动下载
+	// ARK 镜像按是否启用 ArkApi 选择，没有时自动下载
 	imageName := utils.ArkServerImageFor(server.ArkApi)
-	if exists, err := dockerManager.ImageExists(utils.AlpineImage); err != nil {
-		return fmt.Errorf("检查镜像失败: %w", err)
-	} else if !exists {
-		return fmt.Errorf("无法启动服务器，缺失必要镜像 %s，请在首页镜像管理中下载", utils.AlpineImage)
-	}
 	if err := ensureServerImage(server.ID, imageName, dockerManager); err != nil {
 		return err
 	}
@@ -1202,7 +1196,6 @@ func (s *ServerService) restartWith(server models.Server, dockerManager *docker_
 func (s *ServerService) GetAffectedServers(imageName string, userID uint) ([]models.ServerResponse, error) {
 	affected := []models.ServerResponse{}
 	if !slices.Contains(utils.ArkServerImages, imageName) {
-		// Alpine 镜像只用于临时容器，不影响服务器
 		return affected, nil
 	}
 	servers, err := s.GetServers(userID)
@@ -1331,13 +1324,6 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		}
 	}
 
-	// 创建服务器要往数据卷写配置文件，只依赖 alpine 镜像；ARK 镜像在启动时才用到，缺失时启动会自动下载，
-	// 所以能否启动也只取决于 alpine 镜像
-	canCreate := false
-	if st, ok := imageStatuses[utils.AlpineImage]; ok {
-		canCreate = st.Ready
-	}
-
 	// 总体状态用状态码（ready / pulling / not_ready），文案由前端翻译
 	var overallStatus string
 	if allReady {
@@ -1348,12 +1334,14 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		overallStatus = "not_ready"
 	}
 
+	// 配置文件和存档由后端直接读写，ARK 镜像在启动时自动下载，创建和启动都不依赖镜像；
+	// can_create_server / can_start_server 保留给前端，恒为 true
 	return map[string]interface{}{
 		"images":            imageStatuses,
 		"any_pulling":       anyPulling,
 		"any_not_ready":     !allReady,
-		"can_create_server": canCreate,
-		"can_start_server":  canCreate,
+		"can_create_server": true,
+		"can_start_server":  true,
 		"overall_status":    overallStatus,
 		"pulling_count":     pullingCount,
 		"total_images":      len(managedImages),

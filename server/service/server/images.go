@@ -65,14 +65,14 @@ func ensureServerImage(serverID uint, imageName string, dm *docker_manager.Docke
 	return nil
 }
 
-// requiredImages 当前需要的镜像：Alpine 始终需要；ARK 镜像只算有服务器在用的，
+// requiredImages 当前需要的镜像：ARK 镜像只算有服务器在用的，
 // 没有服务器时算 Linux 版（新建服务器默认不启用 ArkApi）
 func requiredImages() (map[string]bool, error) {
 	var servers []models.Server
 	if err := database.DB.Select("id", "arkapi").Find(&servers).Error; err != nil {
 		return nil, fmt.Errorf("获取服务器列表失败: %w", err)
 	}
-	required := map[string]bool{utils.AlpineImage: true}
+	required := map[string]bool{}
 	if len(servers) == 0 {
 		required[utils.ArkServerLinuxImage] = true
 	}
