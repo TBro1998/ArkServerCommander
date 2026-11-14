@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils';
 
 interface ServerCardProps {
   server: Server;
-  canStartServer: boolean;
   publicHost: string;
 }
 
@@ -45,7 +44,7 @@ export function MapBand({ server, className, children }: { server: Server; class
   );
 }
 
-export function ServerCard({ server, canStartServer, publicHost }: ServerCardProps) {
+export function ServerCard({ server, publicHost }: ServerCardProps) {
   const t = useTranslations('serverCard');
   const tActions = useTranslations('serverActions');
   const apiError = useApiError();
@@ -217,7 +216,7 @@ export function ServerCard({ server, canStartServer, publicHost }: ServerCardPro
       </div>
 
       <footer className="flex items-center justify-between gap-2 border-t bg-black/20 px-4 py-2.5">
-        <ServerActions server={server} canStart={canStartServer} />
+        <ServerActions server={server} />
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
           <Link href={`/servers/${server.id}`}>
             {tActions('details')}

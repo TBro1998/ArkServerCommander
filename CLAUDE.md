@@ -196,7 +196,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 1. **检查更新**：`CheckImageUpdate` 用 `DistributionInspect` 取镜像仓库中该标签的 manifest digest，与本地镜像的 `RepoDigests` 比较，不下载镜像层。结果记录在内存中，由 `/images/status` 的 `has_update` 返回，拉取成功后清除。本地构建、没有 `RepoDigests` 的镜像会一直显示有更新
 2. **更新**：先用 `ClaimPull` 原子占用拉取权（并发请求返回 409），再后台拉取新镜像，失败原因记录在镜像状态的 `error` 字段并显示在首页；拉取成功且镜像 ID 变化时会清理被替换的旧镜像（不强删，仍被容器引用时只记日志），拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
-3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记。`/images/affected` 和 `restart_running` 只涉及使用该镜像的服务器。`/images/status` 里每个镜像带 `required`：ARK 镜像只有在服务器用到时才算（没有服务器时算 Linux 版），`any_not_ready` 只看需要的镜像；`can_create_server` / `can_start_server` 恒为 true（ARK 镜像启动时自动拉取），只为兼容前端保留。`alpine:latest` 已不再使用，也不在管理的镜像里
+3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记。`/images/affected` 和 `restart_running` 只涉及使用该镜像的服务器。`/images/status` 里每个镜像带 `required`：ARK 镜像只有在服务器用到时才算（没有服务器时算 Linux 版），`any_not_ready` 只看需要的镜像。创建和启动服务器不依赖任何镜像就绪（ARK 镜像启动时自动拉取），所以前端不再根据镜像状态禁用启动 / 创建按钮。`alpine:latest` 已不再使用，也不在管理的镜像里
 
 ### 配置文件
 

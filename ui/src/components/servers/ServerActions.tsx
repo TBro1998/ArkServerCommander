@@ -36,13 +36,12 @@ type DialogKind = 'stop' | 'restart' | 'update' | 'recreate' | 'delete' | null;
 
 interface ServerActionsProps {
   server: Server;
-  canStart: boolean;
   // card：图标按钮；detail：带文字的按钮
   variant?: 'card' | 'detail';
   onDeleted?: () => void;
 }
 
-export function ServerActions({ server, canStart, variant = 'card', onDeleted }: ServerActionsProps) {
+export function ServerActions({ server, variant = 'card', onDeleted }: ServerActionsProps) {
   const t = useTranslations('serverActions');
   const router = useRouter();
   const apiError = useApiError();
@@ -99,7 +98,6 @@ export function ServerActions({ server, canStart, variant = 'card', onDeleted }:
 
   const iconButton = 'h-8 w-8 p-0';
   const isCard = variant === 'card';
-  const startBlocked = !canStart || !stopped;
 
   // 主操作始终带文字：卡片和详情页都能一眼看出点下去会发生什么
   let primary;
@@ -124,13 +122,10 @@ export function ServerActions({ server, canStart, variant = 'card', onDeleted }:
     );
   } else {
     primary = (
-      // 按钮禁用时浏览器不显示 title，原因放在外层
-      <span title={canStart ? undefined : t('imageNotReady')} className="inline-flex">
-        <Button size="sm" className="min-w-[5.5rem]" onClick={start} disabled={startBlocked}>
-          <Play className="size-3.5 fill-current" />
-          {t('start')}
-        </Button>
-      </span>
+      <Button size="sm" className="min-w-[5.5rem]" onClick={start} disabled={!stopped}>
+        <Play className="size-3.5 fill-current" />
+        {t('start')}
+      </Button>
     );
   }
 
@@ -139,7 +134,7 @@ export function ServerActions({ server, canStart, variant = 'card', onDeleted }:
       <div className="flex items-center gap-1.5">
         {primary}
         {!isCard && (
-          <Button variant="outline" size="sm" onClick={() => openDialog('restart')} disabled={busy || (!running && !canStart)}>
+          <Button variant="outline" size="sm" onClick={() => openDialog('restart')} disabled={busy}>
             <RotateCw className="h-4 w-4" />
             {t('restart')}
           </Button>
@@ -169,12 +164,12 @@ export function ServerActions({ server, canStart, variant = 'card', onDeleted }:
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {isCard && (
-              <DropdownMenuItem onClick={() => openDialog('restart')} disabled={busy || (!running && !canStart)}>
+              <DropdownMenuItem onClick={() => openDialog('restart')} disabled={busy}>
                 <RotateCw className="mr-2 h-4 w-4" />
                 {t('restart')}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => openDialog('update')} disabled={busy || !canStart}>
+            <DropdownMenuItem onClick={() => openDialog('update')} disabled={busy}>
               <Download className="mr-2 h-4 w-4" />
               {t('updateGame')}
             </DropdownMenuItem>

@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Plus, Server as ServerIcon, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Server as ServerIcon, RefreshCw } from 'lucide-react';
 import {
   useServers,
   useServersLoaded,
   useServersIsLoading,
-  useImageStatus,
   usePublicHost,
   serversActions,
   isTransitioning,
@@ -18,7 +17,6 @@ import { ServerCard } from '@/components/servers/ServerCard';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/page-loader';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePolling } from '@/hooks/use-polling';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
@@ -43,19 +41,17 @@ export default function ServersPage() {
   const servers = useServers();
   const loaded = useServersLoaded();
   const isLoading = useServersIsLoading();
-  const imageStatus = useImageStatus();
   const publicHost = usePublicHost();
   const apiError = useApiError();
-  const { fetchServers, getImageStatus, fetchPublicHost } = serversActions;
+  const { fetchServers, fetchPublicHost } = serversActions;
   const [filter, setFilter] = useState<Filter>('all');
 
   const refresh = useCallback(() => fetchServers(), [fetchServers]);
 
   useEffect(() => {
     fetchServers().catch((err) => toast.error(apiError(err, t('getServerListFailed'))));
-    getImageStatus().catch(() => {});
     fetchPublicHost();
-  }, [fetchServers, getImageStatus, fetchPublicHost, apiError, t]);
+  }, [fetchServers, fetchPublicHost, apiError, t]);
 
   const hasTransitioning = servers.some((s) => isTransitioning(s.status));
   // 运行中但还没有可以连接（下载、安装 Mod、加载地图）时也快速刷新
@@ -63,20 +59,16 @@ export default function ServersPage() {
   usePolling(refresh, hasTransitioning || hasPreparing ? TRANSITION_POLL_INTERVAL : IDLE_POLL_INTERVAL);
 
   const handleAddServer = () => router.push('/servers/new');
-  const canCreate = imageStatus?.can_create_server ?? false;
 
   const runningCount = servers.filter((s) => s.status === 'running').length;
   const playerCount = servers.reduce((sum, s) => sum + (s.status === 'running' ? s.runtime?.players ?? 0 : 0), 0);
   const visible = servers.filter(FILTERS.find((f) => f.key === filter)!.match);
 
-  // 按钮禁用时浏览器不显示 title，原因放在外层
   const addButton = (
-    <span title={canCreate ? undefined : t('imageNotReady')} className="inline-flex">
-      <Button onClick={handleAddServer} disabled={!canCreate}>
-        <Plus className="h-4 w-4" />
-        {t('addServer')}
-      </Button>
-    </span>
+    <Button onClick={handleAddServer}>
+      <Plus className="h-4 w-4" />
+      {t('addServer')}
+    </Button>
   );
 
   return (
@@ -100,14 +92,6 @@ export default function ServersPage() {
           </>
         }
       />
-
-      {imageStatus && !imageStatus.can_start_server && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{imageStatus.any_pulling ? t('imageDownloading') : t('imageNotReady')}</AlertTitle>
-          <AlertDescription>{imageStatus.any_pulling ? t('imageDownloadingDesc') : tList('imageNotReadyGoHome')}</AlertDescription>
-        </Alert>
-      )}
 
       {!loaded ? (
         <PageLoader />
@@ -150,7 +134,7 @@ export default function ServersPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {visible.map((server) => (
-                <ServerCard key={server.id} server={server} canStartServer={imageStatus?.can_start_server ?? false} publicHost={publicHost} />
+                <ServerCard key={server.id} server={server} publicHost={publicHost} />
               ))}
             </div>
           )}

@@ -1334,16 +1334,12 @@ func (s *ServerService) GetImageStatus() (map[string]interface{}, error) {
 		overallStatus = "not_ready"
 	}
 
-	// 配置文件和存档由后端直接读写，ARK 镜像在启动时自动下载，创建和启动都不依赖镜像；
-	// can_create_server / can_start_server 保留给前端，恒为 true
 	return map[string]interface{}{
-		"images":            imageStatuses,
-		"any_pulling":       anyPulling,
-		"any_not_ready":     !allReady,
-		"can_create_server": true,
-		"can_start_server":  true,
-		"overall_status":    overallStatus,
-		"pulling_count":     pullingCount,
-		"total_images":      len(managedImages),
+		"images":         imageStatuses,
+		"any_pulling":    anyPulling,
+		"any_not_ready":  !allReady,
+		"overall_status": overallStatus,
+		"pulling_count":  pullingCount,
+		"total_images":   len(managedImages),
 	}, nil
 }

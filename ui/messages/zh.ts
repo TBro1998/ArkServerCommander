@@ -162,17 +162,12 @@ const messages = {
     serverPortRequired: '服务器端口不能为空',
     serverPathRequired: '服务器路径不能为空',
     imageStatus: '镜像状态',
-    imageDownloading: '镜像下载中',
-    imageNotReady: '镜像未就绪',
-    imageDownloadingDesc: '正在下载镜像，请稍后创建服务器',
-    imageNotReadyDesc: '镜像未就绪，无法创建服务器',
     // 镜像状态详细翻译
     dockerImages: {
       download: '下载',
       title: '镜像下载状态',
       overallStatus: '总体状态',
       imageReady: '镜像就绪',
-      imageNotReady: '镜像未就绪（无法启动服务器）',
       imageMissingManualDownload: '镜像缺失，请手动下载',
       downloading: '下载中',
       ready: '就绪',
@@ -1053,7 +1048,6 @@ BabyImprintAmountMultiplier=1.0`
     },
     summary: '共 {total} 台，{running} 台运行中，{players} 名玩家在线',
     refresh: '刷新',
-    imageNotReadyGoHome: '启动服务器需要的镜像还没有下载，请到首页的"镜像管理"中下载。'
   },
 
   // 服务器卡片
@@ -1102,7 +1096,6 @@ BabyImprintAmountMultiplier=1.0`
     recreate: '重建容器',
     delete: '删除服务器',
     deleteNeedStop: '删除（需先停止）',
-    imageNotReady: '镜像未就绪，无法启动',
     startSent: '已开始启动',
     startFailed: '启动服务器失败',
     stopSent: '已开始停止，停服前会保存世界',

@@ -13,7 +13,6 @@ import { PageLoader } from '@/components/ui/page-loader';
 import {
   useServers,
   useServersLoaded,
-  useImageStatus,
   usePublicHost,
   serversActions,
   isTransitioning,
@@ -134,22 +133,20 @@ export default function ServerDetailPage() {
   const serverId = Number(params.id);
   const servers = useServers();
   const loaded = useServersLoaded();
-  const imageStatus = useImageStatus();
   const publicHost = usePublicHost();
   const server = servers.find((s) => s.id === serverId);
 
   const initialTab = searchParams.get('tab');
   const [tab, setTab] = useState<Tab>(TABS.includes(initialTab as Tab) ? (initialTab as Tab) : 'overview');
 
-  const { fetchServers, getImageStatus, fetchPublicHost } = serversActions;
+  const { fetchServers, fetchPublicHost } = serversActions;
   // 详情页用列表接口刷新（单个服务器接口会读取配置文件，开销大）
   const refresh = useCallback(() => fetchServers(), [fetchServers]);
 
   useEffect(() => {
     fetchServers().catch(() => {});
-    getImageStatus().catch(() => {});
     fetchPublicHost();
-  }, [fetchServers, getImageStatus, fetchPublicHost]);
+  }, [fetchServers, fetchPublicHost]);
 
   const fast = server ? isTransitioning(server.status) || (server.status === 'running' && server.runtime?.phase !== 'ready') : false;
   usePolling(refresh, fast ? 3000 : 10000);
@@ -214,7 +211,6 @@ export default function ServerDetailPage() {
           </div>
           <ServerActions
             server={server}
-            canStart={imageStatus?.can_start_server ?? false}
             variant="detail"
             onDeleted={() => router.push('/servers')}
           />

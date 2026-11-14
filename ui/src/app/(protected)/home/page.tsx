@@ -76,7 +76,7 @@ function Readout({ label, value, sub, live }: { label: string; value: string; su
 }
 
 // 服务器名单的一行：地图色条、名称、状态、人数和启停按钮
-function RosterRow({ server, canStart }: { server: ServerInfo; canStart: boolean }) {
+function RosterRow({ server }: { server: ServerInfo }) {
   const mapName = useMapName();
   const runtime = server.status === 'running' && server.runtime?.phase === 'ready' ? server.runtime : undefined;
   return (
@@ -110,7 +110,7 @@ function RosterRow({ server, canStart }: { server: ServerInfo; canStart: boolean
           <span className="text-muted-foreground">-</span>
         )}
       </div>
-      <ServerActions server={server} canStart={canStart} />
+      <ServerActions server={server} />
     </li>
   );
 }
@@ -250,7 +250,6 @@ export default function HomePage() {
 
   const ov = overview;
   const host = ov?.public_host || publicHost;
-  const canStart = imageStatus?.can_start_server ?? false;
 
   const copyHost = async () => {
     if (host && (await copyText(host))) toast.success(t('hostCopied'));
@@ -343,7 +342,7 @@ export default function HomePage() {
           ) : (
             <ul className="divide-y">
               {servers.map((s) => (
-                <RosterRow key={s.id} server={s} canStart={canStart} />
+                <RosterRow key={s.id} server={s} />
               ))}
             </ul>
           )}

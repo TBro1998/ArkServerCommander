@@ -162,17 +162,12 @@ const messages = {
     serverPortRequired: 'Server port is required',
     serverPathRequired: 'Server path is required',
     imageStatus: 'Image Status',
-    imageDownloading: 'Image Downloading',
-    imageNotReady: 'Image Not Ready',
-    imageDownloadingDesc: 'Downloading image, please wait before creating server',
-    imageNotReadyDesc: 'Image not ready, cannot create server',
     // Docker images detailed translations
     dockerImages: {
       download: 'Download',
       title: 'Image Download Status',
       overallStatus: 'Overall Status',
       imageReady: 'Images Ready',
-      imageNotReady: 'Images Not Ready (Cannot Start Server)',
       imageMissingManualDownload: 'Images Missing, Please Download Manually',
       downloading: 'Downloading',
       ready: 'Ready',
@@ -1053,7 +1048,6 @@ BabyImprintAmountMultiplier=1.0`
     },
     summary: '{total} servers, {running} running, {players} players online',
     refresh: 'Refresh',
-    imageNotReadyGoHome: 'The images required to start servers have not been downloaded yet. Download them under "Image management" on the home page.'
   },
 
   // Server card
@@ -1102,7 +1096,6 @@ BabyImprintAmountMultiplier=1.0`
     recreate: 'Recreate container',
     delete: 'Delete server',
     deleteNeedStop: 'Delete (stop first)',
-    imageNotReady: 'Images not ready, cannot start',
     startSent: 'Starting',
     startFailed: 'Failed to start the server',
     stopSent: 'Stopping. The world is saved before shutdown.',

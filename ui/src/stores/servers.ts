@@ -61,8 +61,6 @@ export interface Server {
 }
 
 export interface ImageStatus {
-    can_create_server: boolean;
-    can_start_server: boolean;
     any_pulling: boolean;
     any_not_ready: boolean;
     overall_status: string;
