@@ -84,6 +84,18 @@ func SuggestPorts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": serverService.SuggestPorts()})
 }
 
+// GetServerDefaults 新建服务器的默认配置
+// @Summary 新建服务器的默认配置
+// @Description 新建服务器时写入的默认 GameUserSettings.ini、Game.ini 和启动参数，新建页以它为基础编辑
+// @Tags 系统
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]server.ServerDefaults "默认配置"
+// @Router /system/server-defaults [get]
+func GetServerDefaults(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"data": serverService.ServerDefaults()})
+}
+
 // GetMods 查询创意工坊 Mod 信息
 // @Summary 查询创意工坊 Mod 信息
 // @Description 根据 Mod ID 查询名称等信息（Steam 公开接口，结果缓存 6 小时）

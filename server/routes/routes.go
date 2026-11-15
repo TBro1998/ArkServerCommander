@@ -63,6 +63,7 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.GET("/system/version", system.GetVersion)
 			protected.DELETE("/system/clusters/:clusterId", system.DeleteCluster)
 			protected.GET("/system/suggest-ports", system.SuggestPorts)
+			protected.GET("/system/server-defaults", system.GetServerDefaults)
 			protected.GET("/mods", system.GetMods)
 
 			// 服务器管理路由

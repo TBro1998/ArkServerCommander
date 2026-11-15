@@ -224,6 +224,31 @@ func (s *ServerService) SuggestPorts() SuggestedPorts {
 	return SuggestedPorts{Port: 7777, QueryPort: 27015, RCONPort: 32330}
 }
 
+// ---------- 新建服务器的默认配置 ----------
+
+// 新建服务器时的默认名称和人数，和 CreateServer 的默认值一致
+const (
+	DefaultSessionName = "ARK Server"
+	DefaultMaxPlayers  = 70
+)
+
+// ServerDefaults 新建服务器时写入的默认配置文件和启动参数
+type ServerDefaults struct {
+	GameUserSettings string             `json:"game_user_settings"`
+	GameIni          string             `json:"game_ini"`
+	ServerArgs       *models.ServerArgs `json:"server_args"`
+}
+
+// ServerDefaults 返回新建服务器时使用的默认配置。前端新建页以它为基础编辑，
+// 显示的值和创建后实际写入的一致；不传配置文件或启动参数时后端也用同样的内容
+func (s *ServerService) ServerDefaults() ServerDefaults {
+	return ServerDefaults{
+		GameUserSettings: utils.GetDefaultGameUserSettings(DefaultSessionName, "TheIsland", DefaultMaxPlayers),
+		GameIni:          utils.GetDefaultGameIni(),
+		ServerArgs:       models.FromServer(models.Server{}),
+	}
+}
+
 // ---------- 创意工坊 Mod 信息 ----------
 
 // ModInfo 创意工坊 Mod 的基本信息

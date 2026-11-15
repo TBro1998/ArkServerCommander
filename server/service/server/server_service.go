@@ -98,13 +98,13 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 
 	// 设置默认值
 	if req.SessionName == "" {
-		req.SessionName = "ARK Server"
+		req.SessionName = DefaultSessionName
 	}
 	if req.Map == "" {
 		req.Map = "TheIsland"
 	}
 	if req.MaxPlayers == 0 {
-		req.MaxPlayers = 70
+		req.MaxPlayers = DefaultMaxPlayers
 	}
 	if req.AutoRestart == nil {
 		defaultVal := true

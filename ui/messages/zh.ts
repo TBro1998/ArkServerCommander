@@ -130,9 +130,6 @@ const messages = {
     restartServer: '重启服务器',
     viewLogs: '查看日志',
     serverConfig: '服务器配置',
-    gameIni: 'Game.ini 配置',
-    gameUserSettings: 'GameUserSettings.ini 配置',
-    serverArgs: '启动参数',
     running: '运行中',
     stopped: '已停止',
     starting: '启动中',
@@ -293,12 +290,8 @@ const messages = {
       createTitle: '新增服务器',
       editTitle: '编辑服务器',
       createServerDesc: '配置并创建一个新的ARK服务器实例',
-      basicParams: '基本参数',
-      gameUserSettings: 'GameUserSettings.ini',
-      gameIni: 'Game.ini',
-      serverArgs: '启动参数',
-      configAppliesOnRestart: '服务器未停止：GameUserSettings.ini 和 Game.ini 的修改会先保存，在下次启动服务器时写入并生效（ARK 停服时会覆盖配置文件，所以不能立即写入）。',
-      configPending: '有已保存但尚未生效的配置文件修改，将在下次启动服务器时应用。',
+      configAppliesOnRestart: '服务器未停止：修改会先保存，在下次启动服务器时生效（游戏停服时会写回自己的设置，所以不能立即写入）。运行中可以用"保存并重启"马上生效。',
+      configPending: '有已保存但尚未生效的设置修改，将在下次启动服务器时应用。',
       serverName: '服务器名称',
       serverNamePlaceholder: '输入服务器名称',
       serverNameDesc: '显示在游戏服务器列表中的名称',
@@ -358,542 +351,6 @@ const messages = {
       mapId: '地图ID',
       range: '范围'
     },
-    // 编辑器相关
-    editor: {
-      placeholders: {
-        gameIni: '输入 Game.ini 内容...',
-        gameUserSettings: '输入 GameUserSettings.ini 内容...'
-      },
-      visualEdit: '可视化编辑',
-      textEdit: '文本编辑',
-      visualEditMode: '可视化编辑模式',
-      textEditMode: '文本编辑',
-      syncing: '正在同步...',
-      synced: '已同步',
-      pendingSync: '待同步',
-      resetToDefault: '重置为默认',
-      format: '格式化',
-      content: '内容',
-      placeholder: '输入配置内容...',
-      description: '此文件包含服务器的基本设置，如端口、密码、最大玩家数等',
-      visualEditModeDesc: '可视化编辑模式Desc',
-      visualEditModeTip: '通过表单控件修改参数，鼠标悬停在参数名称旁的图标可查看详细说明。',
-      gameIniTextEditDesc: '直接编辑 Game.ini 配置文件内容。',
-      showPassword: '显示密码',
-      hidePassword: '隐藏密码',
-      enabled: '启用',
-      disabled: '禁用',
-      parametersCount: '个参数',
-      defaultValue: '默认值',
-      parseGameIniError: '解析Game.ini文本失败',
-      syncVisualToTextError: '同步可视化配置到文本失败',
-      range: '范围',
-      syncTip: {
-        visual: '在可视化模式下修改参数，切换到文本模式时会将配置同步到文本。',
-        text: '在文本模式下直接编辑配置文件，切换到可视化模式时会解析文本内容。'
-      }
-    },
-    // 启动参数编辑器相关
-    argsEditor: {
-      title: '启动参数配置',
-      switchParams: '开关参数',
-      numberParams: '数值参数',
-      textParams: '文本参数',
-      selectParams: '选择参数',
-      range: '范围',
-      pleaseSelect: '请选择',
-      customArgs: '自定义参数',
-      customArgsDesc: '添加自定义启动参数，这些参数将直接添加到启动命令中',
-      addCustomArg: '添加自定义参数',
-      removeCustomArg: '删除自定义参数',
-      customArgPlaceholder: '输入自定义启动参数，如 -nosteam',
-      enabled: '启用',
-      disabled: '禁用'
-    },
-    // 启动参数分类
-    paramCategories: {
-      basic: '基础',
-      core: '核心',
-      dinos: '恐龙',
-      structures: '建筑',
-      pvp: 'PvP',
-      mechanics: '游戏机制',
-      transfer: '传输与集群',
-      performance: '性能',
-      graphics: '图形',
-      security: '安全',
-      logging: '日志',
-      mods: '模组',
-      features: '功能',
-      maintenance: '维护',
-      advanced: '高级',
-      custom: '自定义'
-    },
-    // 查询参数翻译
-    queryParams: {
-      AltSaveDirectoryName: '备用存档目录名称',
-      EventColorsChanceOverride: '事件颜色概率覆盖',
-      GameModIds: '游戏模组ID',
-      NewYear1UTC: '新年事件开始时间 (UTC)',
-      NewYear2UTC: '新年事件结束时间 (UTC)'
-    },
-    // 命令行参数翻译
-    commandLineArgs: {
-      // 事件和功能
-      ActiveEvent: '激活事件',
-      NewYearEvent: '新年事件',
-      UseVivox: '使用 Vivox 语音聊天',
-      webalarm: '网页警报',
-      AllowChatSpam: '允许聊天刷屏',
-
-      // 模组和 Steam
-      automanagedmods: '自动管理模组',
-      MapModID: '地图模组ID',
-
-      // 跨平台和网络
-      crossplay: '启用跨平台',
-      epiconly: '仅限 Epic 游戏商店',
-      PublicIPForEpic: 'Epic 游戏公网IP',
-      MULTIHOME: '多宿主IP地址',
-
-      // 服务器管理
-      culture: '服务器语言文化',
-      exclusivejoin: '独占加入（白名单）',
-      EnableIdlePlayerKick: '启用闲置玩家踢出',
-      MaxNumOfSaveBackups: '最大存档备份数量',
-      newsaveformat: '新存档格式',
-      NoHangDetection: '禁用挂起检测',
-
-      // 生物和游戏玩法
-      DisableCustomFoldersInTributeInventories: '禁用贡品库存中的自定义文件夹',
-      ForceAllowCaveFlyers: '强制允许洞穴飞行',
-      ForceRespawnDinos: '强制重生恐龙',
-      NoDinos: '无恐龙',
-      imprintlimit: '印记限制百分比',
-      MinimumTimeBetweenInventoryRetrieval: '库存检索之间的最小时间',
-
-      // PvP 设置
-      DisableRailgunPVP: '在PvP中禁用轨道炮',
-      pvedisallowtribewar: 'PvE 禁止部落战争',
-      pveallowtribewar: 'PvE 允许部落战争',
-
-      // 安全和反作弊
-      insecure: '禁用 VAC（不安全）',
-      NoBattlEye: '禁用 BattlEye',
-      noantispeedhack: '禁用反加速作弊',
-      speedhackbias: '加速作弊检测偏差',
-      noundermeshchecking: '禁用穿地检测',
-      noundermeshkilling: '禁用穿地击杀',
-      SecureSendArKPayload: '安全发送 ARK 载荷',
-      UseItemDupeCheck: '使用物品复制检查',
-      UseSecureSpawnRules: '使用安全生成规则',
-      BattlEyeServerRecheck: 'BattlEye 服务器重检',
-
-      // 性能优化
-      nocombineclientmoves: '禁用合并客户端移动',
-      StasisKeepControllers: '静止保持控制器',
-      structurememopts: '结构内存优化',
-      UseStructureStasisGrid: '使用结构静止网格',
-      DormancyNetMultiplier: '休眠网络倍数',
-      nodormancythrottling: '禁用休眠节流',
-      nitradotest2: 'Nitrado 测试模式 2',
-      dedihibernation: '专用休眠',
-
-      // 图形和客户端
-      ServerAllowAnsel: '服务器允许 NVIDIA Ansel',
-
-      // 日志和管理
-      servergamelog: '服务器游戏日志',
-      servergamelogincludetribelogs: '服务器游戏日志包含部落日志',
-      ServerRCONOutputTribeLogs: '服务器 RCON 输出部落日志',
-      NotifyAdminCommandsInChat: '在聊天中通知管理员命令',
-
-      // 传输和集群
-      ClusterDirOverride: '集群目录覆盖',
-      clusterid: '集群ID',
-      NoTransferFromFiltering: '无传输来源过滤',
-      usestore: '使用备份',
-      BackupTransferPlayerDatas: '备份传输玩家数据',
-      converttostore: '转换为备份',
-
-      // 高级/未记录
-      CustomAdminCommandTrackingURL: '自定义管理员命令跟踪URL',
-      CustomMerticsURL: '自定义指标URL',
-      CustomNotificationURL: '自定义通知URL',
-      DisableDupeLogDeletes: '禁用重复日志删除',
-      EnableOfficialOnlyVersioningCode: '启用仅官方版本控制代码',
-      EnableVictoryCoreDupeCheck: '启用胜利核心复制检查',
-      forcedisablemeshchecking: '强制禁用网格检查',
-      ForceDupeLog: '强制复制日志',
-      ignoredupeditems: '忽略重复物品',
-      MaxConnectionsPerIP: '每个IP的最大连接数',
-      parseservertojson: '解析服务器为JSON',
-      pauseonddos: 'DDoS时暂停',
-      PreventTotalConversionSaveDir: '防止全面转换存档目录',
-      ReloadedForBackup: '为备份重新加载',
-      UnstasisDinoObstructionCheck: '解除静止恐龙阻塞检查',
-      UseTameEffectivenessClamp: '使用驯服效果钳制',
-      UseServerNetSpeedCheck: '使用服务器网络速度检查'
-    },
-
-    // Game.ini 参数分类
-    gameIniCategories: {
-      gameBasic: '基础设置',
-      experienceSettings: '经验值和等级',
-      breedingSettings: '繁殖',
-      itemSettings: '物品和资源',
-      dinoSettings: '恐龙',
-      tribeSettings: '部落和玩家',
-      pvpSettings: 'PvP',
-      structureSettings: '建筑和结构',
-      advancedSettings: '高级功能',
-      customSettings: '自定义配置'
-    },
-
-    // GameUserSettings.ini 参数分类
-    gameUserSettingsCategories: {
-      serverBasic: '基本设置',
-      gameMode: '游戏模式',
-      communication: '聊天和通讯',
-      gameMultipliers: '游戏倍率',
-      characterSettings: '角色',
-      dinoSettings: '恐龙',
-      environmentSettings: '环境',
-      structureSettings: '建筑',
-      tribeSettings: '部落和联盟',
-      breedingSettings: '繁殖和印记',
-      itemSettings: '物品和补给',
-      performanceSettings: '服务器性能',
-      diseaseSettings: '疾病和状态',
-      offlineRaidSettings: '离线突袭保护',
-      crossArkSettings: '跨服传输',
-      flyerSettings: '飞行载具',
-      advancedSettings: '高级功能'
-    },
-
-    // Game.ini 参数翻译
-    gameIniParams: {
-      MaxAlliancesPerTribe: '每个部落最大联盟数',
-      MaxTribesPerAlliance: '每个联盟最大部落数',
-      BabyImprintingStatScaleMultiplier: '幼体印记属性倍率',
-      // 基础设置
-      bUseSingleplayerSettings: '使用单人游戏设置',
-      bDisableStructurePlacementCollision: '禁用建筑放置碰撞检测',
-      bAllowFlyerCarryPvE: 'PvE模式允许飞行生物抓取',
-      bDisableStructureDecayPvE: '禁用PvE建筑腐朽',
-      bAllowUnlimitedRespecs: '允许无限重置技能点',
-      bAllowPlatformSaddleMultiFloors: '允许平台鞍多层建筑',
-      bPassiveDefensesDamageRiderlessDinos: '被动防御伤害无骑手恐龙',
-      bPvEDisableFriendlyFire: 'PvE禁用友军伤害',
-      bDisableFriendlyFire: '禁用友军伤害',
-      bEnablePvPGamma: '启用PvP伽马调节',
-      DifficultyOffset: '难度偏移值',
-      OverrideOfficialDifficulty: '覆盖官方难度',
-
-      // 经验值和等级设置
-      XPMultiplier: '经验值倍率',
-      PlayerCharacterWaterDrainMultiplier: '玩家口渴消耗倍率',
-      PlayerCharacterFoodDrainMultiplier: '玩家饥饿消耗倍率',
-      PlayerCharacterStaminaDrainMultiplier: '玩家耐力消耗倍率',
-      PlayerCharacterHealthRecoveryMultiplier: '玩家生命恢复倍率',
-
-      // 繁殖设置
-      MatingIntervalMultiplier: '交配间隔倍率',
-      EggHatchSpeedMultiplier: '蛋孵化速度倍率',
-      BabyMatureSpeedMultiplier: '幼体成长速度倍率',
-      BabyFoodConsumptionSpeedMultiplier: '幼体食物消耗速度倍率',
-      BabyCuddleIntervalMultiplier: '幼体照顾间隔倍率',
-      BabyCuddleGracePeriodMultiplier: '幼体照顾宽限期倍率',
-      BabyCuddleLoseImprintQualitySpeedMultiplier: '幼体失去印记质量速度倍率',
-
-      // 物品和资源设置
-      HarvestAmountMultiplier: '采集数量倍率',
-      HarvestHealthMultiplier: '资源血量倍率',
-      ResourcesRespawnPeriodMultiplier: '资源重生周期倍率',
-      ItemStackSizeMultiplier: '物品堆叠数量倍率',
-      CropGrowthSpeedMultiplier: '作物生长速度倍率',
-      GlobalItemDecompositionTimeMultiplier: '全局物品分解时间倍率',
-      GlobalCorpseDecompositionTimeMultiplier: '全局尸体分解时间倍率',
-
-      // 恐龙设置
-      TamingSpeedMultiplier: '驯服速度倍率',
-      DinoCharacterFoodDrainMultiplier: '恐龙饥饿消耗倍率',
-      DinoCharacterStaminaDrainMultiplier: '恐龙耐力消耗倍率',
-      DinoCharacterHealthRecoveryMultiplier: '恐龙生命恢复倍率',
-      DinoCountMultiplier: '恐龙数量倍率',
-      WildDinoCharacterFoodDrainMultiplier: '野生恐龙饥饿消耗倍率',
-      WildDinoTorporDrainMultiplier: '野生恐龙眩晕值消耗倍率',
-
-      // 部落和玩家设置
-      MaxNumberOfPlayersInTribe: '部落最大玩家数量',
-      TribeNameChangeCooldown: '部落改名冷却时间（分钟）',
-      bPvEAllowTribeWar: 'PvE允许部落战争',
-      bPvEAllowTribeWarCancel: 'PvE允许取消部落战争',
-
-      // PvP设置
-      bIncreasePvPRespawnInterval: '启用PvP重生间隔递增',
-      IncreasePvPRespawnIntervalCheckPeriod: 'PvP重生间隔检查周期（秒）',
-      IncreasePvPRespawnIntervalMultiplier: 'PvP重生间隔递增倍率',
-      IncreasePvPRespawnIntervalBaseAmount: 'PvP重生间隔基础时间（秒）',
-
-      // 建筑和结构设置
-      StructureDamageMultiplier: '建筑伤害倍率',
-      StructureResistanceMultiplier: '建筑抗性倍率',
-      StructureDamageRepairCooldown: '建筑损伤修复冷却时间（秒）',
-      PvEStructureDecayPeriodMultiplier: 'PvE建筑腐朽周期倍率',
-      MaxStructuresInRange: '范围内最大建筑数量',
-
-      // 高级功能设置
-      bAutoPvETimer: '启用自动PvE计时器',
-      bAutoPvEUseSystemTime: '自动PvE使用系统时间',
-      AutoPvEStartTimeSeconds: '自动PvE开始时间（秒）',
-      AutoPvEStopTimeSeconds: '自动PvE结束时间（秒）',
-      bOnlyAllowSpecifiedEngrams: '仅允许指定印痕',
-      bAutoUnlockAllEngrams: '自动解锁所有印痕',
-      bShowCreativeMode: '显示创造模式',
-      bUseCorpseLocator: '使用尸体定位器',
-      bDisableLootCrates: '禁用战利品箱',
-      bDisableDinoRiding: '禁用恐龙骑乘',
-      bDisableDinoTaming: '禁用恐龙驯服',
-      bAllowCustomRecipes: '允许自定义配方',
-
-      // 自定义配置
-      DayCycleSpeedScale: '昼夜循环速度倍率',
-      NightTimeSpeedScale: '夜晚时间速度倍率',
-      DayTimeSpeedScale: '白天时间速度倍率'
-    },
-
-    // GameUserSettings.ini 参数翻译
-    gameUserSettingsParams: {
-      // 服务器基本设置
-      ServerPassword: '服务器密码',
-      SpectatorPassword: '观察者密码',
-      AdminLogging: '管理员日志',
-
-      // 游戏模式设置
-      serverPVE: 'PvE模式',
-      serverHardcore: '硬核模式',
-      ShowMapPlayerLocation: '显示玩家位置',
-      allowThirdPersonPlayer: '允许第三人称',
-      ServerCrosshair: '显示准星',
-      EnablePvPGamma: 'PvP伽马调节',
-      DisablePvEGamma: '禁用PvE伽马调节',
-      serverForceNoHud: '强制隐藏HUD',
-      ShowFloatingDamageText: '显示浮动伤害文字',
-      AllowHitMarkers: '允许命中标记',
-
-      // 聊天和通讯设置
-      globalVoiceChat: '全局语音聊天',
-      proximityChat: '附近聊天',
-      alwaysNotifyPlayerJoined: '总是通知玩家加入',
-      alwaysNotifyPlayerLeft: '总是通知玩家离开',
-      DontAlwaysNotifyPlayerJoined: '禁用玩家加入通知',
-
-      // 游戏倍率设置
-      XPMultiplier: '经验倍率',
-      TamingSpeedMultiplier: '驯服速度倍率',
-      HarvestAmountMultiplier: '采集倍率',
-      HarvestHealthMultiplier: '资源血量倍率',
-      ResourcesRespawnPeriodMultiplier: '资源重生倍率',
-      ItemStackSizeMultiplier: '物品堆叠倍率',
-
-      // 角色设置
-      PlayerCharacterHealthRecoveryMultiplier: '玩家回血倍率',
-      PlayerCharacterFoodDrainMultiplier: '玩家饥饿倍率',
-      PlayerCharacterWaterDrainMultiplier: '玩家口渴倍率',
-      PlayerCharacterStaminaDrainMultiplier: '玩家耐力倍率',
-      PlayerDamageMultiplier: '玩家伤害倍率',
-      PlayerResistanceMultiplier: '玩家抗性倍率',
-      OxygenSwimSpeedStatMultiplier: '氧气游泳速度倍率',
-      ImplantSuicideCD: '植入体自杀冷却',
-
-      // 恐龙设置
-      DinoCountMultiplier: '恐龙数量倍率',
-      DinoCharacterHealthRecoveryMultiplier: '恐龙回血倍率',
-      DinoCharacterFoodDrainMultiplier: '恐龙饥饿倍率',
-      DinoCharacterStaminaDrainMultiplier: '恐龙耐力倍率',
-      DinoDamageMultiplier: '恐龙伤害倍率',
-      TamedDinoDamageMultiplier: '驯服恐龙伤害倍率',
-      DinoResistanceMultiplier: '恐龙抗性倍率',
-      TamedDinoResistanceMultiplier: '驯服恐龙抗性倍率',
-      MaxTamedDinos: '最大驯服恐龙数',
-      MaxPersonalTamedDinos: '个人最大驯服数',
-      DisableDinoDecayPvE: '禁用PvE恐龙腐朽',
-      AutoDestroyDecayedDinos: '自动销毁腐朽恐龙',
-      PvEDinoDecayPeriodMultiplier: 'PvE恐龙腐朽倍率',
-      PvPDinoDecay: 'PvP恐龙腐朽',
-      AllowRaidDinoFeeding: '允许突袭恐龙喂食',
-      RaidDinoCharacterFoodDrainMultiplier: '突袭恐龙饥饿倍率',
-      AllowFlyerCarryPvE: 'PvE飞行载具抓取',
-      bForceCanRideFliers: '强制允许骑乘飞行生物',
-
-      // 环境设置
-      DayCycleSpeedScale: '昼夜循环速度',
-      DayTimeSpeedScale: '白天时长倍率',
-      NightTimeSpeedScale: '夜晚时长倍率',
-      DisableWeatherFog: '禁用雾效',
-      DifficultyOffset: '难度偏移',
-      OverrideOfficialDifficulty: '覆盖官方难度',
-      RandomSupplyCratePoints: '随机补给箱位置',
-
-      // 建筑设置
-      StructureDamageMultiplier: '建筑伤害倍率',
-      StructureResistanceMultiplier: '建筑抗性倍率',
-      TheMaxStructuresInRange: '范围内最大建筑数',
-      NewMaxStructuresInRange: '新范围内最大建筑数',
-      MaxStructuresInRange: '最大建筑范围数',
-      DisableStructureDecayPvE: '禁用PvE建筑腐朽',
-      PvEStructureDecayPeriodMultiplier: 'PvE建筑腐朽倍率',
-      PvEStructureDecayDestructionPeriod: 'PvE建筑腐朽销毁期',
-      PvPStructureDecay: 'PvP建筑腐朽',
-      StructurePickupTimeAfterPlacement: '建筑快捷拾取时间',
-      StructurePickupHoldDuration: '拾取按键持续时间',
-      AlwaysAllowStructurePickup: '总是允许拾取建筑',
-      OnlyAutoDestroyCoreStructures: '仅自动销毁核心建筑',
-      OnlyDecayUnsnappedCoreStructures: '仅腐朽未连接核心建筑',
-      FastDecayUnsnappedCoreStructures: '快速腐朽未连接建筑',
-      DestroyUnconnectedWaterPipes: '销毁未连接水管',
-      StructurePreventResourceRadiusMultiplier: '建筑阻止资源半径倍率',
-      MaxPlatformSaddleStructureLimit: '平台鞍最大建筑数',
-      PerPlatformMaxStructuresMultiplier: '平台建筑倍率',
-      PlatformSaddleBuildAreaBoundsMultiplier: '平台建造区域倍率',
-      OverrideStructurePlatformPrevention: '覆盖平台限制',
-      EnableExtraStructurePreventionVolumes: '启用额外建筑限制区域',
-      AllowCaveBuildingPvE: '允许PvE洞穴建造',
-      AllowCaveBuildingPvP: '允许PvP洞穴建造',
-      PvEAllowStructuresAtSupplyDrops: 'PvE允许补给点建造',
-      AllowCrateSpawnsOnTopOfStructures: '允许补给箱生成在建筑上',
-      bAllowPlatformSaddleMultiFloors: '允许平台鞍多层',
-      MaxGateFrameOnSaddles: '鞍座最大门框数',
-
-      // 部落和联盟设置
-      MaxNumberOfPlayersInTribe: '部落最大人数',
-      TribeNameChangeCooldown: '部落改名冷却',
-      PreventTribeAlliances: '防止部落联盟',
-      MaxAlliancesPerTribe: '每个部落最大联盟数',
-      MaxTribesPerAlliance: '每个联盟最大部落数',
-
-      // 繁殖和印记设置
-      AllowAnyoneBabyImprintCuddle: '允许任何人照顾幼体',
-      DisableImprintDinoBuff: '禁用印记恐龙加成',
-      BabyImprintingStatScaleMultiplier: '幼体印记属性倍率',
-
-      // 物品和补给设置
-      ClampItemSpoilingTimes: '限制物品腐坏时间',
-      ClampResourceHarvestDamage: '限制资源采集伤害',
-      UseOptimizedHarvestingHealth: '使用优化采集血量',
-      BanListURL: '封禁列表URL',
-
-      // 服务器性能设置
-      AutoSavePeriodMinutes: '自动保存间隔',
-      KickIdlePlayersPeriod: '踢出空闲玩家时间',
-      ListenServerTetherDistanceMultiplier: '监听服务器距离倍率',
-      RCONServerGameLogBuffer: 'RCON游戏日志缓冲',
-      NPCNetworkStasisRangeScalePlayerCountStart: 'NPC网络停滞范围玩家数起始',
-      NPCNetworkStasisRangeScalePlayerCountEnd: 'NPC网络停滞范围玩家数结束',
-      NPCNetworkStasisRangeScalePercentEnd: 'NPC网络停滞范围缩放百分比结束',
-
-      // 疾病和状态设置
-      PreventDiseases: '防止疾病',
-      NonPermanentDiseases: '非永久性疾病',
-      PreventSpawnAnimations: '防止生成动画',
-
-      // 离线突袭保护设置
-      PreventOfflinePvP: '防止离线PvP',
-      PreventOfflinePvPInterval: '离线保护等待时间',
-
-      // 跨服传输设置
-      NoTributeDownloads: '禁用贡品下载',
-      PreventDownloadSurvivors: '防止下载角色',
-      PreventDownloadItems: '防止下载物品',
-      PreventDownloadDinos: '防止下载恐龙',
-      PreventUploadSurvivors: '防止上传角色',
-      PreventUploadItems: '防止上传物品',
-      PreventUploadDinos: '防止上传恐龙',
-      CrossARKAllowForeignDinoDownloads: '允许外来恐龙下载',
-      MaxTributeDinos: '最大贡品恐龙数',
-      MaxTributeItems: '最大贡品物品数',
-      MinimumDinoReuploadInterval: '最小恐龙重新上传间隔',
-      TributeItemExpirationSeconds: '贡品物品过期时间',
-      TributeDinoExpirationSeconds: '贡品恐龙过期时间',
-      TributeCharacterExpirationSeconds: '贡品角色过期时间',
-
-      // 飞行载具设置
-      AllowFlyingStaminaRecovery: '飞行耐力恢复',
-      ForceFlyerExplosives: '强制飞行器爆炸物',
-
-      // 高级功能设置
-      AllowMultipleAttachedC4: '允许多个C4',
-      AllowIntegratedSPlusStructures: '允许集成S+建筑',
-      AllowHideDamageSourceFromLogs: '隐藏伤害来源日志',
-      AllowSharedConnections: '允许共享连接',
-      bFilterTribeNames: '过滤部落名称',
-      bFilterCharacterNames: '过滤角色名称',
-      bFilterChat: '过滤聊天',
-      EnableCryoSicknessPVE: '启用PvE冷冻舱疾病',
-      EnableCryopodNerf: '启用冷冻舱削弱',
-      CryopodNerfDuration: '冷冻舱削弱持续时间',
-      CryopodNerfDamageMult: '冷冻舱削弱伤害倍率',
-      CryopodNerfIncomingDamageMultPercent: '冷冻舱削弱受到伤害倍率',
-      DisableCryopodEnemyCheck: '禁用冷冻舱敌人检查',
-      DisableCryopodFridgeRequirement: '禁用冷冻舱冰箱需求',
-      AllowCryoFridgeOnSaddle: '允许鞍座冷冻冰箱',
-      MaxTrainCars: '最大火车车厢数',
-      MaxHexagonsPerCharacter: '每角色最大六边形数',
-      AllowTekSuitPowersInGenesis: '允许创世纪TEK套装能力',
-      CustomDynamicConfigUrl: '自定义动态配置URL'
-    },
-
-    // GameUserSettings.ini editor description
-    gameUserSettingsTextEditDesc: '直接编辑 GameUserSettings.ini 配置文件内容。修改会自动解析并同步到可视化界面，切换到可视化模式可看到解析后的参数设置。',
-
-    // Default values for GameUserSettings parameters
-    defaultValues: {
-      sessionName: '我的ARK服务器',
-      message: '欢迎来到ARK服务器！'
-    },
-
-    // Placeholders
-    placeholders: {
-      gameUserSettings: `[ServerSettings]
-SessionName=我的ARK服务器
-ServerPassword=
-MaxPlayers=70
-
-[SessionSettings]
-SessionName=我的ARK服务器
-
-[MessageOfTheDay]
-Message=欢迎来到ARK服务器！
-
-[/Script/Engine.GameSession]
-MaxPlayers=70`,
-      gameIni: `[/Script/ShooterGame.ShooterGameMode]
-DifficultyOffset=0.2
-OverrideOfficialDifficulty=5.0
-XPMultiplier=1.0
-TamingSpeedMultiplier=1.0
-HarvestAmountMultiplier=1.0
-ResourcesRespawnPeriodMultiplier=1.0
-PlayerCharacterWaterDrainMultiplier=1.0
-PlayerCharacterFoodDrainMultiplier=1.0
-DinoCharacterFoodDrainMultiplier=1.0
-PlayerCharacterStaminaDrainMultiplier=1.0
-DinoCharacterStaminaDrainMultiplier=1.0
-PlayerCharacterHealthRecoveryMultiplier=1.0
-DinoCharacterHealthRecoveryMultiplier=1.0
-DinoCountMultiplier=1.0
-AllowFlyerCarryPvE=False
-MaxTamedDinos=4000
-StructureDamageMultiplier=1.0
-StructureResistanceMultiplier=1.0
-TheMaxStructuresInRange=10500
-BabyMatureSpeedMultiplier=1.0
-EggHatchSpeedMultiplier=1.0
-BabyCuddleIntervalMultiplier=1.0
-BabyCuddleGracePeriodMultiplier=1.0
-BabyImprintAmountMultiplier=1.0`
-    }
   },
 
   // Modals
@@ -1452,34 +909,407 @@ BabyImprintAmountMultiplier=1.0`
     deleteFailed: '删除定时任务失败'
   },
 
+  // 服务器设置（新建 / 编辑页），按用途分组，不区分配置文件
+  serverSettings: {
+    searchPlaceholder: '搜索设置',
+    clearSearch: '清除搜索',
+    noResults: '没有匹配的设置',
+    modified: '已修改',
+    modifiedCount: '{count} 项已修改',
+    reset: '恢复默认',
+    notSet: '未设置',
+    defaultOption: '默认',
+    showPassword: '显示密码',
+    hidePassword: '隐藏密码',
+    units: {
+      s: '秒',
+      min: '分钟'
+    },
+    groups: {
+      general: { title: '常规', desc: '服务器名称、地图、人数、密码和欢迎消息' },
+      network: { title: '网络', desc: '端口、跨平台和连接限制' },
+      mods: { title: 'Mod 与集群', desc: '创意工坊 Mod、集群和跨服传输' },
+      gameplay: { title: '游戏规则', desc: '游戏模式、难度、界面、世界、聊天和活动' },
+      rates: { title: '倍率', desc: '经验、驯服、采集等常用倍率' },
+      players: { title: '玩家', desc: '玩家属性、印痕和挂机' },
+      dinos: { title: '恐龙', desc: '野生和驯服恐龙、飞行生物、腐朽和冷冻舱' },
+      breeding: { title: '繁殖', desc: '交配、孵化、成长和印记' },
+      structures: { title: '建筑', desc: '建筑强度、数量限制、拾取、腐朽和平台' },
+      tribes: { title: '部落与 PvP', desc: '部落和联盟、友军伤害、重生和离线保护' },
+      operations: { title: '运维', desc: '运行方式、自动保存、日志和其他服务器选项' },
+      advanced: { title: '高级', desc: '反作弊、性能调优、自定义启动参数和直接编辑配置文件' }
+    },
+    sections: {
+      general: { server: '服务器', access: '密码', motd: '欢迎消息' },
+      network: { ports: '端口', platform: '跨平台', connections: '连接' },
+      mods: { mods: 'Mod', cluster: '集群', transfer: '跨服传输' },
+      gameplay: { mode: '模式与难度', autoPve: '定时 PvE', hud: '界面与视角', world: '世界与环境', chat: '聊天与通知', events: '活动' },
+      rates: { core: '常用倍率', items: '物品与资源' },
+      players: { stats: '属性', progression: '印痕与技能点', misc: '其他' },
+      dinos: { wild: '野生恐龙', stats: '恢复与消耗', tamed: '驯服恐龙', flyers: '飞行生物', decay: '腐朽', cryopod: '冷冻舱' },
+      breeding: { speed: '繁殖速度', imprint: '照顾与印记' },
+      structures: { general: '通用', limits: '建造限制', pickup: '拾取', decay: '腐朽', platforms: '平台与载具' },
+      tribes: { tribes: '部落与联盟', combat: '战斗', respawn: 'PvP 重生间隔', offline: '离线保护' },
+      operations: { runtime: '运行方式', saves: '存档', logs: '日志与管理', misc: '其他' },
+      advanced: { antiCheat: '反作弊', performance: '性能', otherArgs: '其他启动参数', customArgs: '自定义启动参数', rawConfig: '配置文件' }
+    },
+    sectionHints: {
+      network: {
+        ports: '已自动填入未被其他服务器占用的端口。需要在路由器和防火墙放行游戏端口、游戏端口+1 和查询端口（UDP）。'
+      },
+      mods: {
+        transfer: '同一集群的服务器之间上传、下载角色、物品和恐龙的规则'
+      },
+      advanced: {
+        antiCheat: '不了解用途时保持默认',
+        customArgs: '上面没有列出的启动参数，按原样追加到启动命令，例如 -UseDynamicConfig。一行可以写多个，用空格分隔',
+        rawConfig: '上面的设置都保存在这些文件里，在这里修改会同步到对应的设置项。需要设置列表里没有的选项（如 ConfigOverrideItemMaxQuantity、OverrideNamedEngramEntries 等可以重复的键）时在这里编辑。'
+      }
+    },
+    fields: {
+      session_name: '服务器名称',
+      map: '地图',
+      max_players: '最大玩家数',
+      admin_password: '管理员密码',
+      port: '游戏端口',
+      query_port: '查询端口',
+      rcon_port: 'RCON 端口',
+      game_mod_ids: 'Mod',
+      cluster_id: '集群 ID',
+      arkapi: '启用 ArkApi',
+      auto_restart: '崩溃后自动重启',
+      auto_update: '启动时自动更新'
+    },
+    fieldHints: {
+      session_name: '玩家在服务器列表里看到的名称，可以包含空格和中文',
+      max_players: '1 到 200',
+      port: '还会占用 +1 端口',
+      query_port: 'Steam 服务器列表使用',
+      rcon_port: '远程管理使用',
+      game_mod_ids: '创意工坊 Mod ID 或链接，多个用逗号分隔，下方会显示 Mod 名称，可以拖动调整加载顺序',
+      cluster_id: '填写相同集群 ID 的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -',
+      arkapi: '用 GE-Proton 运行 Windows 版服务端，可以加载 ArkApi 插件。关闭时运行原生 Linux 版服务端，占用更少。',
+      auto_restart: '游戏进程意外退出时由 Docker 自动重启',
+      auto_update: '每次启动前校验更新游戏本体并重新下载 Mod，启动会变慢'
+    },
+    params: {
+      // 常规
+      ServerPassword: '加入密码',
+      SpectatorPassword: '观战密码',
+      Message: '欢迎消息',
+      Duration: '显示时长',
+      // 网络
+      crossplay: '允许跨平台（Epic）',
+      epiconly: '只允许 Epic 玩家',
+      PublicIPForEpic: 'Epic 玩家连接用的公网 IP',
+      MULTIHOME: '绑定的本机 IP',
+      exclusivejoin: '只允许白名单玩家',
+      MaxConnectionsPerIP: '每个 IP 最大连接数',
+      AllowSharedConnections: '允许家庭共享账号',
+      // Mod 与集群
+      MapModID: '地图 Mod ID',
+      automanagedmods: '自动管理 Mod',
+      NoTransferFromFiltering: '不限制传输来源',
+      usestore: '使用传输存储',
+      BackupTransferPlayerDatas: '备份传输的玩家数据',
+      converttostore: '转换为传输存储格式',
+      NoTributeDownloads: '禁止从其他服务器下载',
+      CrossARKAllowForeignDinoDownloads: '允许下载其他地图的恐龙',
+      PreventDownloadSurvivors: '禁止下载角色',
+      PreventUploadSurvivors: '禁止上传角色',
+      PreventDownloadItems: '禁止下载物品',
+      PreventUploadItems: '禁止上传物品',
+      PreventDownloadDinos: '禁止下载恐龙',
+      PreventUploadDinos: '禁止上传恐龙',
+      MaxTributeDinos: '上传恐龙数量上限',
+      MaxTributeItems: '上传物品数量上限',
+      TributeCharacterExpirationSeconds: '上传角色的保留时间',
+      TributeItemExpirationSeconds: '上传物品的保留时间',
+      TributeDinoExpirationSeconds: '上传恐龙的保留时间',
+      MinimumDinoReuploadInterval: '恐龙再次上传的间隔',
+      MinimumTimeBetweenInventoryRetrieval: '取回上传物品的最小间隔',
+      DisableCustomFoldersInTributeInventories: '上传栏不显示自定义文件夹',
+      // 游戏规则
+      serverPVE: 'PvE 模式',
+      serverHardcore: '硬核模式',
+      DifficultyOffset: '难度偏移',
+      OverrideOfficialDifficulty: '难度等级',
+      bUseSingleplayerSettings: '使用单人游戏平衡',
+      bAutoPvETimer: '定时切换 PvE',
+      bAutoPvEUseSystemTime: '按服务器系统时间切换',
+      AutoPvEStartTimeSeconds: 'PvE 开始时间',
+      AutoPvEStopTimeSeconds: 'PvE 结束时间',
+      ShowMapPlayerLocation: '地图上显示自己的位置',
+      allowThirdPersonPlayer: '允许第三人称',
+      ServerCrosshair: '显示准星',
+      serverForceNoHud: '强制隐藏 HUD',
+      ShowFloatingDamageText: '显示浮动伤害数字',
+      AllowHitMarkers: '显示命中标记',
+      EnablePvPGamma: 'PvP 允许调节亮度',
+      DisablePvEGamma: 'PvE 禁止调节亮度',
+      DisableWeatherFog: '关闭雾天',
+      bShowCreativeMode: '显示创造模式按钮',
+      DayCycleSpeedScale: '昼夜流逝速度',
+      DayTimeSpeedScale: '白天流逝速度',
+      NightTimeSpeedScale: '夜晚流逝速度',
+      RandomSupplyCratePoints: '补给箱随机位置',
+      bDisableLootCrates: '禁用补给箱',
+      PreventDiseases: '禁用疾病',
+      NonPermanentDiseases: '疾病在死亡后消失',
+      PreventSpawnAnimations: '跳过出生动画',
+      AllowTekSuitPowersInGenesis: '创世纪允许 TEK 套装能力',
+      MaxHexagonsPerCharacter: '每个角色六角币上限',
+      globalVoiceChat: '全局语音',
+      proximityChat: '附近文字聊天',
+      alwaysNotifyPlayerJoined: '玩家加入时提示',
+      alwaysNotifyPlayerLeft: '玩家离开时提示',
+      DontAlwaysNotifyPlayerJoined: '不提示玩家加入',
+      bFilterChat: '过滤聊天内容',
+      bFilterCharacterNames: '过滤角色名',
+      bFilterTribeNames: '过滤部落名',
+      UseVivox: '使用 Vivox 语音',
+      AllowChatSpam: '允许连续发言',
+      ActiveEvent: '开启活动',
+      NewYearEvent: '新年活动',
+      NewYear1UTC: '新年活动开始时间（UTC 时间戳）',
+      NewYear2UTC: '新年活动结束时间（UTC 时间戳）',
+      EventColorsChanceOverride: '活动配色出现概率',
+      // 倍率
+      XPMultiplier: '经验',
+      TamingSpeedMultiplier: '驯服速度',
+      HarvestAmountMultiplier: '采集数量',
+      HarvestHealthMultiplier: '资源耐久',
+      ResourcesRespawnPeriodMultiplier: '资源刷新间隔',
+      ItemStackSizeMultiplier: '物品堆叠上限',
+      CropGrowthSpeedMultiplier: '作物生长速度',
+      GlobalItemDecompositionTimeMultiplier: '掉落物品消失时间',
+      GlobalCorpseDecompositionTimeMultiplier: '尸体消失时间',
+      ClampItemSpoilingTimes: '限制物品腐坏时间',
+      ClampResourceHarvestDamage: '限制采集伤害',
+      UseOptimizedHarvestingHealth: '优化采集计算',
+      // 玩家
+      PlayerDamageMultiplier: '伤害',
+      PlayerResistanceMultiplier: '承受伤害',
+      PlayerCharacterHealthRecoveryMultiplier: '生命恢复',
+      PlayerCharacterStaminaDrainMultiplier: '耐力消耗',
+      PlayerCharacterFoodDrainMultiplier: '饥饿速度',
+      PlayerCharacterWaterDrainMultiplier: '口渴速度',
+      OxygenSwimSpeedStatMultiplier: '氧气加点对游泳速度的影响',
+      bAllowUnlimitedRespecs: '允许无限次洗点',
+      bAutoUnlockAllEngrams: '自动解锁全部印痕',
+      bOnlyAllowSpecifiedEngrams: '只允许指定的印痕',
+      bAllowCustomRecipes: '允许自定义配方',
+      EnableIdlePlayerKick: '踢出挂机玩家',
+      KickIdlePlayersPeriod: '挂机多久后踢出',
+      ImplantSuicideCD: '自杀冷却',
+      bUseCorpseLocator: '显示尸体位置',
+      // 恐龙
+      DinoCountMultiplier: '野生恐龙数量',
+      DinoDamageMultiplier: '野生恐龙伤害',
+      DinoResistanceMultiplier: '野生恐龙承受伤害',
+      WildDinoCharacterFoodDrainMultiplier: '野生恐龙饥饿速度',
+      WildDinoTorporDrainMultiplier: '野生恐龙昏迷值下降速度',
+      NoDinos: '不生成野生恐龙',
+      ForceRespawnDinos: '启动时重新生成野生恐龙',
+      DinoCharacterHealthRecoveryMultiplier: '生命恢复',
+      DinoCharacterStaminaDrainMultiplier: '耐力消耗',
+      DinoCharacterFoodDrainMultiplier: '饥饿速度',
+      TamedDinoDamageMultiplier: '驯服恐龙伤害',
+      TamedDinoResistanceMultiplier: '驯服恐龙承受伤害',
+      MaxTamedDinos: '全服驯服数量上限',
+      MaxPersonalTamedDinos: '每个部落驯服数量上限',
+      bDisableDinoTaming: '禁止驯服',
+      bDisableDinoRiding: '禁止骑乘',
+      AllowRaidDinoFeeding: '允许喂食巨型恐龙（泰坦龙）',
+      RaidDinoCharacterFoodDrainMultiplier: '巨型恐龙饥饿速度',
+      UseTameEffectivenessClamp: '限制驯服效率',
+      AllowFlyerCarryPvE: 'PvE 允许飞行生物抓取',
+      bForceCanRideFliers: '所有地图允许骑乘飞行生物',
+      AllowFlyingStaminaRecovery: '飞行时恢复耐力',
+      ForceFlyerExplosives: '允许飞行生物携带炸药',
+      ForceAllowCaveFlyers: '允许飞行生物进入洞穴',
+      DisableDinoDecayPvE: 'PvE 关闭恐龙腐朽',
+      PvEDinoDecayPeriodMultiplier: 'PvE 恐龙腐朽时间',
+      PvPDinoDecay: 'PvP 开启恐龙腐朽',
+      AutoDestroyDecayedDinos: '自动清除已腐朽的恐龙',
+      EnableCryoSicknessPVE: 'PvE 开启冷冻病',
+      EnableCryopodNerf: '放出恐龙后削弱',
+      CryopodNerfDuration: '削弱持续时间',
+      CryopodNerfDamageMult: '削弱期间伤害',
+      CryopodNerfIncomingDamageMultPercent: '削弱期间承受伤害增加',
+      DisableCryopodEnemyCheck: '附近有敌人时也能使用',
+      DisableCryopodFridgeRequirement: '不需要冷冻冰箱充能',
+      AllowCryoFridgeOnSaddle: '允许在平台鞍上放冷冻冰箱',
+      // 繁殖
+      MatingIntervalMultiplier: '交配间隔',
+      EggHatchSpeedMultiplier: '孵化速度',
+      BabyMatureSpeedMultiplier: '成长速度',
+      BabyFoodConsumptionSpeedMultiplier: '幼体饥饿速度',
+      BabyCuddleIntervalMultiplier: '照顾间隔',
+      BabyCuddleGracePeriodMultiplier: '照顾宽限时间',
+      BabyCuddleLoseImprintQualitySpeedMultiplier: '错过照顾时印记下降速度',
+      BabyImprintingStatScaleMultiplier: '印记属性加成',
+      AllowAnyoneBabyImprintCuddle: '任何人都能照顾幼体',
+      DisableImprintDinoBuff: '关闭印记骑乘加成',
+      imprintlimit: '印记上限（%）',
+      // 建筑
+      StructureDamageMultiplier: '建筑伤害',
+      StructureResistanceMultiplier: '建筑承受伤害',
+      StructureDamageRepairCooldown: '受损后可修复的冷却',
+      StructurePreventResourceRadiusMultiplier: '建筑阻止资源刷新的范围',
+      bDisableStructurePlacementCollision: '忽略建筑放置碰撞',
+      AllowIntegratedSPlusStructures: '启用内置 S+ 建筑',
+      DestroyUnconnectedWaterPipes: '自动清除未连接的水管',
+      TheMaxStructuresInRange: '范围内建筑数量上限',
+      NewMaxStructuresInRange: '范围内建筑数量上限（新版）',
+      MaxStructuresInRange: '范围内建筑数量上限（旧版）',
+      EnableExtraStructurePreventionVolumes: '禁止在资源丰富区域建造',
+      OverrideStructurePlatformPrevention: '允许在平台上放炮塔',
+      AllowCaveBuildingPvE: 'PvE 允许在洞穴建造',
+      AllowCaveBuildingPvP: 'PvP 允许在洞穴建造',
+      PvEAllowStructuresAtSupplyDrops: 'PvE 允许在补给点附近建造',
+      AllowCrateSpawnsOnTopOfStructures: '补给箱可以落在建筑上',
+      StructurePickupTimeAfterPlacement: '放置后可快速拾取的时间',
+      StructurePickupHoldDuration: '拾取需要按住的时间',
+      AlwaysAllowStructurePickup: '随时可以拾取建筑',
+      DisableStructureDecayPvE: 'PvE 关闭建筑腐朽',
+      PvEStructureDecayPeriodMultiplier: 'PvE 建筑腐朽时间',
+      PvPStructureDecay: 'PvP 开启建筑腐朽',
+      OnlyAutoDestroyCoreStructures: '只自动清除地基等核心建筑',
+      OnlyDecayUnsnappedCoreStructures: '只腐朽未连接的核心建筑',
+      FastDecayUnsnappedCoreStructures: '未连接的核心建筑快速腐朽',
+      MaxPlatformSaddleStructureLimit: '平台鞍建筑数量上限',
+      PerPlatformMaxStructuresMultiplier: '平台建筑数量倍率',
+      PlatformSaddleBuildAreaBoundsMultiplier: '平台建造范围',
+      bAllowPlatformSaddleMultiFloors: '允许平台鞍多层建造',
+      MaxGateFrameOnSaddles: '平台鞍门框数量上限',
+      MaxTrainCars: '火车车厢数量上限',
+      // 部落与 PvP
+      MaxNumberOfPlayersInTribe: '部落人数上限',
+      TribeNameChangeCooldown: '部落改名冷却',
+      PreventTribeAlliances: '禁止部落联盟',
+      MaxAlliancesPerTribe: '每个部落可加入的联盟数',
+      MaxTribesPerAlliance: '每个联盟的部落数',
+      bPvEAllowTribeWar: 'PvE 允许部落宣战',
+      bPvEAllowTribeWarCancel: 'PvE 允许取消宣战',
+      bDisableFriendlyFire: '关闭友军伤害（PvP）',
+      bPvEDisableFriendlyFire: '关闭友军伤害（PvE）',
+      bPassiveDefensesDamageRiderlessDinos: '陷阱等防御伤害无人骑乘的恐龙',
+      AllowMultipleAttachedC4: '允许在同一目标上贴多个 C4',
+      DisableRailgunPVP: 'PvP 禁用轨道炮',
+      bIncreasePvPRespawnInterval: '频繁死亡时延长重生时间',
+      IncreasePvPRespawnIntervalCheckPeriod: '检查时长',
+      IncreasePvPRespawnIntervalMultiplier: '每次延长的倍率',
+      IncreasePvPRespawnIntervalBaseAmount: '延长的基础时间',
+      PreventOfflinePvP: '离线保护',
+      PreventOfflinePvPInterval: '下线后多久开始保护',
+      // 运维
+      AutoSavePeriodMinutes: '自动保存间隔',
+      MaxNumOfSaveBackups: '保留的存档备份数',
+      newsaveformat: '使用新存档格式',
+      AltSaveDirectoryName: '存档子目录名',
+      AdminLogging: '在聊天中记录管理员命令',
+      servergamelog: '记录服务器游戏日志',
+      servergamelogincludetribelogs: '游戏日志包含部落日志',
+      ServerRCONOutputTribeLogs: 'RCON 输出部落日志',
+      NotifyAdminCommandsInChat: '在聊天中提示管理员命令',
+      AllowHideDamageSourceFromLogs: '部落日志隐藏伤害来源',
+      RCONServerGameLogBuffer: 'RCON 日志缓存行数',
+      culture: '服务器语言',
+      NoHangDetection: '关闭卡死检测',
+      BanListURL: '全局封禁列表地址',
+      CustomDynamicConfigUrl: '动态配置地址',
+      // 高级
+      NoBattlEye: '关闭 BattlEye',
+      BattlEyeServerRecheck: 'BattlEye 定期复查',
+      insecure: '关闭 VAC',
+      noantispeedhack: '关闭防加速检测',
+      speedhackbias: '加速检测容差',
+      noundermeshchecking: '关闭穿地检测',
+      noundermeshkilling: '穿地时不击杀',
+      forcedisablemeshchecking: '强制关闭模型穿透检测',
+      SecureSendArKPayload: '加密传输数据',
+      UseItemDupeCheck: '检测物品复制',
+      UseSecureSpawnRules: '使用安全物品生成规则',
+      EnableVictoryCoreDupeCheck: '检测胜利核心复制',
+      ignoredupeditems: '忽略复制的物品',
+      ForceDupeLog: '强制记录复制日志',
+      DisableDupeLogDeletes: '不删除复制日志',
+      UseServerNetSpeedCheck: '检测异常移动速度',
+      pauseonddos: '受到 DDoS 时暂停',
+      structurememopts: '建筑内存优化',
+      UseStructureStasisGrid: '建筑静止网格',
+      StasisKeepControllers: '静止时保留 AI 控制器',
+      nocombineclientmoves: '不合并客户端移动',
+      DormancyNetMultiplier: '休眠网络倍率',
+      nodormancythrottling: '关闭休眠限流',
+      dedihibernation: '无人时休眠',
+      nitradotest2: 'Nitrado 测试优化',
+      ServerAllowAnsel: '允许 NVIDIA Ansel',
+      ListenServerTetherDistanceMultiplier: '非专用服务器的跟随距离',
+      NPCNetworkStasisRangeScalePlayerCountStart: 'NPC 静止范围缩放起始人数',
+      NPCNetworkStasisRangeScalePlayerCountEnd: 'NPC 静止范围缩放结束人数',
+      NPCNetworkStasisRangeScalePercentEnd: 'NPC 静止范围最终缩放比例',
+      webalarm: '网页通知',
+      EnableOfficialOnlyVersioningCode: '启用官方版本校验',
+      parseservertojson: '导出服务器信息为 JSON',
+      PreventTotalConversionSaveDir: '全面转换 Mod 不使用单独存档目录',
+      ReloadedForBackup: '为备份重新加载',
+      UnstasisDinoObstructionCheck: '恐龙解除静止时检查阻挡',
+      pveallowtribewar: 'PvE 允许部落宣战（旧参数）',
+      pvedisallowtribewar: 'PvE 禁止部落宣战（旧参数）',
+      CustomAdminCommandTrackingURL: '管理员命令上报地址',
+      CustomMerticsURL: '指标上报地址',
+      CustomNotificationURL: '通知地址'
+    },
+    hints: {
+      ServerPassword: '设置后玩家加入需要输入，留空为公开服务器',
+      Message: '玩家进入时显示，用 \\n 换行',
+      MaxConnectionsPerIP: '0 表示不限制',
+      serverPVE: '玩家之间不能互相伤害',
+      serverHardcore: '死亡后角色重置为 1 级',
+      DifficultyOffset: '0 到 1，与难度等级一起决定野生恐龙的最高等级',
+      OverrideOfficialDifficulty: '野生恐龙最高等级 = 难度等级 × 30，5 对应 150 级',
+      bUseSingleplayerSettings: '按单人游戏调整驯服、繁殖等平衡，适合人少的服务器',
+      AutoPvEStartTimeSeconds: '一天中的第几秒，例如 28800 是 8:00',
+      AutoPvEStopTimeSeconds: '一天中的第几秒，例如 79200 是 22:00',
+      DayCycleSpeedScale: '大于 1 时一天过得更快',
+      ResourcesRespawnPeriodMultiplier: '数值越小资源刷新越快',
+      ItemStackSizeMultiplier: '部分物品（如弹药）不受影响',
+      GlobalItemDecompositionTimeMultiplier: '数值越大，掉在地上的物品保留越久',
+      ActiveEvent: '活动名称，例如 Easter、Summer、FearEvolved、TurkeyTrial、WinterWonderland、Arkaeology',
+      EnableIdlePlayerKick: '和"挂机多久后踢出"一起使用',
+      MaxPersonalTamedDinos: '0 表示不限制',
+      MaxNumberOfPlayersInTribe: '0 表示不限制，1 表示只能单人部落',
+      MatingIntervalMultiplier: '数值越小交配冷却越短',
+      BabyCuddleIntervalMultiplier: '数值越小照顾越频繁，成长加快时应同步调小',
+      PvEStructureDecayPeriodMultiplier: '数值越大，建筑越晚腐朽',
+      PreventOfflinePvP: '部落成员全部下线一段时间后，建筑和恐龙不会受到伤害',
+      AutoSavePeriodMinutes: '自动保存时服务器会短暂卡顿',
+      MaxNumOfSaveBackups: '游戏自己保留的存档备份份数，和管理端的备份无关',
+      AltSaveDirectoryName: '在同一服务器上切换不同的存档，留空使用默认',
+      culture: '影响服务器发出的系统消息语言',
+      NoBattlEye: '大部分社区服务器关闭 BattlEye，开启后玩家需要安装 BattlEye 才能加入',
+      crossplay: '允许 Epic 版本玩家加入（ASE 跨平台）'
+    },
+    panels: {
+      customArgPlaceholder: '例如 -UseDynamicConfig',
+      addCustomArg: '添加参数',
+      removeCustomArg: '删除参数',
+      rawEmpty: '（空）'
+    }
+  },
+
   // 服务器表单
   serverForm: {
     unsaved: '有未保存的修改',
     saveShortcut: '保存（Ctrl+S）',
-    sectionBasic: '基本信息',
-    sectionNetwork: '端口和密码',
-    sectionMods: 'Mod 和集群',
-    sectionMaintenance: '运维',
-    sectionRuntime: '运行方式',
-    arkapi: '启用 ArkApi',
-    arkapiHint: '用 GE-Proton 运行 Windows 版服务端，可以加载 ArkApi 插件。关闭时运行原生 Linux 版服务端，占用更少。',
     arkapiSwitchHint: '下次启动时生效：会换用另一个镜像重建容器，并补下载对应平台的服务端程序，存档、配置和 Mod 不受影响。',
-    sessionNameHint: '玩家在服务器列表里看到的名称，可以包含空格和中文',
-    gamePortHint: '还会占用 +1 端口',
-    queryPortHint: 'Steam 服务器列表使用',
-    rconPortHint: '远程管理使用',
-    portsFirewallHint: '已自动填入未被其他服务器占用的端口。需要在路由器和防火墙放行游戏端口、游戏端口+1 和查询端口（UDP）。',
     passwordHint: '用于游戏内管理员命令（enablecheats）和 RCON',
     passwordKeepHint: '留空则保持原密码不变',
     passwordKeepPlaceholder: '留空则不修改',
     generate: '随机生成',
-    modsHint: '创意工坊 Mod ID 或链接，多个用逗号分隔，下方会显示 Mod 名称',
     browseWorkshop: '在创意工坊浏览 Mod',
-    clusterHint: '填写相同集群ID的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -',
-    autoRestart: '崩溃后自动重启',
-    autoRestartHint: '游戏进程意外退出时由 Docker 自动重启',
-    autoUpdate: '启动时自动更新',
-    autoUpdateHint: '每次启动前校验更新游戏本体并重新下载 Mod，启动会变慢',
     passwordRequired: '请设置管理员密码',
     passwordNoNewline: '密码不能包含换行',
     portRange: '端口需要在 1 到 65535 之间',
@@ -1487,7 +1317,7 @@ BabyImprintAmountMultiplier=1.0`
     maxPlayersRange: '最大玩家数需要在 1 到 200 之间',
     clusterInvalid: '集群ID只能包含字母、数字、_ . -，且以字母或数字开头',
     modsInvalid: 'Mod ID 只能是逗号分隔的数字',
-    fixErrors: '请先修正"基本参数"中标红的字段',
+    fixErrors: '请先修正标红的字段',
     discardConfirm: '有未保存的修改，确定要离开吗？',
     saveAndRestart: '保存并重启',
     created: '服务器已创建',

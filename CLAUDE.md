@@ -123,7 +123,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - ArkApi 版本库：`GET /arkapi/versions`（`?refresh=true` 重新查询 GitHub）、`POST /arkapi/versions`（multipart `file`，可选 `version`）、`DELETE /arkapi/versions/:version`
 - 备份：`GET|POST /servers/:id/backups`、`POST /servers/:id/backups/upload`（multipart `file`）、`GET|DELETE /servers/:id/backups/:name`、`POST /servers/:id/backups/:name/restore`
 - 定时任务：`GET|POST /servers/:id/schedules`、`PUT|DELETE /servers/:id/schedules/:scheduleId`、`POST /servers/:id/schedules/:scheduleId/run`
-- 系统：`GET /system/overview`（`?refresh=true` 重新计算磁盘，含 `unused_clusters`）、`GET /system/info`（公网地址）、`GET /system/version`（`?refresh=true`）、`DELETE /system/clusters/:clusterId`、`GET /system/suggest-ports`、`GET /mods?ids=`
+- 系统：`GET /system/overview`（`?refresh=true` 重新计算磁盘，含 `unused_clusters`）、`GET /system/info`（公网地址）、`GET /system/version`（`?refresh=true`）、`DELETE /system/clusters/:clusterId`、`GET /system/suggest-ports`、`GET /system/server-defaults`（新建服务器的默认配置文件和启动参数）、`GET /mods?ids=`
 - 镜像：`GET /images/status`、`POST /images/pull`、`GET /images/check-updates`、`POST /images/update`（`{image_name, restart_running}`）、`GET /images/affected`
 
 ### 前端结构（`ui/src/`）
@@ -134,12 +134,12 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - `app/mcp/route.ts`：MCP 入口，原样转发到后端 `/api/mcp`，透传 `Authorization`、`Accept`、`Mcp-*` 头，不读 cookie。`proxy.ts` 的 matcher 排除了 `mcp`
 - `proxy.ts`：Next 16 中原 `middleware.ts` 的新约定。负责语言 cookie（`NEXT_LOCALE`）和登录重定向
 - `lib/backend-server.ts`：`getApiBase`、令牌 cookie 读写、`authProxy`
-- `lib/api-error.ts`：`useApiError()`（中文界面显示后端 `error`，其他语言按 `apiErrors.<code>` 翻译）和旧的 `getErrorMessage`；`lib/toast.ts`：全局通知（`toast.success/error`）；`lib/format.ts`：大小、时间、随机密码、复制；`hooks/use-polling.ts`：页面可见时轮询；`lib/ini.ts`：`mergeIni`，INI 文本的就地合并；`lib/images.ts`：镜像名常量和显示名称
+- `lib/api-error.ts`：`useApiError()`（中文界面显示后端 `error`，其他语言按 `apiErrors.<code>` 翻译）和旧的 `getErrorMessage`；`lib/toast.ts`：全局通知（`toast.success/error`）；`lib/format.ts`：大小、时间、随机密码、复制；`hooks/use-polling.ts`：页面可见时轮询；`lib/ini.ts`：INI 的按 section 读取（`indexIni` / `getIniValue`）和就地修改（`setIniValue`，值为 undefined 时删除键）；`lib/server-settings.ts`：服务器设置字典（见下文"服务器设置界面"）；`lib/images.ts`：镜像名常量和显示名称
 - `stores/`：Zustand（`auth.ts`、`servers.ts`），HTTP 用 Axios
 - 视觉风格（方舟游戏内界面风格的深色 HUD）：根节点固定 `className="dark"`，`globals.css` 定义主题变量（深蓝底色、半透明面板 `--card`、青色 `--primary`、琥珀色 `--amber` 表示进行中、终端底色 `--terminal`）。`@theme` 里把 Tailwind 的 `gray/red/green/amber/yellow/blue/sky/purple/orange` 色阶整体**反转**：数字小的是深色背景色调，数字大的是浅色文字，所以 `bg-red-50 text-red-800` 这类写法在深色下自然是"深红底 + 浅红字"。新代码照此约定：背景用 50–200，图标和圆点用 400–600，文字用 600–900；不要用 `bg-white`、`text-gray-200` 这类按浅色主题思路写的类。自定义工具类（用 `@utility` 定义，可以加变体前缀）：`hud`（左上、右下青色角标，元素本身要有定位）、`hud-caps`（英文大写加字距，用于导航、标题和主要按钮，中文不受影响）、`glow-text`、`font-display`（Saira，来自 `@fontsource-variable/saira`，本地打包）、`num`（等宽数字）。不使用游戏的图片、Logo 或字体等素材，只借鉴界面风格。状态徽章三种颜色：绿色可用、琥珀色进行中、石色已停止
 - 地图颜色：`lib/maps.ts` 的 `mapColor` 给每张地图一个固定颜色，服务器卡片、详情页顶部（`MapBand`，停止时变灰）、首页名单和地图选择器都用它；`hooks/use-map-name.ts` 取地图显示名
 - 公共组件：`PageHeader`（页面标题行）、`AuthShell`（登录 / 初始化外框，含 `FormError`）、`Wordmark`、`components/ui/page-loader.tsx`（统一加载状态）；`TabsList variant="line"` 用于页面级标签（详情页、服务器表单）
-- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ConnectionInfo`、ini 可视化编辑器；`components/settings/VersionCard`（版本和升级命令）、`components/settings/McpCard`（MCP 地址和令牌管理）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
+- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ConnectionInfo`、`settings/`（设置项卡片 `SettingTile` / `SettingControl`、自定义启动参数和配置文件面板）；`components/settings/VersionCard`（版本和升级命令）、`components/settings/McpCard`（MCP 地址和令牌管理）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
 
 ### 认证流程
@@ -200,7 +200,11 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 ### 配置文件
 
-GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 直接读写后端本地的 `servers/<id>/saved/Config/WindowsServer/`，写入先写临时文件再改名。服务器未停止时保存的配置先存入 `pending_game_user_settings` / `pending_game_ini`（ARK 停服时会覆盖 GameUserSettings.ini），下次启动或重建前写入数据卷，响应里 `config_pending` 为 true。前端的可视化编辑器（`GameUserSettingsEditor`、`GameIniEditor`）和文本模式互相同步，可视化修改通过 `lib/ini.ts` 的 `mergeIni` 在原文本上就地合并，只写入改过的键，未知键、注释和自定义 section 原样保留。
+GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 直接读写后端本地的 `servers/<id>/saved/Config/WindowsServer/`，写入先写临时文件再改名。服务器未停止时保存的配置先存入 `pending_game_user_settings` / `pending_game_ini`（ARK 停服时会覆盖 GameUserSettings.ini），下次启动或重建前写入数据卷，响应里 `config_pending` 为 true。前端每次修改一个设置项，就用 `lib/ini.ts` 的 `setIniValue` 在原文本的对应 section 里改这一行，未知键、注释和自定义 section 原样保留。
+
+### 服务器设置界面
+
+新建和编辑页（`ServerForm`）不按文件分区，而是按用途分组（常规、网络、Mod 与集群、游戏规则、倍率、玩家、恐龙、繁殖、建筑、部落与 PvP、运维、高级），左侧导航带修改计数，顶部可以跨分组搜索（名称、键名、说明）。所有设置项定义在 `lib/server-settings.ts` 的 `SETTING_GROUPS`，`source` 记录存放位置：`field`（服务器记录字段，由表单单独渲染）、`gus`（GameUserSettings.ini）、`game`（Game.ini）、`query`（`?Key=Value`）、`arg`（`-Key`）。`readSetting` / `writeSetting` 统一读写，界面每次渲染都从文本重新解析，所以"高级 → 配置文件"里直接改文本也会同步到设置项。`default` 是没有设置时游戏的表现，和它不同的值显示为已修改，恢复默认就是删掉这个键或参数（开关参数关闭也是删除）。新增设置项：在字典里加一行，在 `messages/*.ts` 的 `serverSettings.params`（必要时 `hints`）加中英文名称。新建页先请求 `/system/server-defaults`，以后端的默认模板和推荐启动参数为基础编辑，创建时再把模板里的名称、人数和欢迎消息换成表单里的值（`new/page.tsx` 的 `applyIdentity`）。
 
 ## 开发约定
 
@@ -252,7 +256,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 创意工坊名称查询依赖访问 `api.steampowered.com`，访问不了时只显示 ID
 - 管理员密码现在存放在卷里的 `GameUserSettings.ini`，`docker inspect` 看不到；数据库里仍是明文，并且每次启动都以数据库的值为准，在 ini 里直接改 `ServerAdminPassword` 会被覆盖
 - 每台服务器各有一份完整的服务端文件卷，磁盘占用大（新服务器从已安装的服务器复制，省的是下载，不省磁盘）；Mod 平时只下载尚未安装的，创意工坊有更新时详情页会提示，需要手动更新所选 Mod、"更新游戏/Mod"或开启 `auto_update` 才会重新下载
-- 默认配置模板按 `docs/ASE_Game.ini.md` / `docs/ASE_GameUserSetting.md` 分配：倍率、难度、昼夜速度在 GameUserSettings.ini 的 `[ServerSettings]`，Game.ini 只放自己的选项，都在 `[/script/shootergame.shootergamemode]`。旧服务器的 Game.ini 里可能还留着这些无效的键，可视化编辑器不再显示它们。未在真实服务器验证
+- 默认配置模板按 `docs/ASE_Game.ini.md` / `docs/ASE_GameUserSetting.md` 分配：倍率、难度、昼夜速度在 GameUserSettings.ini 的 `[ServerSettings]`，Game.ini 只放自己的选项，都在 `[/script/shootergame.shootergamemode]`。旧服务器的 Game.ini 里可能还留着这些无效的键，设置界面只读写所属 section 里的键，不显示它们。未在真实服务器验证
 - 创意工坊搜索接口需要 Steam Web API Key，没有做站内搜索，只支持粘贴链接
 - 版本检查依赖访问 `api.github.com`（未认证每小时 60 次，结果缓存 6 小时）
 - MCP 令牌长期有效、权限是整个账户（完全控制或只读两档），没有按服务器限制；MCP 和网页共用对外端口，公网暴露时需要 HTTPS 反向代理，否则令牌明文传输

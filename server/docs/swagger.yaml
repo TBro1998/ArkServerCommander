@@ -568,6 +568,15 @@ definitions:
           $ref: '#/definitions/server.PluginInfo'
         type: array
     type: object
+  server.ServerDefaults:
+    properties:
+      game_ini:
+        type: string
+      game_user_settings:
+        type: string
+      server_args:
+        $ref: '#/definitions/models.ServerArgs'
+    type: object
   server.ServerDiskUsage:
     properties:
       backups:
@@ -2471,6 +2480,23 @@ paths:
       security:
       - Bearer: []
       summary: 首页概览
+      tags:
+      - 系统
+  /system/server-defaults:
+    get:
+      description: 新建服务器时写入的默认 GameUserSettings.ini、Game.ini 和启动参数，新建页以它为基础编辑
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 默认配置
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.ServerDefaults'
+            type: object
+      security:
+      - Bearer: []
+      summary: 新建服务器的默认配置
       tags:
       - 系统
   /system/suggest-ports:

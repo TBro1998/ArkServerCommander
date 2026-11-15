@@ -2762,6 +2762,34 @@
                 }
             }
         },
+        "/system/server-defaults": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "新建服务器时写入的默认 GameUserSettings.ini、Game.ini 和启动参数，新建页以它为基础编辑",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "新建服务器的默认配置",
+                "responses": {
+                    "200": {
+                        "description": "默认配置",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.ServerDefaults"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/system/suggest-ports": {
             "get": {
                 "security": [
@@ -3774,6 +3802,20 @@
                     "items": {
                         "$ref": "#/definitions/server.PluginInfo"
                     }
+                }
+            }
+        },
+        "server.ServerDefaults": {
+            "type": "object",
+            "properties": {
+                "game_ini": {
+                    "type": "string"
+                },
+                "game_user_settings": {
+                    "type": "string"
+                },
+                "server_args": {
+                    "$ref": "#/definitions/models.ServerArgs"
                 }
             }
         },
