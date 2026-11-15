@@ -22,7 +22,7 @@ import {
 import { ImageStatus } from '@/components/docker/ImageStatus';
 import { ImageUpdateConfirmModal } from '@/components/docker/ImageUpdateConfirmModal';
 import { StatusBadge } from '@/components/servers/StatusBadge';
-import { ServerActions } from '@/components/servers/ServerActions';
+import { ServerPowerControls } from '@/components/servers/ServerActions';
 import { usePolling } from '@/hooks/use-polling';
 import { useMapName } from '@/hooks/use-map-name';
 import { useApiError } from '@/lib/api-error';
@@ -110,7 +110,7 @@ function RosterRow({ server }: { server: ServerInfo }) {
           <span className="text-muted-foreground">-</span>
         )}
       </div>
-      <ServerActions server={server} />
+      <ServerPowerControls server={server} />
     </li>
   );
 }

@@ -506,6 +506,19 @@ const messages = {
     },
     summary: '共 {total} 台，{running} 台运行中，{players} 名玩家在线',
     refresh: '刷新',
+    view: '显示方式',
+    views: {
+      cards: '卡片',
+      list: '列表',
+    },
+    columns: {
+      server: '服务器',
+      status: '状态',
+      players: '玩家',
+      resources: '资源',
+      address: '连接地址',
+      actions: '操作',
+    },
   },
 
   // 服务器卡片
@@ -546,14 +559,12 @@ const messages = {
     stop: '停止',
     restart: '重启',
     working: '处理中',
-    more: '更多操作',
-    details: '详情',
-    logs: '查看日志',
-    edit: '编辑配置',
+    logs: '日志',
+    console: '控制台',
+    settings: '编辑设置',
     updateGame: '更新游戏/Mod',
     recreate: '重建容器',
     delete: '删除服务器',
-    deleteNeedStop: '删除（需先停止）',
     startSent: '已开始启动',
     startFailed: '启动服务器失败',
     stopSent: '已开始停止，停服前会保存世界',
@@ -592,6 +603,31 @@ const messages = {
     typeNameToConfirm: '输入服务器名称 "{name}" 确认'
   },
 
+  // 详情页"管理"标签
+  manage: {
+    maintenance: '维护',
+    update: '更新…',
+    updateDesc: '校验并更新服务端文件、重新下载 Mod。玩家提示版本不一致时使用，服务器会在更新后启动。',
+    modsOutdated: '创意工坊上有 {count} 个 Mod 有更新，也可以在概览的 Mod 列表里只更新这些 Mod',
+    recreate: '重建…',
+    recreateDesc: '按当前配置重新创建容器，完成后处于已停止状态。通常不需要：启动时发现配置或镜像变化会自动重建。',
+    busy: '服务器正在启动或停止，请稍后再试',
+    config: '配置',
+    export: '导出',
+    exportDesc: '下载为 JSON 文件，不含端口和管理员密码，可以导入到其他服务器或留作备份。',
+    import: '导入…',
+    importDesc: '从导出的文件或其他服务器读取设置并直接保存，名称、端口和管理员密码不变。',
+    importSaved: '配置已导入',
+    importPending: '配置已导入，下次启动时生效',
+    importFailed: '导入配置失败',
+    copy: '复制…',
+    copyDesc: '把这台服务器的设置一次保存到多台服务器。',
+    danger: '危险操作',
+    delete: '删除…',
+    deleteDesc: '删除服务器记录和容器，可以选择保留或一并删除存档、服务端文件和备份。',
+    deleteNeedStop: '请先停止服务器',
+  },
+
   // 配置导入、导出和复制
   serverConfig: {
     export: '导出配置',
@@ -601,6 +637,8 @@ const messages = {
     importTitle: '导入配置',
     importDesc: '把选中的部分填进当前表单，检查后点击保存才会生效。',
     importConfirm: '导入到表单',
+    importApplyDesc: '把选中的部分直接保存到这台服务器；服务器未停止时下次启动生效。',
+    importApplyConfirm: '导入并保存',
     imported: '已导入，检查后保存生效',
     fromFile: '从文件',
     fromServer: '从其他服务器',
@@ -695,7 +733,8 @@ const messages = {
       logs: '日志',
       backups: '备份',
       schedules: '定时任务',
-      plugins: '插件'
+      plugins: '插件',
+      manage: '管理'
     },
     backToList: '返回服务器列表',
     notFound: '服务器不存在或已被删除',

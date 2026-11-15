@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, AlertTriangle, Users } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Users, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,7 +19,8 @@ import {
   type Server,
 } from '@/stores/servers';
 import { StatusBadge } from '@/components/servers/StatusBadge';
-import { ServerActions } from '@/components/servers/ServerActions';
+import { PowerButtons, useServerControls } from '@/components/servers/ServerActions';
+import { ServerManagePanel } from '@/components/servers/ServerManagePanel';
 import { ConnectionInfo } from '@/components/servers/ConnectionInfo';
 import { LogViewer } from '@/components/servers/LogViewer';
 import { ConsolePanel } from '@/components/servers/ConsolePanel';
@@ -32,7 +33,7 @@ import { useMapName } from '@/hooks/use-map-name';
 import { usePolling } from '@/hooks/use-polling';
 import { formatBytes, formatPercent } from '@/lib/format';
 
-const TABS = ['overview', 'console', 'logs', 'backups', 'schedules', 'plugins'] as const;
+const TABS = ['overview', 'console', 'logs', 'backups', 'schedules', 'plugins', 'manage'] as const;
 type Tab = (typeof TABS)[number];
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -174,6 +175,37 @@ export default function ServerDetailPage() {
   }
 
   return (
+    <ServerDetail
+      server={server}
+      publicHost={publicHost}
+      tab={tab}
+      onTabChange={changeTab}
+      onDeleted={() => router.push('/servers')}
+      onRestored={() => fetchServers().catch(() => {})}
+    />
+  );
+}
+
+function ServerDetail({
+  server,
+  publicHost,
+  tab,
+  onTabChange,
+  onDeleted,
+  onRestored,
+}: {
+  server: Server;
+  publicHost: string;
+  tab: Tab;
+  onTabChange: (tab: string) => void;
+  onDeleted: () => void;
+  onRestored: () => void;
+}) {
+  const t = useTranslations('detail');
+  const tActions = useTranslations('serverActions');
+  const controls = useServerControls(server, { onDeleted });
+
+  return (
     <div className="w-full">
       <Link href="/servers" className="mb-3 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="mr-1 h-4 w-4" />
@@ -209,11 +241,16 @@ export default function ServerDetailPage() {
               )}
             </div>
           </div>
-          <ServerActions
-            server={server}
-            variant="detail"
-            onDeleted={() => router.push('/servers')}
-          />
+          {/* 常用操作直接显示；更新、重建、配置导入导出和删除在"管理"标签 */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <PowerButtons controls={controls} />
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/servers/${server.id}/edit`}>
+                <Settings2 />
+                {tActions('settings')}
+              </Link>
+            </Button>
+          </div>
         </div>
         {server.last_error && (
           <div className="flex items-start gap-2 border-t border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 sm:px-5">
@@ -221,7 +258,7 @@ export default function ServerDetailPage() {
             <span className="break-all">
               <span className="font-medium">{t('lastError')}:</span>{' '}
               {server.last_error}
-              <button type="button" className="ml-2 font-medium underline underline-offset-2" onClick={() => changeTab('logs')}>
+              <button type="button" className="ml-2 font-medium underline underline-offset-2" onClick={() => onTabChange('logs')}>
                 {t('viewLogs')}
               </button>
             </span>
@@ -229,7 +266,7 @@ export default function ServerDetailPage() {
         )}
       </div>
 
-      <Tabs value={tab} onValueChange={changeTab}>
+      <Tabs value={tab} onValueChange={onTabChange}>
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <TabsList variant="line">
             {TABS.map((v) => (
@@ -249,7 +286,7 @@ export default function ServerDetailPage() {
           <LogViewer serverId={server.id} active={tab === 'logs'} />
         </TabsContent>
         <TabsContent value="backups" className="mt-4">
-          <BackupsPanel server={server} active={tab === 'backups'} onRestored={() => fetchServers().catch(() => {})} />
+          <BackupsPanel server={server} active={tab === 'backups'} onRestored={onRestored} />
         </TabsContent>
         <TabsContent value="schedules" className="mt-4">
           <SchedulesPanel server={server} active={tab === 'schedules'} />
@@ -257,7 +294,11 @@ export default function ServerDetailPage() {
         <TabsContent value="plugins" className="mt-4">
           <PluginsPanel server={server} active={tab === 'plugins'} />
         </TabsContent>
+        <TabsContent value="manage" className="mt-4">
+          <ServerManagePanel controls={controls} />
+        </TabsContent>
       </Tabs>
+      {controls.dialogs}
     </div>
   );
 }

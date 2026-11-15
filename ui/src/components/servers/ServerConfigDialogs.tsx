@@ -67,11 +67,14 @@ interface ImportConfigDialogProps {
   onOpenChange: (open: boolean) => void;
   // 编辑页的服务器自己，不出现在来源列表里
   excludeServerId?: number;
-  onImport: (config: ServerConfig, parts: ConfigPart[]) => void;
+  // form：填进表单，保存后才生效（新建、编辑页）；apply：直接保存到服务器（详情页的管理标签）
+  mode?: 'form' | 'apply';
+  // 返回 Promise 时等待完成，抛错时保持弹窗打开（由调用方提示错误）
+  onImport: (config: ServerConfig, parts: ConfigPart[]) => void | Promise<void>;
 }
 
-/** 从文件或另一台服务器读取配置，选中的部分写进表单，保存后才生效 */
-export function ImportConfigDialog({ open, onOpenChange, excludeServerId, onImport }: ImportConfigDialogProps) {
+/** 从文件或另一台服务器读取配置，把选中的部分填进表单或直接保存 */
+export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode = 'form', onImport }: ImportConfigDialogProps) {
   const t = useTranslations('serverConfig');
   const tCommon = useTranslations('common');
   const apiError = useApiError();
@@ -114,21 +117,25 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, onImpo
   const ready = parts.length > 0 && (source === 'file' ? fileConfig !== null : sourceId !== '');
 
   const confirm = async () => {
-    let cfg = fileConfig;
-    if (source === 'server') {
-      setLoading(true);
-      try {
-        cfg = await fetchServerConfig(Number(sourceId));
-      } catch (err) {
-        toast.error(apiError(err, t('loadFailed')));
-        return;
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    try {
+      let cfg = fileConfig;
+      if (source === 'server') {
+        try {
+          cfg = await fetchServerConfig(Number(sourceId));
+        } catch (err) {
+          toast.error(apiError(err, t('loadFailed')));
+          return;
+        }
       }
+      if (!cfg) return;
+      await onImport(cfg, parts);
+      onOpenChange(false);
+    } catch {
+      // 调用方负责提示错误
+    } finally {
+      setLoading(false);
     }
-    if (!cfg) return;
-    onImport(cfg, parts);
-    onOpenChange(false);
   };
 
   return (
@@ -136,7 +143,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, onImpo
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{t('importTitle')}</DialogTitle>
-          <DialogDescription>{t('importDesc')}</DialogDescription>
+          <DialogDescription>{mode === 'apply' ? t('importApplyDesc') : t('importDesc')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -207,7 +214,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, onImpo
           </Button>
           <Button onClick={confirm} disabled={!ready || loading}>
             {loading && <Loader2 className="animate-spin" />}
-            {t('importConfirm')}
+            {mode === 'apply' ? t('importApplyConfirm') : t('importConfirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

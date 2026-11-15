@@ -1,31 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
-import {
-  Play,
-  Square,
-  Loader2,
-  MoreVertical,
-  RotateCw,
-  RotateCcw,
-  Download,
-  Edit,
-  Trash2,
-  ScrollText,
-  LayoutDashboard,
-  FileDown,
-  Copy,
-} from 'lucide-react';
+import { Play, Square, Loader2, RotateCw, SquareTerminal, ScrollText, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,24 +13,18 @@ import { Switch } from '@/components/ui/switch';
 import { serversActions, isTransitioning, type Server } from '@/stores/servers';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
-import { downloadServerConfig } from '@/lib/server-config';
-import { CopyConfigDialog } from '@/components/servers/ServerConfigDialogs';
+import { cn } from '@/lib/utils';
 
-type DialogKind = 'stop' | 'restart' | 'update' | 'recreate' | 'delete' | 'copy' | null;
+export type ServerDialog = 'stop' | 'restart' | 'update' | 'recreate' | 'delete';
 
-interface ServerActionsProps {
-  server: Server;
-  // card：图标按钮；detail：带文字的按钮
-  variant?: 'card' | 'detail';
-  onDeleted?: () => void;
-}
-
-export function ServerActions({ server, variant = 'card', onDeleted }: ServerActionsProps) {
+/**
+ * 服务器的启停、重启、更新、重建、删除操作和对应的确认弹窗。
+ * 调用方渲染 controls.dialogs，再用 PowerButtons、管理面板等触发操作，同一台服务器的弹窗只有一份
+ */
+export function useServerControls(server: Server, options: { onDeleted?: () => void } = {}) {
   const t = useTranslations('serverActions');
-  const tConfig = useTranslations('serverConfig');
-  const router = useRouter();
   const apiError = useApiError();
-  const [dialog, setDialog] = useState<DialogKind>(null);
+  const [dialog, setDialog] = useState<ServerDialog | null>(null);
   const [pending, setPending] = useState(false);
   const [updateGame, setUpdateGame] = useState(true);
   const [updateMods, setUpdateMods] = useState(true);
@@ -87,21 +61,13 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
     run(
       async () => {
         await serversActions.deleteServer(server.id, deleteData);
-        onDeleted?.();
+        options.onDeleted?.();
       },
       t('deleteSuccess'),
       t('deleteFailed'),
     );
 
-  const exportConfig = async () => {
-    try {
-      await downloadServerConfig(server);
-    } catch (err) {
-      toast.error(apiError(err, tConfig('exportFailed')));
-    }
-  };
-
-  const openDialog = (kind: DialogKind) => {
+  const open = (kind: ServerDialog) => {
     setConfirmName('');
     setDeleteData(false);
     setUpdateGame(true);
@@ -109,113 +75,19 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
     setDialog(kind);
   };
 
-  const iconButton = 'h-8 w-8 p-0';
-  const isCard = variant === 'card';
+  // 没有玩家在线时直接停止，有玩家时先确认
+  const requestStop = (alwaysConfirm = false) => {
+    if (players > 0 || alwaysConfirm) open('stop');
+    else stop().catch(() => {});
+  };
 
-  // 主操作始终带文字：卡片和详情页都能一眼看出点下去会发生什么
-  let primary;
-  if (busy) {
-    primary = (
-      <Button variant="outline" size="sm" disabled className="min-w-[5.5rem]">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        {t('working')}
-      </Button>
-    );
-  } else if (running) {
-    primary = (
-      <Button
-        variant="outline"
-        size="sm"
-        className="min-w-[5.5rem] hover:border-red-200 hover:bg-red-50 hover:text-red-800"
-        onClick={() => (players > 0 || !isCard ? openDialog('stop') : stop().catch(() => {}))}
-      >
-        <Square className="size-2.5 fill-red-600 text-red-600" />
-        {t('stop')}
-      </Button>
-    );
-  } else {
-    primary = (
-      <Button size="sm" className="min-w-[5.5rem]" onClick={start} disabled={!stopped}>
-        <Play className="size-3.5 fill-current" />
-        {t('start')}
-      </Button>
-    );
-  }
+  const close = (o: boolean) => !o && setDialog(null);
 
-  return (
+  const dialogs = (
     <>
-      <div className="flex items-center gap-1.5">
-        {primary}
-        {!isCard && (
-          <Button variant="outline" size="sm" onClick={() => openDialog('restart')} disabled={busy}>
-            <RotateCw className="h-4 w-4" />
-            {t('restart')}
-          </Button>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant={isCard ? 'ghost' : 'outline'} size="sm" className={iconButton} aria-label={t('more')} title={t('more')}>
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            {isCard && (
-              <>
-                <DropdownMenuItem onClick={() => router.push(`/servers/${server.id}`)}>
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  {t('details')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push(`/servers/${server.id}?tab=logs`)}>
-                  <ScrollText className="mr-2 h-4 w-4" />
-                  {t('logs')}
-                </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuItem onClick={() => router.push(`/servers/${server.id}/edit`)}>
-              <Edit className="mr-2 h-4 w-4" />
-              {t('edit')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={exportConfig}>
-              <FileDown className="mr-2 h-4 w-4" />
-              {tConfig('export')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openDialog('copy')}>
-              <Copy className="mr-2 h-4 w-4" />
-              {tConfig('copyTo')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {isCard && (
-              <DropdownMenuItem onClick={() => openDialog('restart')} disabled={busy}>
-                <RotateCw className="mr-2 h-4 w-4" />
-                {t('restart')}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => openDialog('update')} disabled={busy}>
-              <Download className="mr-2 h-4 w-4" />
-              {t('updateGame')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openDialog('recreate')} disabled={busy}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              {t('recreate')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => openDialog('delete')}
-              disabled={!stopped || pending}
-              className="text-red-600 focus:text-red-700"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {stopped ? t('delete') : t('deleteNeedStop')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <CopyConfigDialog open={dialog === 'copy'} onOpenChange={(o) => !o && setDialog(null)} server={server} />
-
       <ConfirmDialog
         open={dialog === 'stop'}
-        onOpenChange={(o) => !o && setDialog(null)}
+        onOpenChange={close}
         title={t('stopTitle', { name: server.session_name })}
         description={players > 0 ? t('stopWithPlayers', { count: players }) : t('stopDesc')}
         confirmText={t('stop')}
@@ -225,7 +97,7 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
 
       <ConfirmDialog
         open={dialog === 'restart'}
-        onOpenChange={(o) => !o && setDialog(null)}
+        onOpenChange={close}
         title={t('restartTitle', { name: server.session_name })}
         description={
           <>
@@ -239,7 +111,7 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
 
       <ConfirmDialog
         open={dialog === 'update'}
-        onOpenChange={(o) => !o && setDialog(null)}
+        onOpenChange={close}
         title={t('updateTitle', { name: server.session_name })}
         description={running ? t('updateDescRunning') : t('updateDesc')}
         confirmText={t('updateConfirm')}
@@ -267,7 +139,7 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
 
       <ConfirmDialog
         open={dialog === 'recreate'}
-        onOpenChange={(o) => !o && setDialog(null)}
+        onOpenChange={close}
         title={t('recreateTitle', { name: server.session_name })}
         description={t('recreateDesc')}
         confirmText={t('recreate')}
@@ -276,7 +148,7 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
 
       <ConfirmDialog
         open={dialog === 'delete'}
-        onOpenChange={(o) => !o && setDialog(null)}
+        onOpenChange={close}
         title={t('deleteTitle', { name: server.session_name })}
         description={t('deleteDesc')}
         confirmText={t('delete')}
@@ -305,6 +177,129 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
           )}
         </div>
       </ConfirmDialog>
+    </>
+  );
+
+  return { server, busy, running, stopped, players, hasMods, start, requestStop, open, dialogs };
+}
+
+export type ServerControls = ReturnType<typeof useServerControls>;
+
+// ---------- 按钮 ----------
+
+/** 只有图标的按钮，悬停显示说明。禁用时浏览器不触发悬停，提示放在外层 span 上 */
+export function IconAction({
+  label,
+  icon,
+  onClick,
+  href,
+  disabled,
+  className,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick?: () => void;
+  href?: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const button = href ? (
+    <Button asChild variant="ghost" size="icon" className={cn('size-8 text-gray-700 hover:text-primary', className)} aria-label={label}>
+      <Link href={href}>{icon}</Link>
+    </Button>
+  ) : (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={cn('size-8 text-gray-700 hover:text-primary', className)}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+    >
+      {icon}
+    </Button>
+  );
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{disabled ? <span className="inline-flex">{button}</span> : button}</TooltipTrigger>
+      <TooltipContent sideOffset={4}>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * 启动 / 停止和重启。compact：卡片、列表、首页用，重启只显示图标；否则带文字（详情页）。
+ * 已停止时不显示重启（与启动相同）
+ */
+export function PowerButtons({ controls, compact = false }: { controls: ServerControls; compact?: boolean }) {
+  const t = useTranslations('serverActions');
+  const { busy, running, stopped } = controls;
+
+  let primary;
+  if (busy) {
+    primary = (
+      <Button variant="outline" size="sm" disabled className="min-w-[5.5rem]">
+        <Loader2 className="animate-spin" />
+        {t('working')}
+      </Button>
+    );
+  } else if (running) {
+    primary = (
+      <Button
+        variant="outline"
+        size="sm"
+        className="min-w-[5.5rem] hover:border-red-200 hover:bg-red-50 hover:text-red-800"
+        onClick={() => controls.requestStop(!compact)}
+      >
+        <Square className="size-2.5 fill-red-600 text-red-600" />
+        {t('stop')}
+      </Button>
+    );
+  } else {
+    primary = (
+      <Button size="sm" className="min-w-[5.5rem]" onClick={controls.start} disabled={!stopped}>
+        <Play className="size-3.5 fill-current" />
+        {t('start')}
+      </Button>
+    );
+  }
+
+  const showRestart = !stopped;
+  return (
+    <div className="flex items-center gap-1.5">
+      {primary}
+      {showRestart &&
+        (compact ? (
+          <IconAction label={t('restart')} icon={<RotateCw />} onClick={() => controls.open('restart')} disabled={busy} />
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => controls.open('restart')} disabled={busy}>
+            <RotateCw />
+            {t('restart')}
+          </Button>
+        ))}
+    </div>
+  );
+}
+
+/** 常用页面的快捷入口：控制台、日志、编辑设置 */
+export function ServerShortcuts({ server }: { server: Server }) {
+  const t = useTranslations('serverActions');
+  return (
+    <div className="flex items-center gap-0.5">
+      <IconAction label={t('console')} icon={<SquareTerminal />} href={`/servers/${server.id}?tab=console`} />
+      <IconAction label={t('logs')} icon={<ScrollText />} href={`/servers/${server.id}?tab=logs`} />
+      <IconAction label={t('settings')} icon={<Settings2 />} href={`/servers/${server.id}/edit`} />
+    </div>
+  );
+}
+
+/** 只有启停按钮的独立组件（首页名单） */
+export function ServerPowerControls({ server }: { server: Server }) {
+  const controls = useServerControls(server);
+  return (
+    <>
+      <PowerButtons controls={controls} compact />
+      {controls.dialogs}
     </>
   );
 }

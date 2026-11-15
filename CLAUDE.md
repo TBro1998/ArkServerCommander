@@ -130,7 +130,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 ### 前端结构（`ui/src/`）
 
 - `app/(auth)/`：登录、初始化页面
-- `app/(protected)/`：需登录页面（`home` 概览、`servers` 列表、`servers/new`、`servers/[id]` 详情（概览 / 控制台 / 日志 / 备份 / 定时任务 / 插件，`?tab=` 选择标签）、`servers/[id]/edit`、`settings`）
+- `app/(protected)/`：需登录页面（`home` 概览、`servers` 列表（卡片 / 列表两种视图，选择存在 localStorage 的 `servers-view`）、`servers/new`、`servers/[id]` 详情（概览 / 控制台 / 日志 / 备份 / 定时任务 / 插件 / 管理，`?tab=` 选择标签）、`servers/[id]/edit`、`settings`）
 - `app/api/`：服务端路由。`auth/{login,init,logout}` 处理令牌 cookie；`[...path]` 是通配代理，请求体和响应体都以流转发（支持上传、下载和 SSE），并转发 `X-Forwarded-For`；它拒绝 `/api/mcp`（会带上登录 cookie，令牌无效时还会清 cookie）
 - `app/mcp/route.ts`：MCP 入口，原样转发到后端 `/api/mcp`，透传 `Authorization`、`Accept`、`Mcp-*` 头，不读 cookie。`proxy.ts` 的 matcher 排除了 `mcp`
 - `proxy.ts`：Next 16 中原 `middleware.ts` 的新约定。负责语言 cookie（`NEXT_LOCALE`）和登录重定向
@@ -140,7 +140,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - 视觉风格（方舟游戏内界面风格的深色 HUD）：根节点固定 `className="dark"`，`globals.css` 定义主题变量（深蓝底色、半透明面板 `--card`、青色 `--primary`、琥珀色 `--amber` 表示进行中、终端底色 `--terminal`）。`@theme` 里把 Tailwind 的 `gray/red/green/amber/yellow/blue/sky/purple/orange` 色阶整体**反转**：数字小的是深色背景色调，数字大的是浅色文字，所以 `bg-red-50 text-red-800` 这类写法在深色下自然是"深红底 + 浅红字"。新代码照此约定：背景用 50–200，图标和圆点用 400–600，文字用 600–900；不要用 `bg-white`、`text-gray-200` 这类按浅色主题思路写的类。自定义工具类（用 `@utility` 定义，可以加变体前缀）：`hud`（左上、右下青色角标，元素本身要有定位）、`hud-caps`（英文大写加字距，用于导航、标题和主要按钮，中文不受影响）、`glow-text`、`font-display`（Saira，来自 `@fontsource-variable/saira`，本地打包）、`num`（等宽数字）。不使用游戏的图片、Logo 或字体等素材，只借鉴界面风格。状态徽章三种颜色：绿色可用、琥珀色进行中、石色已停止
 - 地图颜色：`lib/maps.ts` 的 `mapColor` 给每张地图一个固定颜色，服务器卡片、详情页顶部（`MapBand`，停止时变灰）、首页名单和地图选择器都用它；`hooks/use-map-name.ts` 取地图显示名
 - 公共组件：`PageHeader`（页面标题行）、`AuthShell`（登录 / 初始化外框，含 `FormError`）、`Wordmark`、`components/ui/page-loader.tsx`（统一加载状态）；`TabsList variant="line"` 用于页面级标签（详情页、服务器表单）
-- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`、`ServerActions`（启停按钮、更多菜单和全部确认弹窗，卡片和详情页共用）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ServerConfigDialogs`（导入配置、复制设置到其他服务器）、`ConnectionInfo`、`settings/`（设置项卡片 `SettingTile` / `SettingControl`、自定义启动参数和配置文件面板）；`components/settings/VersionCard`（版本和升级命令）、`components/settings/McpCard`（MCP 地址和令牌管理）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
+- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`（卡片视图，含共用的 `MapBand`、`ServerTags`）、`ServerRow`（列表视图的一行和表头，列宽固定在 `ROW_GRID`）、`ServerActions`（`useServerControls` 管理启停、重启、更新、重建、删除和这些确认弹窗，调用方渲染 `controls.dialogs`；`PowerButtons` 启停和重启，`ServerShortcuts` 控制台 / 日志 / 编辑设置图标入口，`IconAction` 带悬停提示的图标按钮。卡片和列表不再有"更多"菜单，常用操作直接显示，不常用和有风险的操作在详情页"管理"标签）、`ServerManagePanel`（"管理"标签：更新游戏 / Mod、重建容器、配置导出导入复制、删除，每项带说明）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ServerConfigDialogs`（导入配置、复制设置到其他服务器）、`ConnectionInfo`、`settings/`（设置项卡片 `SettingTile` / `SettingControl`、自定义启动参数和配置文件面板）；`components/settings/VersionCard`（版本和升级命令）、`components/settings/McpCard`（MCP 地址和令牌管理）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
 
 ### 认证流程
@@ -182,7 +182,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 2. **启动 / 停止**：用 `transitionStatus` 原子切换状态（`UPDATE ... WHERE status NOT IN (...)`，看 `RowsAffected`），避免并发请求重复启停；容器操作在后台协程中完成，结果由 `finishOperation` 写入状态和 `last_error`。启动前先把暂存的配置文件写入数据卷；服务端文件卷里还没有服务端主程序时，`seed.go` 从另一台已安装完成（有 `.install_complete` 和主程序，优先已停止）的服务器复制整个文件卷（含 Mod 和 `.installed_mods`），再删掉 `.install_complete`，入口脚本启动时 validate 只下载差异，复制期间 `runtime.phase` 为 `copying`，复制失败只记日志、照常从 Steam 下载（来源优先有目标平台主程序的；目标已有任一平台主程序时不复制）；服务器要用的 ARK 镜像不存在时先自动拉取（`images.go`，期间 `runtime.phase` 为 `pulling_image`）；开启 `auto_update` 时清除安装标记；如果 `SERVER_ARGS`、`GameModIds`、`CLUSTER_VOLUME`、重启策略（`auto_restart`）与当前配置不同，或容器的镜像 ID 不是 `ArkServerImageFor(arkapi)` 当前指向的镜像（镜像更新过或切换了 ArkApi），会先重建容器；启动超时会停掉容器。停止前先通过容器内 RCON（`docker_rcon.go`，用 `docker exec` 运行 python3）执行 `SaveWorld`，失败只记日志、不阻止停止；入口脚本会把 SIGTERM 转发给游戏进程（需要重新构建镜像才生效）。`GenerateArgs` 对 map 按 key 排序，保证相同配置生成相同参数；参数同时以数组形式放进容器 `Cmd`（入口脚本优先用 `$@`，名称和密码里的空格不会被拆开），`SERVER_ARGS` 只用于重建判断和兼容旧镜像。管理员密码不在启动参数和环境变量里，每次启动前由 `syncAdminPassword` 以数据库里的值写入 `GameUserSettings.ini` 的 `[ServerSettings]`（读取失败时不会覆盖整个文件，只有 `ErrConfigNotFound` 才视为空文件）。`GetServers` 通过 `syncStatusWithDocker` 只校正 running / stopped，不覆盖 starting / stopping；后端启动时 `ReconcileStatuses` 校正被中断的启停操作
 3. **运行阶段**：容器 running 不代表能连接。`runtime.go` 每 10 秒对运行中的服务器读取最近 400 行日志判断阶段（`downloading` 含 steamcmd 进度、`installing_mods` 含 x/y、`launching`），再在容器内发 A2S_INFO，有响应即 `ready` 并拿到在线人数；同时采样 CPU/内存。结果缓存在内存，随服务器列表返回 `runtime`。阶段标志行来自 `ASE-Server-Docker/scripts/start_server.sh`，改脚本输出时要同步改 `applyPhase`
 4. **重启 / 更新游戏**：`restartWith` 先停止（如果在运行）、执行可选的 `beforeStart`、再启动；更新游戏的 `beforeStart` 是删除文件卷里的 `.install_complete` / `.installed_mods`（`mod_ids` 时只删除这些 Mod 的行），入口脚本会重新 `app_update validate` 并重新下载 Mod
-5. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（服务器卡片上有重建按钮）
+5. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（详情页"管理"标签里有重建按钮）
 6. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，同时删除定时任务。默认保留数据目录和备份；`delete_data=true` 时删除三个卷、`servers/<id>/` 目录和备份目录（集群卷和 `clusters/<id>` 共享，不删）
 
 ### 存档备份
@@ -205,7 +205,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ### 配置导入导出
 
-`models.ServerConfig`（`format` 固定为 `ark-server-commander/server-config`，`version` 为 1）包含地图、人数、集群、Mod、ArkApi / 自动重启 / 自动更新、两个配置文件和启动参数，不含端口和管理员密码，导出时去掉 GameUserSettings.ini 里的 `ServerAdminPassword`。导入和复制按 `parts` 选择部分：`config_files`、`server_args`、`mods`、`map`、`cluster`、`options`（为空表示全部），最终都经过 `UpdateServer`，未停止的服务器配置文件先暂存。写入配置文件时用 `utils.KeepIniKeys` 保留目标服务器自己的 `SessionName`、`ServerAdminPassword`、`Port`、`QueryPort`、`RCONPort`、`MaxPlayers`（同时导入了 `options` 时人数改成新值），前端 `lib/server-config.ts` 的 `applyConfigToForm` 用 `lib/ini.ts` 的 `keepIniValues` 实现同样的规则，两边要保持一致。前端：服务器菜单里"导出配置"（下载 JSON）和"复制设置到其他服务器"（`CopyConfigDialog`，直接保存）；新建和编辑页底部"导入配置"（`ImportConfigDialog`，从文件或其他服务器读取，只填进表单，保存后才生效）。MCP 工具 `export_server_config`、`import_server_config`、`copy_server_config`。
+`models.ServerConfig`（`format` 固定为 `ark-server-commander/server-config`，`version` 为 1）包含地图、人数、集群、Mod、ArkApi / 自动重启 / 自动更新、两个配置文件和启动参数，不含端口和管理员密码，导出时去掉 GameUserSettings.ini 里的 `ServerAdminPassword`。导入和复制按 `parts` 选择部分：`config_files`、`server_args`、`mods`、`map`、`cluster`、`options`（为空表示全部），最终都经过 `UpdateServer`，未停止的服务器配置文件先暂存。写入配置文件时用 `utils.KeepIniKeys` 保留目标服务器自己的 `SessionName`、`ServerAdminPassword`、`Port`、`QueryPort`、`RCONPort`、`MaxPlayers`（同时导入了 `options` 时人数改成新值），前端 `lib/server-config.ts` 的 `applyConfigToForm` 用 `lib/ini.ts` 的 `keepIniValues` 实现同样的规则，两边要保持一致。前端：详情页"管理"标签里导出（下载 JSON）、导入（`ImportConfigDialog` 的 `apply` 模式，调用 `/config/import` 直接保存）和复制到其他服务器（`CopyConfigDialog`，直接保存）；新建和编辑页底部"导入配置"（`ImportConfigDialog` 的 `form` 模式，只填进表单，保存后才生效）。MCP 工具 `export_server_config`、`import_server_config`、`copy_server_config`。
 
 ### 服务器设置界面
 
@@ -230,7 +230,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 翻译用 ICU 格式：文案里不能直接写 `<xxx>`（会被当成标签）或不传参数的 `{xxx}`；新增键时中英文都要加
 - 错误提示用 `useApiError()` + `toast`，不要在 store 里写死中文
 - `Button` 会给没有 `size-*` 类的图标强制设为 `size-4`，按钮里的图标要改大小时用 `size-3.5` 这类写法，`h-3 w-3` 不生效
-- 按钮禁用时浏览器不显示 `title`，需要说明原因时把 `title` 放在外层 `span` 上（见 `ServerActions`、服务器列表的"添加服务器"）
+- 按钮禁用时浏览器不显示 `title`，需要说明原因时把 `title` 放在外层 `span` 上（见 `ServerManagePanel`、`IconAction`）
 
 ### 发布
 
@@ -277,4 +277,4 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - **Docker 操作失败**：确认挂载了 `/var/run/docker.sock` 并以 `privileged` 运行
 - **服务器显示"运行中"但连不上**：看卡片上的阶段（下载服务端 / 安装 Mod / 加载中），详情页"日志"标签能看到实时进度；首次启动要下载约 20 GB
 - **连接地址不对**：设置 `PUBLIC_HOST`
-- **玩家版本不匹配进不了服**：服务器菜单里"更新游戏/Mod"
+- **玩家版本不匹配进不了服**：服务器详情页"管理"标签里的"更新游戏/Mod"

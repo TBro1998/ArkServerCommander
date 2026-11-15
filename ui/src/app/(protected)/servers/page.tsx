@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Plus, Server as ServerIcon, RefreshCw } from 'lucide-react';
+import { Plus, Server as ServerIcon, RefreshCw, LayoutGrid, List } from 'lucide-react';
 import {
   useServers,
   useServersLoaded,
@@ -14,6 +14,8 @@ import {
   type Server,
 } from '@/stores/servers';
 import { ServerCard } from '@/components/servers/ServerCard';
+import { ServerRow, ServerRowHeader } from '@/components/servers/ServerRow';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { PageLoader } from '@/components/ui/page-loader';
@@ -27,6 +29,9 @@ const TRANSITION_POLL_INTERVAL = 3000;
 const IDLE_POLL_INTERVAL = 10000;
 
 type Filter = 'all' | 'active' | 'stopped';
+// 显示方式：卡片信息更全，列表一屏能看到更多服务器
+const VIEWS = ['cards', 'list'] as const;
+type View = (typeof VIEWS)[number];
 const FILTERS: { key: Filter; match: (s: Server) => boolean }[] = [
   { key: 'all', match: () => true },
   // "运行中"包括启动中、停止中，这些服务器都占着资源
@@ -45,6 +50,7 @@ export default function ServersPage() {
   const apiError = useApiError();
   const { fetchServers, fetchPublicHost } = serversActions;
   const [filter, setFilter] = useState<Filter>('all');
+  const [view, setView] = useLocalStorage<View>('servers-view', 'cards', VIEWS);
 
   const refresh = useCallback(() => fetchServers(), [fetchServers]);
 
@@ -106,31 +112,63 @@ export default function ServersPage() {
         </div>
       ) : (
         <>
-          {/* 状态筛选：服务器多时快速找到运行中或已停止的 */}
-          <div role="group" aria-label={tList('filter')} className="mb-4 inline-flex rounded-lg border bg-card p-0.5">
-            {FILTERS.map((f) => {
-              const count = servers.filter(f.match).length;
-              const selected = filter === f.key;
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setFilter(f.key)}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                    selected ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  {tList(`filters.${f.key}`)}
-                  <span className={cn('num text-xs', selected ? 'opacity-80' : 'opacity-60')}>{count}</span>
-                </button>
-              );
-            })}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            {/* 状态筛选：服务器多时快速找到运行中或已停止的 */}
+            <div role="group" aria-label={tList('filter')} className="inline-flex rounded-lg border bg-card p-0.5">
+              {FILTERS.map((f) => {
+                const count = servers.filter(f.match).length;
+                const selected = filter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setFilter(f.key)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                      selected ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                  >
+                    {tList(`filters.${f.key}`)}
+                    <span className={cn('num text-xs', selected ? 'opacity-80' : 'opacity-60')}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div role="group" aria-label={tList('view')} className="inline-flex rounded-lg border bg-card p-0.5">
+              {VIEWS.map((v) => {
+                const Icon = v === 'cards' ? LayoutGrid : List;
+                const selected = view === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setView(v)}
+                    title={tList(`views.${v}`)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+                      selected ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                  >
+                    <Icon className="size-4" />
+                    <span className="hidden sm:inline">{tList(`views.${v}`)}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {visible.length === 0 ? (
             <p className="rounded-lg border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">{tList('filterEmpty')}</p>
+          ) : view === 'list' ? (
+            <div className="space-y-2">
+              <ServerRowHeader />
+              {visible.map((server) => (
+                <ServerRow key={server.id} server={server} publicHost={publicHost} />
+              ))}
+            </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {visible.map((server) => (

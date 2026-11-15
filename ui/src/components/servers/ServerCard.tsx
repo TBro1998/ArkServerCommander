@@ -5,10 +5,10 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Eye, EyeOff, Copy, AlertTriangle, Users, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, Copy, AlertTriangle, Users } from 'lucide-react';
 import { serversActions, type Server } from '@/stores/servers';
 import { StatusBadge } from './StatusBadge';
-import { ServerActions } from './ServerActions';
+import { PowerButtons, ServerShortcuts, useServerControls } from './ServerActions';
 import { ConnectionInfo } from './ConnectionInfo';
 import { copyText, formatBytes, formatPercent } from '@/lib/format';
 import { mapColor } from '@/lib/maps';
@@ -44,10 +44,48 @@ export function MapBand({ server, className, children }: { server: Server; class
   );
 }
 
+// 服务器的附加标记：ArkApi、旧镜像、配置待生效、Mod 有更新、集群
+export function ServerTags({ server }: { server: Server }) {
+  const t = useTranslations('serverCard');
+  return (
+    <>
+      {server.arkapi && (
+        <span className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-800" title={t('arkapiTip')}>
+          {t('arkapi')}
+        </span>
+      )}
+      {server.image_outdated && (
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800" title={t('imageOutdatedTip')}>
+          {t('imageOutdated')}
+        </span>
+      )}
+      {server.config_pending && (
+        <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800" title={t('configPendingTip')}>
+          {t('configPending')}
+        </span>
+      )}
+      {!!server.mods_outdated?.length && (
+        <Link
+          href={`/servers/${server.id}`}
+          className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 hover:underline"
+          title={t('modsOutdatedTip')}
+        >
+          {t('modsOutdated', { count: server.mods_outdated.length })}
+        </Link>
+      )}
+      {server.cluster_id && (
+        <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground" title={t('clusterTip')}>
+          {t('cluster', { id: server.cluster_id })}
+        </span>
+      )}
+    </>
+  );
+}
+
 export function ServerCard({ server, publicHost }: ServerCardProps) {
   const t = useTranslations('serverCard');
-  const tActions = useTranslations('serverActions');
   const apiError = useApiError();
+  const controls = useServerControls(server);
   const [password, setPassword] = useState<string | null>(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
 
@@ -84,15 +122,17 @@ export function ServerCard({ server, publicHost }: ServerCardProps) {
 
   return (
     <article className="hud relative flex h-full flex-col rounded-sm border bg-card backdrop-blur-sm transition-colors hover:border-primary/50">
-      <MapBand server={server} className="h-12">
-        {ready && (
-          <span className="font-display flex items-center gap-1.5 text-lg font-semibold text-primary [text-shadow:0_0_10px_rgb(57_195_236/0.6)]" title={t('players')}>
-            <Users className="h-4 w-4 opacity-80" />
-            {runtime.players}
-            <span className="text-sm font-normal opacity-75">/{runtime.max_players || server.max_players}</span>
-          </span>
-        )}
-      </MapBand>
+      <Link href={`/servers/${server.id}`} className="block" aria-label={server.session_name}>
+        <MapBand server={server} className="h-12">
+          {ready && (
+            <span className="font-display flex items-center gap-1.5 text-lg font-semibold text-primary [text-shadow:0_0_10px_rgb(57_195_236/0.6)]" title={t('players')}>
+              <Users className="h-4 w-4 opacity-80" />
+              {runtime.players}
+              <span className="text-sm font-normal opacity-75">/{runtime.max_players || server.max_players}</span>
+            </span>
+          )}
+        </MapBand>
+      </Link>
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="space-y-2">
@@ -103,35 +143,7 @@ export function ServerCard({ server, publicHost }: ServerCardProps) {
           </h3>
           <div className="flex flex-wrap items-center gap-1.5">
             <StatusBadge server={server} />
-            {server.arkapi && (
-              <span className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-800" title={t('arkapiTip')}>
-                {t('arkapi')}
-              </span>
-            )}
-            {server.image_outdated && (
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800" title={t('imageOutdatedTip')}>
-                {t('imageOutdated')}
-              </span>
-            )}
-            {server.config_pending && (
-              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800" title={t('configPendingTip')}>
-                {t('configPending')}
-              </span>
-            )}
-            {!!server.mods_outdated?.length && (
-              <Link
-                href={`/servers/${server.id}`}
-                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 hover:underline"
-                title={t('modsOutdatedTip')}
-              >
-                {t('modsOutdated', { count: server.mods_outdated.length })}
-              </Link>
-            )}
-            {server.cluster_id && (
-              <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground" title={t('clusterTip')}>
-                {t('cluster', { id: server.cluster_id })}
-              </span>
-            )}
+            <ServerTags server={server} />
           </div>
         </div>
 
@@ -215,15 +227,12 @@ export function ServerCard({ server, publicHost }: ServerCardProps) {
         </div>
       </div>
 
+      {/* 左边启停，右边常用页面的入口；更新、重建、删除等不常用的操作在详情页"管理"标签 */}
       <footer className="flex items-center justify-between gap-2 border-t bg-black/20 px-4 py-2.5">
-        <ServerActions server={server} />
-        <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-          <Link href={`/servers/${server.id}`}>
-            {tActions('details')}
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        </Button>
+        <PowerButtons controls={controls} compact />
+        <ServerShortcuts server={server} />
       </footer>
+      {controls.dialogs}
     </article>
   );
 }

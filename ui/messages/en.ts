@@ -506,6 +506,19 @@ const messages = {
     },
     summary: '{total} servers, {running} running, {players} players online',
     refresh: 'Refresh',
+    view: 'View',
+    views: {
+      cards: 'Cards',
+      list: 'List',
+    },
+    columns: {
+      server: 'Server',
+      status: 'Status',
+      players: 'Players',
+      resources: 'Resources',
+      address: 'Address',
+      actions: 'Actions',
+    },
   },
 
   // Server card
@@ -546,14 +559,12 @@ const messages = {
     stop: 'Stop',
     restart: 'Restart',
     working: 'Working',
-    more: 'More actions',
-    details: 'Details',
-    logs: 'View logs',
-    edit: 'Edit config',
+    logs: 'Logs',
+    console: 'Console',
+    settings: 'Edit settings',
     updateGame: 'Update game/mods',
     recreate: 'Recreate container',
     delete: 'Delete server',
-    deleteNeedStop: 'Delete (stop first)',
     startSent: 'Starting',
     startFailed: 'Failed to start the server',
     stopSent: 'Stopping. The world is saved before shutdown.',
@@ -592,6 +603,31 @@ const messages = {
     typeNameToConfirm: 'Type the server name "{name}" to confirm'
   },
 
+  // Detail page "Manage" tab
+  manage: {
+    maintenance: 'Maintenance',
+    update: 'Update…',
+    updateDesc: 'Validate and update the server files and re-download mods. Use it when players get a version mismatch; the server starts afterwards.',
+    modsOutdated: '{count, plural, one {# mod has} other {# mods have}} updates on the Workshop. You can also update only those in the mod list on the Overview tab',
+    recreate: 'Recreate…',
+    recreateDesc: 'Recreate the container from the current configuration; the server ends up stopped. Usually unnecessary: starting the server recreates it when the configuration or image changed.',
+    busy: 'The server is starting or stopping, try again later',
+    config: 'Configuration',
+    export: 'Export',
+    exportDesc: 'Download as a JSON file without ports or the admin password, to import into other servers or keep as a backup.',
+    import: 'Import…',
+    importDesc: 'Read settings from an exported file or another server and save them directly. Name, ports and admin password stay unchanged.',
+    importSaved: 'Config imported',
+    importPending: 'Config imported; it takes effect on next start',
+    importFailed: 'Failed to import config',
+    copy: 'Copy…',
+    copyDesc: "Save this server's settings to several servers at once.",
+    danger: 'Danger zone',
+    delete: 'Delete…',
+    deleteDesc: 'Delete the server record and container. You can keep or also delete saves, server files and backups.',
+    deleteNeedStop: 'Stop the server first',
+  },
+
   // Config import, export and copy
   serverConfig: {
     export: 'Export config',
@@ -601,6 +637,8 @@ const messages = {
     importTitle: 'Import config',
     importDesc: 'The selected parts are filled into this form. Review them and click save to apply.',
     importConfirm: 'Import into form',
+    importApplyDesc: 'The selected parts are saved to this server directly; if it is not stopped they take effect on next start.',
+    importApplyConfirm: 'Import and save',
     imported: 'Imported. Review and save to apply',
     fromFile: 'From file',
     fromServer: 'From another server',
@@ -695,7 +733,8 @@ const messages = {
       logs: 'Logs',
       backups: 'Backups',
       schedules: 'Schedules',
-      plugins: 'Plugins'
+      plugins: 'Plugins',
+      manage: 'Manage'
     },
     backToList: 'Back to servers',
     notFound: 'Server not found or deleted',
