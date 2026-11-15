@@ -1,6 +1,6 @@
 ---
 name: release
-description: 发布新版本：根据上一个 tag 以来的提交生成中文更新说明，写入附注 tag 并推送，CI 构建镜像后用 tag 正文创建 GitHub Release。也用于给已发布的 Release 补写更新说明。用户说"发布""发版""打 tag""release""写更新说明"时使用。
+description: 发布新版本：根据上一个 tag 以来的提交生成英中两栏（English 在前）的更新说明，写入附注 tag 并推送，CI 构建镜像后用 tag 正文创建 GitHub Release。也用于给已发布的 Release 补写更新说明。用户说"发布""发版""打 tag""release""写更新说明"时使用。
 ---
 
 # 发布新版本
@@ -36,28 +36,49 @@ git -C ASE-Server-Docker log --oneline <旧指针>..<新指针>
 
 ## 4. 写更新说明
 
-读者是部署和使用 ARK Server Commander 的服主，不是开发者。用中文，按下面的结构，没有内容的小节省略：
+读者是部署和使用 ARK Server Commander 的服主，不是开发者。说明分 English、中文两栏，English 在前，两栏内容一一对应（条目数和顺序相同），没有内容的小节两栏都省略：
 
 ```markdown
-## 新功能
+## English
+
+### New features
+
+- **Feature name**: what users can do and where it is in the UI.
+
+### Improvements
+
+- ...
+
+### Fixes
+
+- ...
+
+### Upgrade notes
+
+- Things users need to do manually.
+
+## 中文
+
+### 新功能
 
 - **功能名**：用户能做什么、在界面哪里。
 
-## 改进
+### 改进
 
 - ...
 
-## 修复
+### 修复
 
 - ...
 
-## 升级注意
+### 升级注意
 
 - 需要用户手动处理的事项。
 ```
 
 要求：
 
+- 两栏不是逐字互译，各按自己语言的习惯写，但事实和范围一致。可以先写中文再写英文，发布时英文放在前面。界面上的按钮、标签名用英文界面里的实际文案（见 `ui/messages/en.ts`），不要自己另译。
 - 写用户看得到的行为，不写文件名、函数名、内部实现。API 路径只在确实影响外部调用时提。
 - "升级注意"要特别检查：ARK 服务器镜像（子模块 `ASE-Server-Docker`）是否有改动、需要在首页"镜像管理"更新；新增或改名的环境变量；数据目录或配置文件的变化，旧服务器是否需要手动迁移；不兼容的改动。
 - 只改文档、CI、测试、重构的提交通常不写，除非影响用户（例如 README 里的部署方式变了）。
@@ -70,7 +91,7 @@ git -C ASE-Server-Docker log --oneline <旧指针>..<新指针>
 
 ## 6. 打 tag 并推送
 
-tag 说明的第一行是 `vX.Y.Z: 一句话概括`，空一行后是上面的 Markdown 正文。说明文件放在仓库外面：
+tag 说明的第一行是 `vX.Y.Z: English summary / 中文一句话概括`，空一行后是上面的 Markdown 正文。说明文件放在仓库外面：
 
 ```bash
 NOTES=$(mktemp)
@@ -102,7 +123,7 @@ gh release view vX.Y.Z
 git log <上一个tag>..<新tag> --format='%h %ad %s%n%n%b%n----' --date=short
 ```
 
-读者是使用 ARK Server Commander 的服主：镜像改了什么、是否需要在首页"镜像管理"更新、对已运行的服务器有什么影响。不写 dockerfile 里的实现细节。
+读者是使用 ARK Server Commander 的服主：镜像改了什么、是否需要在首页"镜像管理"更新、对已运行的服务器有什么影响。不写 dockerfile 里的实现细节。和主仓库一样分 English、中文两栏（English 在前），tag 第一行也是英文在前、中文在后的两句概括。
 
 创建附注 tag（同主仓库第 6 步）：
 ```bash
@@ -118,7 +139,7 @@ rm "$NOTES"
 
 ## 给已发布的 Release 补写说明
 
-tag 已经推送过、不想重打时，直接编辑 Release，把更新说明放在原有内容（镜像、Full Changelog）前面：
+tag 已经推送过、不想重打时，直接编辑 Release，把更新说明（同样是 English、中文两栏，English 在前）放在原有内容（镜像、Full Changelog）前面：
 
 ```bash
 NOTES=$(mktemp)

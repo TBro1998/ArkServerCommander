@@ -234,7 +234,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ### 发布
 
-推送 `v*` tag 触发 `docker-build.yml`：构建推送镜像后创建 GitHub Release，内容取附注 tag 的正文（第一行概括之后的部分），再接上镜像信息。更新说明由 Claude 根据上一个 tag 以来的提交生成，流程见 `.claude/skills/release/SKILL.md`（打 tag 必须用 `--cleanup=whitespace`，否则 `##` 标题会被当注释删掉）。仓库直接提交到 main，GitHub 自动生成的 "What's Changed" 是空的。
+推送 `v*` tag 触发 `docker-build.yml`：构建推送镜像后创建 GitHub Release，内容取附注 tag 的正文（第一行概括之后的部分），再接上镜像信息。更新说明由 Claude 根据上一个 tag 以来的提交生成，分 English、中文两栏（English 在前），流程见 `.claude/skills/release/SKILL.md`（打 tag 必须用 `--cleanup=whitespace`，否则 `##` 标题会被当注释删掉）。仓库直接提交到 main，GitHub 自动生成的 "What's Changed" 是空的。
 
 ### 提交前检查
 
