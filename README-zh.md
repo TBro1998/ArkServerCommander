@@ -154,8 +154,34 @@ A: 不需要。后端首次启动时会自动生成强随机密钥，保存在�
 - 镜像源地址: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
 ## 📸 界面展示
-![](./docs/zh/images/img_servers.png)
-![](./docs/zh/images/ima_base.png)
-![](./docs/zh/images/img_GameUserSettings.png)
-![](./docs/zh/images/img_GameIni.png)
-![](./docs/zh/images/img_args.png) 
+**首页概览：服务器、在线人数、资源占用、镜像和磁盘**
+
+![首页概览：服务器、在线人数、资源占用、镜像和磁盘](./docs/zh/images/home.png)
+
+**服务器列表**
+
+![服务器列表](./docs/zh/images/servers.png)
+
+**服务器详情：连接信息、配置和 Mod 更新**
+
+![服务器详情：连接信息、配置和 Mod 更新](./docs/zh/images/server-detail.png)
+
+**定时任务：重启、备份、更新，带倒计时广播**
+
+![定时任务：重启、备份、更新，带倒计时广播](./docs/zh/images/server-schedules.png)
+
+**编辑服务器：按用途分组，左侧导航，改过的项显示数量**
+
+![编辑服务器：按用途分组，左侧导航，改过的项显示数量](./docs/zh/images/form-general.png)
+
+**Mod 与集群：创意工坊 Mod 名称和加载顺序、跨服传输**
+
+![Mod 与集群：创意工坊 Mod 名称和加载顺序、跨服传输](./docs/zh/images/form-mods.png)
+
+**倍率：配置项来自 GameUserSettings.ini、Game.ini 和启动参数，统一编辑**
+
+![倍率：配置项来自 GameUserSettings.ini、Game.ini 和启动参数，统一编辑](./docs/zh/images/form-rates.png)
+
+**搜索设置：按名称、键名或说明跨分组查找**
+
+![搜索设置：按名称、键名或说明跨分组查找](./docs/zh/images/form-search.png)

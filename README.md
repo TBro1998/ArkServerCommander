@@ -154,8 +154,34 @@ A: No. On first start the backend generates a strong random secret and stores it
 - Image source: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
 ## 📸 Interface Screenshots
-![](./docs/zh/images/img_servers.png)
-![](./docs/zh/images/ima_base.png)
-![](./docs/zh/images/img_GameUserSettings.png)
-![](./docs/zh/images/img_GameIni.png)
-![](./docs/zh/images/img_args.png) 
+**Home: servers, online players, resource usage, images and disk**
+
+![Home: servers, online players, resource usage, images and disk](./docs/zh/images/home.png)
+
+**Server list**
+
+![Server list](./docs/zh/images/servers.png)
+
+**Server details: connection info, configuration and mod updates**
+
+![Server details: connection info, configuration and mod updates](./docs/zh/images/server-detail.png)
+
+**Scheduled tasks: restart, backup and update with countdown broadcasts**
+
+![Scheduled tasks: restart, backup and update with countdown broadcasts](./docs/zh/images/server-schedules.png)
+
+**Edit server: settings grouped by purpose, side navigation with counts of changed items**
+
+![Edit server: settings grouped by purpose, side navigation with counts of changed items](./docs/zh/images/form-general.png)
+
+**Mods and clusters: Workshop mod names and load order, cross-server transfers**
+
+![Mods and clusters: Workshop mod names and load order, cross-server transfers](./docs/zh/images/form-mods.png)
+
+**Rates: settings from GameUserSettings.ini, Game.ini and startup arguments in one place**
+
+![Rates: settings from GameUserSettings.ini, Game.ini and startup arguments in one place](./docs/zh/images/form-rates.png)
+
+**Search: find settings by name, key or description across all groups**
+
+![Search: find settings by name, key or description across all groups](./docs/zh/images/form-search.png)
