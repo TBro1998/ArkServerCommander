@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, Dices, Save, Plus, RotateCw, ExternalLink, Search, X } from 'lucide-react';
+import { Loader2, Dices, Save, Plus, RotateCw, ExternalLink, Search, X, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +11,9 @@ import { MapSelector } from '@/components/servers/MapSelector';
 import { ModList, WORKSHOP_BROWSE_URL, isValidModIds, normalizeModIds } from '@/components/servers/ModList';
 import { SettingTile, SettingControl, PasswordInput } from '@/components/servers/settings/SettingTile';
 import { CustomArgsPanel, RawConfigPanel } from '@/components/servers/settings/Panels';
+import { ImportConfigDialog } from '@/components/servers/ServerConfigDialogs';
+import { applyConfigToForm } from '@/lib/server-config';
+import { toast } from '@/lib/toast';
 import { randomPassword } from '@/lib/format';
 import { indexIni } from '@/lib/ini';
 import {
@@ -54,6 +57,8 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
   const tS = useTranslations('serverSettings');
   const tEdit = useTranslations('servers.edit');
   const tCommon = useTranslations('common');
+  const tConfig = useTranslations('serverConfig');
+  const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState<Partial<Server>>(initial);
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -504,6 +509,10 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               </span>
             ) : null}
           </div>
+          <Button variant="outline" onClick={() => setImportOpen(true)} disabled={saving} title={tConfig('importHint')}>
+            <FileUp />
+            {tConfig('import')}
+          </Button>
           <Button variant="outline" onClick={cancel} disabled={saving}>
             {tCommon('cancel')}
           </Button>
@@ -519,6 +528,16 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
           </Button>
         </div>
       </CardContent>
+      <ImportConfigDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        excludeServerId={initial.id}
+        onImport={(config, parts) => {
+          update((prev) => applyConfigToForm(prev, config, parts));
+          setErrors({});
+          toast.success(tConfig('imported'));
+        }}
+      />
     </Card>
   );
 }

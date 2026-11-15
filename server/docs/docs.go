@@ -1457,6 +1457,189 @@ const docTemplate = `{
                 }
             }
         },
+        "/servers/{id}/config/copy": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把这台服务器的配置复制到 target_ids 指定的服务器，parts 同导入。逐台应用，每台的结果单独返回",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "复制配置到其他服务器",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "来源服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目标服务器和要复制的部分",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CopyConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "每台服务器的结果",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/models.CopyConfigResult"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "服务器不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/config/export": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "导出地图、Mod、集群、选项、配置文件和启动参数，不含端口和管理员密码（配置文件里的 ServerAdminPassword 也会去掉）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "导出服务器配置",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "服务器配置",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.ServerConfig"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "服务器不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/config/import": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把导出的配置写入这台服务器，parts 可选 config_files / server_args / mods / map / cluster / options，为空表示全部。名称、端口和管理员密码保持不变，服务器未停止时配置文件先暂存，下次启动时生效",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "导入服务器配置",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "配置和要导入的部分",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ApplyConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新后的服务器",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.ServerResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "配置无效",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "服务器不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/servers/{id}/logs": {
             "get": {
                 "security": [
@@ -3086,6 +3269,70 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ApplyConfigRequest": {
+            "type": "object",
+            "required": [
+                "config"
+            ],
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/models.ServerConfig"
+                },
+                "parts": {
+                    "description": "为空表示全部",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.CopyConfigRequest": {
+            "type": "object",
+            "required": [
+                "target_ids"
+            ],
+            "properties": {
+                "parts": {
+                    "description": "为空表示全部",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "target_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "models.CopyConfigResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "config_pending": {
+                    "description": "目标服务器未停止，配置文件已暂存，下次启动时生效",
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "server_id": {
+                    "type": "integer"
+                },
+                "session_name": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "models.RuntimeInfo": {
             "type": "object",
             "properties": {
@@ -3269,6 +3516,60 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "models.ServerConfig": {
+            "type": "object",
+            "properties": {
+                "arkapi": {
+                    "type": "boolean"
+                },
+                "auto_restart": {
+                    "type": "boolean"
+                },
+                "auto_update": {
+                    "type": "boolean"
+                },
+                "cluster_id": {
+                    "type": "string"
+                },
+                "exported_at": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "game_ini": {
+                    "type": "string"
+                },
+                "game_mod_ids": {
+                    "type": "string"
+                },
+                "game_user_settings": {
+                    "description": "配置文件内容",
+                    "type": "string"
+                },
+                "map": {
+                    "type": "string"
+                },
+                "max_players": {
+                    "type": "integer"
+                },
+                "server_args": {
+                    "description": "启动参数",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ServerArgs"
+                        }
+                    ]
+                },
+                "session_name": {
+                    "description": "来源服务器的名称，只用于显示，不会导入",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },

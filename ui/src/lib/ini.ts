@@ -137,3 +137,43 @@ export function replaceIniValues(content: string, key: string, value: IniValue):
   }
   return changed ? serializeBlocks(blocks) : content
 }
+
+/**
+ * 以 content 为基础，把 keys 这些键换成 original 里的值（按 section 对应）：content 里已有的行就地替换，
+ * original 里没有的删掉，content 里没有的追加到对应 section。
+ * 导入其他服务器的配置文件时用来保留这台服务器自己的名称、端口、人数和管理员密码（与后端 KeepIniKeys 一致）
+ */
+export function keepIniValues(content: string, original: string, keys: string[]): string {
+  const wanted = new Set(keys.map(lower))
+  const originals = new Map<string, { header: string; key: string; value: string }>()
+  for (const block of parseBlocks(original)) {
+    if (block.header === null) continue
+    for (const line of block.lines) {
+      const kv = splitKeyValue(line)
+      if (!kv || !wanted.has(lower(kv.key))) continue
+      const id = `${lower(block.header)}${lower(kv.key)}`
+      if (!originals.has(id)) originals.set(id, { header: block.header, key: kv.key, value: kv.value })
+    }
+  }
+
+  const placed = new Set<string>()
+  const blocks = parseBlocks(content)
+  for (const block of blocks) {
+    block.lines = block.lines.flatMap((line) => {
+      const kv = splitKeyValue(line)
+      if (!kv || !wanted.has(lower(kv.key))) return [line]
+      if (block.header === null) return []
+      const id = `${lower(block.header)}${lower(kv.key)}`
+      const entry = originals.get(id)
+      if (!entry || placed.has(id)) return []
+      placed.add(id)
+      return [`${kv.indent}${entry.key}=${entry.value}`]
+    })
+  }
+
+  let result = serializeBlocks(blocks)
+  for (const [id, entry] of originals) {
+    if (!placed.has(id)) result = setIniValue(result, entry.header, entry.key, entry.value)
+  }
+  return result
+}

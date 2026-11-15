@@ -27,3 +27,26 @@ func TestSetIniValue(t *testing.T) {
 		})
 	}
 }
+
+func TestKeepIniKeys(t *testing.T) {
+	source := "[ServerSettings]\nSessionName=A\nServerAdminPassword=pw1\nXPMultiplier=3\n\n[SessionSettings]\nSessionName=A\nPort=7777\n\n[MessageOfTheDay]\nMessage=hi\n"
+	target := "[ServerSettings]\nSessionName=B\nServerAdminPassword=pw2\nXPMultiplier=1\n\n[SessionSettings]\nsessionname=B\nPort=7779\n"
+	want := "[ServerSettings]\nSessionName=B\nServerAdminPassword=pw2\nXPMultiplier=3\n\n[SessionSettings]\nsessionname=B\nPort=7779\n\n[MessageOfTheDay]\nMessage=hi\n"
+	got := KeepIniKeys(source, target, "SessionName", "ServerAdminPassword", "Port")
+	if got != want {
+		t.Fatalf("期望:\n%q\n实际:\n%q", want, got)
+	}
+
+	// 目标里没有的键直接去掉；注释里的同名内容不动
+	got = KeepIniKeys("[ServerSettings]\n;ServerAdminPassword=x\nServerAdminPassword=pw1\nX=1\n", "", "ServerAdminPassword")
+	if got != "[ServerSettings]\n;ServerAdminPassword=x\nX=1\n" {
+		t.Fatalf("实际: %q", got)
+	}
+
+	if got := RemoveIniKeys("[ServerSettings]\nServerAdminPassword=pw\n", "ServerAdminPassword"); got != "[ServerSettings]\n" {
+		t.Fatalf("实际: %q", got)
+	}
+	if got := RemoveIniKeys("ServerAdminPassword=pw\n", "ServerAdminPassword"); got != "" {
+		t.Fatalf("全部删除后应为空，实际: %q", got)
+	}
+}

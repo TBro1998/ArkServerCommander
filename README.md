@@ -17,6 +17,7 @@
 - 💾 Saves, configs, plugins and server files live under `data/servers/<id>/` and can be managed directly on the host; they are kept when a server is deleted unless you choose to delete them
 - 🖥️ Add and manage multiple ARK servers, with cluster support (shared cluster directory)
 - ⚙️ Edit GameUserSettings.ini, Game.ini and launch arguments visually or as text
+- 📤 Export a server's config to a file, import it from a file or another server, or copy it to several servers at once (choose game settings, launch arguments, mods and more; names, ports and admin passwords are never overwritten)
 - ▶️ One-click server start/stop/restart; containers are recreated automatically on start after launch arguments or mods change
 - 📊 Status monitoring: download and mod install progress, joinable state, online players, CPU/memory/disk
 - 📋 Live server log viewing (container output and the game's ShooterGame.log)
@@ -98,7 +99,7 @@ sudo docker-compose up -d
 2. Click "Add Server" to create a new server configuration
 
 ### 🤖 Agent Access (MCP)
-The commander exposes an MCP (Model Context Protocol) server so agents can manage servers without the web UI: list status, start/stop/restart, create and edit servers, change individual config keys, run RCON commands, view logs and players, manage backups, schedules, plugins and images.
+The commander exposes an MCP (Model Context Protocol) server so agents can manage servers without the web UI: list status, start/stop/restart, create and edit servers, change individual config keys, export, import and copy server configs, run RCON commands, view logs and players, manage backups, schedules, plugins and images.
 
 1. Open **Settings → Agent access (MCP)**, enter a token name and click **Create** (turn on **Read-only** for an agent that should only look). The token is shown only once.
 2. Add the server to your agent. For Claude Code:

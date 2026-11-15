@@ -15,6 +15,8 @@ import {
   Trash2,
   ScrollText,
   LayoutDashboard,
+  FileDown,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,8 +33,10 @@ import { Switch } from '@/components/ui/switch';
 import { serversActions, isTransitioning, type Server } from '@/stores/servers';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
+import { downloadServerConfig } from '@/lib/server-config';
+import { CopyConfigDialog } from '@/components/servers/ServerConfigDialogs';
 
-type DialogKind = 'stop' | 'restart' | 'update' | 'recreate' | 'delete' | null;
+type DialogKind = 'stop' | 'restart' | 'update' | 'recreate' | 'delete' | 'copy' | null;
 
 interface ServerActionsProps {
   server: Server;
@@ -43,6 +47,7 @@ interface ServerActionsProps {
 
 export function ServerActions({ server, variant = 'card', onDeleted }: ServerActionsProps) {
   const t = useTranslations('serverActions');
+  const tConfig = useTranslations('serverConfig');
   const router = useRouter();
   const apiError = useApiError();
   const [dialog, setDialog] = useState<DialogKind>(null);
@@ -87,6 +92,14 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
       t('deleteSuccess'),
       t('deleteFailed'),
     );
+
+  const exportConfig = async () => {
+    try {
+      await downloadServerConfig(server);
+    } catch (err) {
+      toast.error(apiError(err, tConfig('exportFailed')));
+    }
+  };
 
   const openDialog = (kind: DialogKind) => {
     setConfirmName('');
@@ -162,6 +175,14 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
               <Edit className="mr-2 h-4 w-4" />
               {t('edit')}
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportConfig}>
+              <FileDown className="mr-2 h-4 w-4" />
+              {tConfig('export')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openDialog('copy')}>
+              <Copy className="mr-2 h-4 w-4" />
+              {tConfig('copyTo')}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             {isCard && (
               <DropdownMenuItem onClick={() => openDialog('restart')} disabled={busy}>
@@ -189,6 +210,8 @@ export function ServerActions({ server, variant = 'card', onDeleted }: ServerAct
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <CopyConfigDialog open={dialog === 'copy'} onOpenChange={(o) => !o && setDialog(null)} server={server} />
 
       <ConfirmDialog
         open={dialog === 'stop'}

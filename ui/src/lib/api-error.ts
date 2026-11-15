@@ -25,15 +25,25 @@ export function getErrorMessage(error: unknown, fallback: string): string {
 // 按界面语言选择错误文案：后端的 error 字段是中文且带有具体细节（例如哪个端口冲突），
 // 中文界面直接显示；其他语言按 code 显示翻译，没有对应翻译时再显示后端原文
 export function useApiError() {
-  const locale = useLocale();
-  const t = useTranslations('apiErrors');
+  const errorText = useErrorText();
   return useCallback(
     (error: unknown, fallback: string): string => {
       const body = errorBody(error);
       if (!body) return fallback;
-      const message = typeof body.error === 'string' ? body.error : '';
-      const code = typeof body.code === 'string' ? body.code : '';
-      if (locale !== 'zh' && code && t.has(code)) return t(code);
+      return errorText(body.error, body.code, fallback);
+    },
+    [errorText],
+  );
+}
+
+// 和 useApiError 相同的规则，用于响应体里逐项返回的 error / code（例如复制配置到多台服务器的结果）
+export function useErrorText() {
+  const locale = useLocale();
+  const t = useTranslations('apiErrors');
+  return useCallback(
+    (error: unknown, code: unknown, fallback: string): string => {
+      const message = typeof error === 'string' ? error : '';
+      if (locale !== 'zh' && typeof code === 'string' && code && t.has(code)) return t(code);
       return message || fallback;
     },
     [locale, t],

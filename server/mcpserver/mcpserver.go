@@ -94,6 +94,7 @@ func newServer(readOnly bool) *mcp.Server {
 
 	r := &registry{server: s, readOnly: readOnly}
 	registerServerTools(r)
+	registerConfigTools(r)
 	registerOperationTools(r)
 	registerPluginTools(r)
 	registerSystemTools(r)

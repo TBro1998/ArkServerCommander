@@ -290,3 +290,76 @@ func RecreateContainer(c *gin.Context) {
 		"message": "容器重建已开始",
 	})
 }
+
+// ExportServerConfig 导出服务器配置
+// @Summary 导出服务器配置
+// @Description 导出地图、Mod、集群、选项、配置文件和启动参数，不含端口和管理员密码（配置文件里的 ServerAdminPassword 也会去掉）
+// @Tags 服务器管理
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string]models.ServerConfig "服务器配置"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Router /servers/{id}/config/export [get]
+func ExportServerConfig(c *gin.Context) {
+	cfg, err := serverService.ExportConfig(c.GetUint("user_id"), c.Param("id"))
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "获取成功", "data": cfg})
+}
+
+// ImportServerConfig 导入服务器配置
+// @Summary 导入服务器配置
+// @Description 把导出的配置写入这台服务器，parts 可选 config_files / server_args / mods / map / cluster / options，为空表示全部。名称、端口和管理员密码保持不变，服务器未停止时配置文件先暂存，下次启动时生效
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param body body models.ApplyConfigRequest true "配置和要导入的部分"
+// @Success 200 {object} map[string]models.ServerResponse "更新后的服务器"
+// @Failure 400 {object} map[string]string "配置无效"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Router /servers/{id}/config/import [post]
+func ImportServerConfig(c *gin.Context) {
+	var req models.ApplyConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c)
+		return
+	}
+	response, err := serverService.ImportConfig(c.GetUint("user_id"), c.Param("id"), &req.Config, req.Parts)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "导入成功", "data": response})
+}
+
+// CopyServerConfig 复制配置到其他服务器
+// @Summary 复制配置到其他服务器
+// @Description 把这台服务器的配置复制到 target_ids 指定的服务器，parts 同导入。逐台应用，每台的结果单独返回
+// @Tags 服务器管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "来源服务器ID"
+// @Param body body models.CopyConfigRequest true "目标服务器和要复制的部分"
+// @Success 200 {object} map[string][]models.CopyConfigResult "每台服务器的结果"
+// @Failure 400 {object} map[string]string "请求错误"
+// @Failure 404 {object} map[string]string "服务器不存在"
+// @Router /servers/{id}/config/copy [post]
+func CopyServerConfig(c *gin.Context) {
+	var req models.CopyConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c)
+		return
+	}
+	results, err := serverService.CopyConfig(c.GetUint("user_id"), c.Param("id"), req)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "复制完成", "data": results})
+}

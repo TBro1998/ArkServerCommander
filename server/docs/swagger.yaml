@@ -66,6 +66,49 @@ definitions:
     required:
     - name
     type: object
+  models.ApplyConfigRequest:
+    properties:
+      config:
+        $ref: '#/definitions/models.ServerConfig'
+      parts:
+        description: 为空表示全部
+        items:
+          type: string
+        type: array
+    required:
+    - config
+    type: object
+  models.CopyConfigRequest:
+    properties:
+      parts:
+        description: 为空表示全部
+        items:
+          type: string
+        type: array
+      target_ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - target_ids
+    type: object
+  models.CopyConfigResult:
+    properties:
+      code:
+        type: string
+      config_pending:
+        description: 目标服务器未停止，配置文件已暂存，下次启动时生效
+        type: boolean
+      error:
+        type: string
+      server_id:
+        type: integer
+      session_name:
+        type: string
+      success:
+        type: boolean
+    type: object
   models.RuntimeInfo:
     properties:
       copy_source:
@@ -196,6 +239,41 @@ definitions:
         additionalProperties:
           type: string
         type: object
+    type: object
+  models.ServerConfig:
+    properties:
+      arkapi:
+        type: boolean
+      auto_restart:
+        type: boolean
+      auto_update:
+        type: boolean
+      cluster_id:
+        type: string
+      exported_at:
+        type: string
+      format:
+        type: string
+      game_ini:
+        type: string
+      game_mod_ids:
+        type: string
+      game_user_settings:
+        description: 配置文件内容
+        type: string
+      map:
+        type: string
+      max_players:
+        type: integer
+      server_args:
+        allOf:
+        - $ref: '#/definitions/models.ServerArgs'
+        description: 启动参数
+      session_name:
+        description: 来源服务器的名称，只用于显示，不会导入
+        type: string
+      version:
+        type: integer
     type: object
   models.ServerRequest:
     properties:
@@ -1642,6 +1720,125 @@ paths:
       summary: 上传备份文件
       tags:
       - 存档备份
+  /servers/{id}/config/copy:
+    post:
+      consumes:
+      - application/json
+      description: 把这台服务器的配置复制到 target_ids 指定的服务器，parts 同导入。逐台应用，每台的结果单独返回
+      parameters:
+      - description: 来源服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 目标服务器和要复制的部分
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CopyConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 每台服务器的结果
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.CopyConfigResult'
+              type: array
+            type: object
+        "400":
+          description: 请求错误
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 复制配置到其他服务器
+      tags:
+      - 服务器管理
+  /servers/{id}/config/export:
+    get:
+      description: 导出地图、Mod、集群、选项、配置文件和启动参数，不含端口和管理员密码（配置文件里的 ServerAdminPassword
+        也会去掉）
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 服务器配置
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.ServerConfig'
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 导出服务器配置
+      tags:
+      - 服务器管理
+  /servers/{id}/config/import:
+    post:
+      consumes:
+      - application/json
+      description: 把导出的配置写入这台服务器，parts 可选 config_files / server_args / mods / map
+        / cluster / options，为空表示全部。名称、端口和管理员密码保持不变，服务器未停止时配置文件先暂存，下次启动时生效
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 配置和要导入的部分
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ApplyConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的服务器
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.ServerResponse'
+            type: object
+        "400":
+          description: 配置无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 服务器不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 导入服务器配置
+      tags:
+      - 服务器管理
   /servers/{id}/logs:
     get:
       description: 返回容器最近 tail 行日志（入口脚本、steamcmd 和游戏的标准输出）
