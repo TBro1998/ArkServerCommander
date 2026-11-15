@@ -36,42 +36,38 @@ git -C ASE-Server-Docker log --oneline <旧指针>..<新指针>
 
 ## 4. 写更新说明
 
-读者是部署和使用 ARK Server Commander 的服主，不是开发者。说明分 English、中文两栏，English 在前，两栏内容一一对应（条目数和顺序相同），没有内容的小节两栏都省略：
+读者是部署和使用 ARK Server Commander 的服主，不是开发者。说明分 English、中文两栏，English 在前，两栏内容一一对应（条目数和顺序相同），没有内容的小节两栏都省略。不加"English""中文"这样的总标题，英文小节写完直接接中文小节：
 
 ```markdown
-## English
-
-### New features
+## New features
 
 - **Feature name**: what users can do and where it is in the UI.
 
-### Improvements
+## Improvements
 
 - ...
 
-### Fixes
+## Fixes
 
 - ...
 
-### Upgrade notes
+## Upgrade notes
 
 - Things users need to do manually.
 
-## 中文
-
-### 新功能
+## 新功能
 
 - **功能名**：用户能做什么、在界面哪里。
 
-### 改进
+## 改进
 
 - ...
 
-### 修复
+## 修复
 
 - ...
 
-### 升级注意
+## 升级注意
 
 - 需要用户手动处理的事项。
 ```
