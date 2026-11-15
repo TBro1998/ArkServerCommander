@@ -159,13 +159,21 @@ A: No. On first start the backend generates a strong random secret and stores it
 
 ![Home: servers, online players, resource usage, images and disk](./docs/zh/images/home.png)
 
-**Server list**
+**Server list: card view with start/stop and shortcuts to console, logs and settings**
 
-![Server list](./docs/zh/images/servers.png)
+![Server list: card view with start/stop and shortcuts to console, logs and settings](./docs/zh/images/servers.png)
+
+**List view: one server per row with status, players, resources and address**
+
+![List view: one server per row with status, players, resources and address](./docs/zh/images/servers-list.png)
 
 **Server details: connection info, configuration and mod updates**
 
 ![Server details: connection info, configuration and mod updates](./docs/zh/images/server-detail.png)
+
+**Manage: update game/mods, recreate the container, export, import and copy configs, delete the server**
+
+![Manage: update game/mods, recreate the container, export, import and copy configs, delete the server](./docs/zh/images/server-manage.png)
 
 **Scheduled tasks: restart, backup and update with countdown broadcasts**
 
