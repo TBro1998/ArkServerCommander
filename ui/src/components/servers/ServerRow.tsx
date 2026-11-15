@@ -82,7 +82,8 @@ export function ServerRow({ server, publicHost }: { server: Server; publicHost: 
             </Link>
           )}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+        {/* 最小高度和标签一致，有没有标签的行一样高 */}
+        <div className="mt-1 flex min-h-[1.375rem] flex-wrap items-center gap-1.5 text-xs">
           <span className="font-medium" style={{ color }}>
             {mapName(server.map)}
           </span>
