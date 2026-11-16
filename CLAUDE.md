@@ -71,6 +71,7 @@ Windows 上用 PowerShell 运行 `.\dev.ps1`（执行策略不允许时 `powersh
 - `PUBLIC_HOST`：玩家连接用的公网地址（IP 或域名）；为空时自动探测公网 IP（ipify / ifconfig.me，缓存 1 小时）
 - `BACKUP_DIR`：存档备份目录（默认数据库所在目录下的 `backups`，镜像内为 `/data/backups`）
 - `HOST_DATA_DIR`：数据目录在宿主机上的绝对路径，可选。ARK 服务器的卷绑定到数据目录下，Docker 需要宿主机路径；为空时后端检查自身容器的挂载自动探测（目标为数据目录的那一项的 Source），探测失败会拒绝启动并提示设置它；后端直接运行在宿主机上时使用数据目录本身
+- `ARKFGF_API`：服务器收录站接口地址（默认 `https://arkfgf.com/api/v1`），设为空或 `off` 时关闭发布功能，见下文"发布到收录站"
 - `GIN_MODE`、`LOG_LEVEL`、`LOG_FORMAT`：Gin 模式和日志配置
 
 前端（Next 服务端）：
@@ -100,10 +101,10 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 分层：controllers（HTTP）→ service（业务）→ docker_manager（Docker SDK）。
 
-- `main.go`：初始化日志、配置、数据库，检查 Docker，启动运行信息监控（`StartRuntimeMonitor`）、定时任务调度（`StartScheduler`）和 Mod 更新检查（`StartModUpdateChecker`），注册 CORS 和路由
+- `main.go`：初始化日志、配置、数据库，检查 Docker，启动运行信息监控（`StartRuntimeMonitor`）、定时任务调度（`StartScheduler`）、Mod 更新检查（`StartModUpdateChecker`）和收录站发布（`StartPublisher`），注册 CORS 和路由
 - `config/`：环境变量读取，JWT 密钥加载（环境变量优先，否则读取或生成 `jwt_secret` 文件）
 - `controllers/{auth,servers,images,system}/`：请求处理。`servers/errors.go` 的 `RespondServiceError` 用 `errors.Is` 把服务层错误映射为 HTTP 状态码，响应带 `error`（中文详情）和 `code`（错误码，见 `service/server/errors.go` 的 `errorCodes`）。`auth/ratelimit.go` 是登录失败限流
-- `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`mods.go`（Mod 安装状态和更新检查，后台每 30 分钟）、`plugins.go`（ArkApi 插件）、`arkapi.go`（ArkApi 版本库和安装）、`images.go`（启动时自动拉取镜像、哪些镜像是必需的）、`gamelog.go`（读取 ShooterGame.log）、`server_config.go`（配置导出、导入、复制到其他服务器）、`config_values.go`（`SetConfigValues`）、`clusters.go`（未使用的集群）、`version.go`（GitHub 最新版本）、`response.go`（`toResponse`）
+- `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`mods.go`（Mod 安装状态和更新检查，后台每 30 分钟）、`plugins.go`（ArkApi 插件）、`arkapi.go`（ArkApi 版本库和安装）、`images.go`（启动时自动拉取镜像、哪些镜像是必需的）、`gamelog.go`（读取 ShooterGame.log）、`server_config.go`（配置导出、导入、复制到其他服务器）、`config_values.go`（`SetConfigValues`）、`clusters.go`（未使用的集群）、`version.go`（GitHub 最新版本）、`publish.go`（发布到 arkfgf.com 收录站）、`response.go`（`toResponse`）
 - `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行 python3 脚本）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）、`docker_seed.go`（检查和复制服务端文件）、`localfs.go`（`copyTree`，相当于 `cp -a`）、`installed_mods.go`（读写 `.installed_mods`）、`clusters.go`（列出和删除集群卷）、`storage.go`（数据目录布局，`ServerFilesDir` 等返回后端本地路径。卷里的所有文件操作——配置文件、备份导出恢复、安装标记、复制服务端文件、插件、Mod 记录、游戏日志——都直接读写这些目录，不再用临时容器，也不需要 alpine 镜像；目录内容由 ARK 容器写入，访问时用 `os.Root`，符号链接不能指到目录外）
 - `middleware/`：`auth.go`（JWT 校验）、`cors.go`（白名单 CORS）
 - `mcpserver/`：MCP 服务（官方 `github.com/modelcontextprotocol/go-sdk`），见下文"MCP 接口"
@@ -185,6 +186,12 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 5. **重建**：`/servers/:id/recreate` 先原子占位为 stopping，再在后台执行：运行中的服务器先停止（失败则放弃），写入暂存配置，按当前配置创建新容器，结束时为 stopped，失败原因写入 `last_error`（详情页"管理"标签里有重建按钮）
 6. **删除**：只允许删除已停止的服务器（starting / stopping 返回 409）；先删容器，再以 `status = stopped` 为条件软删除数据库记录，同时删除定时任务。默认保留数据目录和备份；`delete_data=true` 时删除三个卷、`servers/<id>/` 目录和备份目录（集群卷和 `clusters/<id>` 共享，不删）
 
+### 发布到收录站
+
+服务器的 `publish` 开关（表单"运维"分组，默认关闭，保存后立即生效，不用重启）。`service/server/publish.go` 的 `Publisher` 每 15 秒检查一次：服务器 running 且 `runtime.phase` 为 `ready` 时 `POST {ARKFGF_API}/publish` 发布一次（名称、端口、地图、Mod、ArkApi、集群，倍率和 PvE 先取启动参数 `?Key=` 再取配置文件），收录站返回的令牌存在 `servers.publish_token`；之后按返回的 `heartbeat_interval`（默认 5 分钟，不低于 1 分钟）发 `/publish/heartbeat`；停止、关闭发布或删除时发一次 `/publish/offline`。运行中短暂不是 ready（监控的一次 A2S 超时）2 分钟内不下线。失败按 1、2、4…30 分钟退避，429 / 503 按 `Retry-After`；心跳返回 `invalid_token` / `ip_changed` 时重新发布。状态只在内存里，随服务器响应返回 `publish_status`（`waiting` / `published` / `error` / `disabled`，失败时带 `error_code` 和中文 `error`），详情页概览显示。
+
+收录站（外层仓库 `web/backend/controllers/publish.go`）不需要登录：收录的 IP 是请求的来源 IP（`CF-Connecting-IP`），收录站自己向该 IP 的查询端口发 A2S_INFO 验证，名称、地图、人数、是否有密码以 A2S 为准，所以查询端口（UDP）必须能从公网访问。另有按 IP / 端口 / 全站的频率限制和每 IP 台数上限，15 分钟没有心跳视为离线，30 天没上线的自动删除。
+
 ### 存档备份
 
 备份放在 `BACKUP_DIR/<server_id>/<时间>_<类型>.tar.gz`（类型：manual / scheduled / pre-restore / uploaded，时间按 `CONTAINER_TZ`），归档内是 `Saved/`（跳过 `Logs` 和 `clusters`）。运行中备份先 RCON `SaveWorld`。恢复只能在已停止时进行：先自动做 pre-restore 备份，占位为 stopping，直接在数据目录里清空 `SavedArks` 和 `Config` 再解压（逐项检查路径，只写普通文件和目录），清除暂存配置。上传的归档要通过 `ValidateBackup`（gzip、只允许 `Saved/` 下的普通文件和目录、必须有 `SavedArks`）。同一服务器的备份 / 恢复由 `backupLocks` 串行化
@@ -245,7 +252,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ## 测试
 
-测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`localfs_test.go`（配置文件读写、备份导出恢复、检查和复制服务端文件）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`、`KeepIniKeys`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）、`server/service/apitoken/apitoken_test.go`（令牌生成、校验、撤销）、`server/mcpserver/mcpserver_test.go`（用 SDK 客户端走真实 HTTP：令牌认证、只读令牌的工具过滤、错误码）、`server/service/server/server_config_test.go`（配置导出去掉密码、复制时保留目标的名称端口密码、按部分应用、运行中暂存）。启停流程、RCON、配置暂存和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`localfs_test.go`（配置文件读写、备份导出恢复、检查和复制服务端文件）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`、`KeepIniKeys`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）、`server/service/apitoken/apitoken_test.go`（令牌生成、校验、撤销）、`server/mcpserver/mcpserver_test.go`（用 SDK 客户端走真实 HTTP：令牌认证、只读令牌的工具过滤、错误码）、`server/service/server/publish_test.go`（发布、心跳间隔、宽限期、下线、退避和 Retry-After、令牌失效后重新发布，用 httptest 模拟收录站）、`server/service/server/server_config_test.go`（配置导出去掉密码、复制时保留目标的名称端口密码、按部分应用、运行中暂存）。启停流程、RCON、配置暂存和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 
@@ -265,6 +272,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 创意工坊搜索接口需要 Steam Web API Key，没有做站内搜索，只支持粘贴链接
 - 版本检查依赖访问 `api.github.com`（未认证每小时 60 次，结果缓存 6 小时）
 - MCP 令牌长期有效、权限是整个账户（完全控制或只读两档），没有按服务器限制；MCP 和网页共用对外端口，公网暴露时需要 HTTPS 反向代理，否则令牌明文传输
+- 发布到收录站时，收录站看到的来源 IP 必须就是玩家连接的 IP：出口和入口 IP 不同（多 IP、NAT、代理）的机器会因 A2S 验证失败发布不了；只支持 IPv4
 - `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`）
 
 ## 故障排除

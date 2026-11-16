@@ -756,6 +756,24 @@ const messages = {
     none: '无',
     autoRestart: '崩溃后自动重启',
     autoUpdate: '启动时自动更新',
+    publish: '收录站',
+    publishStates: {
+      disabled: '管理端已关闭发布（ARKFGF_API）',
+      waiting: '等待服务器可以连接',
+      published: '已发布',
+      error: '发布失败，自动重试中'
+    },
+    publishView: '查看',
+    publishErrors: {
+      unreachable: '收录站无法访问查询端口 {port}（UDP），请在防火墙或安全组中放行',
+      not_ark: '查询端口返回的不是 ARK 服务器',
+      ip_not_public: '发布请求不是从公网 IPv4 发出的',
+      rate_limited: '请求过于频繁，稍后自动重试',
+      busy: '收录站繁忙，稍后自动重试',
+      too_many_servers: '这个公网 IP 发布的服务器已达上限',
+      owned: '这台服务器已由 arkfgf.com 上的服主账号管理',
+      invalid_input: '发布内容不符合收录站要求'
+    },
     serverBuild: '服务端',
     buildProton: 'Proton 版（ArkApi）',
     buildLinux: 'Linux 版',
@@ -1070,7 +1088,8 @@ const messages = {
       cluster_id: '集群 ID',
       arkapi: '启用 ArkApi',
       auto_restart: '崩溃后自动重启',
-      auto_update: '启动时自动更新'
+      auto_update: '启动时自动更新',
+      publish: '发布到 arkfgf.com 收录站'
     },
     fieldHints: {
       session_name: '玩家在服务器列表里看到的名称，可以包含空格和中文',
@@ -1082,7 +1101,8 @@ const messages = {
       cluster_id: '填写相同集群 ID 的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -',
       arkapi: '用 GE-Proton 运行 Windows 版服务端，可以加载 ArkApi 插件。关闭时运行原生 Linux 版服务端，占用更少。',
       auto_restart: '游戏进程意外退出时由 Docker 自动重启',
-      auto_update: '每次启动前校验更新游戏本体并重新下载 Mod，启动会变慢'
+      auto_update: '每次启动前校验更新游戏本体并重新下载 Mod，启动会变慢',
+      publish: '服务器可以连接后自动在 arkfgf.com 服务器收录站公开展示（名称、地图、倍率、Mod、在线人数和连接地址），停止后自动下线。收录站会从公网验证查询端口，需要放行该端口（UDP）'
     },
     params: {
       // 常规

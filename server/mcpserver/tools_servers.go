@@ -59,6 +59,7 @@ type createServerInput struct {
 	AutoRestart      *bool            `json:"auto_restart,omitempty" jsonschema:"Restart the container automatically if it crashes (default true)"`
 	AutoUpdate       *bool            `json:"auto_update,omitempty" jsonschema:"Check for game and mod updates on every start (default false)"`
 	ArkApi           *bool            `json:"arkapi,omitempty" jsonschema:"Enable ArkApi plugins. Runs the Windows server under Proton instead of the native Linux server (default false)"`
+	Publish          *bool            `json:"publish,omitempty" jsonschema:"List the server publicly on the arkfgf.com server list once it is joinable (default false). The query port (UDP) must be reachable from the internet"`
 	GameUserSettings string           `json:"game_user_settings,omitempty" jsonschema:"Full GameUserSettings.ini content. Omit to use the default template"`
 	GameIni          string           `json:"game_ini,omitempty" jsonschema:"Full Game.ini content. Omit to use the default template"`
 	ServerArgs       *serverArgsInput `json:"server_args,omitempty" jsonschema:"Launch arguments. Omit to use the recommended defaults; if given, it replaces the defaults entirely (see server_args of an existing server via get_server)"`
@@ -78,6 +79,7 @@ type updateServerInput struct {
 	AutoRestart      *bool            `json:"auto_restart,omitempty" jsonschema:"Restart the container automatically if it crashes"`
 	AutoUpdate       *bool            `json:"auto_update,omitempty" jsonschema:"Check for game and mod updates on every start"`
 	ArkApi           *bool            `json:"arkapi,omitempty" jsonschema:"Enable ArkApi (switches the server image; the container is recreated on next start)"`
+	Publish          *bool            `json:"publish,omitempty" jsonschema:"List the server publicly on the arkfgf.com server list while it is running and joinable; takes effect immediately (turning it off delists the server)"`
 	GameUserSettings string           `json:"game_user_settings,omitempty" jsonschema:"Full new GameUserSettings.ini content (replaces the file). To change a few keys use set_config_values instead"`
 	GameIni          string           `json:"game_ini,omitempty" jsonschema:"Full new Game.ini content (replaces the file). To change a few keys use set_config_values instead"`
 	ServerArgs       *serverArgsInput `json:"server_args,omitempty" jsonschema:"Launch arguments; replaces all existing launch arguments, so read them with get_server first"`
@@ -151,6 +153,7 @@ func registerServerTools(r *registry) {
 				AutoRestart:      in.AutoRestart,
 				AutoUpdate:       in.AutoUpdate,
 				ArkApi:           in.ArkApi,
+				Publish:          in.Publish,
 				GameUserSettings: in.GameUserSettings,
 				GameIni:          in.GameIni,
 				ServerArgs:       in.ServerArgs.toRequest(),
@@ -209,6 +212,7 @@ func registerServerTools(r *registry) {
 				AutoRestart:      in.AutoRestart,
 				AutoUpdate:       in.AutoUpdate,
 				ArkApi:           in.ArkApi,
+				Publish:          in.Publish,
 				GameUserSettings: in.GameUserSettings,
 				GameIni:          in.GameIni,
 				ServerArgs:       in.ServerArgs.toRequest(),

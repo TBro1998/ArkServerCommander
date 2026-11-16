@@ -3333,6 +3333,35 @@ const docTemplate = `{
                 }
             }
         },
+        "models.PublishStatus": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "错误详情（中文）",
+                    "type": "string"
+                },
+                "error_code": {
+                    "description": "收录站返回的错误码，或 network",
+                    "type": "string"
+                },
+                "published_at": {
+                    "description": "最近一次发布或心跳成功的时间",
+                    "type": "string"
+                },
+                "retry_at": {
+                    "description": "失败后下一次重试的时间",
+                    "type": "string"
+                },
+                "state": {
+                    "description": "见 Publish* 常量",
+                    "type": "string"
+                },
+                "url": {
+                    "description": "收录站页面",
+                    "type": "string"
+                }
+            }
+        },
         "models.RuntimeInfo": {
             "type": "object",
             "properties": {
@@ -3627,6 +3656,10 @@ const docTemplate = `{
                     "maximum": 65535,
                     "minimum": 1
                 },
+                "publish": {
+                    "description": "发布到服务器收录站，默认关闭",
+                    "type": "boolean"
+                },
                 "query_port": {
                     "type": "integer",
                     "maximum": 65535,
@@ -3722,6 +3755,18 @@ const docTemplate = `{
                 "port": {
                     "type": "integer"
                 },
+                "publish": {
+                    "description": "发布到服务器收录站",
+                    "type": "boolean"
+                },
+                "publish_status": {
+                    "description": "发布状态，未开启发布时为空",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.PublishStatus"
+                        }
+                    ]
+                },
                 "query_port": {
                     "type": "integer"
                 },
@@ -3804,6 +3849,10 @@ const docTemplate = `{
                     "type": "integer",
                     "maximum": 65535,
                     "minimum": 1
+                },
+                "publish": {
+                    "description": "发布到服务器收录站",
+                    "type": "boolean"
                 },
                 "query_port": {
                     "type": "integer",

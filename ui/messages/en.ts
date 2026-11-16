@@ -756,6 +756,24 @@ const messages = {
     none: 'None',
     autoRestart: 'Restart on crash',
     autoUpdate: 'Update on start',
+    publish: 'Server list',
+    publishStates: {
+      disabled: 'Publishing is turned off for this manager (ARKFGF_API)',
+      waiting: 'Waiting until the server is joinable',
+      published: 'Published',
+      error: 'Publish failed, retrying automatically'
+    },
+    publishView: 'View',
+    publishErrors: {
+      unreachable: 'The server list cannot reach query port {port} (UDP); open it in your firewall or security group',
+      not_ark: 'The query port did not answer as an ARK server',
+      ip_not_public: 'The request did not come from a public IPv4 address',
+      rate_limited: 'Too many requests, retrying later',
+      busy: 'The server list is busy, retrying later',
+      too_many_servers: 'Too many servers published from this public IP',
+      owned: 'This server is managed by an owner account on arkfgf.com',
+      invalid_input: 'The published data was rejected'
+    },
     serverBuild: 'Server build',
     buildProton: 'Proton (ArkApi)',
     buildLinux: 'Linux',
@@ -1070,7 +1088,8 @@ const messages = {
       cluster_id: 'Cluster ID',
       arkapi: 'Enable ArkApi',
       auto_restart: 'Restart after crash',
-      auto_update: 'Update on start'
+      auto_update: 'Update on start',
+      publish: 'Publish to arkfgf.com'
     },
     fieldHints: {
       session_name: 'The name players see in the server list; spaces and non-Latin characters are fine',
@@ -1082,7 +1101,8 @@ const messages = {
       cluster_id: 'Servers with the same cluster ID can transfer survivors, dinos and items (shared cluster storage). Letters, digits, _ . - only',
       arkapi: 'Runs the Windows server under GE-Proton so ArkApi plugins can load. When off, the native Linux server runs and uses fewer resources.',
       auto_restart: 'Docker restarts the game process if it exits unexpectedly',
-      auto_update: 'Validates the game and re-downloads mods before every start; starting takes longer'
+      auto_update: 'Validates the game and re-downloads mods before every start; starting takes longer',
+      publish: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address) and removes it when stopped. The list verifies the query port from the internet, so it must be open (UDP)'
     },
     params: {
       ServerPassword: 'Join password',

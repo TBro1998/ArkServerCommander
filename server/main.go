@@ -81,6 +81,8 @@ func main() {
 	server.StartRuntimeMonitor()
 	server.StartScheduler(server.NewServerService())
 	server.StartModUpdateChecker()
+	// 开启"发布到收录站"的服务器可以连接后自动发布到 arkfgf.com
+	server.StartPublisher()
 
 	// 创建Gin实例
 	r := gin.Default()

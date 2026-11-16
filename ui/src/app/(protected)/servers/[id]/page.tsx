@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, AlertTriangle, Users, Settings2 } from 'lucide-react';
@@ -42,6 +42,36 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="flex-shrink-0 text-muted-foreground">{label}</span>
       <span className="min-w-0 text-right font-medium break-all">{children}</span>
     </div>
+  );
+}
+
+// 发布到 arkfgf.com 收录站的状态：未开启时显示"关闭"，失败时显示原因（中文界面用后端的详情，其他语言按错误码翻译）
+function PublishState({ server }: { server: Server }) {
+  const t = useTranslations('detail');
+  const locale = useLocale();
+  const status = server.publish_status;
+  if (!server.publish || !status) return <>{t('off')}</>;
+  const color =
+    status.state === 'published' ? 'text-green-700' : status.state === 'error' ? 'text-red-700' : 'text-amber-800';
+  let detail = '';
+  if (status.state === 'error') {
+    const key = `publishErrors.${status.error_code}`;
+    if (locale === 'zh' && status.error) detail = status.error;
+    else if (status.error_code && t.has(key)) detail = t(key, { port: server.query_port });
+    else detail = status.error ?? '';
+  }
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <span className={color}>
+        {t(`publishStates.${status.state}`)}
+        {status.state === 'published' && status.url && (
+          <a href={status.url} target="_blank" rel="noreferrer" className="ml-2 text-primary hover:underline">
+            {t('publishView')}
+          </a>
+        )}
+      </span>
+      {detail && <span className="text-xs font-normal text-muted-foreground">{detail}</span>}
+    </span>
   );
 }
 
@@ -116,6 +146,9 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
           <Row label={t('cluster')}>{server.cluster_id || t('none')}</Row>
           <Row label={t('autoRestart')}>{server.auto_restart ? t('on') : t('off')}</Row>
           <Row label={t('autoUpdate')}>{server.auto_update ? t('on') : t('off')}</Row>
+          <Row label={t('publish')}>
+            <PublishState server={server} />
+          </Row>
           <Row label={t('serverBuild')}>{server.arkapi ? t('buildProton') : t('buildLinux')}</Row>
           <Row label={t('createdAt')}>{server.created_at}</Row>
         </CardContent>

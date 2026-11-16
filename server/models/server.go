@@ -23,12 +23,16 @@ type Server struct {
 	AutoUpdate    bool   `json:"auto_update" gorm:"default:false"` // 每次启动前检查游戏本体和 Mod 更新
 	// 启用 ArkApi：用 Proton 镜像运行 Windows 版服务端并加载 ArkApi 插件；关闭时用原生 Linux 版服务端。
 	// 加这个字段之前创建的服务器在迁移时设为 true（原来都是 Proton 版并带 ArkApi）
-	ArkApi    bool           `json:"arkapi" gorm:"column:arkapi;default:false"`
-	UserID    uint           `json:"user_id" gorm:"not null"`
-	User      User           `json:"user" gorm:"foreignKey:UserID"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ArkApi bool `json:"arkapi" gorm:"column:arkapi;default:false"`
+	// 发布到服务器收录站（arkfgf.com）：服务器可以连接后自动发布，运行期间定期心跳，停止后下线
+	Publish bool `json:"publish" gorm:"default:false"`
+	// 收录站返回的发布令牌，用于心跳和更新同一条记录
+	PublishToken string         `json:"-" gorm:"default:''"`
+	UserID       uint           `json:"user_id" gorm:"not null"`
+	User         User           `json:"user" gorm:"foreignKey:UserID"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index"`
 	// 服务器未停止时保存的配置文件，下次启动前写入数据卷后清空（停服时 ARK 会覆盖 GameUserSettings.ini）
 	PendingGameUserSettings string `json:"-" gorm:"type:text;default:''"`
 	PendingGameIni          string `json:"-" gorm:"type:text;default:''"`
@@ -49,6 +53,7 @@ type ServerRequest struct {
 	AutoRestart   *bool  `json:"auto_restart"`                        // 是否自动重启（可选）
 	AutoUpdate    *bool  `json:"auto_update"`                         // 每次启动前检查游戏本体和 Mod 更新（可选）
 	ArkApi        *bool  `json:"arkapi"`                              // 启用 ArkApi（Proton 镜像），默认关闭（Linux 镜像）
+	Publish       *bool  `json:"publish"`                             // 发布到服务器收录站，默认关闭
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
@@ -70,8 +75,11 @@ type ServerResponse struct {
 	LastError   string `json:"last_error,omitempty"` // 最近一次启停失败的原因
 	AutoRestart bool   `json:"auto_restart"`
 	AutoUpdate  bool   `json:"auto_update"`
-	ArkApi      bool   `json:"arkapi"` // 启用 ArkApi（Proton 镜像运行 Windows 版服务端）
-	Image       string `json:"image"`  // 服务器使用的镜像，由 arkapi 决定
+	ArkApi      bool   `json:"arkapi"`  // 启用 ArkApi（Proton 镜像运行 Windows 版服务端）
+	Image       string `json:"image"`   // 服务器使用的镜像，由 arkapi 决定
+	Publish     bool   `json:"publish"` // 发布到服务器收录站
+	// 发布状态，未开启发布时为空
+	PublishStatus *PublishStatus `json:"publish_status,omitempty"`
 	// 运行中服务器的实时信息（阶段、在线人数、资源占用），由后台监控定期采集
 	Runtime *RuntimeInfo `json:"runtime,omitempty"`
 	// 有已保存但尚未写入数据卷的配置文件修改，下次启动时生效
@@ -105,12 +113,31 @@ type ServerUpdateRequest struct {
 	GameModIds    *string `json:"game_mod_ids"`                                  // 游戏模组ID列表，用逗号分隔，传空字符串表示清空
 	AutoRestart   *bool   `json:"auto_restart"`
 	AutoUpdate    *bool   `json:"auto_update"`
-	ArkApi        *bool   `json:"arkapi"` // 切换后下次启动时重建容器
+	ArkApi        *bool   `json:"arkapi"`  // 切换后下次启动时重建容器
+	Publish       *bool   `json:"publish"` // 发布到服务器收录站
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
 	// 启动参数（可选）
 	ServerArgs *ServerArgsRequest `json:"server_args,omitempty"` // 启动参数结构
+}
+
+// 发布状态
+const (
+	PublishDisabled  = "disabled"  // 管理端关闭了发布功能（ARKFGF_API 为空）
+	PublishWaiting   = "waiting"   // 等待服务器启动完成（可以连接后才发布）
+	PublishPublished = "published" // 已发布，收录站上显示为在线
+	PublishError     = "error"     // 最近一次发布或心跳失败，会自动重试
+)
+
+// PublishStatus 发布到服务器收录站的状态
+type PublishStatus struct {
+	State       string `json:"state"`                  // 见 Publish* 常量
+	URL         string `json:"url,omitempty"`          // 收录站页面
+	ErrorCode   string `json:"error_code,omitempty"`   // 收录站返回的错误码，或 network
+	Error       string `json:"error,omitempty"`        // 错误详情（中文）
+	PublishedAt string `json:"published_at,omitempty"` // 最近一次发布或心跳成功的时间
+	RetryAt     string `json:"retry_at,omitempty"`     // 失败后下一次重试的时间
 }
 
 // 运行阶段：容器运行后，入口脚本依次下载服务端、安装 Mod、启动游戏，游戏加载完地图后才能连接

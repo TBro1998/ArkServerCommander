@@ -35,6 +35,9 @@ var (
 
 	// PublicHost 玩家连接用的公网地址（IP 或域名），为空时自动探测公网 IP
 	PublicHost string
+	// PublishAPI 服务器收录站（arkfgf.com）的接口地址，开启"发布到收录站"的服务器启动后自动发布。
+	// 通过 ARKFGF_API 修改，设为空或 off 时整体关闭发布功能
+	PublishAPI = "https://arkfgf.com/api/v1"
 	// DataDir 数据目录（数据库所在目录，镜像内为 /data）。ARK 服务器的服务端文件、存档、插件和集群数据
 	// 放在其下的 servers/<id>/ 和 clusters/<cluster_id>/，宿主机上可以直接管理
 	DataDir string
@@ -80,6 +83,13 @@ func InitConfig() error {
 		BackupDir = filepath.Join(filepath.Dir(DBPath), "backups")
 	}
 	PublicHost = strings.TrimSpace(os.Getenv("PUBLIC_HOST"))
+	if api, ok := os.LookupEnv("ARKFGF_API"); ok {
+		api = strings.TrimRight(strings.TrimSpace(api), "/")
+		if strings.EqualFold(api, "off") {
+			api = ""
+		}
+		PublishAPI = api
+	}
 
 	dataDir, err := filepath.Abs(filepath.Dir(DBPath))
 	if err != nil {

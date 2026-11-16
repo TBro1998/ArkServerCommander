@@ -132,6 +132,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		AutoRestart:   *req.AutoRestart,
 		AutoUpdate:    req.AutoUpdate != nil && *req.AutoUpdate,
 		ArkApi:        req.ArkApi != nil && *req.ArkApi,
+		Publish:       req.Publish != nil && *req.Publish,
 		UserID:        userID,
 	}
 
@@ -476,6 +477,10 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	// 切换 ArkApi 即切换镜像，下次启动时发现容器的镜像不对会重建
 	if req.ArkApi != nil {
 		server.ArkApi = *req.ArkApi
+	}
+	// 发布开关立即生效：打开后服务器在运行就会发布，关闭后会通知收录站下线
+	if req.Publish != nil {
+		server.Publish = *req.Publish
 	}
 	clusterID, modIDs, err := normalizeServerFields(server.ClusterID, server.GameModIds)
 	if err != nil {

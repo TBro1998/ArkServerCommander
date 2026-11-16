@@ -23,6 +23,16 @@ export interface RuntimeInfo {
     updated_at: string;
 }
 
+// 发布到服务器收录站（arkfgf.com）的状态
+export interface PublishStatus {
+    state: 'disabled' | 'waiting' | 'published' | 'error';
+    url?: string;
+    error_code?: string;
+    error?: string;
+    published_at?: string;
+    retry_at?: string;
+}
+
 // 定义服务器对象类型
 export interface Server {
     id: number;
@@ -44,6 +54,9 @@ export interface Server {
     arkapi?: boolean;
     // 服务器使用的镜像，由 arkapi 决定
     image?: string;
+    // 发布到服务器收录站（arkfgf.com）
+    publish?: boolean;
+    publish_status?: PublishStatus;
     game_user_settings?: string;
     game_ini?: string;
     server_args?: {

@@ -27,6 +27,7 @@ func toResponse(server models.Server) models.ServerResponse {
 		AutoUpdate:    server.AutoUpdate,
 		ArkApi:        server.ArkApi,
 		Image:         utils.ArkServerImageFor(server.ArkApi),
+		Publish:       server.Publish,
 		ConfigPending: server.PendingGameUserSettings != "" || server.PendingGameIni != "",
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -34,6 +35,7 @@ func toResponse(server models.Server) models.ServerResponse {
 	}
 	response.Runtime = runtimeFor(server.ID, server.Status)
 	response.ModsOutdated = modsOutdatedFor(server.ID, server.GameModIds)
+	response.PublishStatus = publisher.statusFor(server)
 	return response
 }
 
