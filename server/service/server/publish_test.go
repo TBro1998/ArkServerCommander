@@ -28,6 +28,12 @@ func (f *fakeListing) calls() []string {
 	return append([]string{}, f.requests...)
 }
 
+func (f *fakeListing) token(i int) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.tokens[i]
+}
+
 func newTestPublisher(t *testing.T, f *fakeListing, ready *bool, now *time.Time) *Publisher {
 	t.Helper()
 	utils.InitLogger()
@@ -35,8 +41,9 @@ func newTestPublisher(t *testing.T, f *fakeListing, ready *bool, now *time.Time)
 		f.mu.Lock()
 		f.requests = append(f.requests, r.URL.Path)
 		f.tokens = append(f.tokens, strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		handler := f.handler
 		f.mu.Unlock()
-		f.handler(w, r)
+		handler(w, r)
 	}))
 	t.Cleanup(srv.Close)
 	return &Publisher{
@@ -52,21 +59,37 @@ func newTestPublisher(t *testing.T, f *fakeListing, ready *bool, now *time.Time)
 func okHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/publish":
-		json.NewEncoder(w).Encode(map[string]any{"id": 9, "token": "afp_tok", "heartbeat_interval": 300, "url": "https://arkfgf.com/servers"})
-	case "/publish/heartbeat":
-		json.NewEncoder(w).Encode(map[string]any{"ok": true, "online": true, "heartbeat_interval": 300})
+		json.NewEncoder(w).Encode(map[string]any{"id": 9, "token": "afp_tok", "url": "https://arkfgf.com/servers"})
 	default:
 		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	}
+}
+
+func errorHandler(status int, code string, retryAfter string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if retryAfter != "" {
+			w.Header().Set("Retry-After", retryAfter)
+		}
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"code": code, "error": code})
 	}
 }
 
 func loadPublishServer(t *testing.T, id uint) models.Server {
 	t.Helper()
 	var s models.Server
-	if err := database.DB.First(&s, id).Error; err != nil {
+	if err := database.DB.Unscoped().First(&s, id).Error; err != nil {
 		t.Fatal(err)
 	}
 	return s
+}
+
+func expectCalls(t *testing.T, f *fakeListing, want ...string) {
+	t.Helper()
+	got := f.calls()
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("calls = %v, want %v", got, want)
+	}
 }
 
 func TestPublisherLifecycle(t *testing.T) {
@@ -80,17 +103,16 @@ func TestPublisherLifecycle(t *testing.T) {
 	p := newTestPublisher(t, f, &ready, &now)
 
 	// 还没 ready：不发请求，状态为等待
-	p.process(loadPublishServer(t, s.ID))
-	if len(f.calls()) != 0 {
-		t.Fatalf("should not publish before ready: %v", f.calls())
-	}
+	p.tick()
+	expectCalls(t, f)
 	if st := p.statusFor(loadPublishServer(t, s.ID)); st.State != models.PublishWaiting {
 		t.Fatalf("state = %s", st.State)
 	}
 
 	// ready 后发布一次，保存令牌
 	ready = true
-	p.process(loadPublishServer(t, s.ID))
+	p.tick()
+	expectCalls(t, f, "/publish")
 	if got := loadPublishServer(t, s.ID).PublishToken; got != "afp_tok" {
 		t.Fatalf("token not saved: %q", got)
 	}
@@ -98,60 +120,83 @@ func TestPublisherLifecycle(t *testing.T) {
 		t.Fatalf("status = %+v", st)
 	}
 
-	// 心跳间隔内不再发请求
-	for i := 0; i < 5; i++ {
-		now = now.Add(30 * time.Second)
-		p.process(loadPublishServer(t, s.ID))
+	// 之后不再发请求（没有心跳）
+	for range 50 {
+		now = now.Add(time.Minute)
+		p.tick()
 	}
-	if calls := f.calls(); len(calls) != 1 {
-		t.Fatalf("expected only the publish call, got %v", calls)
-	}
-	// 到时间后发心跳，带令牌
-	now = now.Add(3 * time.Minute)
-	p.process(loadPublishServer(t, s.ID))
-	if calls := f.calls(); len(calls) != 2 || calls[1] != "/publish/heartbeat" || f.tokens[1] != "afp_tok" {
-		t.Fatalf("expected heartbeat with token, got %v %v", calls, f.tokens)
-	}
+	expectCalls(t, f, "/publish")
 
-	// 运行中短暂查询不到：宽限期内不下线
+	// 运行中短暂查询不到：宽限期内恢复不算断开，不重新发布
 	ready = false
 	now = now.Add(time.Minute)
-	p.process(loadPublishServer(t, s.ID))
-	if len(f.calls()) != 2 {
-		t.Fatalf("should not go offline within grace: %v", f.calls())
-	}
+	p.tick()
 	ready = true
 	now = now.Add(15 * time.Second)
-	p.process(loadPublishServer(t, s.ID))
-	if len(f.calls()) != 2 {
-		t.Fatalf("recovered server should keep heartbeat schedule: %v", f.calls())
-	}
+	p.tick()
+	expectCalls(t, f, "/publish")
 
-	// 停止：通知下线一次，之后不再请求
+	// 停止：不发请求（收录站自己会查到离线）
 	ready = false
 	database.DB.Model(&s).Update("status", "stopped")
-	p.process(loadPublishServer(t, s.ID))
-	p.process(loadPublishServer(t, s.ID))
-	if calls := f.calls(); len(calls) != 3 || calls[2] != "/publish/offline" {
-		t.Fatalf("expected one offline call, got %v", calls)
+	p.tick()
+	expectCalls(t, f, "/publish")
+	if st := p.statusFor(loadPublishServer(t, s.ID)); st.State != models.PublishWaiting {
+		t.Fatalf("stopped server should be waiting: %+v", st)
 	}
 
-	// 再次启动：重新发布，带上已保存的令牌
+	// 再次可以连接：重新发布，带上已保存的令牌
 	ready = true
 	database.DB.Model(&s).Update("status", "running")
-	p.process(loadPublishServer(t, s.ID))
-	if calls := f.calls(); len(calls) != 4 || calls[3] != "/publish" || f.tokens[3] != "afp_tok" {
-		t.Fatalf("expected republish with token, got %v %v", calls, f.tokens)
+	p.tick()
+	expectCalls(t, f, "/publish", "/publish")
+	if f.token(1) != "afp_tok" {
+		t.Fatalf("republish should send saved token, got %q", f.token(1))
 	}
 
-	// 关闭发布：通知下线，状态为空
+	// 关闭发布：取消发布一次，清空令牌，之后不再请求
 	database.DB.Model(&s).Update("publish", false)
-	p.process(loadPublishServer(t, s.ID))
-	if calls := f.calls(); len(calls) != 5 || calls[4] != "/publish/offline" {
-		t.Fatalf("expected offline after disabling, got %v", calls)
+	p.tick()
+	p.tick()
+	expectCalls(t, f, "/publish", "/publish", "/publish/unpublish")
+	if f.token(2) != "afp_tok" {
+		t.Fatalf("unpublish should send token, got %q", f.token(2))
+	}
+	if got := loadPublishServer(t, s.ID).PublishToken; got != "" {
+		t.Fatalf("token should be cleared: %q", got)
 	}
 	if st := p.statusFor(loadPublishServer(t, s.ID)); st != nil {
 		t.Fatalf("status should be nil when publish is off: %+v", st)
+	}
+}
+
+func TestPublisherUnpublishDeleted(t *testing.T) {
+	setupTestDB(t)
+	s := createTestServer(t, 7777, 27015, 32330)
+	database.DB.Model(&s).Updates(map[string]any{"publish": true, "publish_token": "afp_old"})
+	database.DB.Delete(&models.Server{}, s.ID)
+
+	ready := false
+	now := time.Now()
+	f := &fakeListing{handler: errorHandler(http.StatusServiceUnavailable, "busy", "")}
+	p := newTestPublisher(t, f, &ready, &now)
+
+	// 失败后退避，期间不重试
+	p.tick()
+	now = now.Add(30 * time.Second)
+	p.tick()
+	expectCalls(t, f, "/publish/unpublish")
+
+	// 收录站已经没有这条记录：也算成功，清空令牌
+	f.mu.Lock()
+	f.handler = errorHandler(http.StatusUnauthorized, "invalid_token", "")
+	f.mu.Unlock()
+	now = now.Add(time.Minute)
+	p.tick()
+	p.tick()
+	expectCalls(t, f, "/publish/unpublish", "/publish/unpublish")
+	if got := loadPublishServer(t, s.ID).PublishToken; got != "" {
+		t.Fatalf("token should be cleared: %q", got)
 	}
 }
 
@@ -162,19 +207,16 @@ func TestPublisherBackoff(t *testing.T) {
 
 	ready := true
 	now := time.Now()
-	f := &fakeListing{handler: func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		json.NewEncoder(w).Encode(map[string]string{"code": "unreachable", "error": "no A2S response"})
-	}}
+	f := &fakeListing{handler: errorHandler(http.StatusUnprocessableEntity, "unreachable", "")}
 	p := newTestPublisher(t, f, &ready, &now)
 
 	// 失败后按 1、2、4 分钟退避，期间不重试
 	expect := 0
 	for _, wait := range []time.Duration{time.Minute, 2 * time.Minute, 4 * time.Minute} {
-		p.process(loadPublishServer(t, s.ID))
+		p.tick()
 		expect++
 		now = now.Add(wait - time.Second)
-		p.process(loadPublishServer(t, s.ID))
+		p.tick()
 		if got := len(f.calls()); got != expect {
 			t.Fatalf("retried before backoff %v: %d calls", wait, got)
 		}
@@ -185,46 +227,38 @@ func TestPublisherBackoff(t *testing.T) {
 		t.Fatalf("status = %+v", st)
 	}
 
-	// 429 时按 Retry-After 等待（比退避时间长）
-	f.handler = func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Retry-After", "1800")
-		w.WriteHeader(http.StatusTooManyRequests)
-		json.NewEncoder(w).Encode(map[string]string{"code": "rate_limited"})
+	// 停服再启动不会跳过退避
+	ready = false
+	database.DB.Model(&s).Update("status", "stopped")
+	p.tick()
+	ready = true
+	database.DB.Model(&s).Update("status", "running")
+	p.tick()
+	if got := len(f.calls()); got != expect+1 {
+		// 上一轮循环结束时正好到期，这里允许发一次
+		t.Fatalf("expected one retry at the due time, got %d calls", got)
 	}
-	p.process(loadPublishServer(t, s.ID))
+	p.tick()
+	if got := len(f.calls()); got != expect+1 {
+		t.Fatalf("restart should not skip backoff: %d calls", got)
+	}
+
+	// 429 时按 Retry-After 等待（比退避时间长）
+	f.mu.Lock()
+	f.handler = errorHandler(http.StatusTooManyRequests, "rate_limited", "1800")
+	f.mu.Unlock()
+	now = now.Add(time.Hour)
+	p.tick()
 	calls := len(f.calls())
 	now = now.Add(29 * time.Minute)
-	p.process(loadPublishServer(t, s.ID))
+	p.tick()
 	if len(f.calls()) != calls {
 		t.Fatal("should wait for Retry-After")
 	}
-}
-
-func TestPublisherHeartbeatInvalidToken(t *testing.T) {
-	setupTestDB(t)
-	s := createTestServer(t, 7777, 27015, 32330)
-	database.DB.Model(&s).Updates(map[string]any{"publish": true, "status": "running"})
-
-	ready := true
-	now := time.Now()
-	f := &fakeListing{handler: okHandler}
-	p := newTestPublisher(t, f, &ready, &now)
-	p.process(loadPublishServer(t, s.ID))
-
-	// 收录站清理了记录：心跳返回 invalid_token 后下一轮重新发布
-	f.handler = func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/publish/heartbeat" {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"code": "invalid_token"})
-			return
-		}
-		okHandler(w, r)
-	}
-	now = now.Add(6 * time.Minute)
-	p.process(loadPublishServer(t, s.ID))
-	p.process(loadPublishServer(t, s.ID))
-	if calls := f.calls(); len(calls) != 3 || calls[2] != "/publish" {
-		t.Fatalf("expected republish after invalid token, got %v", calls)
+	now = now.Add(2 * time.Minute)
+	p.tick()
+	if len(f.calls()) != calls+1 {
+		t.Fatal("should retry after Retry-After")
 	}
 }
 

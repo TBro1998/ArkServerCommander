@@ -1102,7 +1102,7 @@ const messages = {
       arkapi: 'Runs the Windows server under GE-Proton so ArkApi plugins can load. When off, the native Linux server runs and uses fewer resources.',
       auto_restart: 'Docker restarts the game process if it exits unexpectedly',
       auto_update: 'Validates the game and re-downloads mods before every start; starting takes longer',
-      publish: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address) and removes it when stopped. The list verifies the query port from the internet, so it must be open (UDP)'
+      publish: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address) The list checks the query port from the internet every 30 minutes, so the port must be open (UDP); a stopped server shows as offline after the next check. Turning this off removes the server from the list right away'
     },
     params: {
       ServerPassword: 'Join password',

@@ -23,34 +23,31 @@ import (
 
 // 发布到服务器收录站（arkfgf.com）。
 //
-// 开启 publish 的服务器运行到 ready（查询端口有响应、玩家可以连接）后发布一次，之后按收录站返回的间隔心跳，
-// 停止或关闭发布后通知下线。收录站会从它那边向服务器的查询端口发 A2S_INFO 验证，所以查询端口（UDP）
-// 必须能从公网访问。
+// 开启 publish 的服务器每次变成 ready（查询端口有响应、玩家可以连接）时发布一次，之后不再发请求：
+// 收录站每半小时自己向查询端口发 A2S_INFO 更新在线状态和人数，停服后查不到就显示为离线。
+// 关闭发布或删除服务器时调用 /publish/unpublish 删除收录站上的记录，成功前会一直重试（令牌存在数据库里，管理端重启后继续）。
+// 收录站发布时也会从它那边查询端口验证，所以查询端口（UDP）必须能从公网访问。
 //
 // 防止刷屏：
-//   - 每台服务器每次启动只发布一次，之后只发心跳；心跳间隔由收录站决定（默认 5 分钟），不低于 minPublishInterval
-//   - 失败后指数退避（1 分钟起，最长 30 分钟），收录站返回 429 / 503 时按 Retry-After 等待
+//   - 每次可以连接只发布一次；运行中短暂查询不到（notReadyGrace 内）不算断开，不会重新发布
+//   - 失败后指数退避（1 分钟起，最长 30 分钟），收录站返回 429 / 503 时按 Retry-After 等待；退避时间在停服后保留
 //   - 请求串行发出，同一时刻只有一个请求
 //   - 收录站那边还有按 IP、端口、全站的限流，见 web/backend/controllers/publish.go
 
 const (
 	publishTickInterval   = 15 * time.Second
-	minPublishInterval    = time.Minute
-	defaultHeartbeat      = 5 * time.Minute
 	publishBackoffBase    = time.Minute
 	publishBackoffMax     = 30 * time.Minute
 	publishRequestTimeout = 15 * time.Second // 收录站会同步做 A2S 查询（最多 3 秒），留足余量
-	// 运行中但暂时查询不到（监控的一次 A2S 超时会让阶段短暂变回 launching）时，超过这个时间才下线，
-	// 避免下线后马上重新发布，触发收录站的发布频率限制
+	// 运行中但暂时查询不到（监控的一次 A2S 超时会让阶段短暂变回 launching）时，超过这个时间才算断开，
+	// 避免恢复后马上重新发布，触发收录站的发布频率限制
 	notReadyGrace = 2 * time.Minute
 )
 
 // publishState 一台服务器的发布状态，只在内存里；管理端重启后带着数据库里的令牌重新发布
 type publishState struct {
-	published bool          // 这次启动已经发布过，之后只发心跳
-	online    bool          // 收录站上显示为在线，停止时需要通知下线
-	interval  time.Duration // 心跳间隔
-	nextAt    time.Time     // 下一次请求的时间（心跳或失败重试）
+	published bool      // 这一次可以连接之后已经发布过
+	nextAt    time.Time // 失败后下一次重试的时间
 	failures  int
 	errCode   string
 	errMsg    string
@@ -60,7 +57,7 @@ type publishState struct {
 	notReadySince time.Time
 }
 
-// Publisher 定期检查开启了发布的服务器，发布、心跳、下线
+// Publisher 定期检查开启了发布的服务器：可以连接时发布，关闭发布或删除后取消发布
 type Publisher struct {
 	mu     sync.Mutex
 	states map[uint]*publishState
@@ -108,76 +105,69 @@ func (p *Publisher) tick() {
 	if p.api() == "" {
 		return
 	}
+	keep := map[uint]bool{}
+
 	var servers []models.Server
 	if err := database.DB.Select("id", "session_name", "map", "max_players", "port", "query_port", "cluster_id",
-		"game_mod_ids", "arkapi", "server_args_json", "status", "publish", "publish_token").Find(&servers).Error; err != nil {
+		"game_mod_ids", "arkapi", "server_args_json", "status", "publish", "publish_token").
+		Where("publish = ?", true).Find(&servers).Error; err != nil {
 		utils.Warn("发布到收录站：读取服务器列表失败", zap.Error(err))
 		return
 	}
-
-	seen := make(map[uint]bool, len(servers))
 	for _, server := range servers {
-		seen[server.ID] = true
+		keep[server.ID] = true
 		p.process(server)
 	}
 
-	// 已删除的服务器：通知下线并清掉状态
+	// 关闭了发布或已删除、但收录站上还有记录（有令牌）的服务器：取消发布
+	var withdrawn []models.Server
+	if err := database.DB.Unscoped().Select("id", "query_port", "publish_token").
+		Where("publish_token <> '' AND (publish = ? OR deleted_at IS NOT NULL)", false).
+		Find(&withdrawn).Error; err != nil {
+		utils.Warn("发布到收录站：读取待取消发布的服务器失败", zap.Error(err))
+	}
+	for _, server := range withdrawn {
+		keep[server.ID] = true
+		p.unpublish(server)
+	}
+
 	p.mu.Lock()
-	var gone []uint
 	for id := range p.states {
-		if !seen[id] {
-			gone = append(gone, id)
+		if !keep[id] {
+			delete(p.states, id)
 		}
 	}
 	p.mu.Unlock()
-	for _, id := range gone {
-		p.offline(models.Server{ID: id})
-		p.mu.Lock()
-		delete(p.states, id)
-		p.mu.Unlock()
-	}
 }
 
-// process 处理一台服务器：未就绪或关闭发布时通知下线，就绪时发布或心跳
+// process 处理一台开启了发布的服务器：这一次可以连接后还没发布过就发布
 func (p *Publisher) process(server models.Server) {
 	st := p.state(server.ID)
-	ready := server.Publish && p.ready(server)
-	if !ready && server.Publish && server.Status == "running" {
-		p.mu.Lock()
-		now := p.now()
-		if st.notReadySince.IsZero() {
-			st.notReadySince = now
-		}
-		waiting := st.published && now.Sub(st.notReadySince) < notReadyGrace
-		p.mu.Unlock()
-		if waiting {
-			return
-		}
-	}
-	if !ready {
-		p.offline(server)
-		p.mu.Lock()
-		st.published = false
-		st.failures = 0
-		st.nextAt = time.Time{}
-		if !server.Publish {
-			st.errCode, st.errMsg = "", ""
-		}
-		p.mu.Unlock()
-		return
-	}
+	ready := p.ready(server)
 
 	p.mu.Lock()
-	st.notReadySince = time.Time{}
-	due := !p.now().Before(st.nextAt)
-	published := st.published
-	p.mu.Unlock()
-	if !due {
+	now := p.now()
+	if !ready {
+		if server.Status == "running" && st.published {
+			if st.notReadySince.IsZero() {
+				st.notReadySince = now
+			}
+			if now.Sub(st.notReadySince) < notReadyGrace {
+				p.mu.Unlock()
+				return
+			}
+		}
+		// 停止或长时间不能连接：下次可以连接时重新发布。失败退避的时间保留，避免反复启停时连续请求
+		st.published = false
+		st.notReadySince = time.Time{}
+		st.errCode, st.errMsg = "", ""
+		p.mu.Unlock()
 		return
 	}
-	if published {
-		p.heartbeat(server)
-	} else {
+	st.notReadySince = time.Time{}
+	due := !st.published && !now.Before(st.nextAt)
+	p.mu.Unlock()
+	if due {
 		p.publish(server)
 	}
 }
@@ -187,7 +177,7 @@ func (p *Publisher) state(id uint) *publishState {
 	defer p.mu.Unlock()
 	st, ok := p.states[id]
 	if !ok {
-		st = &publishState{interval: defaultHeartbeat}
+		st = &publishState{}
 		p.states[id] = st
 	}
 	return st
@@ -214,10 +204,9 @@ type publishProfile struct {
 func (p *Publisher) publish(server models.Server) {
 	profile := p.profile(server)
 	var resp struct {
-		ID                uint   `json:"id"`
-		Token             string `json:"token"`
-		HeartbeatInterval int    `json:"heartbeat_interval"`
-		URL               string `json:"url"`
+		ID    uint   `json:"id"`
+		Token string `json:"token"`
+		URL   string `json:"url"`
 	}
 	status, retryAfter, code, err := p.post("/publish", server.PublishToken, profile, &resp)
 	if err != nil {
@@ -231,78 +220,42 @@ func (p *Publisher) publish(server models.Server) {
 	}
 	p.mu.Lock()
 	st := p.states[server.ID]
-	st.published, st.online = true, true
-	st.interval = heartbeatEvery(resp.HeartbeatInterval)
+	st.published = true
 	st.url = resp.URL
 	p.succeed(st)
 	p.mu.Unlock()
 	utils.Info("已发布到服务器收录站", zap.Uint("server_id", server.ID), zap.Uint("listing_id", resp.ID))
 }
 
-func (p *Publisher) heartbeat(server models.Server) {
-	var resp struct {
-		Online            bool `json:"online"`
-		HeartbeatInterval int  `json:"heartbeat_interval"`
+// unpublish 删除收录站上的记录，成功后清空令牌。收录站已经没有这条记录（invalid_token）也算成功
+func (p *Publisher) unpublish(server models.Server) {
+	st := p.state(server.ID)
+	p.mu.Lock()
+	wait := p.now().Before(st.nextAt)
+	p.mu.Unlock()
+	if wait {
+		return
 	}
-	status, retryAfter, code, err := p.post("/publish/heartbeat", server.PublishToken, nil, &resp)
-	if err != nil {
-		// 令牌失效（收录站清理了记录）或公网 IP 变了：下一轮重新发布
-		if code == "invalid_token" || code == "ip_changed" {
-			p.mu.Lock()
-			st := p.states[server.ID]
-			st.published = false
-			st.nextAt = time.Time{}
-			p.mu.Unlock()
-			return
-		}
+	status, retryAfter, code, err := p.post("/publish/unpublish", server.PublishToken, nil, nil)
+	if err != nil && code != "invalid_token" {
 		p.fail(server, status, retryAfter, code, err)
 		return
 	}
-	p.mu.Lock()
-	st := p.states[server.ID]
-	st.online = resp.Online
-	st.interval = heartbeatEvery(resp.HeartbeatInterval)
-	p.succeed(st)
-	if !resp.Online {
-		// 收录站查询不到服务器（多半是查询端口不通），心跳照常继续，恢复后自动显示
-		st.errCode, st.errMsg = "unreachable", publishErrorMessage("unreachable", server)
-	}
-	p.mu.Unlock()
-}
-
-// offline 通知收录站下线；只在之前发布过时发送一次，失败不重试（收录站 15 分钟没有心跳也会自动下线）
-func (p *Publisher) offline(server models.Server) {
-	p.mu.Lock()
-	st, ok := p.states[server.ID]
-	wasOnline := ok && st.online
-	if ok {
-		st.online = false
-	}
-	p.mu.Unlock()
-	if !wasOnline {
+	if err := database.DB.Unscoped().Model(&models.Server{}).Where("id = ?", server.ID).Update("publish_token", "").Error; err != nil {
+		utils.Warn("清除收录站发布令牌失败", zap.Uint("server_id", server.ID), zap.Error(err))
 		return
 	}
-	token := server.PublishToken
-	if token == "" {
-		var latest models.Server
-		if database.DB.Unscoped().Select("publish_token").Where("id = ?", server.ID).Limit(1).Find(&latest).Error == nil {
-			token = latest.PublishToken
-		}
-	}
-	if token == "" {
-		return
-	}
-	if _, _, _, err := p.post("/publish/offline", token, nil, nil); err != nil {
-		utils.Warn("通知收录站下线失败", zap.Uint("server_id", server.ID), zap.Error(err))
-	}
+	p.mu.Lock()
+	delete(p.states, server.ID)
+	p.mu.Unlock()
+	utils.Info("已从服务器收录站取消发布", zap.Uint("server_id", server.ID))
 }
 
 func (p *Publisher) succeed(st *publishState) {
-	now := p.now()
 	st.failures = 0
 	st.errCode, st.errMsg = "", ""
-	st.lastOK = now
-	st.nextAt = now.Add(st.interval)
+	st.lastOK = p.now()
+	st.nextAt = time.Time{}
 }
 
 // fail 记录失败并安排重试：指数退避，收录站给了 Retry-After 时取两者中较长的
@@ -381,13 +334,6 @@ func (p *Publisher) post(path, token string, body any, out any) (int, time.Durat
 	return resp.StatusCode, 0, "", nil
 }
 
-func heartbeatEvery(secs int) time.Duration {
-	if secs <= 0 {
-		return defaultHeartbeat
-	}
-	return max(time.Duration(secs)*time.Second, minPublishInterval)
-}
-
 func publishErrorMessage(code string, server models.Server) string {
 	switch code {
 	case "unreachable":
@@ -434,7 +380,7 @@ func (p *Publisher) statusFor(server models.Server) *models.PublishStatus {
 		if st.failures > 0 && !st.nextAt.IsZero() {
 			status.RetryAt = st.nextAt.Format(time.RFC3339)
 		}
-	case st.published && st.online:
+	case st.published:
 		status.State = models.PublishPublished
 	}
 	return status
