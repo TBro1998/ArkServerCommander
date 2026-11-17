@@ -28,6 +28,7 @@ func toResponse(server models.Server) models.ServerResponse {
 		ArkApi:        server.ArkApi,
 		Image:         utils.ArkServerImageFor(server.ArkApi),
 		Publish:       server.Publish,
+		Listing:       listingOf(server),
 		ConfigPending: server.PendingGameUserSettings != "" || server.PendingGameIni != "",
 		UserID:        server.UserID,
 		CreatedAt:     server.CreatedAt.Format("2006-01-02 15:04:05"),

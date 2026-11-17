@@ -2137,6 +2137,61 @@
                 }
             }
         },
+        "/servers/{id}/publish/stats": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "查询服务器在 arkfgf.com 收录站上近 7 天和 30 天的浏览、连接和复制地址次数，以及详情页和状态徽章的地址。结果缓存 5 分钟",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "收录站访问统计",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "访问统计",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.PublishStats"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "还没有发布到收录站",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "无法连接收录站",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/servers/{id}/rcon": {
             "get": {
                 "security": [
@@ -3327,9 +3382,94 @@
                 }
             }
         },
+        "models.ListingProfile": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "简介，最多 500 字，可以换行",
+                    "type": "string"
+                },
+                "discord": {
+                    "description": "Discord 邀请链接（https://discord.gg/...）",
+                    "type": "string"
+                },
+                "qq_group": {
+                    "description": "QQ 群号",
+                    "type": "string"
+                },
+                "tags": {
+                    "description": "标签，最多 8 个，每个最多 16 字",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.PublishStatDay": {
+            "type": "object",
+            "properties": {
+                "connects": {
+                    "type": "integer"
+                },
+                "copies": {
+                    "type": "integer"
+                },
+                "day": {
+                    "type": "string"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.PublishStatTotals": {
+            "type": "object",
+            "properties": {
+                "connects": {
+                    "type": "integer"
+                },
+                "copies": {
+                    "type": "integer"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.PublishStats": {
+            "type": "object",
+            "properties": {
+                "badge": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PublishStatDay"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "month": {
+                    "$ref": "#/definitions/models.PublishStatTotals"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "week": {
+                    "$ref": "#/definitions/models.PublishStatTotals"
+                }
+            }
+        },
         "models.PublishStatus": {
             "type": "object",
             "properties": {
+                "badge": {
+                    "description": "状态徽章图片",
+                    "type": "string"
+                },
                 "error": {
                     "description": "错误详情（中文）",
                     "type": "string"
@@ -3636,6 +3776,14 @@
                     "description": "配置文件内容（可选）",
                     "type": "string"
                 },
+                "listing": {
+                    "description": "收录资料（可选）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ListingProfile"
+                        }
+                    ]
+                },
                 "map": {
                     "type": "string"
                 },
@@ -3731,6 +3879,14 @@
                 "last_error": {
                     "description": "最近一次启停失败的原因",
                     "type": "string"
+                },
+                "listing": {
+                    "description": "收录资料：简介、标签、QQ 群、Discord",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ListingProfile"
+                        }
+                    ]
                 },
                 "map": {
                     "type": "string"
@@ -3829,6 +3985,14 @@
                 "game_user_settings": {
                     "description": "配置文件内容（可选）",
                     "type": "string"
+                },
+                "listing": {
+                    "description": "收录资料，传了就整体替换；运行中的服务器会重新发布",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ListingProfile"
+                        }
+                    ]
                 },
                 "map": {
                     "type": "string"

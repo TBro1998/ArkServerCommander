@@ -41,7 +41,8 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrInvalidConfigValue),
 		errors.Is(err, server.ErrInvalidServerConfig),
 		errors.Is(err, server.ErrArkApiBuiltin),
-		errors.Is(err, server.ErrImageNotAllowed):
+		errors.Is(err, server.ErrImageNotAllowed),
+		errors.Is(err, server.ErrInvalidListing):
 		status = http.StatusBadRequest
 	case errors.Is(err, server.ErrPortConflict),
 		errors.Is(err, server.ErrServerBusy),
@@ -50,8 +51,11 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrImagePulling),
 		errors.Is(err, server.ErrRconUnavailable):
 		status = http.StatusConflict
+	case errors.Is(err, server.ErrNotPublished):
+		status = http.StatusConflict
 	case errors.Is(err, server.ErrRconAuthFailed),
-		errors.Is(err, server.ErrArkApiDownload):
+		errors.Is(err, server.ErrArkApiDownload),
+		errors.Is(err, server.ErrPublishUnavailable):
 		status = http.StatusBadGateway
 	}
 	body := gin.H{"error": err.Error()}

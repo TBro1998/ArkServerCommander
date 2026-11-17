@@ -1,5 +1,47 @@
 const messages = {
   // Common
+  listing: {
+    title: 'arkfgf.com server list',
+    viewPage: 'View listing',
+    loading: 'Loading visitor stats…',
+    statsFailed: 'Failed to load visitor stats',
+    notPublished: 'Visitor stats and the status badge appear here after the server is published for the first time.',
+    week: 'Last 7 days',
+    stats: {
+      views: 'Views',
+      connects: 'Connect clicks',
+      copies: 'Address copies'
+    },
+    month: 'Last 30 days: {views} views, {connects} connect clicks, {copies} address copies',
+    badge: 'Status badge',
+    badgeAlt: 'Server status badge',
+    badgeHint: 'Shows the player count, refreshes every 10 minutes and links to your listing. Paste it on websites, forums, Discord or anywhere that allows external images.',
+    snippets: {
+      image: 'Image URL',
+      html: 'HTML',
+      markdown: 'Markdown',
+      bbcode: 'BBCode'
+    },
+    copied: 'Copied',
+    copyFailed: 'Copy failed. Check the browser clipboard permission',
+    profile: 'Listing details',
+    profileEmpty: 'Not filled in yet. Add a description, QQ group or Discord link so players can see it on your listing.',
+    qqValue: 'QQ group: {qq}',
+    edit: 'Edit',
+    editTitle: 'Edit listing details',
+    editDesc: 'Shown on your server page on arkfgf.com. Changes made while the server is running are published automatically.',
+    description: 'Description',
+    descriptionPlaceholder: 'Gameplay, rules, events…',
+    tags: 'Tags',
+    tagsPlaceholder: 'PvE, beginner friendly, no wipe',
+    tagsHint: 'Comma separated, up to 8 tags of 16 characters each. Players can search by tag.',
+    qq: 'QQ group number',
+    cancel: 'Cancel',
+    save: 'Save',
+    saved: 'Saved. It will be sent to the server list on the next publish',
+    savedRepublish: 'Saved. The server list will be updated shortly',
+    saveFailed: 'Failed to save'
+  },
   common: {
     confirm: 'Confirm',
     cancel: 'Cancel',
@@ -420,6 +462,9 @@ const messages = {
 
   // Messages for backend error codes (the Chinese UI shows the detailed backend message instead)
   apiErrors: {
+    invalid_listing: 'Invalid listing details',
+    not_published: 'The server has not been published to the server list yet',
+    publish_unavailable: 'Cannot reach the server list right now',
     bad_request: 'Invalid request',
     backend_unavailable: 'Backend service unavailable',
     invalid_server_id: 'Invalid server ID',

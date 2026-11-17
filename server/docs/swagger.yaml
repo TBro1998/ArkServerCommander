@@ -109,8 +109,65 @@ definitions:
       success:
         type: boolean
     type: object
+  models.ListingProfile:
+    properties:
+      description:
+        description: 简介，最多 500 字，可以换行
+        type: string
+      discord:
+        description: Discord 邀请链接（https://discord.gg/...）
+        type: string
+      qq_group:
+        description: QQ 群号
+        type: string
+      tags:
+        description: 标签，最多 8 个，每个最多 16 字
+        items:
+          type: string
+        type: array
+    type: object
+  models.PublishStatDay:
+    properties:
+      connects:
+        type: integer
+      copies:
+        type: integer
+      day:
+        type: string
+      views:
+        type: integer
+    type: object
+  models.PublishStatTotals:
+    properties:
+      connects:
+        type: integer
+      copies:
+        type: integer
+      views:
+        type: integer
+    type: object
+  models.PublishStats:
+    properties:
+      badge:
+        type: string
+      days:
+        items:
+          $ref: '#/definitions/models.PublishStatDay'
+        type: array
+      id:
+        type: integer
+      month:
+        $ref: '#/definitions/models.PublishStatTotals'
+      url:
+        type: string
+      week:
+        $ref: '#/definitions/models.PublishStatTotals'
+    type: object
   models.PublishStatus:
     properties:
+      badge:
+        description: 状态徽章图片
+        type: string
       error:
         description: 错误详情（中文）
         type: string
@@ -321,6 +378,10 @@ definitions:
       game_user_settings:
         description: 配置文件内容（可选）
         type: string
+      listing:
+        allOf:
+        - $ref: '#/definitions/models.ListingProfile'
+        description: 收录资料（可选）
       map:
         type: string
       max_players:
@@ -395,6 +456,10 @@ definitions:
       last_error:
         description: 最近一次启停失败的原因
         type: string
+      listing:
+        allOf:
+        - $ref: '#/definitions/models.ListingProfile'
+        description: 收录资料：简介、标签、QQ 群、Discord
       map:
         type: string
       max_players:
@@ -459,6 +524,10 @@ definitions:
       game_user_settings:
         description: 配置文件内容（可选）
         type: string
+      listing:
+        allOf:
+        - $ref: '#/definitions/models.ListingProfile'
+        description: 收录资料，传了就整体替换；运行中的服务器会重新发布
       map:
         type: string
       max_players:
@@ -2196,6 +2265,42 @@ paths:
       summary: 保存插件 config.json
       tags:
       - 插件管理
+  /servers/{id}/publish/stats:
+    get:
+      description: 查询服务器在 arkfgf.com 收录站上近 7 天和 30 天的浏览、连接和复制地址次数，以及详情页和状态徽章的地址。结果缓存
+        5 分钟
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 访问统计
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.PublishStats'
+            type: object
+        "409":
+          description: 还没有发布到收录站
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: 无法连接收录站
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 收录站访问统计
+      tags:
+      - 服务器管理
   /servers/{id}/rcon:
     get:
       consumes:

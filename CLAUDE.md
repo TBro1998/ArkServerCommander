@@ -192,6 +192,8 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 收录站（外层仓库 `web/backend/controllers/publish.go`）不需要登录：收录的 IP 是请求的来源 IP（`CF-Connecting-IP`），收录站自己向该 IP 的查询端口发 A2S_INFO 验证，名称、地图、人数、是否有密码以 A2S 为准，所以查询端口（UDP）必须能从公网访问。收录站每 30 分钟查询一次所有自动发布的服务器（连续 24 小时查不到的不再查询，等下次发布），另有按 IP / 端口 / 全站的频率限制和每 IP 台数上限，30 天没上线的自动删除。服务器运行中公网 IP 变了的话，要等下次重新可以连接（重启）时才会更新。
 
+收录资料（`service/server/listing.go`）：简介（500 字）、标签（8 个，每个 16 字）、QQ 群号、Discord 邀请链接，存在 `servers.listing_*` 列，接口里是 `listing` 对象（创建、更新、MCP 的 create/update_server 都能传，传了就整体替换），详情页"收录站"卡片里编辑。每次发布都带上这四项（空值表示清空；收录站对不带这些字段的旧版请求保持原值）。运行中修改会把发布状态重置，距上次发布至少 1 分钟后重新发布。同一张卡片显示收录站上的访问统计（`GET /api/servers/:id/publish/stats` 代理收录站的 `GET /publish/stats`，用发布令牌认证，缓存 5 分钟；没有令牌时返回 409 `not_published`）和状态徽章的引用代码（HTML / Markdown / BBCode）。
+
 ### 存档备份
 
 备份放在 `BACKUP_DIR/<server_id>/<时间>_<类型>.tar.gz`（类型：manual / scheduled / pre-restore / uploaded，时间按 `CONTAINER_TZ`），归档内是 `Saved/`（跳过 `Logs` 和 `clusters`）。运行中备份先 RCON `SaveWorld`。恢复只能在已停止时进行：先自动做 pre-restore 备份，占位为 stopping，直接在数据目录里清空 `SavedArks` 和 `Config` 再解压（逐项检查路径，只写普通文件和目录），清除暂存配置。上传的归档要通过 `ValidateBackup`（gzip、只允许 `Saved/` 下的普通文件和目录、必须有 `SavedArks`）。同一服务器的备份 / 恢复由 `backupLocks` 串行化

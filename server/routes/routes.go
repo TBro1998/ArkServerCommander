@@ -89,6 +89,7 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.GET("/:id/logs/game", servers.GetGameLog)
 				serverRoutes.POST("/:id/rcon/command", servers.RconCommand)
 				serverRoutes.GET("/:id/players", servers.ListPlayers)
+				serverRoutes.GET("/:id/publish/stats", servers.GetPublishStats)
 
 				// 存档备份
 				serverRoutes.GET("/:id/backups", servers.ListBackups)

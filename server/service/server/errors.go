@@ -43,6 +43,9 @@ var (
 	ErrArkApiBuiltin       = errors.New("内置的 ArkApi 版本不能删除")
 	ErrInvalidConfigValue  = errors.New("配置项无效：文件只能是 GameUserSettings.ini 或 Game.ini，section 和键名不能为空，且都不能包含换行")
 	ErrInvalidServerConfig = errors.New("服务器配置无效")
+	ErrInvalidListing      = errors.New("收录资料无效")
+	ErrNotPublished        = errors.New("服务器还没有发布到收录站")
+	ErrPublishUnavailable  = errors.New("暂时无法连接收录站")
 )
 
 // errorCodes 错误码，前端据此显示对应语言的提示；中文界面直接显示 error 字段（包含具体细节）
@@ -84,6 +87,9 @@ var errorCodes = []struct {
 	{ErrArkApiBuiltin, "arkapi_builtin"},
 	{ErrInvalidConfigValue, "invalid_config_value"},
 	{ErrInvalidServerConfig, "invalid_server_config"},
+	{ErrInvalidListing, "invalid_listing"},
+	{ErrNotPublished, "not_published"},
+	{ErrPublishUnavailable, "publish_unavailable"},
 	{ErrClusterInUse, "cluster_in_use"},
 }
 

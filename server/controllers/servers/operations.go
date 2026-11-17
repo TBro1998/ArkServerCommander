@@ -202,6 +202,26 @@ func ListServerMods(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": mods})
 }
 
+// GetPublishStats 收录站访问统计
+// @Summary 收录站访问统计
+// @Description 查询服务器在 arkfgf.com 收录站上近 7 天和 30 天的浏览、连接和复制地址次数，以及详情页和状态徽章的地址。结果缓存 5 分钟
+// @Tags 服务器管理
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string]models.PublishStats "访问统计"
+// @Failure 409 {object} map[string]string "还没有发布到收录站"
+// @Failure 502 {object} map[string]string "无法连接收录站"
+// @Router /servers/{id}/publish/stats [get]
+func GetPublishStats(c *gin.Context) {
+	stats, err := serverService.GetPublishStats(c.GetUint("user_id"), c.Param("id"))
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
+}
+
 // ListPlayers 在线玩家
 // @Summary 在线玩家列表
 // @Description 通过 RCON ListPlayers 获取在线玩家（名称和 SteamID）

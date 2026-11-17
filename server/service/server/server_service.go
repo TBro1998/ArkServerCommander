@@ -135,6 +135,14 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		Publish:       req.Publish != nil && *req.Publish,
 		UserID:        userID,
 	}
+	if req.Listing != nil {
+		listing, err := normalizeListing(*req.Listing)
+		if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		setListing(&server, listing)
+	}
 
 	if req.ServerArgs != nil {
 		argsJson, err := json.Marshal(req.ServerArgs)
@@ -482,6 +490,14 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	if req.Publish != nil {
 		server.Publish = *req.Publish
 	}
+	listingChanged := false
+	if req.Listing != nil {
+		listing, err := normalizeListing(*req.Listing)
+		if err != nil {
+			return nil, false, err
+		}
+		listingChanged = setListing(&server, listing)
+	}
 	clusterID, modIDs, err := normalizeServerFields(server.ClusterID, server.GameModIds)
 	if err != nil {
 		return nil, false, err
@@ -546,6 +562,9 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	// 重新读取，响应里的状态要和数据库一致
 	if err := database.DB.First(&server, server.ID).Error; err != nil {
 		return nil, false, fmt.Errorf("读取服务器失败: %w", err)
+	}
+	if listingChanged {
+		publisher.listingChanged(server.ID)
 	}
 
 	if writingConfig && !deferConfig {

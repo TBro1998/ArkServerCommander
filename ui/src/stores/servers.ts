@@ -27,10 +27,20 @@ export interface RuntimeInfo {
 export interface PublishStatus {
     state: 'disabled' | 'waiting' | 'published' | 'error';
     url?: string;
+    // 状态徽章图片（旧版收录站不返回）
+    badge?: string;
     error_code?: string;
     error?: string;
     published_at?: string;
     retry_at?: string;
+}
+
+// 收录资料：显示在 arkfgf.com 收录站的详情页上
+export interface ListingProfile {
+    description: string;
+    tags: string[];
+    qq_group: string;
+    discord: string;
 }
 
 // 定义服务器对象类型
@@ -57,6 +67,7 @@ export interface Server {
     // 发布到服务器收录站（arkfgf.com）
     publish?: boolean;
     publish_status?: PublishStatus;
+    listing?: ListingProfile;
     game_user_settings?: string;
     game_ini?: string;
     server_args?: {

@@ -53,6 +53,7 @@ type publishState struct {
 	errMsg    string
 	lastOK    time.Time
 	url       string
+	badge     string // 状态徽章图片地址（旧版收录站不返回）
 	// 运行中但不是 ready 的开始时间，见 notReadyGrace
 	notReadySince time.Time
 }
@@ -109,7 +110,8 @@ func (p *Publisher) tick() {
 
 	var servers []models.Server
 	if err := database.DB.Select("id", "session_name", "map", "max_players", "port", "query_port", "cluster_id",
-		"game_mod_ids", "arkapi", "server_args_json", "status", "publish", "publish_token").
+		"game_mod_ids", "arkapi", "server_args_json", "status", "publish", "publish_token",
+		"listing_description", "listing_tags", "listing_qq", "listing_discord").
 		Where("publish = ?", true).Find(&servers).Error; err != nil {
 		utils.Warn("发布到收录站：读取服务器列表失败", zap.Error(err))
 		return
@@ -199,6 +201,11 @@ type publishProfile struct {
 	RateHarvest      float64  `json:"rate_harvest"`
 	RateBreeding     float64  `json:"rate_breeding"`
 	CommanderVersion string   `json:"commander_version"`
+	// 收录资料，总是发送（空值表示清空）；收录站对没有这些字段的旧版请求保持原值
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
+	QQGroup     string   `json:"qq_group"`
+	Discord     string   `json:"discord"`
 }
 
 func (p *Publisher) publish(server models.Server) {
@@ -207,6 +214,7 @@ func (p *Publisher) publish(server models.Server) {
 		ID    uint   `json:"id"`
 		Token string `json:"token"`
 		URL   string `json:"url"`
+		Badge string `json:"badge"`
 	}
 	status, retryAfter, code, err := p.post("/publish", server.PublishToken, profile, &resp)
 	if err != nil {
@@ -222,6 +230,7 @@ func (p *Publisher) publish(server models.Server) {
 	st := p.states[server.ID]
 	st.published = true
 	st.url = resp.URL
+	st.badge = resp.Badge
 	p.succeed(st)
 	p.mu.Unlock()
 	utils.Info("已发布到服务器收录站", zap.Uint("server_id", server.ID), zap.Uint("listing_id", resp.ID))
@@ -370,6 +379,7 @@ func (p *Publisher) statusFor(server models.Server) *models.PublishStatus {
 		return status
 	}
 	status.URL = st.url
+	status.Badge = st.badge
 	if !st.lastOK.IsZero() {
 		status.PublishedAt = st.lastOK.Format(time.RFC3339)
 	}
@@ -400,6 +410,8 @@ func buildPublishProfile(server models.Server) publishProfile {
 		Mods:             []string{},
 		CommanderVersion: utils.Version,
 	}
+	listing := listingOf(server)
+	profile.Description, profile.Tags, profile.QQGroup, profile.Discord = listing.Description, listing.Tags, listing.QQGroup, listing.Discord
 	for _, id := range strings.Split(server.GameModIds, ",") {
 		if id = strings.TrimSpace(id); id != "" {
 			profile.Mods = append(profile.Mods, id)

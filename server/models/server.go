@@ -27,12 +27,17 @@ type Server struct {
 	// 发布到服务器收录站（arkfgf.com）：服务器可以连接后自动发布，运行期间定期心跳，停止后下线
 	Publish bool `json:"publish" gorm:"default:false"`
 	// 收录站返回的发布令牌，用于心跳和更新同一条记录
-	PublishToken string         `json:"-" gorm:"default:''"`
-	UserID       uint           `json:"user_id" gorm:"not null"`
-	User         User           `json:"user" gorm:"foreignKey:UserID"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	PublishToken string `json:"-" gorm:"default:''"`
+	// 收录资料：随发布一起提交，显示在收录站的详情页上。标签用逗号分隔
+	ListingDescription string         `json:"-" gorm:"type:text;default:''"`
+	ListingTags        string         `json:"-" gorm:"default:''"`
+	ListingQQ          string         `json:"-" gorm:"default:''"`
+	ListingDiscord     string         `json:"-" gorm:"default:''"`
+	UserID             uint           `json:"user_id" gorm:"not null"`
+	User               User           `json:"user" gorm:"foreignKey:UserID"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index"`
 	// 服务器未停止时保存的配置文件，下次启动前写入数据卷后清空（停服时 ARK 会覆盖 GameUserSettings.ini）
 	PendingGameUserSettings string `json:"-" gorm:"type:text;default:''"`
 	PendingGameIni          string `json:"-" gorm:"type:text;default:''"`
@@ -41,19 +46,20 @@ type Server struct {
 }
 
 type ServerRequest struct {
-	SessionName   string `json:"session_name"` // 服务器名称
-	ClusterID     string `json:"cluster_id"`   // 集群ID
-	Port          int    `json:"port" binding:"required,min=1,max=65535"`
-	QueryPort     int    `json:"query_port" binding:"required,min=1,max=65535"`
-	RCONPort      int    `json:"rcon_port" binding:"required,min=1,max=65535"`
-	AdminPassword string `json:"admin_password" binding:"required"`
-	Map           string `json:"map"`
-	MaxPlayers    int    `json:"max_players" binding:"min=1,max=200"` // 最大玩家数
-	GameModIds    string `json:"game_mod_ids"`                        // 游戏模组ID列表，用逗号分隔
-	AutoRestart   *bool  `json:"auto_restart"`                        // 是否自动重启（可选）
-	AutoUpdate    *bool  `json:"auto_update"`                         // 每次启动前检查游戏本体和 Mod 更新（可选）
-	ArkApi        *bool  `json:"arkapi"`                              // 启用 ArkApi（Proton 镜像），默认关闭（Linux 镜像）
-	Publish       *bool  `json:"publish"`                             // 发布到服务器收录站，默认关闭
+	SessionName   string          `json:"session_name"` // 服务器名称
+	ClusterID     string          `json:"cluster_id"`   // 集群ID
+	Port          int             `json:"port" binding:"required,min=1,max=65535"`
+	QueryPort     int             `json:"query_port" binding:"required,min=1,max=65535"`
+	RCONPort      int             `json:"rcon_port" binding:"required,min=1,max=65535"`
+	AdminPassword string          `json:"admin_password" binding:"required"`
+	Map           string          `json:"map"`
+	MaxPlayers    int             `json:"max_players" binding:"min=1,max=200"` // 最大玩家数
+	GameModIds    string          `json:"game_mod_ids"`                        // 游戏模组ID列表，用逗号分隔
+	AutoRestart   *bool           `json:"auto_restart"`                        // 是否自动重启（可选）
+	AutoUpdate    *bool           `json:"auto_update"`                         // 每次启动前检查游戏本体和 Mod 更新（可选）
+	ArkApi        *bool           `json:"arkapi"`                              // 启用 ArkApi（Proton 镜像），默认关闭（Linux 镜像）
+	Publish       *bool           `json:"publish"`                             // 发布到服务器收录站，默认关闭
+	Listing       *ListingProfile `json:"listing,omitempty"`                   // 收录资料（可选）
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
@@ -78,6 +84,8 @@ type ServerResponse struct {
 	ArkApi      bool   `json:"arkapi"`  // 启用 ArkApi（Proton 镜像运行 Windows 版服务端）
 	Image       string `json:"image"`   // 服务器使用的镜像，由 arkapi 决定
 	Publish     bool   `json:"publish"` // 发布到服务器收录站
+	// 收录资料：简介、标签、QQ 群、Discord
+	Listing ListingProfile `json:"listing"`
 	// 发布状态，未开启发布时为空
 	PublishStatus *PublishStatus `json:"publish_status,omitempty"`
 	// 运行中服务器的实时信息（阶段、在线人数、资源占用），由后台监控定期采集
@@ -115,11 +123,44 @@ type ServerUpdateRequest struct {
 	AutoUpdate    *bool   `json:"auto_update"`
 	ArkApi        *bool   `json:"arkapi"`  // 切换后下次启动时重建容器
 	Publish       *bool   `json:"publish"` // 发布到服务器收录站
+	// 收录资料，传了就整体替换；运行中的服务器会重新发布
+	Listing *ListingProfile `json:"listing,omitempty"`
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
 	GameIni          string `json:"game_ini,omitempty"`           // Game.ini 文件内容
 	// 启动参数（可选）
 	ServerArgs *ServerArgsRequest `json:"server_args,omitempty"` // 启动参数结构
+}
+
+// ListingProfile 收录资料，显示在 arkfgf.com 的服务器详情页上
+type ListingProfile struct {
+	Description string   `json:"description"` // 简介，最多 500 字，可以换行
+	Tags        []string `json:"tags"`        // 标签，最多 8 个，每个最多 16 字
+	QQGroup     string   `json:"qq_group"`    // QQ 群号
+	Discord     string   `json:"discord"`     // Discord 邀请链接（https://discord.gg/...）
+}
+
+// PublishStats 收录站上的访问统计，由收录站按发布令牌返回
+type PublishStats struct {
+	ID    uint              `json:"id"`
+	URL   string            `json:"url"`
+	Badge string            `json:"badge"`
+	Week  PublishStatTotals `json:"week"`
+	Month PublishStatTotals `json:"month"`
+	Days  []PublishStatDay  `json:"days"`
+}
+
+type PublishStatTotals struct {
+	Views    int `json:"views"`
+	Connects int `json:"connects"`
+	Copies   int `json:"copies"`
+}
+
+type PublishStatDay struct {
+	Day      string `json:"day"`
+	Views    int    `json:"views"`
+	Connects int    `json:"connects"`
+	Copies   int    `json:"copies"`
 }
 
 // 发布状态
@@ -134,6 +175,7 @@ const (
 type PublishStatus struct {
 	State       string `json:"state"`                  // 见 Publish* 常量
 	URL         string `json:"url,omitempty"`          // 收录站页面
+	Badge       string `json:"badge,omitempty"`        // 状态徽章图片
 	ErrorCode   string `json:"error_code,omitempty"`   // 收录站返回的错误码，或 network
 	Error       string `json:"error,omitempty"`        // 错误详情（中文）
 	PublishedAt string `json:"published_at,omitempty"` // 最近一次发布或心跳成功的时间

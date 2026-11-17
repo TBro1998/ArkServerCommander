@@ -28,6 +28,7 @@ import { BackupsPanel } from '@/components/servers/BackupsPanel';
 import { SchedulesPanel } from '@/components/servers/SchedulesPanel';
 import { PluginsPanel } from '@/components/servers/PluginsPanel';
 import { ServerModsPanel } from '@/components/servers/ServerModsPanel';
+import { ListingCard } from '@/components/servers/ListingCard';
 import { MapBand } from '@/components/servers/ServerCard';
 import { useMapName } from '@/hooks/use-map-name';
 import { usePolling } from '@/hooks/use-polling';
@@ -153,6 +154,8 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
           <Row label={t('createdAt')}>{server.created_at}</Row>
         </CardContent>
       </Card>
+
+      {server.publish && <ListingCard server={server} />}
 
       <ServerModsPanel server={server} />
     </div>

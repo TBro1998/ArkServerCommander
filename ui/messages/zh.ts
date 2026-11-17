@@ -1,4 +1,46 @@
 const messages = {
+  listing: {
+    title: 'arkfgf.com 收录站',
+    viewPage: '查看收录页',
+    loading: '正在读取访问统计…',
+    statsFailed: '读取访问统计失败',
+    notPublished: '服务器第一次发布到收录站后，这里会显示访问统计和状态徽章。',
+    week: '近 7 天',
+    stats: {
+      views: '浏览',
+      connects: '点击连接',
+      copies: '复制地址'
+    },
+    month: '近 30 天：浏览 {views}，点击连接 {connects}，复制地址 {copies}',
+    badge: '状态徽章',
+    badgeAlt: '服务器状态徽章',
+    badgeHint: '显示在线人数，每 10 分钟更新，点击跳到收录页。可以贴到网站、论坛、Discord 等支持外链图片的地方。',
+    snippets: {
+      image: '图片地址',
+      html: 'HTML',
+      markdown: 'Markdown',
+      bbcode: 'BBCode'
+    },
+    copied: '已复制',
+    copyFailed: '复制失败，请检查浏览器的剪贴板权限',
+    profile: '收录资料',
+    profileEmpty: '还没有填写。填上简介、QQ 群或 Discord，玩家在收录页上就能看到。',
+    qqValue: 'QQ 群：{qq}',
+    edit: '编辑',
+    editTitle: '编辑收录资料',
+    editDesc: '显示在 arkfgf.com 收录站的服务器页面上。服务器运行中修改会自动重新发布。',
+    description: '简介',
+    descriptionPlaceholder: '介绍服务器的玩法、规则、活动等',
+    tags: '标签',
+    tagsPlaceholder: 'PvE, 新手友好, 不删档',
+    tagsHint: '用逗号分隔，最多 8 个，每个最多 16 字。玩家可以按标签搜索。',
+    qq: 'QQ 群号',
+    cancel: '取消',
+    save: '保存',
+    saved: '已保存，下次发布时更新到收录站',
+    savedRepublish: '已保存，稍后自动更新到收录站',
+    saveFailed: '保存失败'
+  },
   // 通用
   common: {
     confirm: '确定',
@@ -420,6 +462,9 @@ const messages = {
 
   // 后端错误码对应的提示（中文界面直接显示后端返回的详细信息，这里主要给其他语言使用）
   apiErrors: {
+    invalid_listing: '收录资料无效',
+    not_published: '服务器还没有发布到收录站',
+    publish_unavailable: '暂时无法连接收录站',
     bad_request: '请求参数错误',
     backend_unavailable: '后端服务不可用',
     invalid_server_id: '无效的服务器ID',
