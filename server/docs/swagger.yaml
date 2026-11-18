@@ -109,6 +109,70 @@ definitions:
       success:
         type: boolean
     type: object
+  models.LinkBan:
+    properties:
+      avatar_url:
+        type: string
+      banned_at:
+        description: 网站返回的时间，原样转发
+      name:
+        type: string
+      steam_id:
+        type: string
+    type: object
+  models.LinkKickRequest:
+    properties:
+      ban:
+        description: 同时封禁
+        type: boolean
+      steam_id:
+        description: 玩家的 SteamID64
+        type: string
+    required:
+    - steam_id
+    type: object
+  models.LinkMember:
+    properties:
+      avatar_url:
+        type: string
+      credential_id:
+        type: string
+      joined_at:
+        description: 网站返回的时间，原样转发
+      name:
+        type: string
+      steam_id:
+        type: string
+    type: object
+  models.LinkMembers:
+    properties:
+      bans:
+        items:
+          $ref: '#/definitions/models.LinkBan'
+        type: array
+      members:
+        items:
+          $ref: '#/definitions/models.LinkMember'
+        type: array
+    type: object
+  models.LinkStatus:
+    properties:
+      error:
+        description: 错误详情（中文）
+        type: string
+      error_code:
+        description: 网站返回的错误码，或 network / node_error / image_error
+        type: string
+      retry_at:
+        description: 请求失败后下一次重试的时间
+        type: string
+      room_url:
+        description: 网站上的房间页面
+        type: string
+      state:
+        description: 见 Link* 常量
+        type: string
+    type: object
   models.ListingProfile:
     properties:
       description:
@@ -378,6 +442,9 @@ definitions:
       game_user_settings:
         description: 配置文件内容（可选）
         type: string
+      link:
+        description: P2P 联机房，默认关闭
+        type: boolean
       listing:
         allOf:
         - $ref: '#/definitions/models.ListingProfile'
@@ -456,6 +523,13 @@ definitions:
       last_error:
         description: 最近一次启停失败的原因
         type: string
+      link:
+        description: P2P 联机房
+        type: boolean
+      link_status:
+        allOf:
+        - $ref: '#/definitions/models.LinkStatus'
+        description: 联机房状态，未开启联机房时为空
       listing:
         allOf:
         - $ref: '#/definitions/models.ListingProfile'
@@ -524,6 +598,9 @@ definitions:
       game_user_settings:
         description: 配置文件内容（可选）
         type: string
+      link:
+        description: P2P 联机房，立即生效
+        type: boolean
       listing:
         allOf:
         - $ref: '#/definitions/models.ListingProfile'
@@ -1940,6 +2017,136 @@ paths:
       security:
       - Bearer: []
       summary: 导入服务器配置
+      tags:
+      - 服务器管理
+  /servers/{id}/link/bans/{steam_id}:
+    delete:
+      description: 代理 arkfgf.com 的 DELETE /link/rooms/:id/bans/:steam_id
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 玩家的 SteamID64
+        in: path
+        name: steam_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已解封
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: SteamID 无效或网站拒绝
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 联机房还没有登记
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: 无法连接 arkfgf.com
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 解除联机房封禁
+      tags:
+      - 服务器管理
+  /servers/{id}/link/kick:
+    post:
+      consumes:
+      - application/json
+      description: 吊销玩家的凭证（下一次心跳时在节点里吊销，3 秒内断开），ban 为 true 时同时封禁
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 玩家和是否封禁
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LinkKickRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已踢出
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: SteamID 无效或网站拒绝
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 联机房还没有登记
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: 无法连接 arkfgf.com
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 踢出联机房成员
+      tags:
+      - 服务器管理
+  /servers/{id}/link/members:
+    get:
+      description: 代理 arkfgf.com 的 GET /link/rooms/:id/members（房间令牌认证）：当前持有未吊销凭证的玩家和封禁列表
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成员和封禁列表
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.LinkMembers'
+            type: object
+        "409":
+          description: 联机房还没有登记
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: 无法连接 arkfgf.com
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 联机房成员
       tags:
       - 服务器管理
   /servers/{id}/logs:

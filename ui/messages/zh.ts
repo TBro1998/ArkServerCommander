@@ -41,6 +41,36 @@ const messages = {
     savedRepublish: '已保存，稍后自动更新到收录站',
     saveFailed: '保存失败'
   },
+  linkRoom: {
+    title: 'P2P 联机房',
+    viewRoom: '查看房间页',
+    howTo: '玩家安装 ARKFGF 联机助手，在 arkfgf.com 的房间页点击"用联机助手加入"，或在联机助手里搜索房间。只有能和服务器建立 P2P 直连的玩家才能加入。',
+    members: '成员',
+    membersHint: '当前持有有效凭证的玩家',
+    noMembers: '还没有玩家加入',
+    bans: '封禁列表',
+    noBans: '没有封禁的玩家',
+    loading: '正在读取成员…',
+    loadFailed: '读取成员失败',
+    notRegistered: '联机房在 arkfgf.com 登记完成后，这里会显示成员和封禁列表。',
+    refresh: '刷新',
+    player: '玩家',
+    joinedAt: '加入时间',
+    bannedAt: '封禁时间',
+    kick: '踢出',
+    ban: '封禁',
+    unban: '解封',
+    kickTitle: '踢出 {name}？',
+    kickDesc: '吊销这名玩家的凭证，下一次心跳（最多约 30 秒）后断开连接。玩家之后还可以重新加入。',
+    banTitle: '封禁 {name}？',
+    banDesc: '吊销这名玩家的凭证并封禁，解封之前不能再加入这个联机房。',
+    unbanTitle: '解封 {name}？',
+    unbanDesc: '解封后玩家可以重新加入这个联机房。',
+    kicked: '已踢出',
+    banned: '已封禁',
+    unbanned: '已解封',
+    actionFailed: '操作失败'
+  },
   // 通用
   common: {
     confirm: '确定',
@@ -249,6 +279,7 @@ const messages = {
       arkServer: 'ARK服务器',
       arkServerLinux: 'ARK 服务器（Linux 版）',
       arkServerProton: 'ARK 服务器（Proton 版，ArkApi）',
+      easyTier: 'EasyTier（P2P 联机房）',
       notRequired: '暂无服务器使用，用到时启动会自动下载',
       // 层级信息
       layerDetails: '层级详情',
@@ -465,6 +496,10 @@ const messages = {
     invalid_listing: '收录资料无效',
     not_published: '服务器还没有发布到收录站',
     publish_unavailable: '暂时无法连接收录站',
+    link_not_registered: '联机房还没有在 arkfgf.com 登记',
+    link_unavailable: '暂时无法连接 arkfgf.com',
+    link_request_failed: 'arkfgf.com 拒绝了请求',
+    invalid_steam_id: 'SteamID 应为 17 位数字',
     bad_request: '请求参数错误',
     backend_unavailable: '后端服务不可用',
     invalid_server_id: '无效的服务器ID',
@@ -819,6 +854,26 @@ const messages = {
       owned: '这台服务器已由 arkfgf.com 上的服主账号管理',
       invalid_input: '发布内容不符合收录站要求'
     },
+    link: '联机房',
+    linkStates: {
+      disabled: '管理端已关闭与 arkfgf.com 的连接（ARKFGF_API）',
+      waiting: '准备中',
+      online: '在线',
+      offline: '离线（服务器未运行）',
+      error: '出错，自动重试中'
+    },
+    linkView: '查看',
+    linkErrors: {
+      network: '无法连接 arkfgf.com，稍后自动重试',
+      rate_limited: '请求过于频繁，稍后自动重试',
+      busy: 'arkfgf.com 繁忙，稍后自动重试',
+      too_many_rooms: '这个公网 IP 登记的联机房已达上限',
+      invalid_token: '网站上的房间已不存在，正在重新登记',
+      invalid_input: '房间资料不符合网站要求',
+      node_error: '联机节点（EasyTier 容器）出错',
+      image_error: '检查或下载 EasyTier 镜像失败',
+      local_error: '保存房间信息失败'
+    },
     serverBuild: '服务端',
     buildProton: 'Proton 版（ArkApi）',
     buildLinux: 'Linux 版',
@@ -1134,7 +1189,8 @@ const messages = {
       arkapi: '启用 ArkApi',
       auto_restart: '崩溃后自动重启',
       auto_update: '启动时自动更新',
-      publish: '发布到 arkfgf.com 收录站'
+      publish: '发布到 arkfgf.com 收录站',
+      link: 'P2P 联机房'
     },
     fieldHints: {
       session_name: '玩家在服务器列表里看到的名称，可以包含空格和中文',
@@ -1147,7 +1203,8 @@ const messages = {
       arkapi: '用 GE-Proton 运行 Windows 版服务端，可以加载 ArkApi 插件。关闭时运行原生 Linux 版服务端，占用更少。',
       auto_restart: '游戏进程意外退出时由 Docker 自动重启',
       auto_update: '每次启动前校验更新游戏本体并重新下载 Mod，启动会变慢',
-      publish: '服务器可以连接后自动在 arkfgf.com 服务器收录站公开展示（名称、地图、倍率、Mod、在线人数和连接地址），收录站每 30 分钟从公网查询一次查询端口，需要放行该端口（UDP），停服后在下一次查询时显示为离线。关闭开关会立即从收录站删除'
+      publish: '服务器可以连接后自动在 arkfgf.com 服务器收录站公开展示（名称、地图、倍率、Mod、在线人数和连接地址），收录站每 30 分钟从公网查询一次查询端口，需要放行该端口（UDP），停服后在下一次查询时显示为离线。关闭开关会立即从收录站删除',
+      link: '不需要公网 IP：在 arkfgf.com 登记一个联机房，玩家用 ARKFGF 联机助手客户端通过 P2P 直连加入，只有网络能和服务器建立 P2P 直连的玩家才能加入（不经过中继）。服务器可以连接后自动运行联机节点（EasyTier 容器），停服时停止。关闭开关会立即下架房间'
     },
     params: {
       // 常规

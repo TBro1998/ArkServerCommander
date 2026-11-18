@@ -35,6 +35,15 @@ export interface PublishStatus {
     retry_at?: string;
 }
 
+// P2P 联机房的状态
+export interface LinkStatus {
+    state: 'disabled' | 'waiting' | 'online' | 'offline' | 'error';
+    room_url?: string;
+    error_code?: string;
+    error?: string;
+    retry_at?: string;
+}
+
 // 收录资料：显示在 arkfgf.com 收录站的详情页上
 export interface ListingProfile {
     description: string;
@@ -67,6 +76,9 @@ export interface Server {
     // 发布到服务器收录站（arkfgf.com）
     publish?: boolean;
     publish_status?: PublishStatus;
+    // P2P 联机房（玩家用 ARKFGF 联机助手加入）
+    link?: boolean;
+    link_status?: LinkStatus;
     listing?: ListingProfile;
     game_user_settings?: string;
     game_ini?: string;

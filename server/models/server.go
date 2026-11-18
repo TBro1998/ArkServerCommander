@@ -28,6 +28,18 @@ type Server struct {
 	Publish bool `json:"publish" gorm:"default:false"`
 	// 收录站返回的发布令牌，用于心跳和更新同一条记录
 	PublishToken string `json:"-" gorm:"default:''"`
+	// P2P 联机房（arkfgf.com 联机助手）：为服务器运行一个 EasyTier 节点，没有公网 IP 的玩家也能通过 P2P 连进来
+	Link bool `json:"link" gorm:"default:false"`
+	// 网站返回的房间令牌（alr_...），用于心跳、更新和下架
+	LinkToken string `json:"-" gorm:"column:link_token;default:''"`
+	// 网站上的房间 ID
+	LinkRoomID uint `json:"-" gorm:"column:link_room_id;default:0"`
+	// 网站分配的 EasyTier 网络名（ark-xxxxxxxxxxxxxxxx）
+	LinkNetworkName string `json:"-" gorm:"column:link_network_name;default:''"`
+	// EasyTier 网络密钥，本地生成（32 字节随机数 hex），只存在本机
+	LinkNetworkSecret string `json:"-" gorm:"column:link_network_secret;default:''"`
+	// 节点 RPC 端口（宿主机 127.0.0.1），按服务器 ID 分配，见 service/server/link.go 的 assignLinkRPCPort
+	LinkRPCPort int `json:"-" gorm:"column:link_rpc_port;default:0"`
 	// 收录资料：随发布一起提交，显示在收录站的详情页上。标签用逗号分隔
 	ListingDescription string         `json:"-" gorm:"type:text;default:''"`
 	ListingTags        string         `json:"-" gorm:"default:''"`
@@ -59,6 +71,7 @@ type ServerRequest struct {
 	AutoUpdate    *bool           `json:"auto_update"`                         // 每次启动前检查游戏本体和 Mod 更新（可选）
 	ArkApi        *bool           `json:"arkapi"`                              // 启用 ArkApi（Proton 镜像），默认关闭（Linux 镜像）
 	Publish       *bool           `json:"publish"`                             // 发布到服务器收录站，默认关闭
+	Link          *bool           `json:"link"`                                // P2P 联机房，默认关闭
 	Listing       *ListingProfile `json:"listing,omitempty"`                   // 收录资料（可选）
 	// 配置文件内容（可选）
 	GameUserSettings string `json:"game_user_settings,omitempty"` // GameUserSettings.ini 文件内容
@@ -88,6 +101,9 @@ type ServerResponse struct {
 	Listing ListingProfile `json:"listing"`
 	// 发布状态，未开启发布时为空
 	PublishStatus *PublishStatus `json:"publish_status,omitempty"`
+	Link          bool           `json:"link"` // P2P 联机房
+	// 联机房状态，未开启联机房时为空
+	LinkStatus *LinkStatus `json:"link_status,omitempty"`
 	// 运行中服务器的实时信息（阶段、在线人数、资源占用），由后台监控定期采集
 	Runtime *RuntimeInfo `json:"runtime,omitempty"`
 	// 有已保存但尚未写入数据卷的配置文件修改，下次启动时生效
@@ -123,6 +139,7 @@ type ServerUpdateRequest struct {
 	AutoUpdate    *bool   `json:"auto_update"`
 	ArkApi        *bool   `json:"arkapi"`  // 切换后下次启动时重建容器
 	Publish       *bool   `json:"publish"` // 发布到服务器收录站
+	Link          *bool   `json:"link"`    // P2P 联机房，立即生效
 	// 收录资料，传了就整体替换；运行中的服务器会重新发布
 	Listing *ListingProfile `json:"listing,omitempty"`
 	// 配置文件内容（可选）
@@ -180,6 +197,53 @@ type PublishStatus struct {
 	Error       string `json:"error,omitempty"`        // 错误详情（中文）
 	PublishedAt string `json:"published_at,omitempty"` // 最近一次发布或心跳成功的时间
 	RetryAt     string `json:"retry_at,omitempty"`     // 失败后下一次重试的时间
+}
+
+// 联机房状态
+const (
+	LinkDisabled = "disabled" // 管理端关闭了与 arkfgf.com 的连接（ARKFGF_API 为空）
+	LinkWaiting  = "waiting"  // 还没有登记房间，或服务器正在启动、联机节点正在准备
+	LinkOnline   = "online"   // 服务器可以连接，联机节点在运行，心跳正常
+	LinkOffline  = "offline"  // 房间已登记，服务器未运行（网站上显示离线）
+	LinkError    = "error"    // 最近一次请求或联机节点操作失败，会自动重试
+)
+
+// LinkStatus P2P 联机房的状态
+type LinkStatus struct {
+	State     string `json:"state"`                // 见 Link* 常量
+	RoomURL   string `json:"room_url,omitempty"`   // 网站上的房间页面
+	ErrorCode string `json:"error_code,omitempty"` // 网站返回的错误码，或 network / node_error / image_error
+	Error     string `json:"error,omitempty"`      // 错误详情（中文）
+	RetryAt   string `json:"retry_at,omitempty"`   // 请求失败后下一次重试的时间
+}
+
+// LinkMember 联机房成员：当前持有未吊销凭证的玩家
+type LinkMember struct {
+	SteamID      string `json:"steam_id"`
+	Name         string `json:"name"`
+	AvatarURL    string `json:"avatar_url"`
+	CredentialID string `json:"credential_id"`
+	JoinedAt     any    `json:"joined_at"` // 网站返回的时间，原样转发
+}
+
+// LinkBan 联机房封禁记录
+type LinkBan struct {
+	SteamID   string `json:"steam_id"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+	BannedAt  any    `json:"banned_at"` // 网站返回的时间，原样转发
+}
+
+// LinkMembers 联机房成员和封禁列表
+type LinkMembers struct {
+	Members []LinkMember `json:"members"`
+	Bans    []LinkBan    `json:"bans"`
+}
+
+// LinkKickRequest 踢出联机房成员
+type LinkKickRequest struct {
+	SteamID string `json:"steam_id" binding:"required"` // 玩家的 SteamID64
+	Ban     bool   `json:"ban"`                         // 同时封禁
 }
 
 // 运行阶段：容器运行后，入口脚本依次下载服务端、安装 Mod、启动游戏，游戏加载完地图后才能连接

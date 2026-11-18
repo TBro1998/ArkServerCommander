@@ -526,7 +526,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
     id: 'operations',
     icon: Wrench,
     sections: [
-      { id: 'runtime', settings: [field('arkapi', { wide: true }), field('auto_restart', { wide: true }), field('auto_update', { wide: true }), field('publish', { wide: true })] },
+      { id: 'runtime', settings: [field('arkapi', { wide: true }), field('auto_restart', { wide: true }), field('auto_update', { wide: true }), field('publish', { wide: true }), field('link', { wide: true })] },
       {
         id: 'saves',
         settings: [

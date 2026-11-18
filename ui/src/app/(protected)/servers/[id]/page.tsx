@@ -29,6 +29,7 @@ import { SchedulesPanel } from '@/components/servers/SchedulesPanel';
 import { PluginsPanel } from '@/components/servers/PluginsPanel';
 import { ServerModsPanel } from '@/components/servers/ServerModsPanel';
 import { ListingCard } from '@/components/servers/ListingCard';
+import { LinkCard } from '@/components/servers/LinkCard';
 import { MapBand } from '@/components/servers/ServerCard';
 import { useMapName } from '@/hooks/use-map-name';
 import { usePolling } from '@/hooks/use-polling';
@@ -68,6 +69,42 @@ function PublishState({ server }: { server: Server }) {
         {status.state === 'published' && status.url && (
           <a href={status.url} target="_blank" rel="noreferrer" className="ml-2 text-primary hover:underline">
             {t('publishView')}
+          </a>
+        )}
+      </span>
+      {detail && <span className="text-xs font-normal text-muted-foreground">{detail}</span>}
+    </span>
+  );
+}
+
+// P2P 联机房的状态：未开启时显示"关闭"，出错时显示原因（中文界面用后端的详情，其他语言按错误码翻译）
+function LinkState({ server }: { server: Server }) {
+  const t = useTranslations('detail');
+  const locale = useLocale();
+  const status = server.link_status;
+  if (!server.link || !status) return <>{t('off')}</>;
+  const color =
+    status.state === 'online'
+      ? 'text-green-700'
+      : status.state === 'error'
+        ? 'text-red-700'
+        : status.state === 'offline' || status.state === 'disabled'
+          ? 'text-muted-foreground'
+          : 'text-amber-800';
+  let detail = '';
+  if (status.state === 'error') {
+    const key = `linkErrors.${status.error_code}`;
+    if (locale === 'zh' && status.error) detail = status.error;
+    else if (status.error_code && t.has(key)) detail = t(key);
+    else detail = status.error ?? '';
+  }
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <span className={color}>
+        {t(`linkStates.${status.state}`)}
+        {status.room_url && (
+          <a href={status.room_url} target="_blank" rel="noreferrer" className="ml-2 text-primary hover:underline">
+            {t('linkView')}
           </a>
         )}
       </span>
@@ -150,12 +187,17 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
           <Row label={t('publish')}>
             <PublishState server={server} />
           </Row>
+          <Row label={t('link')}>
+            <LinkState server={server} />
+          </Row>
           <Row label={t('serverBuild')}>{server.arkapi ? t('buildProton') : t('buildLinux')}</Row>
           <Row label={t('createdAt')}>{server.created_at}</Row>
         </CardContent>
       </Card>
 
       {server.publish && <ListingCard server={server} />}
+
+      {server.link && <LinkCard server={server} />}
 
       <ServerModsPanel server={server} />
     </div>

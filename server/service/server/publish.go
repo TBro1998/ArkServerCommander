@@ -1,21 +1,14 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"math"
 	"net/http"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"ark-server-commander/config"
 	"ark-server-commander/database"
 	"ark-server-commander/models"
-	"ark-server-commander/service/docker_manager"
 	"ark-server-commander/utils"
 
 	"go.uber.org/zap"
@@ -295,52 +288,7 @@ func (p *Publisher) fail(server models.Server, status int, retryAfter time.Durat
 
 // post 向收录站发 JSON 请求。返回 HTTP 状态码、Retry-After、错误码和错误
 func (p *Publisher) post(path, token string, body any, out any) (int, time.Duration, string, error) {
-	var buf bytes.Buffer
-	if body != nil {
-		if err := json.NewEncoder(&buf).Encode(body); err != nil {
-			return 0, 0, "", err
-		}
-	}
-	req, err := http.NewRequest(http.MethodPost, p.api()+path, &buf)
-	if err != nil {
-		return 0, 0, "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "ArkServerCommander/"+utils.Version)
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return 0, 0, "", fmt.Errorf("连接收录站失败: %w", err)
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-	if err != nil {
-		return resp.StatusCode, 0, "", fmt.Errorf("读取收录站响应失败: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		var e struct {
-			Error string `json:"error"`
-			Code  string `json:"code"`
-		}
-		_ = json.Unmarshal(data, &e)
-		retry := time.Duration(0)
-		if secs, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && secs > 0 {
-			retry = time.Duration(secs) * time.Second
-		}
-		msg := e.Error
-		if msg == "" {
-			msg = http.StatusText(resp.StatusCode)
-		}
-		return resp.StatusCode, retry, e.Code, fmt.Errorf("收录站返回 %d: %s", resp.StatusCode, msg)
-	}
-	if out != nil {
-		if err := json.Unmarshal(data, out); err != nil {
-			return resp.StatusCode, 0, "", fmt.Errorf("解析收录站响应失败: %w", err)
-		}
-	}
-	return resp.StatusCode, 0, "", nil
+	return arkfgfRequest(p.client, http.MethodPost, p.api()+path, token, body, out, "收录站")
 }
 
 func publishErrorMessage(code string, server models.Server) string {
@@ -396,67 +344,27 @@ func (p *Publisher) statusFor(server models.Server) *models.PublishStatus {
 	return status
 }
 
-// buildPublishProfile 从服务器记录、启动参数和配置文件得到发布内容。
-// 倍率和 PvE 先看启动参数里的 ?Key=Value（优先级高于配置文件），再看 GameUserSettings.ini / Game.ini
+// buildPublishProfile 发布内容：服务器资料（见 buildServerProfile）加上端口和管理端版本
 func buildPublishProfile(server models.Server) publishProfile {
-	profile := publishProfile{
+	sp := buildServerProfile(server)
+	return publishProfile{
 		Port:             server.Port,
 		QueryPort:        server.QueryPort,
-		Name:             server.SessionName,
-		Map:              server.Map,
-		MaxPlayers:       server.MaxPlayers,
-		ArkApi:           server.ArkApi,
-		Cluster:          server.ClusterID,
-		Mods:             []string{},
+		Name:             sp.Name,
+		Map:              sp.Map,
+		MaxPlayers:       sp.MaxPlayers,
+		PvP:              sp.PvP,
+		ArkApi:           sp.ArkApi,
+		Cluster:          sp.Cluster,
+		Mods:             sp.Mods,
+		RateXP:           sp.RateXP,
+		RateTame:         sp.RateTame,
+		RateHarvest:      sp.RateHarvest,
+		RateBreeding:     sp.RateBreeding,
 		CommanderVersion: utils.Version,
+		Description:      sp.Listing.Description,
+		Tags:             sp.Listing.Tags,
+		QQGroup:          sp.Listing.QQGroup,
+		Discord:          sp.Listing.Discord,
 	}
-	listing := listingOf(server)
-	profile.Description, profile.Tags, profile.QQGroup, profile.Discord = listing.Description, listing.Tags, listing.QQGroup, listing.Discord
-	for _, id := range strings.Split(server.GameModIds, ",") {
-		if id = strings.TrimSpace(id); id != "" {
-			profile.Mods = append(profile.Mods, id)
-		}
-	}
-
-	var args models.ServerArgs
-	_ = json.Unmarshal([]byte(server.ServerArgsJSON), &args)
-	var gus, game string
-	if dm, err := docker_manager.GetDockerManager(); err == nil {
-		gus, _ = dm.ReadConfigFile(server.ID, "GameUserSettings.ini")
-		game, _ = dm.ReadConfigFile(server.ID, "Game.ini")
-	}
-	lookup := func(key, file, section string) string {
-		for k, v := range args.QueryParams {
-			if strings.EqualFold(k, key) {
-				return v
-			}
-		}
-		value := ""
-		for _, e := range utils.FindIniEntries(file, key) {
-			if strings.EqualFold(e.Section, section) {
-				value = e.Value // 同名键以最后一个为准
-			}
-		}
-		return value
-	}
-	const gusSection, gameSection = "ServerSettings", "/script/shootergame.shootergamemode"
-	profile.PvP = !parseIniBool(lookup("serverPVE", gus, gusSection))
-	profile.RateXP = parseRate(lookup("XPMultiplier", gus, gusSection))
-	profile.RateTame = parseRate(lookup("TamingSpeedMultiplier", gus, gusSection))
-	profile.RateHarvest = parseRate(lookup("HarvestAmountMultiplier", gus, gusSection))
-	profile.RateBreeding = parseRate(lookup("BabyMatureSpeedMultiplier", game, gameSection))
-	return profile
-}
-
-func parseIniBool(v string) bool {
-	return strings.EqualFold(strings.TrimSpace(v), "true") || strings.TrimSpace(v) == "1"
-}
-
-// parseRate 没有设置时游戏按 1 倍处理
-func parseRate(v string) float64 {
-	f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
-	if err != nil || math.IsNaN(f) || math.IsInf(f, 0) || f <= 0 {
-		return 1
-	}
-	return f
 }

@@ -303,7 +303,8 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
       case 'arkapi':
       case 'auto_restart':
       case 'auto_update':
-      case 'publish': {
+      case 'publish':
+      case 'link': {
         const fallback = key === 'auto_restart';
         const switchHint =
           key === 'arkapi' && mode === 'edit' && (form.arkapi ?? false) !== (initial.arkapi ?? false) ? (

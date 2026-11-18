@@ -90,6 +90,9 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.POST("/:id/rcon/command", servers.RconCommand)
 				serverRoutes.GET("/:id/players", servers.ListPlayers)
 				serverRoutes.GET("/:id/publish/stats", servers.GetPublishStats)
+				serverRoutes.GET("/:id/link/members", servers.GetLinkMembers)
+				serverRoutes.POST("/:id/link/kick", servers.KickLinkMember)
+				serverRoutes.DELETE("/:id/link/bans/:steam_id", servers.UnbanLinkMember)
 
 				// 存档备份
 				serverRoutes.GET("/:id/backups", servers.ListBackups)

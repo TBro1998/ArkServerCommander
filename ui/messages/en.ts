@@ -1,5 +1,35 @@
 const messages = {
   // Common
+  linkRoom: {
+    title: 'P2P room',
+    viewRoom: 'Open room page',
+    howTo: 'Players install the ARKFGF Link client and click "Join with ARKFGF Link" on the room page at arkfgf.com, or search for the room in the client. Only players who can establish a direct P2P connection to the server can join.',
+    members: 'Members',
+    membersHint: 'Players holding a valid credential',
+    noMembers: 'No players have joined yet',
+    bans: 'Banned players',
+    noBans: 'No banned players',
+    loading: 'Loading members…',
+    loadFailed: 'Failed to load members',
+    notRegistered: 'Members and bans appear here once the room is registered on arkfgf.com.',
+    refresh: 'Refresh',
+    player: 'Player',
+    joinedAt: 'Joined',
+    bannedAt: 'Banned',
+    kick: 'Kick',
+    ban: 'Ban',
+    unban: 'Unban',
+    kickTitle: 'Kick {name}?',
+    kickDesc: "Revokes the player's credential; they are disconnected after the next heartbeat (about 30 seconds at most). They can join again later.",
+    banTitle: 'Ban {name}?',
+    banDesc: "Revokes the player's credential and bans them from this room until unbanned.",
+    unbanTitle: 'Unban {name}?',
+    unbanDesc: 'The player will be able to join this room again.',
+    kicked: 'Kicked',
+    banned: 'Banned',
+    unbanned: 'Unbanned',
+    actionFailed: 'Action failed'
+  },
   listing: {
     title: 'arkfgf.com server list',
     viewPage: 'View listing',
@@ -249,6 +279,7 @@ const messages = {
       arkServer: 'ARK Server',
       arkServerLinux: 'ARK server (Linux)',
       arkServerProton: 'ARK server (Proton, ArkApi)',
+      easyTier: 'EasyTier (P2P room)',
       notRequired: 'Not used by any server yet. Downloaded automatically when a server needs it.',
       // Layer information
       layerDetails: 'Layer Details',
@@ -465,6 +496,10 @@ const messages = {
     invalid_listing: 'Invalid listing details',
     not_published: 'The server has not been published to the server list yet',
     publish_unavailable: 'Cannot reach the server list right now',
+    link_not_registered: 'The P2P room is not registered on arkfgf.com yet',
+    link_unavailable: 'Cannot reach arkfgf.com right now',
+    link_request_failed: 'arkfgf.com rejected the request',
+    invalid_steam_id: 'A SteamID must be 17 digits',
     bad_request: 'Invalid request',
     backend_unavailable: 'Backend service unavailable',
     invalid_server_id: 'Invalid server ID',
@@ -819,6 +854,26 @@ const messages = {
       owned: 'This server is managed by an owner account on arkfgf.com',
       invalid_input: 'The published data was rejected'
     },
+    link: 'P2P room',
+    linkStates: {
+      disabled: 'The connection to arkfgf.com is turned off for this manager (ARKFGF_API)',
+      waiting: 'Preparing',
+      online: 'Online',
+      offline: 'Offline (server not running)',
+      error: 'Error, retrying automatically'
+    },
+    linkView: 'View',
+    linkErrors: {
+      network: 'Cannot reach arkfgf.com, retrying later',
+      rate_limited: 'Too many requests, retrying later',
+      busy: 'arkfgf.com is busy, retrying later',
+      too_many_rooms: 'Too many rooms registered from this public IP',
+      invalid_token: 'The room no longer exists on the website; registering again',
+      invalid_input: 'The room details were rejected',
+      node_error: 'The P2P node (EasyTier container) failed',
+      image_error: 'Failed to check or download the EasyTier image',
+      local_error: 'Failed to save the room details'
+    },
     serverBuild: 'Server build',
     buildProton: 'Proton (ArkApi)',
     buildLinux: 'Linux',
@@ -1134,7 +1189,8 @@ const messages = {
       arkapi: 'Enable ArkApi',
       auto_restart: 'Restart after crash',
       auto_update: 'Update on start',
-      publish: 'Publish to arkfgf.com'
+      publish: 'Publish to arkfgf.com',
+      link: 'P2P room'
     },
     fieldHints: {
       session_name: 'The name players see in the server list; spaces and non-Latin characters are fine',
@@ -1147,7 +1203,8 @@ const messages = {
       arkapi: 'Runs the Windows server under GE-Proton so ArkApi plugins can load. When off, the native Linux server runs and uses fewer resources.',
       auto_restart: 'Docker restarts the game process if it exits unexpectedly',
       auto_update: 'Validates the game and re-downloads mods before every start; starting takes longer',
-      publish: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address) The list checks the query port from the internet every 30 minutes, so the port must be open (UDP); a stopped server shows as offline after the next check. Turning this off removes the server from the list right away'
+      publish: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address) The list checks the query port from the internet every 30 minutes, so the port must be open (UDP); a stopped server shows as offline after the next check. Turning this off removes the server from the list right away',
+      link: 'No public IP needed: registers a room on arkfgf.com and players join through the ARKFGF Link client over a direct peer-to-peer connection. Only players whose network can establish a direct P2P connection to the server can join (nothing is relayed). The P2P node (an EasyTier container) runs while the server is joinable and stops with it. Turning this off removes the room right away'
     },
     params: {
       ServerPassword: 'Join password',

@@ -1640,6 +1640,208 @@ const docTemplate = `{
                 }
             }
         },
+        "/servers/{id}/link/bans/{steam_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "代理 arkfgf.com 的 DELETE /link/rooms/:id/bans/:steam_id",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "解除联机房封禁",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "玩家的 SteamID64",
+                        "name": "steam_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已解封",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "SteamID 无效或网站拒绝",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "联机房还没有登记",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "无法连接 arkfgf.com",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/link/kick": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "吊销玩家的凭证（下一次心跳时在节点里吊销，3 秒内断开），ban 为 true 时同时封禁",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "踢出联机房成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "玩家和是否封禁",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LinkKickRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已踢出",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "SteamID 无效或网站拒绝",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "联机房还没有登记",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "无法连接 arkfgf.com",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/link/members": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "代理 arkfgf.com 的 GET /link/rooms/:id/members（房间令牌认证）：当前持有未吊销凭证的玩家和封禁列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "服务器管理"
+                ],
+                "summary": "联机房成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成员和封禁列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.LinkMembers"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "联机房还没有登记",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "无法连接 arkfgf.com",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/servers/{id}/logs": {
             "get": {
                 "security": [
@@ -3388,6 +3590,101 @@ const docTemplate = `{
                 }
             }
         },
+        "models.LinkBan": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "banned_at": {
+                    "description": "网站返回的时间，原样转发"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "steam_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.LinkKickRequest": {
+            "type": "object",
+            "required": [
+                "steam_id"
+            ],
+            "properties": {
+                "ban": {
+                    "description": "同时封禁",
+                    "type": "boolean"
+                },
+                "steam_id": {
+                    "description": "玩家的 SteamID64",
+                    "type": "string"
+                }
+            }
+        },
+        "models.LinkMember": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "credential_id": {
+                    "type": "string"
+                },
+                "joined_at": {
+                    "description": "网站返回的时间，原样转发"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "steam_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.LinkMembers": {
+            "type": "object",
+            "properties": {
+                "bans": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.LinkBan"
+                    }
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.LinkMember"
+                    }
+                }
+            }
+        },
+        "models.LinkStatus": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "错误详情（中文）",
+                    "type": "string"
+                },
+                "error_code": {
+                    "description": "网站返回的错误码，或 network / node_error / image_error",
+                    "type": "string"
+                },
+                "retry_at": {
+                    "description": "请求失败后下一次重试的时间",
+                    "type": "string"
+                },
+                "room_url": {
+                    "description": "网站上的房间页面",
+                    "type": "string"
+                },
+                "state": {
+                    "description": "见 Link* 常量",
+                    "type": "string"
+                }
+            }
+        },
         "models.ListingProfile": {
             "type": "object",
             "properties": {
@@ -3782,6 +4079,10 @@ const docTemplate = `{
                     "description": "配置文件内容（可选）",
                     "type": "string"
                 },
+                "link": {
+                    "description": "P2P 联机房，默认关闭",
+                    "type": "boolean"
+                },
                 "listing": {
                     "description": "收录资料（可选）",
                     "allOf": [
@@ -3885,6 +4186,18 @@ const docTemplate = `{
                 "last_error": {
                     "description": "最近一次启停失败的原因",
                     "type": "string"
+                },
+                "link": {
+                    "description": "P2P 联机房",
+                    "type": "boolean"
+                },
+                "link_status": {
+                    "description": "联机房状态，未开启联机房时为空",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.LinkStatus"
+                        }
+                    ]
                 },
                 "listing": {
                     "description": "收录资料：简介、标签、QQ 群、Discord",
@@ -3991,6 +4304,10 @@ const docTemplate = `{
                 "game_user_settings": {
                     "description": "配置文件内容（可选）",
                     "type": "string"
+                },
+                "link": {
+                    "description": "P2P 联机房，立即生效",
+                    "type": "boolean"
                 },
                 "listing": {
                     "description": "收录资料，传了就整体替换；运行中的服务器会重新发布",

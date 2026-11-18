@@ -22,6 +22,7 @@ import (
 var managedImages = []string{
 	utils.ArkServerLinuxImage,
 	utils.ArkServerProtonImage,
+	utils.EasyTierImage,
 }
 
 // ServerService 服务器管理业务逻辑服务
@@ -133,6 +134,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		AutoUpdate:    req.AutoUpdate != nil && *req.AutoUpdate,
 		ArkApi:        req.ArkApi != nil && *req.ArkApi,
 		Publish:       req.Publish != nil && *req.Publish,
+		Link:          req.Link != nil && *req.Link,
 		UserID:        userID,
 	}
 	if req.Listing != nil {
@@ -490,6 +492,10 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	if req.Publish != nil {
 		server.Publish = *req.Publish
 	}
+	// 联机房开关同样立即生效：打开后登记房间，关闭后下架并删除节点容器
+	if req.Link != nil {
+		server.Link = *req.Link
+	}
 	listingChanged := false
 	if req.Listing != nil {
 		listing, err := normalizeListing(*req.Listing)
@@ -555,8 +561,10 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 		}
 	}
 
-	// 保存时不写 status / last_error：读取之后启停协程可能已经改了它们，整行写回会把状态覆盖成旧值
-	if err := database.DB.Omit("Status", "LastError").Save(&server).Error; err != nil {
+	// 保存时不写 status / last_error：读取之后启停协程可能已经改了它们，整行写回会把状态覆盖成旧值。
+	// 联机房的令牌等字段由后台的 LinkManager 写入，同样不能用读取时的旧值覆盖
+	if err := database.DB.Omit("Status", "LastError", "LinkToken", "LinkRoomID", "LinkNetworkName", "LinkNetworkSecret", "LinkRPCPort").
+		Save(&server).Error; err != nil {
 		return nil, false, fmt.Errorf("服务器更新失败: %w", err)
 	}
 	// 重新读取，响应里的状态要和数据库一致
@@ -650,6 +658,8 @@ func (s *ServerService) DeleteServer(userID uint, serverID string, deleteData bo
 	// 删除服务器关联的定时任务
 	database.DB.Where("server_id = ?", server.ID).Delete(&models.Schedule{})
 	runtimeMonitor.Forget(server.ID)
+	// 联机房节点容器（正常情况下停服时已经删除）；网站上的房间由 LinkManager 下架
+	removeLinkContainer(server.ID)
 
 	if deleteData {
 		var errs []error

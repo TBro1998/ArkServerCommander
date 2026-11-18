@@ -71,7 +71,7 @@ Windows 上用 PowerShell 运行 `.\dev.ps1`（执行策略不允许时 `powersh
 - `PUBLIC_HOST`：玩家连接用的公网地址（IP 或域名）；为空时自动探测公网 IP（ipify / ifconfig.me，缓存 1 小时）
 - `BACKUP_DIR`：存档备份目录（默认数据库所在目录下的 `backups`，镜像内为 `/data/backups`）
 - `HOST_DATA_DIR`：数据目录在宿主机上的绝对路径，可选。ARK 服务器的卷绑定到数据目录下，Docker 需要宿主机路径；为空时后端检查自身容器的挂载自动探测（目标为数据目录的那一项的 Source），探测失败会拒绝启动并提示设置它；后端直接运行在宿主机上时使用数据目录本身
-- `ARKFGF_API`：服务器收录站接口地址（默认 `https://arkfgf.com/api/v1`），设为空或 `off` 时关闭发布功能，见下文"发布到收录站"
+- `ARKFGF_API`：arkfgf.com 接口地址（默认 `https://arkfgf.com/api/v1`），设为空或 `off` 时关闭发布功能和 P2P 联机房，见下文"发布到收录站""P2P 联机房"
 - `GIN_MODE`、`LOG_LEVEL`、`LOG_FORMAT`：Gin 模式和日志配置
 
 前端（Next 服务端）：
@@ -101,16 +101,16 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 分层：controllers（HTTP）→ service（业务）→ docker_manager（Docker SDK）。
 
-- `main.go`：初始化日志、配置、数据库，检查 Docker，启动运行信息监控（`StartRuntimeMonitor`）、定时任务调度（`StartScheduler`）、Mod 更新检查（`StartModUpdateChecker`）和收录站发布（`StartPublisher`），注册 CORS 和路由
+- `main.go`：初始化日志、配置、数据库，检查 Docker，启动运行信息监控（`StartRuntimeMonitor`）、定时任务调度（`StartScheduler`）、Mod 更新检查（`StartModUpdateChecker`）、收录站发布（`StartPublisher`）和 P2P 联机房（`StartLinkManager`），注册 CORS 和路由
 - `config/`：环境变量读取，JWT 密钥加载（环境变量优先，否则读取或生成 `jwt_secret` 文件）
 - `controllers/{auth,servers,images,system}/`：请求处理。`servers/errors.go` 的 `RespondServiceError` 用 `errors.Is` 把服务层错误映射为 HTTP 状态码，响应带 `error`（中文详情）和 `code`（错误码，见 `service/server/errors.go` 的 `errorCodes`）。`auth/ratelimit.go` 是登录失败限流
-- `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`mods.go`（Mod 安装状态和更新检查，后台每 30 分钟）、`plugins.go`（ArkApi 插件）、`arkapi.go`（ArkApi 版本库和安装）、`images.go`（启动时自动拉取镜像、哪些镜像是必需的）、`gamelog.go`（读取 ShooterGame.log）、`server_config.go`（配置导出、导入、复制到其他服务器）、`config_values.go`（`SetConfigValues`）、`clusters.go`（未使用的集群）、`version.go`（GitHub 最新版本）、`publish.go`（发布到 arkfgf.com 收录站）、`response.go`（`toResponse`）
-- `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行 python3 脚本）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）、`docker_seed.go`（检查和复制服务端文件）、`localfs.go`（`copyTree`，相当于 `cp -a`）、`installed_mods.go`（读写 `.installed_mods`）、`clusters.go`（列出和删除集群卷）、`storage.go`（数据目录布局，`ServerFilesDir` 等返回后端本地路径。卷里的所有文件操作——配置文件、备份导出恢复、安装标记、复制服务端文件、插件、Mod 记录、游戏日志——都直接读写这些目录，不再用临时容器，也不需要 alpine 镜像；目录内容由 ARK 容器写入，访问时用 `os.Root`，符号链接不能指到目录外）
+- `service/server/`：服务器生命周期和镜像管理。`errors.go` 定义哨兵错误和错误码，不要再用 `err.Error() == ...` 比较字符串；`managedImages` 是允许拉取和更新的镜像白名单。其他文件：`operations.go`（重启、更新游戏、日志、RCON、玩家）、`runtime.go`（运行信息监控）、`backup.go`、`schedule.go`、`system.go`（概览、公网地址、端口建议、创意工坊查询）、`mods.go`（Mod 安装状态和更新检查，后台每 30 分钟）、`plugins.go`（ArkApi 插件）、`arkapi.go`（ArkApi 版本库和安装）、`images.go`（启动时自动拉取镜像、哪些镜像是必需的）、`gamelog.go`（读取 ShooterGame.log）、`server_config.go`（配置导出、导入、复制到其他服务器）、`config_values.go`（`SetConfigValues`）、`clusters.go`（未使用的集群）、`version.go`（GitHub 最新版本）、`publish.go`（发布到 arkfgf.com 收录站）、`link.go`（P2P 联机房）、`profile.go`（发布和联机房共用的服务器资料 `buildServerProfile`）、`arkfgf.go`（arkfgf.com 的 JSON 请求、错误码和 Retry-After）、`response.go`（`toResponse`）
+- `service/docker_manager/`：容器、镜像、卷操作、`RollbackManager`（LIFO 回滚栈），`docker_config.go`（卷内配置文件读写）、`docker_exec.go`（容器内执行命令 `ExecCommand`，返回 stdout / stderr / 退出码；`execPython` 基于它）、`docker_link.go`（联机房节点容器的创建、检查、删除、列出，数据目录 `servers/<id>/link`）、`docker_rcon.go`（RCON）、`docker_a2s.go`（查询端口 A2S_INFO）、`docker_logs.go`（日志）、`docker_stats.go`（CPU/内存、卷大小）、`docker_backup.go`（存档导出导入、清除安装标记）、`docker_seed.go`（检查和复制服务端文件）、`localfs.go`（`copyTree`，相当于 `cp -a`）、`installed_mods.go`（读写 `.installed_mods`）、`clusters.go`（列出和删除集群卷）、`storage.go`（数据目录布局，`ServerFilesDir` 等返回后端本地路径。卷里的所有文件操作——配置文件、备份导出恢复、安装标记、复制服务端文件、插件、Mod 记录、游戏日志——都直接读写这些目录，不再用临时容器，也不需要 alpine 镜像；目录内容由 ARK 容器写入，访问时用 `os.Root`，符号链接不能指到目录外）
 - `middleware/`：`auth.go`（JWT 校验）、`cors.go`（白名单 CORS）
 - `mcpserver/`：MCP 服务（官方 `github.com/modelcontextprotocol/go-sdk`），见下文"MCP 接口"
 - `service/apitoken/`：MCP 用的 API 令牌（创建、列出、撤销、校验），`controllers/auth/tokens.go` 是对应接口
 - `models/`：GORM 模型 User、Server、Schedule，以及请求和响应结构。`ServerResponse` 不包含管理员密码，`image_outdated` 表示容器用的不是服务器当前应使用的镜像（镜像更新过或切换了 ArkApi），`arkapi` 决定镜像，`image` 是由它得出的镜像名，`runtime` 是运行中服务器的实时信息（阶段、人数、资源），`mods_outdated` 是创意工坊上有更新的 Mod。注意：带 `default:true` 的 bool 字段（`AutoRestart`、`Schedule.Enabled`）创建时 GORM 会把 false 换成 true，需要创建后显式写回
-- `utils/`：日志、JWT、密码、命名和镜像名常量（`asm_info.go`，`ArkServerLinuxImage` / `ArkServerProtonImage`，`ArkServerImageFor(arkApi)` 选镜像）、配置文件模板（`config_files.go`）、版本号（`version.go`，构建时用 `-ldflags -X ark-server-commander/utils.Version=` 注入，默认 `dev`）
+- `utils/`：日志、JWT、密码、命名和镜像名常量（`asm_info.go`，`ArkServerLinuxImage` / `ArkServerProtonImage`，`ArkServerImageFor(arkApi)` 选镜像，联机房节点容器名 `GetLinkContainerName` 和镜像 `EasyTierImage`）、配置文件模板（`config_files.go`）、版本号（`version.go`，构建时用 `-ldflags -X ark-server-commander/utils.Version=` 注入，默认 `dev`）
 - `docs/`：swag 生成的 Swagger 文件，不要手改
 
 ### API 路由（均以 `/api` 开头）
@@ -120,7 +120,8 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - MCP：`POST /mcp`（API 令牌认证，不接受 JWT；无状态模式下 GET / DELETE 返回 405）
 - 服务器：`GET|POST /servers`、`GET|PUT|DELETE /servers/:id`（`?delete_data=true` 同时删卷和备份）、`POST /servers/:id/start|stop|restart|recreate`、`POST /servers/:id/update-game`（`{game, mods, mod_ids}`）、`GET /servers/:id/rcon`（管理员密码）
 - 配置：`GET /servers/:id/config/export`（导出，不含端口和管理员密码）、`POST /servers/:id/config/import`（`{config, parts}`）、`POST /servers/:id/config/copy`（`{target_ids, parts}`，逐台返回结果），见下文"配置导入导出"
-- 运维：`GET /servers/:id/logs?tail=`、`GET /servers/:id/logs/stream`（SSE）、`GET /servers/:id/logs/game?tail=`（ShooterGame.log）、`POST /servers/:id/rcon/command`、`GET /servers/:id/players`、`GET /servers/:id/mods?refresh=`（Mod 安装和更新状态）
+- 运维：`GET /servers/:id/logs?tail=`、`GET /servers/:id/logs/stream`（SSE）、`GET /servers/:id/logs/game?tail=`（ShooterGame.log）、`POST /servers/:id/rcon/command`、`GET /servers/:id/players`、`GET /servers/:id/mods?refresh=`（Mod 安装和更新状态）、`GET /servers/:id/publish/stats`（收录站访问统计）
+- 联机房：`GET /servers/:id/link/members`、`POST /servers/:id/link/kick`（`{steam_id, ban}`）、`DELETE /servers/:id/link/bans/:steam_id`，见下文"P2P 联机房"
 - 插件：`GET|POST /servers/:id/plugins`（multipart `file`，可选 `name`）、`PUT|DELETE /servers/:id/plugins/:name`（`{enabled}`）、`GET|PUT /servers/:id/plugins/:name/config`、`GET|PUT /servers/:id/arkapi/config`（`{content}`）、`POST /servers/:id/arkapi/install`（`{version}`，为空装最新版本）
 - ArkApi 版本库：`GET /arkapi/versions`（`?refresh=true` 重新查询 GitHub）、`POST /arkapi/versions`（multipart `file`，可选 `version`）、`DELETE /arkapi/versions/:version`
 - 备份：`GET|POST /servers/:id/backups`、`POST /servers/:id/backups/upload`（multipart `file`）、`GET|DELETE /servers/:id/backups/:name`、`POST /servers/:id/backups/:name/restore`
@@ -171,6 +172,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - 数据卷：`ase-server-<server_id>`
 - 插件卷：`ase-server-plugins-<server_id>`
 - 服务端文件卷：名称见 `utils.GetServerFilesVolumeName`
+- P2P 联机房节点容器：`ase-link-<server_id>`（镜像 `easytier/easytier:v2.6.4`，见下文"P2P 联机房"）
 - 镜像：`tbro98/ase-server:linux`（原生 Linux 版服务端，默认）和 `tbro98/ase-server:proton`（GE-Proton 运行 Windows 版，`arkapi` 为 true 的服务器用），子模块 `ASE-Server-Docker` 的同一个 dockerfile 用 `--target linux|proton` 构建，入口脚本按 `SERVER_PLATFORM` 区分。`latest` 不再更新，停在最后一个自带 ArkApi 的版本，留给旧版管理端
 
 卷是绑定到数据目录的命名卷（local 驱动，`type=none, o=bind`，见 `docker_manager/storage.go`、`docker_volume.go`）：卷名不变，数据实际放在后端容器的 `/data`（宿主机 `./data`）下，宿主机上可以直接管理文件：`servers/<id>/files`（服务端文件）、`servers/<id>/saved`（存档和配置）、`servers/<id>/plugins`（插件）、`clusters/<cluster_id>`（集群共享）。后端启动时 `InitStorage` 确定数据目录的宿主机路径，失败则退出。删除卷不会删除目录里的文件，需要再调用 `RemoveServerDirs`；集群卷在创建容器前由 `EnsureClusterVolume` 建好，否则 Docker 会自动创建一个普通卷。磁盘占用由 `LocalVolumeSizes` 遍历目录统计（Docker 的 DiskUsage 查不到绑定卷的大小），key 仍是卷名。
@@ -194,6 +196,21 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 收录资料（`service/server/listing.go`）：简介（500 字）、标签（8 个，每个 16 字）、QQ 群号、Discord 邀请链接，存在 `servers.listing_*` 列，接口里是 `listing` 对象（创建、更新、MCP 的 create/update_server 都能传，传了就整体替换），详情页"收录站"卡片里编辑。每次发布都带上这四项（空值表示清空；收录站对不带这些字段的旧版请求保持原值）。运行中修改会把发布状态重置，距上次发布至少 1 分钟后重新发布。同一张卡片显示收录站上的访问统计（`GET /api/servers/:id/publish/stats` 代理收录站的 `GET /publish/stats`，用发布令牌认证，缓存 5 分钟；没有令牌时返回 409 `not_published`）和状态徽章的引用代码（HTML / Markdown / BBCode）。
 
+### P2P 联机房
+
+服务器的 `link` 开关（表单"运维"分组"P2P 联机房"，默认关闭，与 `publish` 独立，保存后立即生效）。没有公网 IP 的服主也能让玩家连进来：网站 arkfgf.com 登记房间并运行只做打洞信令的公共 EasyTier 节点，Commander 为每台开了联机房的服务器运行一个 EasyTier 节点容器，玩家用 ARKFGF 联机助手（外层仓库 `ArkServerLink/`）从网站领取一次性凭证加入这个 EasyTier 网络，直连到节点。只直连不中继（`--p2p-only`），打洞失败的玩家连不上。三方接口约定见外层仓库 `docs/p2p-link.md`，改动要和网站、客户端同步。
+
+`service/server/link.go` 的 `LinkManager` 每 15 秒检查一次（`StartLinkManager`，`ARKFGF_API` 为空时只删除残留的节点容器）：
+- 登记：没有令牌或资料变化（`buildLinkRoomProfile`，和发布到收录站共用 `profile.go` 的 `buildServerProfile`：名称、地图、人数、是否有加入密码、PvP、ArkApi、集群、Mod、倍率、收录资料，再加游戏端口、查询端口、虚拟 IP `10.126.126.1`，游戏版本取自 A2S 名称末尾的 `(vxxx)`，停服后沿用上次的值）时 `POST {ARKFGF_API}/link/rooms`（带令牌即更新）。返回的令牌、房间 ID、网络名存在 `servers.link_token` / `link_room_id` / `link_network_name`；`peers` 和房间地址只在内存里，管理端重启后第一轮重新登记拿回来。令牌对不上时网站会新建房间，此时删除节点容器和凭证目录（旧房间的凭证不能留在节点里）
+- 本地参数：`link_network_secret`（32 字节随机数 hex，只在本机）和 `link_rpc_port`（节点 RPC 端口，只监听宿主机 127.0.0.1）第一次处理时生成。RPC 端口 = 20000 + 服务器 ID，和数据库里已知的端口（各服务器的游戏端口、+1、查询、RCON，其他节点的 RPC 端口）冲突时顺延；管理端在容器里，探测不了宿主机上其他程序占用的端口
+- 节点容器 `ase-link-<id>`（镜像 `utils.EasyTierImage` = `easytier/easytier:v2.6.4`，入口就是 `easytier-core`）：服务器 running 且 `runtime.phase` 为 ready 过一次后创建，整个运行期间保留（A2S 偶尔超时不删容器，玩家不掉线），服务器不在运行就删除。宿主机网络、`unless-stopped`、数据目录 `servers/<id>/link/` 挂到 `/data`（凭证文件 `/data/cred.json`）。参数见 `linkNodeArgs`（和约定里服主节点的参数完全一致），标签 `com.arkservercommander.link.hash` 是镜像名 + 参数的 SHA-256，参数（名称、端口、网络名、peers 等）或镜像 ID 变化时重建。镜像不存在时后台自动下载（`ClaimPull`），下载期间节点不启动。其他 `ase-link-*` 容器（关闭了联机房、已删除、没在运行）每轮都会被删除。`ListServerContainers` 只匹配 `ase-server-<id>`，不会把节点当成服务器
+- 心跳 `POST /link/rooms/:id/heartbeat`：在线时每 30 秒、离线时每 60 秒；在线状态变化、有凭证要上传、有吊销要确认、踢人之后（`poke`）提前发。在线 = 服务器 ready（运行中查询不到 2 分钟内仍算在线）且节点容器在运行；人数取运行监控的 A2S 结果。响应的 `want_credentials` 由下一轮在节点里签发（`docker exec` 运行 `easytier-cli -p 127.0.0.1:<rpc> -o json credential generate --ttl 2592000 --credential-id <UUID> --reusable false`，每轮最多 20 个，每次心跳最多上传 50 个，`expires_at` 为 30 天后），`revoke` 由下一轮在节点里 `credential revoke <id>`（输出 `{"success": false}` 表示凭证不存在，也算完成）后随心跳回报 `revoked_ack`。签发和吊销失败只记节点错误，心跳照发；没上传成功的凭证和确认留到下一次。网络名、peers 以心跳响应为准。心跳返回 `invalid_token` / 404 时清空令牌、删除节点和凭证目录，退避后重新登记新房间
+- 下架：关闭联机房或删除服务器（软删除）且有令牌时 `DELETE /link/rooms/:id`，成功（或 `invalid_token` / 404）后删除节点容器和 `servers/<id>/link/`，清空令牌、房间 ID、网络名和网络密钥，失败一直重试。`DeleteServer` 也会顺手删除节点容器
+- 失败按 1、2、4…30 分钟退避，429 / 503 按 `Retry-After`（`arkfgf.go` 的 `arkfgfRequest` 是和发布共用的请求函数）
+- 状态只在内存里，随服务器响应返回 `link_status`（`waiting` / `online` / `offline` / `error` / `disabled`，带 `room_url`，失败时带 `error_code` 和中文 `error`；`error_code` 除了网站的错误码还有 `network`、`node_error`、`image_error`、`local_error`）
+
+接口 `GET /api/servers/:id/link/members`、`POST /api/servers/:id/link/kick`（`{steam_id, ban}`）、`DELETE /api/servers/:id/link/bans/:steam_id` 用房间令牌代理到网站的同名接口（没有令牌 409 `link_not_registered`，连不上 502 `link_unavailable`，网站返回 400 / 404 / 409 / 422 时 400 `link_request_failed`，SteamID 不是 17 位数字 400 `invalid_steam_id`）。踢人后网站把凭证放进下一次心跳的 `revoke`，所以玩家最多约 30 秒后断开。前端：详情页概览的"联机房"一行显示状态，开启后显示 `LinkCard`（房间链接、加入方式说明、成员的踢出 / 封禁、封禁列表的解封，都有确认弹窗）。
+
 ### 存档备份
 
 备份放在 `BACKUP_DIR/<server_id>/<时间>_<类型>.tar.gz`（类型：manual / scheduled / pre-restore / uploaded，时间按 `CONTAINER_TZ`），归档内是 `Saved/`（跳过 `Logs` 和 `clusters`）。运行中备份先 RCON `SaveWorld`。恢复只能在已停止时进行：先自动做 pre-restore 备份，占位为 stopping，直接在数据目录里清空 `SavedArks` 和 `Config` 再解压（逐项检查路径，只写普通文件和目录），清除暂存配置。上传的归档要通过 `ValidateBackup`（gzip、只允许 `Saved/` 下的普通文件和目录、必须有 `SavedArks`）。同一服务器的备份 / 恢复由 `backupLocks` 串行化
@@ -206,7 +223,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 1. **检查更新**：`CheckImageUpdate` 用 `DistributionInspect` 取镜像仓库中该标签的 manifest digest，与本地镜像的 `RepoDigests` 比较，不下载镜像层。结果记录在内存中，由 `/images/status` 的 `has_update` 返回，拉取成功后清除。本地构建、没有 `RepoDigests` 的镜像会一直显示有更新
 2. **更新**：先用 `ClaimPull` 原子占用拉取权（并发请求返回 409），再后台拉取新镜像，失败原因记录在镜像状态的 `error` 字段并显示在首页；拉取成功且镜像 ID 变化时会清理被替换的旧镜像（不强删，仍被容器引用时只记日志），拉取进度流中的 `error` 会被当作失败。已停止的服务器在下次启动时自动重建；`restart_running` 为 true 时，运行中且镜像已过期的服务器会依次经过 stopping → stopped → starting，启动时重建容器
-3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记。`/images/affected` 和 `restart_running` 只涉及使用该镜像的服务器。`/images/status` 里每个镜像带 `required`：ARK 镜像只有在服务器用到时才算（没有服务器时算 Linux 版），`any_not_ready` 只看需要的镜像。创建和启动服务器不依赖任何镜像就绪（ARK 镜像启动时自动拉取），所以前端不再根据镜像状态禁用启动 / 创建按钮。`alpine:latest` 已不再使用，也不在管理的镜像里
+3. 前端：首页"镜像管理"检查更新，点击"更新"先请求 `/images/affected`，再弹出 `ImageUpdateConfirmModal` 选择是否重启运行中的服务器；服务器卡片根据 `image_outdated` 显示"旧镜像"标记。`/images/affected` 和 `restart_running` 只涉及使用该镜像的服务器。`/images/status` 里每个镜像带 `required`：ARK 镜像只有在服务器用到时才算（没有服务器时算 Linux 版），EasyTier 镜像只有在有服务器开启联机房时才算（更新它之后，运行中的联机房节点在下一轮按新镜像重建），`any_not_ready` 只看需要的镜像。创建和启动服务器不依赖任何镜像就绪（ARK 镜像启动时自动拉取），所以前端不再根据镜像状态禁用启动 / 创建按钮。`alpine:latest` 已不再使用，也不在管理的镜像里
 
 ### 配置文件
 
@@ -254,7 +271,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ## 测试
 
-测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`localfs_test.go`（配置文件读写、备份导出恢复、检查和复制服务端文件）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`、`KeepIniKeys`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）、`server/service/apitoken/apitoken_test.go`（令牌生成、校验、撤销）、`server/mcpserver/mcpserver_test.go`（用 SDK 客户端走真实 HTTP：令牌认证、只读令牌的工具过滤、错误码）、`server/service/server/publish_test.go`（每次可以连接只发布一次、宽限期、停服不发请求、关闭发布和删除后取消发布、退避和 Retry-After，用 httptest 模拟收录站）、`server/service/server/server_config_test.go`（配置导出去掉密码、复制时保留目标的名称端口密码、按部分应用、运行中暂存）。启停流程、RCON、配置暂存和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
+测试覆盖率仍然较低：`server/service/docker_manager/rollback_test.go`、`docker_image_test.go`（`ClaimPull` 并发占用、拉取进度消息解析）、`docker_backup_test.go`（备份格式校验、CPU 计算）、`localfs_test.go`（配置文件读写、备份导出恢复、检查和复制服务端文件）、`server/config/config_test.go`（JWT 密钥生成和复用）、`server/models/server_args_test.go`（启动参数顺序确定）、`server/service/server/server_service_test.go`（端口冲突、保存不覆盖状态、端口建议、禁用的定时任务，使用临时 SQLite）、`parse_test.go`（运行阶段、ListPlayers 解析、字段规范化、定时任务校验）、`server/controllers/auth/ratelimit_test.go`、`server/utils/ini_test.go`（`SetIniValue`、`KeepIniKeys`）、`config_files_test.go`（默认模板的 section）、`installed_mods_test.go`、`plugins_test.go`（zip 识别、覆盖安装、启停删除）、`arkapi_test.go`（版本比较、压缩包根目录识别、安装保留配置、自动安装、版本库上传删除）、`gamelog_test.go`（UTF-8 / UTF-16 尾部读取）、`version_test.go`（版本比较）、`server/service/apitoken/apitoken_test.go`（令牌生成、校验、撤销）、`server/mcpserver/mcpserver_test.go`（用 SDK 客户端走真实 HTTP：令牌认证、只读令牌的工具过滤、错误码）、`server/service/server/publish_test.go`（每次可以连接只发布一次、宽限期、停服不发请求、关闭发布和删除后取消发布、退避和 Retry-After，用 httptest 模拟收录站）、`server/service/server/server_config_test.go`（配置导出去掉密码、复制时保留目标的名称端口密码、按部分应用、运行中暂存）、`server/service/server/link_test.go`（联机房：登记和令牌保存、资料变化重新登记、在线 / 离线心跳间隔、节点参数、参数或镜像变化时重建、停服删除节点、凭证补充数量和每轮上限、吊销和确认、节点出错、关闭和删除后下架、退避和 Retry-After、令牌失效重新登记、成员接口代理，用 httptest 模拟网站、假的 Docker 操作）、`link_docker_test.go`（默认跳过，`ASC_LINK_DOCKER_TEST=1` 时用真实 Docker 按生成的参数启动 EasyTier 节点，签发和吊销凭证后删除）。启停流程、RCON、配置暂存和前端流程都没有自动化测试。Windows 上 `config_test.go` 的 0600 权限检查会失败（Windows 没有这种权限位），以 Linux 结果为准。本机没有 Go 时，可以用 `docker run --rm -v $PWD/server:/src -w /src golang:1.27-alpine go test ./...` 在容器里跑。
 
 ## 已知问题
 
@@ -275,6 +292,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 - 版本检查依赖访问 `api.github.com`（未认证每小时 60 次，结果缓存 6 小时）
 - MCP 令牌长期有效、权限是整个账户（完全控制或只读两档），没有按服务器限制；MCP 和网页共用对外端口，公网暴露时需要 HTTPS 反向代理，否则令牌明文传输
 - 发布到收录站时，收录站看到的来源 IP 必须就是玩家连接的 IP：出口和入口 IP 不同（多 IP、NAT、代理）的机器会因 A2S 验证失败发布不了；只支持 IPv4
+- P2P 联机房没有在真实服务器上和网站、客户端联调过（只有单元测试和本机 Docker Desktop 上的节点启动、签发 / 吊销凭证）。玩家流量经节点投递到宿主机 `127.0.0.1:<游戏端口>`，再靠 Docker 的端口映射（userland-proxy 或 iptables 对回环地址的 DNAT，需要 `route_localnet` 或 userland-proxy 开启，Docker 默认开启 userland-proxy）到达 ARK 容器，`userland-proxy: false` 的宿主机上可能不通；游戏端口只映射到某个具体 IP 而不是 0.0.0.0 时也不通。节点 RPC 端口 = 20000 + 服务器 ID（冲突时顺延），只避开数据库里已知的端口，被宿主机上其他程序占用时节点起不来（状态显示 `node_error`）。所有玩家的流量在 ARK 看来都来自同一个地址（本机回环 / Docker 网关），按 IP 的封禁和统计不可用。凭证在节点的 `cred.json` 和网站各有一份，管理端重启时内存里还没上传的凭证会丢失（只是浪费，30 天后过期）
 - `GetServers` 现在一次 `ContainerList` 取状态，依赖容器名匹配 `ase-server-<id>`；`GetImageStatus` 的 `overall_status` 是状态码（`ready` / `pulling` / `not_ready`）
 
 ## 故障排除

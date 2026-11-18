@@ -83,6 +83,8 @@ func main() {
 	server.StartModUpdateChecker()
 	// 开启"发布到收录站"的服务器可以连接后自动发布到 arkfgf.com
 	server.StartPublisher()
+	// 开启"P2P 联机房"的服务器在 arkfgf.com 登记房间，可以连接时运行 EasyTier 节点容器
+	server.StartLinkManager()
 
 	// 创建Gin实例
 	r := gin.Default()

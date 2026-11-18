@@ -46,6 +46,10 @@ var (
 	ErrInvalidListing      = errors.New("收录资料无效")
 	ErrNotPublished        = errors.New("服务器还没有发布到收录站")
 	ErrPublishUnavailable  = errors.New("暂时无法连接收录站")
+	ErrLinkNotRegistered   = errors.New("联机房还没有在 arkfgf.com 登记，请先开启 P2P 联机房并等待登记完成")
+	ErrLinkUnavailable     = errors.New("暂时无法连接 arkfgf.com")
+	ErrLinkRequestFailed   = errors.New("arkfgf.com 拒绝了请求")
+	ErrInvalidSteamID      = errors.New("SteamID 应为 17 位数字")
 )
 
 // errorCodes 错误码，前端据此显示对应语言的提示；中文界面直接显示 error 字段（包含具体细节）
@@ -90,6 +94,10 @@ var errorCodes = []struct {
 	{ErrInvalidListing, "invalid_listing"},
 	{ErrNotPublished, "not_published"},
 	{ErrPublishUnavailable, "publish_unavailable"},
+	{ErrLinkNotRegistered, "link_not_registered"},
+	{ErrLinkUnavailable, "link_unavailable"},
+	{ErrLinkRequestFailed, "link_request_failed"},
+	{ErrInvalidSteamID, "invalid_steam_id"},
 	{ErrClusterInUse, "cluster_in_use"},
 }
 
