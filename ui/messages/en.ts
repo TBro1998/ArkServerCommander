@@ -700,6 +700,16 @@ const messages = {
 
   // Detail page "Manage" tab
   manage: {
+    toggleSaved: 'Saved. Takes effect on the next start',
+    toggleFailed: 'Failed to save',
+    auto_restart: {
+      title: 'Restart after crash',
+      desc: 'Docker restarts the game process if it exits unexpectedly. Takes effect on the next start (the container is recreated).'
+    },
+    auto_update: {
+      title: 'Update on start',
+      desc: 'Validates the game and re-downloads mods before every start; starting takes longer. Takes effect on the next start.'
+    },
     maintenance: 'Maintenance',
     update: 'Update…',
     updateDesc: 'Validate and update the server files and re-download mods. Use it when players get a version mismatch; the server starts afterwards.',
@@ -851,7 +861,6 @@ const messages = {
     none: 'None',
     autoRestart: 'Restart on crash',
     autoUpdate: 'Update on start',
-    publish: 'Server list',
     publishStates: {
       disabled: 'Publishing is turned off for this manager (ARKFGF_API)',
       waiting: 'Waiting until the server is joinable',
@@ -869,7 +878,6 @@ const messages = {
       owned: 'This server is managed by an owner account on arkfgf.com',
       invalid_input: 'The published data was rejected'
     },
-    link: 'P2P room',
     linkStates: {
       disabled: 'The connection to arkfgf.com is turned off for this manager (ARKFGF_API)',
       waiting: 'Preparing',
@@ -889,6 +897,17 @@ const messages = {
       image_error: 'Failed to check or download the EasyTier image',
       local_error: 'Failed to save the room details'
     },
+    external: 'arkfgf.com',
+    externalDesc: 'Services provided by the arkfgf.com website. They are not game settings; changes take effect right away without restarting the server.',
+    publishSwitch: 'Publish to the server list',
+    publishHint: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address). The list checks the query port from the internet every 30 minutes, so the port must be open (UDP); a stopped server shows as offline after the next check. Turning this off removes the server from the list right away',
+    linkSwitch: 'P2P room',
+    linkHint: 'No public IP needed: adds the server to this Commander’s room on arkfgf.com, and players join through the ARKFGF Link client over a direct peer-to-peer connection. Only players whose network can establish a direct P2P connection to the server can join (nothing is relayed). Every server with this turned on is in the same room, so joining once gives players access to all of them. The P2P node (an EasyTier container) runs while any of these servers is joinable and stops when all of them are stopped. Turning this off takes the server out of the room; the room is removed once no server has it on',
+    publishOnToast: 'Publishing to the server list',
+    publishOffToast: 'Publishing turned off; the listing will be removed',
+    linkOnToast: 'Added to the P2P room',
+    linkOffToast: 'Removed from the P2P room',
+    toggleFailed: 'Failed to save',
     serverBuild: 'Server build',
     buildProton: 'Proton (ArkApi)',
     buildLinux: 'Linux',
@@ -1161,7 +1180,7 @@ const messages = {
       breeding: { title: 'Breeding', desc: 'Mating, hatching, maturation and imprinting' },
       structures: { title: 'Structures', desc: 'Structure strength, limits, pickup, decay and platforms' },
       tribes: { title: 'Tribes & PvP', desc: 'Tribes and alliances, friendly fire, respawn and offline protection' },
-      operations: { title: 'Operations', desc: 'Runtime, autosave, logging and other server options' },
+      operations: { title: 'Operations', desc: 'Autosave, logging and other server options' },
       advanced: { title: 'Advanced', desc: 'Anti-cheat, performance tuning, custom launch arguments and raw config files' }
     },
     sections: {
@@ -1175,7 +1194,7 @@ const messages = {
       breeding: { speed: 'Breeding speed', imprint: 'Cuddling & imprinting' },
       structures: { general: 'General', limits: 'Building limits', pickup: 'Pickup', decay: 'Decay', platforms: 'Platforms & vehicles' },
       tribes: { tribes: 'Tribes & alliances', combat: 'Combat', respawn: 'PvP respawn interval', offline: 'Offline protection' },
-      operations: { runtime: 'Runtime', saves: 'Saves', logs: 'Logging & admin', misc: 'Other' },
+      operations: { saves: 'Saves', logs: 'Logging & admin', misc: 'Other' },
       advanced: { antiCheat: 'Anti-cheat', performance: 'Performance', otherArgs: 'Other launch arguments', customArgs: 'Custom launch arguments', rawConfig: 'Config files' }
     },
     sectionHints: {
@@ -1200,12 +1219,7 @@ const messages = {
       query_port: 'Query port',
       rcon_port: 'RCON port',
       game_mod_ids: 'Mods',
-      cluster_id: 'Cluster ID',
-      arkapi: 'Enable ArkApi',
-      auto_restart: 'Restart after crash',
-      auto_update: 'Update on start',
-      publish: 'Publish to arkfgf.com',
-      link: 'P2P room'
+      cluster_id: 'Cluster ID'
     },
     fieldHints: {
       session_name: 'The name players see in the server list; spaces and non-Latin characters are fine',
@@ -1214,12 +1228,7 @@ const messages = {
       query_port: 'Used by the Steam server list',
       rcon_port: 'Used for remote administration',
       game_mod_ids: 'Workshop mod IDs or links, separated by commas. Mod names appear below and can be dragged to change load order',
-      cluster_id: 'Servers with the same cluster ID can transfer survivors, dinos and items (shared cluster storage). Letters, digits, _ . - only',
-      arkapi: 'Runs the Windows server under GE-Proton so ArkApi plugins can load. When off, the native Linux server runs and uses fewer resources.',
-      auto_restart: 'Docker restarts the game process if it exits unexpectedly',
-      auto_update: 'Validates the game and re-downloads mods before every start; starting takes longer',
-      publish: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address) The list checks the query port from the internet every 30 minutes, so the port must be open (UDP); a stopped server shows as offline after the next check. Turning this off removes the server from the list right away',
-      link: 'No public IP needed: adds the server to this Commander’s room on arkfgf.com, and players join through the ARKFGF Link client over a direct peer-to-peer connection. Only players whose network can establish a direct P2P connection to the server can join (nothing is relayed). Every server with this turned on is in the same room, so joining once gives players access to all of them. The P2P node (an EasyTier container) runs while any of these servers is joinable and stops when all of them are stopped. Turning this off takes the server out of the room; the room is removed once no server has it on'
+      cluster_id: 'Servers with the same cluster ID can transfer survivors, dinos and items (shared cluster storage). Letters, digits, _ . - only'
     },
     params: {
       ServerPassword: 'Join password',
@@ -1521,7 +1530,6 @@ const messages = {
   serverForm: {
     unsaved: 'Unsaved changes',
     saveShortcut: 'Save (Ctrl+S)',
-    arkapiSwitchHint: 'Takes effect on the next start: the container is recreated with the other image and the server binaries for that platform are downloaded. Saves, configs and mods are kept.',
     passwordHint: 'Used for in-game admin commands (enablecheats) and RCON',
     passwordKeepHint: 'Leave empty to keep the current password',
     passwordKeepPlaceholder: 'Leave empty to keep unchanged',

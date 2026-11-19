@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { Loader2, Dices, Save, Plus, RotateCw, ExternalLink, Search, X, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapSelector } from '@/components/servers/MapSelector';
 import { ModList, WORKSHOP_BROWSE_URL, isValidModIds, normalizeModIds } from '@/components/servers/ModList';
@@ -146,8 +145,18 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
       showGroup(FIELD_GROUP[firstError] ?? 'general');
       return;
     }
+    // 收录站、联机房、ArkApi、自动重启和自动更新不在这个表单里编辑（在详情页切换），编辑时不提交，
+    // 免得覆盖别处的修改；只有导入配置改了它们时才提交。新建时照常提交（导入配置可能带了这些值）
+    const rest = { ...form };
+    delete rest.publish;
+    delete rest.link;
+    if (mode === 'edit') {
+      for (const key of ['arkapi', 'auto_restart', 'auto_update'] as const) {
+        if (form[key] === initial[key]) delete rest[key];
+      }
+    }
     const data: Partial<Server> = {
-      ...form,
+      ...rest,
       cluster_id: form.cluster_id?.trim() ?? '',
       game_mod_ids: normalizeModIds(form.game_mod_ids ?? ''),
       server_args: form.server_args && {
@@ -300,23 +309,6 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
             )}
           </SettingTile>
         );
-      case 'arkapi':
-      case 'auto_restart':
-      case 'auto_update':
-      case 'publish':
-      case 'link': {
-        const fallback = key === 'auto_restart';
-        const switchHint =
-          key === 'arkapi' && mode === 'edit' && (form.arkapi ?? false) !== (initial.arkapi ?? false) ? (
-            <span className="mt-1 block text-xs text-amber-800">{t('arkapiSwitchHint')}</span>
-          ) : null;
-        return (
-          <SettingTile {...common} inline>
-            <Switch id={common.htmlFor} checked={form[key] ?? fallback} onCheckedChange={(v) => setField(key, v)} />
-            {switchHint}
-          </SettingTile>
-        );
-      }
       default:
         return null;
     }

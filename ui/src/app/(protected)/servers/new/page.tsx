@@ -26,8 +26,6 @@ const DEFAULTS: Partial<Server> = {
   game_mod_ids: '',
   auto_restart: true,
   auto_update: false,
-  publish: false,
-  link: false,
 };
 
 // 默认配置文件里写的是默认名称和人数；创建时换成表单里填的值。

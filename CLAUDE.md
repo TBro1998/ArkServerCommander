@@ -142,7 +142,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - 视觉风格（方舟游戏内界面风格的深色 HUD）：根节点固定 `className="dark"`，`globals.css` 定义主题变量（深蓝底色、半透明面板 `--card`、青色 `--primary`、琥珀色 `--amber` 表示进行中、终端底色 `--terminal`）。`@theme` 里把 Tailwind 的 `gray/red/green/amber/yellow/blue/sky/purple/orange` 色阶整体**反转**：数字小的是深色背景色调，数字大的是浅色文字，所以 `bg-red-50 text-red-800` 这类写法在深色下自然是"深红底 + 浅红字"。新代码照此约定：背景用 50–200，图标和圆点用 400–600，文字用 600–900；不要用 `bg-white`、`text-gray-200` 这类按浅色主题思路写的类。自定义工具类（用 `@utility` 定义，可以加变体前缀）：`hud`（左上、右下青色角标，元素本身要有定位）、`hud-caps`（英文大写加字距，用于导航、标题和主要按钮，中文不受影响）、`glow-text`、`font-display`（Saira，来自 `@fontsource-variable/saira`，本地打包）、`num`（等宽数字）。不使用游戏的图片、Logo 或字体等素材，只借鉴界面风格。状态徽章三种颜色：绿色可用、琥珀色进行中、石色已停止
 - 地图颜色：`lib/maps.ts` 的 `mapColor` 给每张地图一个固定颜色，服务器卡片、详情页顶部（`MapBand`，停止时变灰）、首页名单和地图选择器都用它；`hooks/use-map-name.ts` 取地图显示名
 - 公共组件：`PageHeader`（页面标题行）、`AuthShell`（登录 / 初始化外框，含 `FormError`）、`Wordmark`、`components/ui/page-loader.tsx`（统一加载状态）；`TabsList variant="line"` 用于页面级标签（详情页、服务器表单）
-- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`（卡片视图，含共用的 `MapBand`、`ServerTags`）、`ServerRow`（列表视图的一行和表头，列宽固定在 `ROW_GRID`）、`ServerActions`（`useServerControls` 管理启停、重启、更新、重建、删除和这些确认弹窗，调用方渲染 `controls.dialogs`；`PowerButtons` 启停和重启，`ServerShortcuts` 控制台 / 日志 / 编辑设置图标入口，`IconAction` 带悬停提示的图标按钮。卡片和列表不再有"更多"菜单，常用操作直接显示，不常用和有风险的操作在详情页"管理"标签）、`ServerManagePanel`（"管理"标签：更新游戏 / Mod、重建容器、配置导出导入复制、删除，每项带说明）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ServerConfigDialogs`（导入配置、复制设置到其他服务器）、`ConnectionInfo`、`settings/`（设置项卡片 `SettingTile` / `SettingControl`、自定义启动参数和配置文件面板）；`components/settings/VersionCard`（版本和升级命令）、`components/settings/McpCard`（MCP 地址和令牌管理）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
+- `components/ui/`：shadcn/ui 风格基础组件，另有 `confirm-dialog.tsx`、`toaster.tsx`；`components/servers/`：`ServerCard`（卡片视图，含共用的 `MapBand`、`ServerTags`）、`ServerRow`（列表视图的一行和表头，列宽固定在 `ROW_GRID`）、`ServerActions`（`useServerControls` 管理启停、重启、更新、重建、删除和这些确认弹窗，调用方渲染 `controls.dialogs`；`PowerButtons` 启停和重启，`ServerShortcuts` 控制台 / 日志 / 编辑设置图标入口，`IconAction` 带悬停提示的图标按钮。卡片和列表不再有"更多"菜单，常用操作直接显示，不常用和有风险的操作在详情页"管理"标签）、`ServerManagePanel`（"管理"标签：自动重启 / 自动更新开关、更新游戏 / Mod、重建容器、配置导出导入复制、删除，每项带说明）、`StatusBadge`（状态 + 运行阶段）、`ServerForm`（新建和编辑共用）、`ArkfgfCard`（详情页概览：发布到收录站、P2P 联机房的开关和状态）、`LogViewer`、`ConsolePanel`、`BackupsPanel`、`SchedulesPanel`、`PluginsPanel`、`ModList`（表单里可拖动排序）、`ServerModsPanel`（详情页 Mod 安装和更新）、`ServerConfigDialogs`（导入配置、复制设置到其他服务器）、`ConnectionInfo`、`settings/`（设置项卡片 `SettingTile` / `SettingControl`、自定义启动参数和配置文件面板）；`components/settings/VersionCard`（版本和升级命令）、`components/settings/McpCard`（MCP 地址和令牌管理）；`components/docker/`：镜像状态和更新确认弹窗（在 `home` 页面使用）
 - `messages/en.ts`、`messages/zh.ts`：next-intl 翻译（TypeScript 文件，不是 JSON），入口为 `src/i18n.ts`
 
 ### 认证流程
@@ -190,7 +190,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 ### 发布到收录站
 
-服务器的 `publish` 开关（表单"运维"分组，默认关闭，保存后立即生效，不用重启）。`service/server/publish.go` 的 `Publisher` 每 15 秒检查一次：服务器每次变成 running 且 `runtime.phase` 为 `ready` 时 `POST {ARKFGF_API}/publish` 发布一次（名称、端口、地图、Mod、ArkApi、集群，倍率和 PvE 先取启动参数 `?Key=` 再取配置文件），收录站返回的令牌存在 `servers.publish_token`；之后不再发请求，没有心跳，停服也不通知：收录站每 30 分钟自己查询端口，查不到就显示离线。运行中短暂不是 ready（监控的一次 A2S 超时）2 分钟内不算断开，不会重新发布。关闭发布或删除服务器（软删除，记录还在）后，有令牌的服务器调用 `/publish/unpublish` 删除收录站上的记录，成功（或收录站返回 `invalid_token`）后清空令牌，失败一直重试，管理端重启后继续。失败按 1、2、4…30 分钟退避，429 / 503 按 `Retry-After`，停服再启动不会跳过退避。状态只在内存里，随服务器响应返回 `publish_status`（`waiting` / `published` / `error` / `disabled`，失败时带 `error_code` 和中文 `error`），详情页概览显示。
+服务器的 `publish` 开关（详情页概览的 arkfgf.com 卡片 `ArkfgfCard`，默认关闭，立即生效，不用重启）。`service/server/publish.go` 的 `Publisher` 每 15 秒检查一次：服务器每次变成 running 且 `runtime.phase` 为 `ready` 时 `POST {ARKFGF_API}/publish` 发布一次（名称、端口、地图、Mod、ArkApi、集群，倍率和 PvE 先取启动参数 `?Key=` 再取配置文件），收录站返回的令牌存在 `servers.publish_token`；之后不再发请求，没有心跳，停服也不通知：收录站每 30 分钟自己查询端口，查不到就显示离线。运行中短暂不是 ready（监控的一次 A2S 超时）2 分钟内不算断开，不会重新发布。关闭发布或删除服务器（软删除，记录还在）后，有令牌的服务器调用 `/publish/unpublish` 删除收录站上的记录，成功（或收录站返回 `invalid_token`）后清空令牌，失败一直重试，管理端重启后继续。失败按 1、2、4…30 分钟退避，429 / 503 按 `Retry-After`，停服再启动不会跳过退避。状态只在内存里，随服务器响应返回 `publish_status`（`waiting` / `published` / `error` / `disabled`，失败时带 `error_code` 和中文 `error`），详情页概览显示。
 
 收录站（外层仓库 `web/backend/controllers/publish.go`）不需要登录：收录的 IP 是请求的来源 IP（`CF-Connecting-IP`），收录站自己向该 IP 的查询端口发 A2S_INFO 验证，名称、地图、人数、是否有密码以 A2S 为准，所以查询端口（UDP）必须能从公网访问。收录站每 30 分钟查询一次所有自动发布的服务器（连续 24 小时查不到的不再查询，等下次发布），另有按 IP / 端口 / 全站的频率限制和每 IP 台数上限，30 天没上线的自动删除。服务器运行中公网 IP 变了的话，要等下次重新可以连接（重启）时才会更新。
 
@@ -198,7 +198,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 ### P2P 联机房
 
-服务器的 `link` 开关（表单"运维"分组"P2P 联机房"，默认关闭，与 `publish` 独立，保存后立即生效）。没有公网 IP 的服主也能让玩家连进来：网站 arkfgf.com 登记房间并运行只做打洞信令的公共 EasyTier 节点，Commander 运行一个 EasyTier 节点容器，玩家用 ARKFGF 联机助手（子模块 `ArkServerLink/`，单独发布到它自己的 GitHub Release，下载页 arkfgf.com/download）从网站领取一次性凭证加入这个 EasyTier 网络，直连到节点。只直连不中继（`--p2p-only`），打洞失败的玩家连不上。三方接口约定见外层仓库 `docs/p2p-link.md`，改动要和网站、客户端同步。
+服务器的 `link` 开关（详情页概览的 arkfgf.com 卡片 `ArkfgfCard`，默认关闭，与 `publish` 独立，立即生效）。没有公网 IP 的服主也能让玩家连进来：网站 arkfgf.com 登记房间并运行只做打洞信令的公共 EasyTier 节点，Commander 运行一个 EasyTier 节点容器，玩家用 ARKFGF 联机助手（子模块 `ArkServerLink/`，单独发布到它自己的 GitHub Release，下载页 arkfgf.com/download）从网站领取一次性凭证加入这个 EasyTier 网络，直连到节点。只直连不中继（`--p2p-only`），打洞失败的玩家连不上。三方接口约定见外层仓库 `docs/p2p-link.md`，改动要和网站、客户端同步。
 
 **每个管理端一个房间**：所有开启了 `link` 的服务器是同一个房间里的多台服务器，共用一个节点容器、一个虚拟 IP `10.126.126.1` 和一个凭证池，靠端口区分。玩家加入一次就能连房间里的任意一台；踢人、封禁对整个房间生效。房间记录是 `models.LinkRoom`（表 `link_rooms`，只有 ID 为 1 的一行，`loadLinkRoom` 不存在时创建）：令牌、房间 ID、网络名、网络密钥、RPC 端口，以及房间资料（名称、简介、标签、QQ 群、Discord）。名称为空时用第一台服务器（按 ID）的名称，资料四项全部为空时用第一台服务器的收录资料。协议是一次性升级的，不兼容旧版每台服务器一个房间的网站和客户端。
 
@@ -212,7 +212,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - 失败按 1、2、4…30 分钟退避，429 / 503 按 `Retry-After`（`arkfgf.go` 的 `arkfgfRequest` 是和发布共用的请求函数）
 - 状态只在内存里，随服务器响应返回 `link_status`（`waiting` / `online` / `offline` / `error` / `disabled`，带 `room_url`，失败时带 `error_code` 和中文 `error`；`error_code` 除了网站的错误码还有 `network`、`node_error`、`image_error`、`local_error`）。房间出错时所有开启 `link` 的服务器都显示错误；否则这台服务器在最近一次心跳里报告为可以连接时为 `online`，没在运行时为 `offline`
 
-接口 `GET|PUT /api/link/room`（房间资料、状态 `roomStatus`、房间里的服务器；PUT 只改名称和收录资料，校验同收录资料，名称最多 64 字，下一轮重新登记时生效）。`GET /api/link/members`、`POST /api/link/kick`（`{steam_id, ban}`）、`DELETE /api/link/bans/:steam_id` 用房间令牌代理到网站的同名接口（没有令牌 409 `link_not_registered`，连不上 502 `link_unavailable`，网站返回 400 / 404 / 409 / 422 时 400 `link_request_failed`，SteamID 不是 17 位数字 400 `invalid_steam_id`）。踢人后网站把凭证放进下一次心跳的 `revoke`，所以玩家最多约 30 秒后断开（房间里所有服务器）。前端：详情页概览的"联机房"一行显示这台服务器的状态，开启后显示 `LinkCard`（整个房间：房间资料和编辑弹窗 `LinkRoomDialog`、房间里的服务器、加入方式说明、成员的踢出 / 封禁、封禁列表的解封，都有确认弹窗）。
+接口 `GET|PUT /api/link/room`（房间资料、状态 `roomStatus`、房间里的服务器；PUT 只改名称和收录资料，校验同收录资料，名称最多 64 字，下一轮重新登记时生效）。`GET /api/link/members`、`POST /api/link/kick`（`{steam_id, ban}`）、`DELETE /api/link/bans/:steam_id` 用房间令牌代理到网站的同名接口（没有令牌 409 `link_not_registered`，连不上 502 `link_unavailable`，网站返回 400 / 404 / 409 / 422 时 400 `link_request_failed`，SteamID 不是 17 位数字 400 `invalid_steam_id`）。踢人后网站把凭证放进下一次心跳的 `revoke`，所以玩家最多约 30 秒后断开（房间里所有服务器）。前端：详情页概览的 `ArkfgfCard` 里开关和显示这台服务器的状态，开启后显示 `LinkCard`（整个房间：房间资料和编辑弹窗 `LinkRoomDialog`、房间里的服务器、加入方式说明、成员的踢出 / 封禁、封禁列表的解封，都有确认弹窗）。
 
 ### 存档备份
 
@@ -238,7 +238,7 @@ GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而�
 
 ### 服务器设置界面
 
-新建和编辑页（`ServerForm`）不按文件分区，而是按用途分组（常规、网络、Mod 与集群、游戏规则、倍率、玩家、恐龙、繁殖、建筑、部落与 PvP、运维、高级），左侧导航带修改计数，顶部可以跨分组搜索（名称、键名、说明）。所有设置项定义在 `lib/server-settings.ts` 的 `SETTING_GROUPS`，`source` 记录存放位置：`field`（服务器记录字段，由表单单独渲染）、`gus`（GameUserSettings.ini）、`game`（Game.ini）、`query`（`?Key=Value`）、`arg`（`-Key`）。`readSetting` / `writeSetting` 统一读写，界面每次渲染都从文本重新解析，所以"高级 → 配置文件"里直接改文本也会同步到设置项。`default` 是没有设置时游戏的表现，和它不同的值显示为已修改，恢复默认就是删掉这个键或参数（开关参数关闭也是删除）。新增设置项：在字典里加一行，在 `messages/*.ts` 的 `serverSettings.params`（必要时 `hints`）加中英文名称。新建页先请求 `/system/server-defaults`，以后端的默认模板和推荐启动参数为基础编辑，创建时再把模板里的名称、人数和欢迎消息换成表单里的值（`new/page.tsx` 的 `applyIdentity`）。
+新建和编辑页（`ServerForm`）不按文件分区，而是按用途分组（常规、网络、Mod 与集群、游戏规则、倍率、玩家、恐龙、繁殖、建筑、部落与 PvP、运维（存档、日志、其他）、高级），左侧导航带修改计数，顶部可以跨分组搜索（名称、键名、说明）。所有设置项定义在 `lib/server-settings.ts` 的 `SETTING_GROUPS`，`source` 记录存放位置：`field`（服务器记录字段，由表单单独渲染）、`gus`（GameUserSettings.ini）、`game`（Game.ini）、`query`（`?Key=Value`）、`arg`（`-Key`）。`readSetting` / `writeSetting` 统一读写，界面每次渲染都从文本重新解析，所以"高级 → 配置文件"里直接改文本也会同步到设置项。`default` 是没有设置时游戏的表现，和它不同的值显示为已修改，恢复默认就是删掉这个键或参数（开关参数关闭也是删除）。表单只放游戏服务器本身的设置，管理端和 Docker 层面的开关都在详情页：ArkApi 在"插件"标签，`auto_restart` / `auto_update` 在"管理"标签，`publish` / `link` 在概览的 `ArkfgfCard`。编辑时 `ServerForm` 不提交这几个字段（导入配置改了 ArkApi、自动重启、自动更新时例外；新建时照常提交这三个），免得覆盖别处的修改。新增设置项：在字典里加一行，在 `messages/*.ts` 的 `serverSettings.params`（必要时 `hints`）加中英文名称。新建页先请求 `/system/server-defaults`，以后端的默认模板和推荐启动参数为基础编辑，创建时再把模板里的名称、人数和欢迎消息换成表单里的值（`new/page.tsx` 的 `applyIdentity`）。
 
 ## 开发约定
 

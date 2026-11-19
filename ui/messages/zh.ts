@@ -700,6 +700,16 @@ const messages = {
 
   // 详情页"管理"标签
   manage: {
+    toggleSaved: '已保存，下次启动时生效',
+    toggleFailed: '保存失败',
+    auto_restart: {
+      title: '崩溃后自动重启',
+      desc: '游戏进程意外退出时由 Docker 自动重启。下次启动时生效（会重建容器）。'
+    },
+    auto_update: {
+      title: '启动时自动更新',
+      desc: '每次启动前校验更新游戏本体并重新下载 Mod，启动会变慢。下次启动时生效。'
+    },
     maintenance: '维护',
     update: '更新…',
     updateDesc: '校验并更新服务端文件、重新下载 Mod。玩家提示版本不一致时使用，服务器会在更新后启动。',
@@ -851,7 +861,6 @@ const messages = {
     none: '无',
     autoRestart: '崩溃后自动重启',
     autoUpdate: '启动时自动更新',
-    publish: '收录站',
     publishStates: {
       disabled: '管理端已关闭发布（ARKFGF_API）',
       waiting: '等待服务器可以连接',
@@ -869,7 +878,6 @@ const messages = {
       owned: '这台服务器已由 arkfgf.com 上的服主账号管理',
       invalid_input: '发布内容不符合收录站要求'
     },
-    link: '联机房',
     linkStates: {
       disabled: '管理端已关闭与 arkfgf.com 的连接（ARKFGF_API）',
       waiting: '准备中',
@@ -889,6 +897,17 @@ const messages = {
       image_error: '检查或下载 EasyTier 镜像失败',
       local_error: '保存房间信息失败'
     },
+    external: 'arkfgf.com',
+    externalDesc: '这些是 arkfgf.com 网站提供的服务，不属于游戏设置，开关后立即生效，不用重启服务器。',
+    publishSwitch: '发布到收录站',
+    publishHint: '服务器可以连接后自动在 arkfgf.com 服务器收录站公开展示（名称、地图、倍率、Mod、在线人数和连接地址），收录站每 30 分钟从公网查询一次查询端口，需要放行该端口（UDP），停服后在下一次查询时显示为离线。关闭开关会立即从收录站删除',
+    linkSwitch: 'P2P 联机房',
+    linkHint: '不需要公网 IP：服务器加入这个管理端在 arkfgf.com 上的联机房，玩家用 ARKFGF 联机助手客户端通过 P2P 直连加入，只有网络能和服务器建立 P2P 直连的玩家才能加入（不经过中继）。开启了这个开关的服务器都在同一个房间里，玩家加入一次就能连其中任意一台。有服务器可以连接时自动运行联机节点（EasyTier 容器），全部停服时停止。关闭开关会把这台服务器移出房间，所有服务器都关闭后下架房间',
+    publishOnToast: '已开启发布到收录站',
+    publishOffToast: '已关闭发布，收录站上的记录会被删除',
+    linkOnToast: '已加入 P2P 联机房',
+    linkOffToast: '已移出 P2P 联机房',
+    toggleFailed: '保存失败',
     serverBuild: '服务端',
     buildProton: 'Proton 版（ArkApi）',
     buildLinux: 'Linux 版',
@@ -1161,7 +1180,7 @@ const messages = {
       breeding: { title: '繁殖', desc: '交配、孵化、成长和印记' },
       structures: { title: '建筑', desc: '建筑强度、数量限制、拾取、腐朽和平台' },
       tribes: { title: '部落与 PvP', desc: '部落和联盟、友军伤害、重生和离线保护' },
-      operations: { title: '运维', desc: '运行方式、自动保存、日志和其他服务器选项' },
+      operations: { title: '运维', desc: '自动保存、日志和其他服务器选项' },
       advanced: { title: '高级', desc: '反作弊、性能调优、自定义启动参数和直接编辑配置文件' }
     },
     sections: {
@@ -1175,7 +1194,7 @@ const messages = {
       breeding: { speed: '繁殖速度', imprint: '照顾与印记' },
       structures: { general: '通用', limits: '建造限制', pickup: '拾取', decay: '腐朽', platforms: '平台与载具' },
       tribes: { tribes: '部落与联盟', combat: '战斗', respawn: 'PvP 重生间隔', offline: '离线保护' },
-      operations: { runtime: '运行方式', saves: '存档', logs: '日志与管理', misc: '其他' },
+      operations: { saves: '存档', logs: '日志与管理', misc: '其他' },
       advanced: { antiCheat: '反作弊', performance: '性能', otherArgs: '其他启动参数', customArgs: '自定义启动参数', rawConfig: '配置文件' }
     },
     sectionHints: {
@@ -1200,12 +1219,7 @@ const messages = {
       query_port: '查询端口',
       rcon_port: 'RCON 端口',
       game_mod_ids: 'Mod',
-      cluster_id: '集群 ID',
-      arkapi: '启用 ArkApi',
-      auto_restart: '崩溃后自动重启',
-      auto_update: '启动时自动更新',
-      publish: '发布到 arkfgf.com 收录站',
-      link: 'P2P 联机房'
+      cluster_id: '集群 ID'
     },
     fieldHints: {
       session_name: '玩家在服务器列表里看到的名称，可以包含空格和中文',
@@ -1214,12 +1228,7 @@ const messages = {
       query_port: 'Steam 服务器列表使用',
       rcon_port: '远程管理使用',
       game_mod_ids: '创意工坊 Mod ID 或链接，多个用逗号分隔，下方会显示 Mod 名称，可以拖动调整加载顺序',
-      cluster_id: '填写相同集群 ID 的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -',
-      arkapi: '用 GE-Proton 运行 Windows 版服务端，可以加载 ArkApi 插件。关闭时运行原生 Linux 版服务端，占用更少。',
-      auto_restart: '游戏进程意外退出时由 Docker 自动重启',
-      auto_update: '每次启动前校验更新游戏本体并重新下载 Mod，启动会变慢',
-      publish: '服务器可以连接后自动在 arkfgf.com 服务器收录站公开展示（名称、地图、倍率、Mod、在线人数和连接地址），收录站每 30 分钟从公网查询一次查询端口，需要放行该端口（UDP），停服后在下一次查询时显示为离线。关闭开关会立即从收录站删除',
-      link: '不需要公网 IP：服务器加入这个管理端在 arkfgf.com 上的联机房，玩家用 ARKFGF 联机助手客户端通过 P2P 直连加入，只有网络能和服务器建立 P2P 直连的玩家才能加入（不经过中继）。开启了这个开关的服务器都在同一个房间里，玩家加入一次就能连其中任意一台。有服务器可以连接时自动运行联机节点（EasyTier 容器），全部停服时停止。关闭开关会把这台服务器移出房间，所有服务器都关闭后下架房间'
+      cluster_id: '填写相同集群 ID 的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -'
     },
     params: {
       // 常规
@@ -1533,7 +1542,6 @@ const messages = {
   serverForm: {
     unsaved: '有未保存的修改',
     saveShortcut: '保存（Ctrl+S）',
-    arkapiSwitchHint: '下次启动时生效：会换用另一个镜像重建容器，并补下载对应平台的服务端程序，存档、配置和 Mod 不受影响。',
     passwordHint: '用于游戏内管理员命令（enablecheats）和 RCON',
     passwordKeepHint: '留空则保持原密码不变',
     passwordKeepPlaceholder: '留空则不修改',

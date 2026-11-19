@@ -6,6 +6,7 @@ import axios from 'axios';
 import { Copy, Download, FileDown, FileUp, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { serversActions } from '@/stores/servers';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
@@ -67,6 +68,21 @@ export function ServerManagePanel({ controls }: { controls: ServerControls }) {
     }
   };
 
+  // 自动重启、自动更新是管理端和 Docker 的行为，不是游戏设置，所以在这里切换而不在"编辑设置"里；
+  // 立即保存，下次启动时生效（改自动重启会在启动时重建容器）
+  const [toggling, setToggling] = useState<'auto_restart' | 'auto_update' | null>(null);
+  const toggle = async (key: 'auto_restart' | 'auto_update', enabled: boolean) => {
+    setToggling(key);
+    try {
+      await serversActions.updateServer(server.id, key === 'auto_restart' ? { auto_restart: enabled } : { auto_update: enabled });
+      toast.success(t('toggleSaved'));
+    } catch (err) {
+      toast.error(apiError(err, t('toggleFailed')));
+    } finally {
+      setToggling(null);
+    }
+  };
+
   const outdated = server.mods_outdated?.length ?? 0;
   const busyTitle = busy ? t('busy') : undefined;
 
@@ -77,6 +93,16 @@ export function ServerManagePanel({ controls }: { controls: ServerControls }) {
           <CardTitle className="font-display text-base">{t('maintenance')}</CardTitle>
         </CardHeader>
         <CardContent className="divide-y">
+          {(['auto_restart', 'auto_update'] as const).map((key) => (
+            <ActionRow key={key} title={t(`${key}.title`)} desc={t(`${key}.desc`)}>
+              <Switch
+                checked={server[key] ?? key === 'auto_restart'}
+                disabled={toggling !== null}
+                onCheckedChange={(v) => toggle(key, v)}
+                aria-label={t(`${key}.title`)}
+              />
+            </ActionRow>
+          ))}
           <ActionRow
             title={tActions('updateGame')}
             desc={t('updateDesc')}

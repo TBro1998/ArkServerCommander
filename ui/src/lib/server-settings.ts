@@ -526,7 +526,8 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
     id: 'operations',
     icon: Wrench,
     sections: [
-      { id: 'runtime', settings: [field('arkapi', { wide: true }), field('auto_restart', { wide: true }), field('auto_update', { wide: true }), field('publish', { wide: true }), field('link', { wide: true })] },
+      // 只放游戏本身的设置。管理端和 Docker 层面的开关不在这里：ArkApi 在详情页"插件"标签，
+      // 自动重启、自动更新在"管理"标签，收录站和联机房在概览的 arkfgf.com 卡片
       {
         id: 'saves',
         settings: [
