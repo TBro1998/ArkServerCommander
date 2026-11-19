@@ -1219,7 +1219,7 @@ const messages = {
       auto_restart: 'Docker restarts the game process if it exits unexpectedly',
       auto_update: 'Validates the game and re-downloads mods before every start; starting takes longer',
       publish: 'Lists the server publicly on the arkfgf.com server list once it is joinable (name, map, rates, mods, players and address) The list checks the query port from the internet every 30 minutes, so the port must be open (UDP); a stopped server shows as offline after the next check. Turning this off removes the server from the list right away',
-      link: 'No public IP needed: registers a room on arkfgf.com and players join through the ARKFGF Link client over a direct peer-to-peer connection. Only players whose network can establish a direct P2P connection to the server can join (nothing is relayed). The P2P node (an EasyTier container) runs while the server is joinable and stops with it. Turning this off removes the room right away'
+      link: 'No public IP needed: adds the server to this Commander’s room on arkfgf.com, and players join through the ARKFGF Link client over a direct peer-to-peer connection. Only players whose network can establish a direct P2P connection to the server can join (nothing is relayed). Every server with this turned on is in the same room, so joining once gives players access to all of them. The P2P node (an EasyTier container) runs while any of these servers is joinable and stops when all of them are stopped. Turning this off takes the server out of the room; the room is removed once no server has it on'
     },
     params: {
       ServerPassword: 'Join password',
