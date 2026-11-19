@@ -26,7 +26,7 @@ func setupTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}, &models.LinkRoom{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Create(&models.User{Username: "admin", Password: "x"}).Error; err != nil {

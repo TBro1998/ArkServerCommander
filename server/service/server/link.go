@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"ark-server-commander/config"
 	"ark-server-commander/database"
@@ -27,17 +28,19 @@ import (
 
 // P2P 联机房（arkfgf.com 联机助手）。接口约定见外层仓库 docs/p2p-link.md 的"Commander 侧"。
 //
-// 开启 link 的服务器在网站上登记一个房间，并在服务器可以连接时运行一个 EasyTier 节点容器 ase-link-<id>
-// （宿主机网络，--p2p-only，只放行游戏端口、+1 和查询端口的 UDP）。玩家用联机助手从网站拿一次性凭证加入
-// 这个 EasyTier 网络，直连（打洞）到节点，再经宿主机 127.0.0.1 上 Docker 的端口映射到达 ARK 容器。
+// 每个管理端一个房间（models.LinkRoom，只有一行）：所有开启了 link 的服务器是同一个房间里的多台服务器，
+// 共用一个 EasyTier 节点容器 ase-link-room（宿主机网络，--p2p-only，只放行这些服务器的游戏端口、+1 和查询端口的 UDP）
+// 和一个凭证池。玩家用联机助手从网站拿一次性凭证加入这个 EasyTier 网络，直连（打洞）到节点，再经宿主机
+// 127.0.0.1 上 Docker 的端口映射到达各台 ARK 容器，按端口区分服务器。
 //
 // LinkManager 每 15 秒检查一次：
-//   - 没有登记或资料变化（名称、地图、Mod、倍率、收录资料、端口等）→ POST /link/rooms（带令牌即更新）
-//   - 服务器运行中且可以连接过 → 确保节点容器在运行（参数或镜像变化时重建）；运行中短暂查询不到不删容器
-//   - 心跳：在线时每 30 秒，离线时每 60 秒；在线状态变化、有凭证要上传或吊销要确认时提前发
+//   - 有服务器开启 link：没有登记或资料变化（房间资料、各服务器的名称、地图、Mod、倍率、端口等）→ POST /link/rooms（带令牌即更新）
+//   - 任意一台开启 link 的服务器运行中且可以连接过 → 确保节点容器在运行（参数或镜像变化时重建）；全部不在运行时删除节点。
+//     节点放行所有开启 link 的服务器的端口（包括已停止的），单台服务器启停不会重建节点、不影响其他服务器上的玩家
+//   - 心跳：在线时每 30 秒、离线时每 60 秒，带每台服务器的在线和人数；在线状态变化、有凭证要上传或吊销要确认时提前发
 //   - 按心跳返回的 want_credentials 在节点里签发凭证（每轮最多 20 个），处理 revoke 后在下次心跳回报 revoked_ack
-//   - 关闭 link 或删除服务器（有令牌）→ DELETE 下架，删除容器、凭证目录，清空令牌
-//   - 其他 ase-link-* 容器（服务器没在运行、已删除）一律删除
+//   - 没有服务器开启 link 且有令牌 → DELETE 下架，删除容器、凭证目录，清空令牌
+//   - 旧版每台服务器一个房间（servers.link_token 不为空）→ 用旧令牌下架后清空；旧的 ase-link-<id> 容器一律删除
 //   - 请求失败按 1、2、4…30 分钟退避，429 / 503 按 Retry-After
 
 const (
@@ -54,9 +57,10 @@ const (
 	linkVirtualIP           = "10.126.126.1"
 	linkCredentialFile      = "/data/cred.json"
 	linkCommandHashLabel    = "com.arkservercommander.link.hash"
-	linkServerIDLabel       = "com.arkservercommander.link.server"
-	linkRPCPortBase         = 20000 // 节点 RPC 端口 = 20000 + 服务器 ID，和已知端口冲突时顺延
+	linkRPCPortBase         = 20000 // 节点 RPC 端口，和已知端口冲突时顺延
 	linkNetworkSecretLength = 32
+	linkRoomID              = 1 // models.LinkRoom 只有这一行
+	linkRoomNameMax         = 64
 )
 
 // linkCredential 已签发、等待随心跳上传的凭证
@@ -66,8 +70,9 @@ type linkCredential struct {
 	ExpiresAt int64  `json:"expires_at"`
 }
 
-// linkRoomProfile 登记房间时提交的资料（POST /link/rooms）
-type linkRoomProfile struct {
+// linkServerProfile 房间里一台服务器的资料（POST /link/rooms 的 servers[]）
+type linkServerProfile struct {
+	Key          string   `json:"key"` // 服务器 ID
 	Name         string   `json:"name"`
 	Map          string   `json:"map"`
 	MaxPlayers   int      `json:"max_players"`
@@ -81,13 +86,27 @@ type linkRoomProfile struct {
 	RateTame     float64  `json:"rate_tame"`
 	RateHarvest  float64  `json:"rate_harvest"`
 	RateBreeding float64  `json:"rate_breeding"`
-	Description  string   `json:"description"`
-	Tags         []string `json:"tags"`
-	QQGroup      string   `json:"qq_group"`
-	Discord      string   `json:"discord"`
 	GamePort     int      `json:"game_port"`
 	QueryPort    int      `json:"query_port"`
-	ServerIP     string   `json:"server_ip"`
+}
+
+// linkRoomProfile 登记房间时提交的资料（POST /link/rooms）
+type linkRoomProfile struct {
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Tags        []string            `json:"tags"`
+	QQGroup     string              `json:"qq_group"`
+	Discord     string              `json:"discord"`
+	ServerIP    string              `json:"server_ip"`
+	Servers     []linkServerProfile `json:"servers"`
+}
+
+// linkServerBeat 心跳里一台服务器的状态
+type linkServerBeat struct {
+	id      uint
+	Key     string `json:"key"`
+	Online  bool   `json:"online"`
+	Players int    `json:"players"`
 }
 
 // linkRuntime 服务器当前能否连接、在线人数和游戏版本
@@ -107,59 +126,76 @@ type linkDocker interface {
 	Remove(name string) error
 	List() ([]string, error)
 	Exec(name string, argv []string, timeout time.Duration) (docker_manager.ExecResult, error)
-	RemoveDir(serverID uint) error
+	// RemoveDir 删除房间的凭证目录
+	RemoveDir() error
+	// RemoveLegacyDir 删除旧版每台服务器一个房间时的凭证目录
+	RemoveLegacyDir(serverID uint) error
 }
 
-// linkState 一台服务器的联机房状态，只在内存里；管理端重启后带着数据库里的令牌重新登记（拿回 peers 和房间地址）
-type linkState struct {
-	profileHash string   // 最近一次登记成功时的资料摘要，变化时重新登记
-	url         string   // 网站上的房间页面
-	peers       []string // 公共节点地址，由网站返回
-	version     string   // 最近一次查到的游戏版本，停服后保留，避免资料来回变化
-
-	// 网站请求失败的退避
+// linkBackoff 网站请求失败的退避
+type linkBackoff struct {
 	nextAt   time.Time
 	failures int
 	errCode  string
 	errMsg   string
-
-	// 心跳
-	lastBeat   time.Time // 最近一次心跳成功的时间
-	lastOnline bool      // 最近一次成功心跳报告的 online
-	beatNow    bool      // 踢人后尽快发心跳，拿到要吊销的凭证
-	want       int       // 网站要补充的凭证数
-	revoke     []string  // 网站要求吊销、还没确认的凭证
-	acks       []string  // 已在节点吊销、等待回报的凭证
-	pending    []linkCredential
-
-	// 节点
-	wasReady      bool      // 这次运行期间已经可以连接过
-	notReadySince time.Time // 运行中但查询不到的开始时间
-	nodeErrCode   string
-	nodeErr       string
 }
 
-// LinkManager 管理开启了联机房的服务器：登记房间、心跳、节点容器、凭证
+// linkServerState 房间里一台服务器的状态，只在内存里
+type linkServerState struct {
+	wasReady      bool      // 这次运行期间已经可以连接过
+	notReadySince time.Time // 运行中但查询不到的开始时间
+	version       string    // 最近一次查到的游戏版本，停服后保留，避免资料来回变化
+	reported      bool      // 最近一次成功的心跳里报告为可以连接
+}
+
+// linkState 房间的状态，只在内存里；管理端重启后带着数据库里的令牌重新登记（拿回 peers 和房间地址）
+type linkState struct {
+	linkBackoff
+
+	profileHash string   // 最近一次登记成功时的资料摘要，变化时重新登记
+	url         string   // 网站上的房间页面
+	peers       []string // 公共节点地址，由网站返回
+
+	// 心跳
+	lastBeat    time.Time // 最近一次心跳成功的时间
+	lastOnline  bool      // 最近一次成功心跳报告的 online
+	lastServers string    // 最近一次成功心跳里各服务器的在线情况，变化时提前心跳
+	beatNow     bool      // 踢人后尽快发心跳，拿到要吊销的凭证
+	want        int       // 网站要补充的凭证数
+	revoke      []string  // 网站要求吊销、还没确认的凭证
+	acks        []string  // 已在节点吊销、等待回报的凭证
+	pending     []linkCredential
+
+	// 节点
+	nodeErrCode string
+	nodeErr     string
+}
+
+// LinkManager 管理联机房：登记房间、心跳、节点容器、凭证
 type LinkManager struct {
 	mu      sync.Mutex
-	states  map[uint]*linkState
+	room    *linkState
+	servers map[uint]*linkServerState
+	legacy  map[uint]*linkBackoff // 旧版每台服务器一个房间，下架失败时的退避
 	client  *http.Client
 	api     func() string
 	now     func() time.Time
 	docker  linkDocker
 	runtime func(models.Server) linkRuntime
-	profile func(models.Server) linkRoomProfile
+	profile func(models.Server) linkServerProfile
 	newID   func() string
 }
 
 var linkManager = &LinkManager{
-	states:  map[uint]*linkState{},
+	room:    &linkState{},
+	servers: map[uint]*linkServerState{},
+	legacy:  map[uint]*linkBackoff{},
 	client:  &http.Client{Timeout: linkRequestTimeout},
 	api:     func() string { return config.PublishAPI },
 	now:     time.Now,
 	docker:  dockerLinkOps{},
 	runtime: linkRuntimeOf,
-	profile: buildLinkRoomProfile,
+	profile: buildLinkServerProfile,
 	newID:   newUUID,
 }
 
@@ -178,137 +214,170 @@ func StartLinkManager() {
 	}()
 }
 
+// linkServerColumns 联机房用到的服务器字段
+var linkServerColumns = []string{"id", "session_name", "map", "max_players", "port", "query_port", "rcon_port", "cluster_id",
+	"game_mod_ids", "arkapi", "server_args_json", "status", "link", "listing_description", "listing_tags", "listing_qq", "listing_discord"}
+
+// loadLinkRoom 读取联机房记录，不存在时创建
+func loadLinkRoom() (models.LinkRoom, error) {
+	var room models.LinkRoom
+	err := database.DB.Where(models.LinkRoom{ID: linkRoomID}).FirstOrCreate(&room).Error
+	return room, err
+}
+
 func (m *LinkManager) tick() {
-	desired := map[string]bool{}
-	keep := map[uint]bool{}
+	wantNode := false
+	linked := map[uint]bool{}
 
 	if m.api() != "" {
+		m.cleanupLegacy()
+
 		var servers []models.Server
-		if err := database.DB.Select("id", "session_name", "map", "max_players", "port", "query_port", "rcon_port", "cluster_id",
-			"game_mod_ids", "arkapi", "server_args_json", "status", "link", "link_token", "link_room_id", "link_network_name",
-			"link_network_secret", "link_rpc_port", "listing_description", "listing_tags", "listing_qq", "listing_discord").
-			Where("link = ?", true).Find(&servers).Error; err != nil {
+		if err := database.DB.Select(linkServerColumns).Where("link = ?", true).Order("id").Find(&servers).Error; err != nil {
 			utils.Warn("联机房：读取服务器列表失败", zap.Error(err))
 			return
 		}
-		for _, server := range servers {
-			keep[server.ID] = true
-			if m.process(server) {
-				desired[utils.GetLinkContainerName(server.ID)] = true
-			}
-		}
-
-		// 关闭了联机房或已删除、但网站上还有房间（有令牌）的服务器：下架
-		var withdrawn []models.Server
-		if err := database.DB.Unscoped().Select("id", "link_token", "link_room_id").
-			Where("link_token <> '' AND (link = ? OR deleted_at IS NOT NULL)", false).
-			Find(&withdrawn).Error; err != nil {
-			utils.Warn("联机房：读取待下架的服务器失败", zap.Error(err))
+		room, err := loadLinkRoom()
+		if err != nil {
+			utils.Warn("联机房：读取房间失败", zap.Error(err))
 			return
 		}
-		for _, server := range withdrawn {
-			keep[server.ID] = true
-			m.unregister(server)
+		for _, server := range servers {
+			linked[server.ID] = true
+		}
+		switch {
+		case len(servers) > 0:
+			wantNode = m.process(&room, servers)
+		case room.Token != "":
+			// 没有服务器开启联机房了：下架
+			m.unregister(room)
 		}
 	}
 
-	// 不需要的节点容器（服务器没在运行、关闭了联机房、已删除）一律删除
+	// 不需要的节点容器（没有服务器在运行、关闭了联机房、旧版的 ase-link-<id>）一律删除
 	if names, err := m.docker.List(); err != nil {
 		utils.Warn("联机房：列出节点容器失败", zap.Error(err))
 	} else {
 		for _, name := range names {
-			if !desired[name] {
-				if err := m.docker.Remove(name); err != nil {
-					utils.Warn("联机房：删除节点容器失败", zap.String("container", name), zap.Error(err))
-				}
+			if wantNode && name == utils.LinkContainerName {
+				continue
+			}
+			if err := m.docker.Remove(name); err != nil {
+				utils.Warn("联机房：删除节点容器失败", zap.String("container", name), zap.Error(err))
 			}
 		}
 	}
 
 	m.mu.Lock()
-	for id := range m.states {
-		if !keep[id] {
-			delete(m.states, id)
+	for id := range m.servers {
+		if !linked[id] {
+			delete(m.servers, id)
 		}
 	}
 	m.mu.Unlock()
 }
 
-func (m *LinkManager) state(id uint) *linkState {
+func (m *LinkManager) serverState(id uint) *linkServerState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	st, ok := m.states[id]
+	st, ok := m.servers[id]
 	if !ok {
-		st = &linkState{}
-		m.states[id] = st
+		st = &linkServerState{}
+		m.servers[id] = st
 	}
 	return st
 }
 
-// process 处理一台开启了联机房的服务器，返回节点容器是否应该保留
-func (m *LinkManager) process(server models.Server) bool {
-	if err := ensureLinkLocal(&server); err != nil {
-		utils.Warn("联机房：生成本地参数失败", zap.Uint("server_id", server.ID), zap.Error(err))
+func linkServerKey(id uint) string { return strconv.FormatUint(uint64(id), 10) }
+
+// process 处理房间（servers 是开启了联机房的服务器，按 ID 排序），返回节点容器是否应该保留
+func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server) bool {
+	if err := ensureLinkLocal(room); err != nil {
+		utils.Warn("联机房：生成本地参数失败", zap.Error(err))
 		return false
 	}
-	st := m.state(server.ID)
-	rt := linkRuntime{}
-	running := server.Status == "running"
-	if running {
-		rt = m.runtime(server)
-	}
+	st := m.room
+	wantNode := false
+	beats := make([]linkServerBeat, len(servers))
+	profiles := make([]linkServerProfile, len(servers))
+	for i, server := range servers {
+		ss := m.serverState(server.ID)
+		running := server.Status == "running"
+		rt := linkRuntime{}
+		if running {
+			rt = m.runtime(server)
+		}
 
-	m.mu.Lock()
-	now := m.now()
-	switch {
-	case !running:
-		st.wasReady, st.notReadySince = false, time.Time{}
+		m.mu.Lock()
+		now := m.now()
+		switch {
+		case !running:
+			ss.wasReady, ss.notReadySince = false, time.Time{}
+		case rt.Ready:
+			ss.wasReady, ss.notReadySince = true, time.Time{}
+		case ss.wasReady && ss.notReadySince.IsZero():
+			ss.notReadySince = now
+		}
+		if rt.Version != "" {
+			ss.version = rt.Version
+		}
+		// 可以连接过一次后，整个运行期间保留节点（A2S 偶尔超时不删容器，玩家不掉线）；
+		// 但查询不到超过 notReadyGrace（崩溃重启、卡死）时向网站报告这台服务器离线
+		wantNode = wantNode || (running && ss.wasReady)
+		online := running && (rt.Ready || (ss.wasReady && now.Sub(ss.notReadySince) < notReadyGrace))
+		version := ss.version
+		m.mu.Unlock()
+
+		beats[i] = linkServerBeat{id: server.ID, Key: linkServerKey(server.ID), Online: online}
+		if online {
+			beats[i].Players = rt.Players
+		}
+		p := m.profile(server)
+		p.Key = linkServerKey(server.ID)
+		p.Version = version
+		profiles[i] = p
+	}
+	if !wantNode {
+		m.mu.Lock()
 		st.nodeErrCode, st.nodeErr = "", ""
-	case rt.Ready:
-		st.wasReady, st.notReadySince = true, time.Time{}
-	case st.wasReady && st.notReadySince.IsZero():
-		st.notReadySince = now
+		m.mu.Unlock()
 	}
-	if rt.Version != "" {
-		st.version = rt.Version
-	}
-	// 可以连接过一次后，整个运行期间保留节点（A2S 偶尔超时不删容器，玩家不掉线）；
-	// 但查询不到超过 notReadyGrace（崩溃重启、卡死）时向网站报告离线
-	wantNode := running && st.wasReady
-	online := running && (rt.Ready || (st.wasReady && now.Sub(st.notReadySince) < notReadyGrace))
-	version := st.version
-	m.mu.Unlock()
 
 	// 登记或更新房间
-	profile := m.profile(server)
-	profile.Version = version
+	profile := buildLinkRoomProfile(*room, servers, profiles)
 	hash := hashJSON(profile)
 	m.mu.Lock()
-	needRegister := (server.LinkToken == "" || server.LinkRoomID == 0 || st.profileHash != hash) && !m.now().Before(st.nextAt)
+	needRegister := (room.Token == "" || room.RoomID == 0 || st.profileHash != hash) && !m.now().Before(st.nextAt)
 	m.mu.Unlock()
 	if needRegister {
-		m.register(&server, st, profile, hash)
+		m.register(room, profile, hash)
 	}
 
 	// 节点容器
 	nodeUp := false
-	if wantNode && server.LinkNetworkName != "" {
+	if wantNode && room.NetworkName != "" {
 		m.mu.Lock()
 		peers := slices.Clone(st.peers)
 		m.mu.Unlock()
 		if len(peers) > 0 {
-			nodeUp = m.ensureNode(server, st, peers)
+			nodeUp = m.ensureNode(*room, servers, peers)
 		}
 	}
 
-	if server.LinkToken != "" && server.LinkRoomID != 0 {
-		m.heartbeat(&server, st, online && nodeUp, rt.Players, nodeUp)
+	if room.Token != "" && room.RoomID != 0 {
+		if !nodeUp {
+			for i := range beats {
+				beats[i].Online, beats[i].Players = false, 0
+			}
+		}
+		m.heartbeat(room, beats, nodeUp)
 	}
 	return wantNode
 }
 
 // register 登记或更新房间（POST /link/rooms），保存令牌、房间 ID、网络名和 peers
-func (m *LinkManager) register(server *models.Server, st *linkState, profile linkRoomProfile, hash string) {
+func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, hash string) {
+	st := m.room
 	var resp struct {
 		ID          uint     `json:"id"`
 		Token       string   `json:"token"`
@@ -316,46 +385,46 @@ func (m *LinkManager) register(server *models.Server, st *linkState, profile lin
 		Peers       []string `json:"peers"`
 		URL         string   `json:"url"`
 	}
-	status, retryAfter, code, err := m.request(http.MethodPost, "/link/rooms", server.LinkToken, profile, &resp)
+	status, retryAfter, code, err := m.request(http.MethodPost, "/link/rooms", room.Token, profile, &resp)
 	if err != nil {
-		m.fail(server.ID, status, retryAfter, code, err)
+		m.fail(&st.linkBackoff, "room", status, retryAfter, code, err)
 		return
 	}
-	if resp.ID == 0 && server.LinkRoomID == 0 {
-		m.fail(server.ID, status, 0, "invalid_response", errors.New("网站没有返回房间 ID"))
+	if resp.ID == 0 && room.RoomID == 0 {
+		m.fail(&st.linkBackoff, "room", status, 0, "invalid_response", errors.New("网站没有返回房间 ID"))
 		return
 	}
 
-	oldToken := server.LinkToken
+	oldToken := room.Token
 	updates := map[string]any{}
-	if resp.Token != "" && resp.Token != server.LinkToken {
-		updates["link_token"] = resp.Token
-		server.LinkToken = resp.Token
+	if resp.Token != "" && resp.Token != room.Token {
+		updates["token"] = resp.Token
+		room.Token = resp.Token
 	}
-	if resp.ID != 0 && resp.ID != server.LinkRoomID {
-		updates["link_room_id"] = resp.ID
-		server.LinkRoomID = resp.ID
+	if resp.ID != 0 && resp.ID != room.RoomID {
+		updates["room_id"] = resp.ID
+		room.RoomID = resp.ID
 	}
-	if resp.NetworkName != "" && resp.NetworkName != server.LinkNetworkName {
-		updates["link_network_name"] = resp.NetworkName
-		server.LinkNetworkName = resp.NetworkName
+	if resp.NetworkName != "" && resp.NetworkName != room.NetworkName {
+		updates["network_name"] = resp.NetworkName
+		room.NetworkName = resp.NetworkName
 	}
 	if len(updates) > 0 {
-		if err := database.DB.Model(&models.Server{}).Where("id = ?", server.ID).Updates(updates).Error; err != nil {
+		if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).Updates(updates).Error; err != nil {
 			// 令牌没保存下来，下次会再新建一个房间；网站上的旧房间 30 天没心跳后由网站清理
-			m.fail(server.ID, 0, 0, "local_error", fmt.Errorf("保存房间令牌失败: %w", err))
+			m.fail(&st.linkBackoff, "room", 0, 0, "local_error", fmt.Errorf("保存房间令牌失败: %w", err))
 			return
 		}
 	}
-	newRoom := oldToken != "" && server.LinkToken != oldToken
+	newRoom := oldToken != "" && room.Token != oldToken
 	if newRoom {
 		// 旧令牌已失效，网站新建了房间：旧房间的凭证（含被封禁玩家的）不能留在节点里
-		m.resetNode(server.ID)
+		m.resetNode()
 	}
 
 	m.mu.Lock()
 	if newRoom || oldToken == "" {
-		st.lastBeat, st.lastOnline, st.want = time.Time{}, false, 0
+		st.lastBeat, st.lastOnline, st.lastServers, st.want = time.Time{}, false, "", 0
 		st.revoke, st.acks, st.pending = nil, nil, nil
 	}
 	st.profileHash = hash
@@ -363,27 +432,28 @@ func (m *LinkManager) register(server *models.Server, st *linkState, profile lin
 	if len(resp.Peers) > 0 {
 		st.peers = resp.Peers
 	}
-	m.succeed(st)
+	m.succeed(&st.linkBackoff)
 	m.mu.Unlock()
 	if oldToken == "" || newRoom {
-		utils.Info("已登记联机房", zap.Uint("server_id", server.ID), zap.Uint("room_id", server.LinkRoomID))
+		utils.Info("已登记联机房", zap.Uint("room_id", room.RoomID), zap.Int("servers", len(profile.Servers)))
 	}
 }
 
 // resetNode 删除节点容器和凭证文件，下次按新参数重建
-func (m *LinkManager) resetNode(serverID uint) {
-	if err := m.docker.Remove(utils.GetLinkContainerName(serverID)); err != nil {
-		utils.Warn("联机房：删除节点容器失败", zap.Uint("server_id", serverID), zap.Error(err))
+func (m *LinkManager) resetNode() {
+	if err := m.docker.Remove(utils.LinkContainerName); err != nil {
+		utils.Warn("联机房：删除节点容器失败", zap.Error(err))
 	}
-	if err := m.docker.RemoveDir(serverID); err != nil {
-		utils.Warn("联机房：删除凭证目录失败", zap.Uint("server_id", serverID), zap.Error(err))
+	if err := m.docker.RemoveDir(); err != nil {
+		utils.Warn("联机房：删除凭证目录失败", zap.Error(err))
 	}
 }
 
 // ensureNode 确保节点容器按当前参数运行，返回节点是否在运行
-func (m *LinkManager) ensureNode(server models.Server, st *linkState, peers []string) bool {
-	spec := linkContainerSpec(server, peers)
-	name := utils.GetLinkContainerName(server.ID)
+func (m *LinkManager) ensureNode(room models.LinkRoom, servers []models.Server, peers []string) bool {
+	st := m.room
+	spec := linkContainerSpec(room, servers, peers)
+	name := utils.LinkContainerName
 
 	ready, err := m.docker.ImageReady(spec.Image)
 	if err != nil {
@@ -407,7 +477,7 @@ func (m *LinkManager) ensureNode(server models.Server, st *linkState, peers []st
 			return false
 		}
 		if info.Exists {
-			utils.Info("联机房节点参数或镜像有变化，已重建", zap.Uint("server_id", server.ID))
+			utils.Info("联机房节点参数或镜像有变化，已重建")
 		}
 	}
 	return true
@@ -422,8 +492,29 @@ func (m *LinkManager) nodeFail(st *linkState, code string, err error) {
 	st.nodeErrCode, st.nodeErr = code, err.Error()
 }
 
+// beatSignature 各服务器的在线情况，变化时提前心跳
+func beatSignature(beats []linkServerBeat) string {
+	var b strings.Builder
+	for _, s := range beats {
+		b.WriteString(s.Key)
+		if s.Online {
+			b.WriteString(":1,")
+		} else {
+			b.WriteString(":0,")
+		}
+	}
+	return b.String()
+}
+
 // heartbeat 到期时发心跳；节点在运行时先吊销网站要求吊销的凭证、签发网站要补充的凭证，随心跳上传
-func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online bool, players int, nodeUp bool) {
+func (m *LinkManager) heartbeat(room *models.LinkRoom, beats []linkServerBeat, nodeUp bool) {
+	st := m.room
+	online := false
+	for _, b := range beats {
+		online = online || b.Online
+	}
+	sig := beatSignature(beats)
+
 	m.mu.Lock()
 	now := m.now()
 	interval := linkHeartbeatOffline
@@ -431,8 +522,8 @@ func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online boo
 		interval = linkHeartbeatOnline
 	}
 	work := nodeUp && (st.want > len(st.pending) || len(st.revoke) > 0)
-	due := st.lastBeat.IsZero() || !now.Before(st.lastBeat.Add(interval)) || st.lastOnline != online || st.beatNow ||
-		work || len(st.pending) > 0 || len(st.acks) > 0
+	due := st.lastBeat.IsZero() || !now.Before(st.lastBeat.Add(interval)) || st.lastOnline != online || st.lastServers != sig ||
+		st.beatNow || work || len(st.pending) > 0 || len(st.acks) > 0
 	if !due || now.Before(st.nextAt) {
 		m.mu.Unlock()
 		return
@@ -447,13 +538,12 @@ func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online boo
 
 	if nodeUp {
 		var nodeErr error
-		container := utils.GetLinkContainerName(server.ID)
 		var newAcks []string
 		for _, id := range revoke {
 			if slices.Contains(acked, id) {
 				continue
 			}
-			if err := m.revokeCredential(container, server.LinkRPCPort, id); err != nil {
+			if err := m.revokeCredential(room.RPCPort, id); err != nil {
 				nodeErr = err
 				break
 			}
@@ -461,7 +551,7 @@ func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online boo
 		}
 		var issued []linkCredential
 		for i := 0; i < toIssue && nodeErr == nil; i++ {
-			cred, err := m.generateCredential(container, server.LinkRPCPort)
+			cred, err := m.generateCredential(room.RPCPort)
 			if err != nil {
 				nodeErr = err
 				break
@@ -473,7 +563,7 @@ func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online boo
 		st.pending = append(st.pending, issued...)
 		if nodeErr != nil {
 			if st.nodeErrCode == "" {
-				utils.Warn("联机房：签发或吊销凭证失败", zap.Uint("server_id", server.ID), zap.Error(nodeErr))
+				utils.Warn("联机房：签发或吊销凭证失败", zap.Error(nodeErr))
 			}
 			st.nodeErrCode, st.nodeErr = "node_error", nodeErr.Error()
 		} else {
@@ -485,13 +575,10 @@ func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online boo
 	m.mu.Lock()
 	body := struct {
 		Online      bool             `json:"online"`
-		Players     int              `json:"players"`
+		Servers     []linkServerBeat `json:"servers"`
 		Credentials []linkCredential `json:"credentials"`
 		RevokedAck  []string         `json:"revoked_ack"`
-	}{Online: online, Credentials: []linkCredential{}, RevokedAck: []string{}}
-	if online {
-		body.Players = players
-	}
+	}{Online: online, Servers: beats, Credentials: []linkCredential{}, RevokedAck: []string{}}
 	body.Credentials = append(body.Credentials, st.pending[:min(len(st.pending), linkCredentialsPerBeat)]...)
 	body.RevokedAck = append(body.RevokedAck, st.acks...)
 	st.beatNow = false
@@ -503,21 +590,21 @@ func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online boo
 		NetworkName     string   `json:"network_name"`
 		Peers           []string `json:"peers"`
 	}
-	path := fmt.Sprintf("/link/rooms/%d/heartbeat", server.LinkRoomID)
-	status, retryAfter, code, err := m.request(http.MethodPost, path, server.LinkToken, body, &resp)
+	path := fmt.Sprintf("/link/rooms/%d/heartbeat", room.RoomID)
+	status, retryAfter, code, err := m.request(http.MethodPost, path, room.Token, body, &resp)
 	if err != nil {
 		if code == "invalid_token" || status == http.StatusNotFound {
-			m.roomGone(server, st)
+			m.roomGone(room)
 		}
-		m.fail(server.ID, status, retryAfter, code, err)
+		m.fail(&st.linkBackoff, "room", status, retryAfter, code, err)
 		return
 	}
-	if resp.NetworkName != "" && resp.NetworkName != server.LinkNetworkName {
-		if err := database.DB.Model(&models.Server{}).Where("id = ?", server.ID).
-			Update("link_network_name", resp.NetworkName).Error; err != nil {
-			utils.Warn("联机房：保存网络名失败", zap.Uint("server_id", server.ID), zap.Error(err))
+	if resp.NetworkName != "" && resp.NetworkName != room.NetworkName {
+		if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).
+			Update("network_name", resp.NetworkName).Error; err != nil {
+			utils.Warn("联机房：保存网络名失败", zap.Error(err))
 		} else {
-			server.LinkNetworkName = resp.NetworkName
+			room.NetworkName = resp.NetworkName
 		}
 	}
 
@@ -532,56 +619,111 @@ func (m *LinkManager) heartbeat(server *models.Server, st *linkState, online boo
 	}
 	st.lastBeat = m.now()
 	st.lastOnline = online
-	m.succeed(st)
+	st.lastServers = sig
+	for _, b := range beats {
+		if ss, ok := m.servers[b.id]; ok {
+			ss.reported = b.Online
+		}
+	}
+	m.succeed(&st.linkBackoff)
+}
+
+// resetRoomState 清空房间的内存状态（保留退避），服务器的在线报告也一并清除
+func (m *LinkManager) resetRoomState() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	backoff := m.room.linkBackoff
+	*m.room = linkState{linkBackoff: backoff}
+	for _, ss := range m.servers {
+		ss.reported = false
+	}
 }
 
 // roomGone 网站上已经没有这个房间（令牌无效）：清空令牌和节点，下一轮重新登记一个新房间
-func (m *LinkManager) roomGone(server *models.Server, st *linkState) {
-	utils.Warn("联机房：网站上的房间已不存在，将重新登记", zap.Uint("server_id", server.ID))
-	if err := database.DB.Model(&models.Server{}).Where("id = ?", server.ID).
-		Updates(map[string]any{"link_token": "", "link_room_id": 0, "link_network_name": ""}).Error; err != nil {
-		utils.Warn("联机房：清除房间令牌失败", zap.Uint("server_id", server.ID), zap.Error(err))
+func (m *LinkManager) roomGone(room *models.LinkRoom) {
+	utils.Warn("联机房：网站上的房间已不存在，将重新登记")
+	if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).
+		Updates(map[string]any{"token": "", "room_id": 0, "network_name": ""}).Error; err != nil {
+		utils.Warn("联机房：清除房间令牌失败", zap.Error(err))
 		return
 	}
-	m.resetNode(server.ID)
-	m.mu.Lock()
-	st.profileHash, st.url = "", ""
-	st.lastBeat, st.lastOnline, st.want = time.Time{}, false, 0
-	st.revoke, st.acks, st.pending = nil, nil, nil
-	m.mu.Unlock()
+	room.Token, room.RoomID, room.NetworkName = "", 0, ""
+	m.resetNode()
+	m.resetRoomState()
 }
 
-// unregister 下架房间（DELETE /link/rooms/:id），成功后删除节点容器和凭证目录，清空令牌。
+// unregister 下架房间（DELETE /link/rooms/:id），成功后删除节点容器和凭证目录，清空令牌和网络密钥（保留房间资料）。
 // 网站已经没有这个房间（invalid_token / 404）也算成功
-func (m *LinkManager) unregister(server models.Server) {
-	st := m.state(server.ID)
+func (m *LinkManager) unregister(room models.LinkRoom) {
+	st := m.room
 	m.mu.Lock()
 	wait := m.now().Before(st.nextAt)
 	m.mu.Unlock()
 	if wait {
 		return
 	}
-	status, retryAfter, code, err := m.request(http.MethodDelete, fmt.Sprintf("/link/rooms/%d", server.LinkRoomID), server.LinkToken, nil, nil)
+	status, retryAfter, code, err := m.request(http.MethodDelete, fmt.Sprintf("/link/rooms/%d", room.RoomID), room.Token, nil, nil)
 	if err != nil && code != "invalid_token" && status != http.StatusNotFound {
-		m.fail(server.ID, status, retryAfter, code, err)
+		m.fail(&st.linkBackoff, "room", status, retryAfter, code, err)
 		return
 	}
-	m.resetNode(server.ID)
-	if err := database.DB.Unscoped().Model(&models.Server{}).Where("id = ?", server.ID).
-		Updates(map[string]any{"link_token": "", "link_room_id": 0, "link_network_name": "", "link_network_secret": ""}).Error; err != nil {
-		utils.Warn("联机房：清除房间令牌失败", zap.Uint("server_id", server.ID), zap.Error(err))
+	m.resetNode()
+	if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).
+		Updates(map[string]any{"token": "", "room_id": 0, "network_name": "", "network_secret": ""}).Error; err != nil {
+		utils.Warn("联机房：清除房间令牌失败", zap.Error(err))
 		return
 	}
 	m.mu.Lock()
-	delete(m.states, server.ID)
+	*m.room = linkState{}
 	m.mu.Unlock()
-	utils.Info("已下架联机房", zap.Uint("server_id", server.ID))
+	utils.Info("已下架联机房", zap.Uint("room_id", room.RoomID))
+}
+
+// cleanupLegacy 下架旧版每台服务器一个房间时登记的房间（servers.link_token 不为空，含已删除的服务器），
+// 成功（或网站已经没有）后删除旧的凭证目录、清空这些字段。旧的 ase-link-<id> 容器由 tick 删除
+func (m *LinkManager) cleanupLegacy() {
+	var legacy []models.Server
+	if err := database.DB.Unscoped().Select("id", "link_token", "link_room_id").
+		Where("link_token <> ''").Find(&legacy).Error; err != nil {
+		utils.Warn("联机房：读取旧版房间失败", zap.Error(err))
+		return
+	}
+	for _, server := range legacy {
+		m.mu.Lock()
+		b, ok := m.legacy[server.ID]
+		if !ok {
+			b = &linkBackoff{}
+			m.legacy[server.ID] = b
+		}
+		wait := m.now().Before(b.nextAt)
+		m.mu.Unlock()
+		if wait {
+			continue
+		}
+		status, retryAfter, code, err := m.request(http.MethodDelete, fmt.Sprintf("/link/rooms/%d", server.LinkRoomID), server.LinkToken, nil, nil)
+		if err != nil && code != "invalid_token" && status != http.StatusNotFound {
+			m.fail(b, "legacy-"+linkServerKey(server.ID), status, retryAfter, code, err)
+			continue
+		}
+		if err := m.docker.RemoveLegacyDir(server.ID); err != nil {
+			utils.Warn("联机房：删除旧版凭证目录失败", zap.Uint("server_id", server.ID), zap.Error(err))
+		}
+		if err := database.DB.Unscoped().Model(&models.Server{}).Where("id = ?", server.ID).
+			Updates(map[string]any{"link_token": "", "link_room_id": 0, "link_network_name": "", "link_network_secret": "", "link_rpc_port": 0}).Error; err != nil {
+			utils.Warn("联机房：清除旧版房间令牌失败", zap.Uint("server_id", server.ID), zap.Error(err))
+			continue
+		}
+		m.mu.Lock()
+		delete(m.legacy, server.ID)
+		m.mu.Unlock()
+		utils.Info("已下架旧版的单服务器联机房", zap.Uint("server_id", server.ID), zap.Uint("room_id", server.LinkRoomID))
+	}
 }
 
 // generateCredential 在节点里签发一个不可复用的凭证（TTL 30 天）
-func (m *LinkManager) generateCredential(container string, rpcPort int) (linkCredential, error) {
+func (m *LinkManager) generateCredential(rpcPort int) (linkCredential, error) {
 	id := m.newID()
-	out, err := m.cli(container, rpcPort, "credential", "generate", "--ttl", strconv.Itoa(int(linkCredentialTTL/time.Second)),
+	out, err := m.cli(rpcPort, "credential", "generate", "--ttl", strconv.Itoa(int(linkCredentialTTL/time.Second)),
 		"--credential-id", id, "--reusable", "false")
 	if err != nil {
 		return linkCredential{}, fmt.Errorf("签发凭证失败: %w", err)
@@ -600,8 +742,8 @@ func (m *LinkManager) generateCredential(container string, rpcPort int) (linkCre
 }
 
 // revokeCredential 在节点里吊销凭证。凭证不存在（{"success": false}、not found）也算完成
-func (m *LinkManager) revokeCredential(container string, rpcPort int, id string) error {
-	_, err := m.cli(container, rpcPort, "credential", "revoke", id)
+func (m *LinkManager) revokeCredential(rpcPort int, id string) error {
+	_, err := m.cli(rpcPort, "credential", "revoke", id)
 	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "not found") {
 		return fmt.Errorf("吊销凭证失败: %w", err)
 	}
@@ -609,9 +751,9 @@ func (m *LinkManager) revokeCredential(container string, rpcPort int, id string)
 }
 
 // cli 在节点容器里执行 easytier-cli（JSON 输出），返回标准输出
-func (m *LinkManager) cli(container string, rpcPort int, args ...string) (string, error) {
+func (m *LinkManager) cli(rpcPort int, args ...string) (string, error) {
 	argv := append([]string{"easytier-cli", "-p", fmt.Sprintf("127.0.0.1:%d", rpcPort), "-o", "json"}, args...)
-	res, err := m.docker.Exec(container, argv, linkExecTimeout)
+	res, err := m.docker.Exec(utils.LinkContainerName, argv, linkExecTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -633,37 +775,33 @@ func (m *LinkManager) request(method, path, token string, body, out any) (int, t
 }
 
 // succeed 清除失败记录，调用时持有 m.mu
-func (m *LinkManager) succeed(st *linkState) {
-	st.failures = 0
-	st.errCode, st.errMsg = "", ""
-	st.nextAt = time.Time{}
+func (m *LinkManager) succeed(b *linkBackoff) {
+	b.failures = 0
+	b.errCode, b.errMsg = "", ""
+	b.nextAt = time.Time{}
 }
 
 // fail 记录网站请求失败并安排重试：指数退避，网站给了 Retry-After 时取两者中较长的
-func (m *LinkManager) fail(serverID uint, status int, retryAfter time.Duration, code string, err error) {
+func (m *LinkManager) fail(b *linkBackoff, target string, status int, retryAfter time.Duration, code string, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	st, ok := m.states[serverID]
-	if !ok {
-		return
-	}
-	st.failures++
-	wait := min(linkBackoffBase<<min(st.failures-1, 5), linkBackoffMax)
+	b.failures++
+	wait := min(linkBackoffBase<<min(b.failures-1, 5), linkBackoffMax)
 	if retryAfter > wait {
 		wait = min(retryAfter, 2*time.Hour)
 	}
-	st.nextAt = m.now().Add(wait)
+	b.nextAt = m.now().Add(wait)
 	if code == "" {
 		code = "network"
 	}
-	st.errCode = code
-	st.errMsg = linkErrorMessage(code)
-	if st.errMsg == "" {
-		st.errMsg = err.Error()
+	b.errCode = code
+	b.errMsg = linkErrorMessage(code)
+	if b.errMsg == "" {
+		b.errMsg = err.Error()
 	}
-	if st.failures == 1 || st.failures%10 == 0 {
-		utils.Warn("联机房请求失败", zap.Uint("server_id", serverID), zap.Int("status", status),
-			zap.String("code", code), zap.Int("failures", st.failures), zap.Error(err))
+	if b.failures == 1 || b.failures%10 == 0 {
+		utils.Warn("联机房请求失败", zap.String("target", target), zap.Int("status", status),
+			zap.String("code", code), zap.Int("failures", b.failures), zap.Error(err))
 	}
 }
 
@@ -681,22 +819,10 @@ func linkErrorMessage(code string) string {
 	return ""
 }
 
-// statusFor 返回服务器的联机房状态，未开启时为 nil
-func (m *LinkManager) statusFor(server models.Server) *models.LinkStatus {
-	if !server.Link {
-		return nil
-	}
-	if m.api() == "" {
-		return &models.LinkStatus{State: models.LinkDisabled}
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	status := &models.LinkStatus{State: models.LinkWaiting}
-	st, ok := m.states[server.ID]
-	if !ok {
-		return status
-	}
-	status.RoomURL = st.url
+// roomStatusLocked 房间的状态，调用时持有 m.mu
+func (m *LinkManager) roomStatusLocked() *models.LinkStatus {
+	st := m.room
+	status := &models.LinkStatus{State: models.LinkWaiting, RoomURL: st.url}
 	switch {
 	case st.errCode != "":
 		status.State = models.LinkError
@@ -707,35 +833,105 @@ func (m *LinkManager) statusFor(server models.Server) *models.LinkStatus {
 	case st.nodeErrCode != "":
 		status.State = models.LinkError
 		status.ErrorCode, status.Error = st.nodeErrCode, st.nodeErr
-	case st.lastBeat.IsZero():
-	case st.lastOnline:
+	}
+	return status
+}
+
+// statusFor 返回服务器的联机房状态，未开启时为 nil。房间出错时所有服务器都显示错误；
+// 否则这台服务器在最近一次心跳里报告为可以连接时为 online，没在运行时为 offline，其他情况为 waiting
+func (m *LinkManager) statusFor(server models.Server) *models.LinkStatus {
+	if !server.Link {
+		return nil
+	}
+	if m.api() == "" {
+		return &models.LinkStatus{State: models.LinkDisabled}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	status := m.roomStatusLocked()
+	if status.State == models.LinkError || m.room.lastBeat.IsZero() {
+		return status
+	}
+	if ss, ok := m.servers[server.ID]; ok && ss.reported {
 		status.State = models.LinkOnline
-	case server.Status != "running":
+	} else if server.Status != "running" {
 		status.State = models.LinkOffline
 	}
 	return status
 }
 
-// poke 让下一轮马上发心跳（踢人后尽快拿到要吊销的凭证）
-func (m *LinkManager) poke(serverID uint) {
+// roomStatus 房间的状态（设置页），没有服务器开启联机房时为 nil
+func (m *LinkManager) roomStatus(hasServers bool) *models.LinkStatus {
+	if !hasServers {
+		return nil
+	}
+	if m.api() == "" {
+		return &models.LinkStatus{State: models.LinkDisabled}
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if st, ok := m.states[serverID]; ok {
-		st.beatNow = true
+	status := m.roomStatusLocked()
+	if status.State == models.LinkError || m.room.lastBeat.IsZero() {
+		return status
 	}
+	if m.room.lastOnline {
+		status.State = models.LinkOnline
+	} else {
+		status.State = models.LinkOffline
+	}
+	return status
+}
+
+// serverReported 这台服务器在最近一次成功的心跳里是否报告为可以连接
+func (m *LinkManager) serverReported(id uint) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	ss, ok := m.servers[id]
+	return ok && ss.reported
+}
+
+// poke 让下一轮马上发心跳（踢人后尽快拿到要吊销的凭证）
+func (m *LinkManager) poke() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.room.beatNow = true
 }
 
 // ---- 节点参数 ----
 
-// linkNodeArgs easytier-core 的参数，见 docs/p2p-link.md 的"服主节点"
-func linkNodeArgs(server models.Server, peers []string) []string {
-	hostname := strings.TrimSpace(server.SessionName)
-	if hostname == "" {
-		hostname = fmt.Sprintf("ark-%d", server.ID)
+// linkRoomName 房间名称：设置里的名称，为空时用第一台服务器的名称
+func linkRoomName(room models.LinkRoom, servers []models.Server) string {
+	if name := strings.TrimSpace(room.Name); name != "" {
+		return name
 	}
+	for _, s := range servers {
+		if name := strings.TrimSpace(s.SessionName); name != "" {
+			return name
+		}
+	}
+	return "ARK Server"
+}
+
+// linkNodePorts 节点放行的 UDP 端口：每台服务器的游戏端口、+1 和查询端口，去重，按服务器顺序
+func linkNodePorts(servers []models.Server) []string {
+	seen := map[int]bool{}
+	var ports []string
+	for _, s := range servers {
+		for _, p := range []int{s.Port, s.Port + 1, s.QueryPort} {
+			if p > 0 && !seen[p] {
+				seen[p] = true
+				ports = append(ports, strconv.Itoa(p))
+			}
+		}
+	}
+	return ports
+}
+
+// linkNodeArgs easytier-core 的参数，见 docs/p2p-link.md 的"服主节点"
+func linkNodeArgs(room models.LinkRoom, servers []models.Server, peers []string) []string {
 	args := []string{
-		"--network-name", server.LinkNetworkName,
-		"--network-secret", server.LinkNetworkSecret,
+		"--network-name", room.NetworkName,
+		"--network-secret", room.NetworkSecret,
 		"--secure-mode",
 		"--credential-file", linkCredentialFile,
 		"--peers",
@@ -744,57 +940,57 @@ func linkNodeArgs(server models.Server, peers []string) []string {
 	args = append(args,
 		"--ipv4", linkVirtualIP, "--no-tun", "--p2p-only",
 		"--tcp-whitelist", "0",
-		"--udp-whitelist", strconv.Itoa(server.Port), strconv.Itoa(server.Port+1), strconv.Itoa(server.QueryPort),
+		"--udp-whitelist",
+	)
+	args = append(args, linkNodePorts(servers)...)
+	args = append(args,
 		"--listeners", "tcp://0.0.0.0:0", "udp://0.0.0.0:0",
-		"--rpc-portal", fmt.Sprintf("127.0.0.1:%d", server.LinkRPCPort),
-		"--hostname", hostname,
+		"--rpc-portal", fmt.Sprintf("127.0.0.1:%d", room.RPCPort),
+		"--hostname", linkRoomName(room, servers),
 	)
 	return args
 }
 
 // linkContainerSpec 节点容器配置；标签里的摘要包含镜像和全部参数，参数变化时重建
-func linkContainerSpec(server models.Server, peers []string) docker_manager.LinkContainerSpec {
-	args := linkNodeArgs(server, peers)
+func linkContainerSpec(room models.LinkRoom, servers []models.Server, peers []string) docker_manager.LinkContainerSpec {
+	args := linkNodeArgs(room, servers, peers)
 	sum := sha256.Sum256([]byte(utils.EasyTierImage + "\x00" + strings.Join(args, "\x00")))
 	return docker_manager.LinkContainerSpec{
-		ServerID: server.ID,
-		Image:    utils.EasyTierImage,
-		Args:     args,
-		Labels: map[string]string{
-			linkCommandHashLabel: hex.EncodeToString(sum[:]),
-			linkServerIDLabel:    strconv.FormatUint(uint64(server.ID), 10),
-		},
+		Image:  utils.EasyTierImage,
+		Args:   args,
+		Labels: map[string]string{linkCommandHashLabel: hex.EncodeToString(sum[:])},
 	}
 }
 
 // ensureLinkLocal 第一次处理时生成网络密钥、分配 RPC 端口并保存
-func ensureLinkLocal(server *models.Server) error {
+func ensureLinkLocal(room *models.LinkRoom) error {
 	updates := map[string]any{}
-	if server.LinkNetworkSecret == "" {
+	if room.NetworkSecret == "" {
 		buf := make([]byte, linkNetworkSecretLength)
 		if _, err := rand.Read(buf); err != nil {
 			return err
 		}
-		server.LinkNetworkSecret = hex.EncodeToString(buf)
-		updates["link_network_secret"] = server.LinkNetworkSecret
+		room.NetworkSecret = hex.EncodeToString(buf)
+		updates["network_secret"] = room.NetworkSecret
 	}
-	if server.LinkRPCPort == 0 {
-		port, err := assignLinkRPCPort(server.ID)
+	if room.RPCPort == 0 {
+		port, err := assignLinkRPCPort()
 		if err != nil {
 			return err
 		}
-		server.LinkRPCPort = port
-		updates["link_rpc_port"] = port
+		room.RPCPort = port
+		updates["rpc_port"] = port
 	}
 	if len(updates) == 0 {
 		return nil
 	}
-	return database.DB.Model(&models.Server{}).Where("id = ?", server.ID).Updates(updates).Error
+	return database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).Updates(updates).Error
 }
 
-// assignLinkRPCPort 节点 RPC 端口（只监听宿主机 127.0.0.1）：20000 + 服务器 ID。
-// 管理端运行在容器里，探测不了宿主机端口，只避开数据库里已知的端口（各服务器的游戏端口、+1、查询、RCON 和其他节点的 RPC 端口），冲突时顺延
-func assignLinkRPCPort(serverID uint) (int, error) {
+// assignLinkRPCPort 节点 RPC 端口（只监听宿主机 127.0.0.1）：从 20000 开始。
+// 管理端运行在容器里，探测不了宿主机端口，只避开数据库里已知的端口（各服务器的游戏端口、+1、查询、RCON，
+// 以及旧版节点还没删掉时的 RPC 端口），冲突时顺延
+func assignLinkRPCPort() (int, error) {
 	var servers []models.Server
 	if err := database.DB.Select("id", "port", "query_port", "rcon_port", "link_rpc_port").Find(&servers).Error; err != nil {
 		return 0, err
@@ -802,15 +998,15 @@ func assignLinkRPCPort(serverID uint) (int, error) {
 	used := map[int]bool{}
 	for _, s := range servers {
 		used[s.Port], used[s.Port+1], used[s.QueryPort], used[s.RCONPort] = true, true, true, true
-		if s.ID != serverID && s.LinkRPCPort > 0 {
+		if s.LinkRPCPort > 0 {
 			used[s.LinkRPCPort] = true
 		}
 	}
-	port := linkRPCPortBase + int(serverID%40000)
+	port := linkRPCPortBase
 	for used[port] {
 		port++
 		if port > 65535 {
-			port = linkRPCPortBase
+			return 0, errors.New("找不到空闲的节点 RPC 端口")
 		}
 	}
 	return port, nil
@@ -818,10 +1014,39 @@ func assignLinkRPCPort(serverID uint) (int, error) {
 
 // ---- 资料 ----
 
-// buildLinkRoomProfile 登记房间的资料：和发布到收录站相同的服务器资料，加上端口和节点虚拟 IP
-func buildLinkRoomProfile(server models.Server) linkRoomProfile {
-	sp := buildServerProfile(server)
+// linkRoomListing 设置里的房间收录资料；全部为空时用第一台服务器的收录资料
+func linkRoomListing(room models.LinkRoom, servers []models.Server) models.ListingProfile {
+	p := models.ListingProfile{Description: room.Description, QQGroup: room.QQGroup, Discord: room.Discord, Tags: []string{}}
+	for _, tag := range strings.Split(room.Tags, ",") {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			p.Tags = append(p.Tags, tag)
+		}
+	}
+	if p.Description == "" && p.QQGroup == "" && p.Discord == "" && len(p.Tags) == 0 && len(servers) > 0 {
+		return listingOf(servers[0])
+	}
+	return p
+}
+
+// buildLinkRoomProfile 登记房间的资料：房间名称和收录资料，加上每台服务器的资料
+func buildLinkRoomProfile(room models.LinkRoom, servers []models.Server, profiles []linkServerProfile) linkRoomProfile {
+	listing := linkRoomListing(room, servers)
 	return linkRoomProfile{
+		Name:        linkRoomName(room, servers),
+		Description: listing.Description,
+		Tags:        listing.Tags,
+		QQGroup:     listing.QQGroup,
+		Discord:     listing.Discord,
+		ServerIP:    linkVirtualIP,
+		Servers:     profiles,
+	}
+}
+
+// buildLinkServerProfile 房间里一台服务器的资料：和发布到收录站相同的服务器资料，加上端口
+func buildLinkServerProfile(server models.Server) linkServerProfile {
+	sp := buildServerProfile(server)
+	return linkServerProfile{
+		Key:          linkServerKey(server.ID),
 		Name:         sp.Name,
 		Map:          sp.Map,
 		MaxPlayers:   sp.MaxPlayers,
@@ -834,13 +1059,8 @@ func buildLinkRoomProfile(server models.Server) linkRoomProfile {
 		RateTame:     sp.RateTame,
 		RateHarvest:  sp.RateHarvest,
 		RateBreeding: sp.RateBreeding,
-		Description:  sp.Listing.Description,
-		Tags:         sp.Listing.Tags,
-		QQGroup:      sp.Listing.QQGroup,
-		Discord:      sp.Listing.Discord,
 		GamePort:     server.Port,
 		QueryPort:    server.QueryPort,
-		ServerIP:     linkVirtualIP,
 	}
 }
 
@@ -882,19 +1102,23 @@ func truncate(s string, n int) string {
 	return s[:n] + "…"
 }
 
-// ---- 成员管理（代理到网站） ----
+// ---- 房间资料和成员管理（成员管理代理到网站） ----
 
 var steamIDRe = regexp.MustCompile(`^[0-9]{17}$`)
 
 // linkCall 用房间令牌调用网站的成员管理接口
-func (m *LinkManager) linkCall(server models.Server, method, path string, body, out any) error {
+func (m *LinkManager) linkCall(method, path string, body, out any) error {
 	if m.api() == "" {
 		return fmt.Errorf("%w：管理端已关闭与 arkfgf.com 的连接（ARKFGF_API 为空）", ErrLinkUnavailable)
 	}
-	if server.LinkToken == "" || server.LinkRoomID == 0 {
+	room, err := loadLinkRoom()
+	if err != nil {
+		return fmt.Errorf("读取联机房失败: %w", err)
+	}
+	if room.Token == "" || room.RoomID == 0 {
 		return ErrLinkNotRegistered
 	}
-	status, _, code, err := m.request(method, fmt.Sprintf("/link/rooms/%d%s", server.LinkRoomID, path), server.LinkToken, body, out)
+	status, _, code, err := m.request(method, fmt.Sprintf("/link/rooms/%d%s", room.RoomID, path), room.Token, body, out)
 	if err == nil {
 		return nil
 	}
@@ -907,14 +1131,65 @@ func (m *LinkManager) linkCall(server models.Server, method, path string, body, 
 	return fmt.Errorf("%w：%v", ErrLinkUnavailable, err)
 }
 
-// GetLinkMembers 联机房的成员（持有未吊销凭证的玩家）和封禁列表
-func (s *ServerService) GetLinkMembers(userID uint, serverID string) (*models.LinkMembers, error) {
-	server, err := getUserServer(userID, serverID)
+// GetLinkRoom 联机房的资料、状态和房间里的服务器
+func (s *ServerService) GetLinkRoom() (*models.LinkRoomInfo, error) {
+	room, err := loadLinkRoom()
 	if err != nil {
 		return nil, err
 	}
+	var servers []models.Server
+	if err := database.DB.Select("id", "session_name", "port", "query_port", "status").
+		Where("link = ?", true).Order("id").Find(&servers).Error; err != nil {
+		return nil, err
+	}
+	info := &models.LinkRoomInfo{
+		LinkRoomSettings: models.LinkRoomSettings{
+			Name:    room.Name,
+			Listing: models.ListingProfile{Description: room.Description, QQGroup: room.QQGroup, Discord: room.Discord, Tags: []string{}},
+		},
+		Status:  linkManager.roomStatus(len(servers) > 0),
+		Servers: []models.LinkRoomMember{},
+	}
+	for _, tag := range strings.Split(room.Tags, ",") {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			info.Listing.Tags = append(info.Listing.Tags, tag)
+		}
+	}
+	for _, sv := range servers {
+		info.Servers = append(info.Servers, models.LinkRoomMember{
+			ID: sv.ID, SessionName: sv.SessionName, Port: sv.Port, QueryPort: sv.QueryPort, Status: sv.Status,
+			Online: linkManager.serverReported(sv.ID),
+		})
+	}
+	return info, nil
+}
+
+// UpdateLinkRoom 修改联机房的名称和收录资料，下一轮重新登记时生效
+func (s *ServerService) UpdateLinkRoom(req models.LinkRoomSettings) (*models.LinkRoomInfo, error) {
+	name := strings.TrimSpace(req.Name)
+	if utf8.RuneCountInString(name) > linkRoomNameMax {
+		return nil, fmt.Errorf("%w：房间名称最多 %d 字", ErrInvalidListing, linkRoomNameMax)
+	}
+	listing, err := normalizeListing(req.Listing)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := loadLinkRoom(); err != nil {
+		return nil, err
+	}
+	if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", linkRoomID).Updates(map[string]any{
+		"name": name, "description": listing.Description, "tags": strings.Join(listing.Tags, ","),
+		"qq_group": listing.QQGroup, "discord": listing.Discord,
+	}).Error; err != nil {
+		return nil, err
+	}
+	return s.GetLinkRoom()
+}
+
+// GetLinkMembers 联机房的成员（持有未吊销凭证的玩家）和封禁列表
+func (s *ServerService) GetLinkMembers() (*models.LinkMembers, error) {
 	var out models.LinkMembers
-	if err := linkManager.linkCall(server, http.MethodGet, "/members", nil, &out); err != nil {
+	if err := linkManager.linkCall(http.MethodGet, "/members", nil, &out); err != nil {
 		return nil, err
 	}
 	if out.Members == nil {
@@ -927,38 +1202,23 @@ func (s *ServerService) GetLinkMembers(userID uint, serverID string) (*models.Li
 }
 
 // KickLinkMember 踢出联机房成员（吊销凭证，下次心跳时在节点里吊销），ban 时同时封禁
-func (s *ServerService) KickLinkMember(userID uint, serverID string, req models.LinkKickRequest) error {
+func (s *ServerService) KickLinkMember(req models.LinkKickRequest) error {
 	if !steamIDRe.MatchString(req.SteamID) {
 		return ErrInvalidSteamID
 	}
-	server, err := getUserServer(userID, serverID)
-	if err != nil {
+	if err := linkManager.linkCall(http.MethodPost, "/kick", req, nil); err != nil {
 		return err
 	}
-	if err := linkManager.linkCall(server, http.MethodPost, "/kick", req, nil); err != nil {
-		return err
-	}
-	linkManager.poke(server.ID)
+	linkManager.poke()
 	return nil
 }
 
 // UnbanLinkMember 解除联机房封禁
-func (s *ServerService) UnbanLinkMember(userID uint, serverID, steamID string) error {
+func (s *ServerService) UnbanLinkMember(steamID string) error {
 	if !steamIDRe.MatchString(steamID) {
 		return ErrInvalidSteamID
 	}
-	server, err := getUserServer(userID, serverID)
-	if err != nil {
-		return err
-	}
-	return linkManager.linkCall(server, http.MethodDelete, "/bans/"+url.PathEscape(steamID), nil, nil)
-}
-
-// removeLinkContainer 删除服务器时顺手删掉节点容器（下架由后台的 tick 完成）
-func removeLinkContainer(serverID uint) {
-	if err := linkManager.docker.Remove(utils.GetLinkContainerName(serverID)); err != nil {
-		utils.Warn("删除联机房容器失败", zap.Uint("server_id", serverID), zap.Error(err))
-	}
+	return linkManager.linkCall(http.MethodDelete, "/bans/"+url.PathEscape(steamID), nil, nil)
 }
 
 // ---- Docker 操作 ----
@@ -1038,4 +1298,8 @@ func (o dockerLinkOps) Exec(name string, argv []string, timeout time.Duration) (
 	return dm.ExecCommand(name, argv, nil, timeout)
 }
 
-func (dockerLinkOps) RemoveDir(serverID uint) error { return docker_manager.RemoveLinkDir(serverID) }
+func (dockerLinkOps) RemoveDir() error { return docker_manager.RemoveLinkDir() }
+
+func (dockerLinkOps) RemoveLegacyDir(serverID uint) error {
+	return docker_manager.RemoveLegacyLinkDir(serverID)
+}

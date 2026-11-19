@@ -52,6 +52,17 @@ export interface ListingProfile {
     discord: string;
 }
 
+// P2P 联机房（每个管理端一个房间，开启了 link 的服务器都在里面）：GET/PUT /api/link/room
+export interface LinkRoomInfo {
+    /** 设置里的名称，为空时登记时用第一台服务器的名称 */
+    name: string;
+    /** 设置里的收录资料，全部为空时登记时用第一台服务器的收录资料 */
+    listing: ListingProfile;
+    /** 没有服务器开启联机房时为 null */
+    status: LinkStatus | null;
+    servers: { id: number; session_name: string; port: number; query_port: number; status: string; online: boolean }[];
+}
+
 // 定义服务器对象类型
 export interface Server {
     id: number;

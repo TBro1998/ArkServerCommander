@@ -45,13 +45,12 @@ func TestLinkNodeDockerSmoke(t *testing.T) {
 		time.Sleep(2 * time.Second)
 	}
 
-	server := models.Server{
-		ID: 59001, SessionName: "冒烟 测试", Port: 7777, QueryPort: 27015,
-		LinkNetworkName: "ark-smoke0000000000", LinkNetworkSecret: strings.Repeat("ab", 32), LinkRPCPort: 39001,
-	}
-	name := utils.GetLinkContainerName(server.ID)
+	// 一个房间两台服务器
+	room := models.LinkRoom{ID: 1, Name: "冒烟 测试", NetworkName: "ark-smoke0000000000", NetworkSecret: strings.Repeat("ab", 32), RPCPort: 39001}
+	servers := []models.Server{{ID: 1, Port: 7777, QueryPort: 27015}, {ID: 2, Port: 7779, QueryPort: 27017}}
+	name := utils.LinkContainerName
 	t.Cleanup(func() { _ = ops.Remove(name) })
-	spec := linkContainerSpec(server, []string{"tcp://127.0.0.1:1"})
+	spec := linkContainerSpec(room, servers, []string{"tcp://127.0.0.1:1"})
 	if err := ops.Create(spec); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +60,7 @@ func TestLinkNodeDockerSmoke(t *testing.T) {
 	var err error
 	for range 20 { // 节点启动后 RPC 端口要等一会儿才可用
 		time.Sleep(time.Second)
-		if cred, err = m.generateCredential(name, server.LinkRPCPort); err == nil {
+		if cred, err = m.generateCredential(room.RPCPort); err == nil {
 			break
 		}
 	}
@@ -75,14 +74,14 @@ func TestLinkNodeDockerSmoke(t *testing.T) {
 	if err != nil || !info.Running || info.Labels[linkCommandHashLabel] != spec.Labels[linkCommandHashLabel] {
 		t.Fatalf("info = %+v err = %v", info, err)
 	}
-	if err := m.revokeCredential(name, server.LinkRPCPort, cred.ID); err != nil {
+	if err := m.revokeCredential(room.RPCPort, cred.ID); err != nil {
 		t.Fatal(err)
 	}
 	// 不存在的凭证也算吊销完成
-	if err := m.revokeCredential(name, server.LinkRPCPort, newUUID()); err != nil {
+	if err := m.revokeCredential(room.RPCPort, newUUID()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(docker_manager.LinkDataDir(server.ID), "cred.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(docker_manager.LinkDataDir(), "cred.json")); err != nil {
 		t.Logf("凭证文件还没写入数据目录: %v", err)
 	}
 	if err := ops.Remove(name); err != nil {

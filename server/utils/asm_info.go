@@ -72,11 +72,10 @@ func NormalizeModIDs(ids string) string {
 	return strings.Join(parts, ",")
 }
 
-// GetLinkContainerName P2P 联机房的 EasyTier 节点容器名称。
-// 不匹配 ase-server-<id>，不会被当成 ARK 服务器容器（ListServerContainers 按名称过滤）
-func GetLinkContainerName(serverID uint) string {
-	return fmt.Sprintf("ase-link-%d", serverID)
-}
+// LinkContainerName P2P 联机房的 EasyTier 节点容器名称（每个管理端一个房间、一个节点）。
+// 不匹配 ase-server-<id>，不会被当成 ARK 服务器容器（ListServerContainers 按名称过滤）。
+// 旧版每台服务器一个节点（ase-link-<id>），升级后由联机房后台删除
+const LinkContainerName = "ase-link-room"
 
 // EasyTierImage P2P 联机房节点使用的 EasyTier 镜像（入口是 easytier-core）
 const EasyTierImage = "easytier/easytier:v2.6.4"

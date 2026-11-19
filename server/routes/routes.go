@@ -66,6 +66,13 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.GET("/system/server-defaults", system.GetServerDefaults)
 			protected.GET("/mods", system.GetMods)
 
+			// P2P 联机房（每个管理端一个房间，开启了 link 的服务器都在里面）
+			protected.GET("/link/room", servers.GetLinkRoom)
+			protected.PUT("/link/room", servers.UpdateLinkRoom)
+			protected.GET("/link/members", servers.GetLinkMembers)
+			protected.POST("/link/kick", servers.KickLinkMember)
+			protected.DELETE("/link/bans/:steam_id", servers.UnbanLinkMember)
+
 			// 服务器管理路由
 			serverRoutes := protected.Group("/servers")
 			{
@@ -90,9 +97,6 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.POST("/:id/rcon/command", servers.RconCommand)
 				serverRoutes.GET("/:id/players", servers.ListPlayers)
 				serverRoutes.GET("/:id/publish/stats", servers.GetPublishStats)
-				serverRoutes.GET("/:id/link/members", servers.GetLinkMembers)
-				serverRoutes.POST("/:id/link/kick", servers.KickLinkMember)
-				serverRoutes.DELETE("/:id/link/bans/:steam_id", servers.UnbanLinkMember)
 
 				// 存档备份
 				serverRoutes.GET("/:id/backups", servers.ListBackups)

@@ -28,18 +28,15 @@ type Server struct {
 	Publish bool `json:"publish" gorm:"default:false"`
 	// 收录站返回的发布令牌，用于心跳和更新同一条记录
 	PublishToken string `json:"-" gorm:"default:''"`
-	// P2P 联机房（arkfgf.com 联机助手）：为服务器运行一个 EasyTier 节点，没有公网 IP 的玩家也能通过 P2P 连进来
+	// P2P 联机房（arkfgf.com 联机助手）：加入管理端的联机房（见 LinkRoom），没有公网 IP 的玩家也能通过 P2P 连进来
 	Link bool `json:"link" gorm:"default:false"`
-	// 网站返回的房间令牌（alr_...），用于心跳、更新和下架
-	LinkToken string `json:"-" gorm:"column:link_token;default:''"`
-	// 网站上的房间 ID
-	LinkRoomID uint `json:"-" gorm:"column:link_room_id;default:0"`
-	// 网站分配的 EasyTier 网络名（ark-xxxxxxxxxxxxxxxx）
-	LinkNetworkName string `json:"-" gorm:"column:link_network_name;default:''"`
-	// EasyTier 网络密钥，本地生成（32 字节随机数 hex），只存在本机
+	// 以下 Link* 字段是旧版"每台服务器一个房间"留下的，只用于升级后下架旧房间（service/server/link.go 的 cleanupLegacy），
+	// 下架后清空，新代码不再写入
+	LinkToken         string `json:"-" gorm:"column:link_token;default:''"`
+	LinkRoomID        uint   `json:"-" gorm:"column:link_room_id;default:0"`
+	LinkNetworkName   string `json:"-" gorm:"column:link_network_name;default:''"`
 	LinkNetworkSecret string `json:"-" gorm:"column:link_network_secret;default:''"`
-	// 节点 RPC 端口（宿主机 127.0.0.1），按服务器 ID 分配，见 service/server/link.go 的 assignLinkRPCPort
-	LinkRPCPort int `json:"-" gorm:"column:link_rpc_port;default:0"`
+	LinkRPCPort       int    `json:"-" gorm:"column:link_rpc_port;default:0"`
 	// 收录资料：随发布一起提交，显示在收录站的详情页上。标签用逗号分隔
 	ListingDescription string         `json:"-" gorm:"type:text;default:''"`
 	ListingTags        string         `json:"-" gorm:"default:''"`

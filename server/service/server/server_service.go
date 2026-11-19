@@ -658,8 +658,7 @@ func (s *ServerService) DeleteServer(userID uint, serverID string, deleteData bo
 	// 删除服务器关联的定时任务
 	database.DB.Where("server_id = ?", server.ID).Delete(&models.Schedule{})
 	runtimeMonitor.Forget(server.ID)
-	// 联机房节点容器（正常情况下停服时已经删除）；网站上的房间由 LinkManager 下架
-	removeLinkContainer(server.ID)
+	// 联机房由 LinkManager 处理：下一轮按剩下的服务器重新登记房间、重建节点（没有服务器开启联机房时下架）
 
 	if deleteData {
 		var errs []error

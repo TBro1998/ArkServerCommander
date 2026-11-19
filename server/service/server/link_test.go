@@ -28,16 +28,17 @@ type fakeLinkContainer struct {
 
 // fakeLinkDocker 模拟 Docker：记录创建、删除和 easytier-cli 调用
 type fakeLinkDocker struct {
-	mu          sync.Mutex
-	imageReady  bool
-	imageID     string
-	containers  map[string]*fakeLinkContainer
-	creates     int
-	removed     []string
-	removedDirs []uint
-	generated   []string
-	revoked     []string
-	execErr     error
+	mu                sync.Mutex
+	imageReady        bool
+	imageID           string
+	containers        map[string]*fakeLinkContainer
+	creates           int
+	removed           []string
+	removedDirs       int
+	removedLegacyDirs []uint
+	generated         []string
+	revoked           []string
+	execErr           error
 }
 
 func newFakeLinkDocker() *fakeLinkDocker {
@@ -70,8 +71,15 @@ func (d *fakeLinkDocker) Create(spec docker_manager.LinkContainerSpec) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.creates++
-	d.containers[utils.GetLinkContainerName(spec.ServerID)] = &fakeLinkContainer{running: true, imageID: d.imageID, labels: spec.Labels, args: spec.Args}
+	d.containers[utils.LinkContainerName] = &fakeLinkContainer{running: true, imageID: d.imageID, labels: spec.Labels, args: spec.Args}
 	return nil
+}
+
+// addContainer 放一个残留的容器（例如旧版的 ase-link-<id>）
+func (d *fakeLinkDocker) addContainer(name string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.containers[name] = &fakeLinkContainer{running: true}
 }
 
 func (d *fakeLinkDocker) Remove(name string) error {
@@ -123,10 +131,17 @@ func (d *fakeLinkDocker) Exec(name string, argv []string, _ time.Duration) (dock
 	return docker_manager.ExecResult{ExitCode: 2, Stderr: "unknown command"}, nil
 }
 
-func (d *fakeLinkDocker) RemoveDir(id uint) error {
+func (d *fakeLinkDocker) RemoveDir() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.removedDirs = append(d.removedDirs, id)
+	d.removedDirs++
+	return nil
+}
+
+func (d *fakeLinkDocker) RemoveLegacyDir(id uint) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.removedLegacyDirs = append(d.removedLegacyDirs, id)
 	return nil
 }
 
@@ -134,6 +149,12 @@ func (d *fakeLinkDocker) container(name string) *fakeLinkContainer {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.containers[name]
+}
+
+func (d *fakeLinkDocker) createCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.creates
 }
 
 // fakeLinkSite 模拟网站的联机房接口
@@ -151,9 +172,19 @@ type fakeLinkSite struct {
 
 type linkBeat struct {
 	Online      bool             `json:"online"`
-	Players     int              `json:"players"`
+	Servers     []linkServerBeat `json:"servers"`
 	Credentials []linkCredential `json:"credentials"`
 	RevokedAck  []string         `json:"revoked_ack"`
+}
+
+// server 心跳里某台服务器的状态
+func (b linkBeat) server(key string) (linkServerBeat, bool) {
+	for _, s := range b.Servers {
+		if s.Key == key {
+			return s, true
+		}
+	}
+	return linkServerBeat{}, false
 }
 
 func (f *fakeLinkSite) handler(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +216,7 @@ func (f *fakeLinkSite) handler(w http.ResponseWriter, r *http.Request) {
 		f.want = max(f.want-len(b.Credentials), 0)
 		f.revoke = slices.DeleteFunc(f.revoke, func(id string) bool { return slices.Contains(b.RevokedAck, id) })
 		json.NewEncoder(w).Encode(map[string]any{"want_credentials": f.want, "revoke": f.revoke, "network_name": "ark-0123456789abcdef", "peers": peers})
-	case r.Method == http.MethodDelete && r.URL.Path == "/link/rooms/12":
+	case r.Method == http.MethodDelete && (r.URL.Path == "/link/rooms/12" || r.URL.Path == "/link/rooms/7"):
 		json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	case r.Method == http.MethodGet && r.URL.Path == "/link/rooms/12/members":
 		json.NewEncoder(w).Encode(map[string]any{"members": []map[string]any{{"steam_id": "76561198000000001", "name": "p1", "credential_id": "c1", "joined_at": 1797600000}}, "bans": []any{}})
@@ -209,10 +240,28 @@ func (f *fakeLinkSite) lastBeat() linkBeat {
 	return f.beats[len(f.beats)-1]
 }
 
+func (f *fakeLinkSite) lastProfile() linkRoomProfile {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.profiles[len(f.profiles)-1]
+}
+
 func (f *fakeLinkSite) beatCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.beats)
+}
+
+func (f *fakeLinkSite) count(call string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, c := range f.calls {
+		if c == call {
+			n++
+		}
+	}
+	return n
 }
 
 func (f *fakeLinkSite) set(fn func(f *fakeLinkSite)) {
@@ -221,36 +270,77 @@ func (f *fakeLinkSite) set(fn func(f *fakeLinkSite)) {
 	fn(f)
 }
 
-func newTestLinkManager(t *testing.T, site *fakeLinkSite, dock *fakeLinkDocker, rt *linkRuntime, now *time.Time) *LinkManager {
+// fakeRuntimes 按服务器 ID 返回运行信息
+type fakeRuntimes struct {
+	mu sync.Mutex
+	rt map[uint]linkRuntime
+}
+
+func (f *fakeRuntimes) set(id uint, rt linkRuntime) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rt[id] = rt
+}
+
+func (f *fakeRuntimes) get(s models.Server) linkRuntime {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.rt[s.ID]
+}
+
+func newTestLinkManager(t *testing.T, site *fakeLinkSite, dock *fakeLinkDocker, rt *fakeRuntimes, now *time.Time) *LinkManager {
 	t.Helper()
 	utils.InitLogger()
 	srv := httptest.NewServer(http.HandlerFunc(site.handler))
 	t.Cleanup(srv.Close)
 	n := 0
 	return &LinkManager{
-		states:  map[uint]*linkState{},
+		room:    &linkState{},
+		servers: map[uint]*linkServerState{},
+		legacy:  map[uint]*linkBackoff{},
 		client:  srv.Client(),
 		api:     func() string { return srv.URL },
 		now:     func() time.Time { return *now },
 		docker:  dock,
-		runtime: func(models.Server) linkRuntime { return *rt },
-		profile: func(s models.Server) linkRoomProfile {
-			return linkRoomProfile{Name: s.SessionName, Map: s.Map, GamePort: s.Port, QueryPort: s.QueryPort, ServerIP: linkVirtualIP}
+		runtime: rt.get,
+		profile: func(s models.Server) linkServerProfile {
+			return linkServerProfile{Name: s.SessionName, Map: s.Map, Mods: []string{}, GamePort: s.Port, QueryPort: s.QueryPort}
 		},
 		newID: func() string { n++; return fmt.Sprintf("00000000-0000-4000-8000-%012d", n) },
 	}
 }
 
-func setupLinkTest(t *testing.T) (models.Server, *fakeLinkSite, *fakeLinkDocker, *linkRuntime, *time.Time, *LinkManager) {
+type linkTestEnv struct {
+	s    models.Server
+	site *fakeLinkSite
+	dock *fakeLinkDocker
+	rt   *fakeRuntimes
+	now  *time.Time
+	m    *LinkManager
+}
+
+func (e *linkTestEnv) advance(d time.Duration) { *e.now = e.now.Add(d) }
+
+func setupLinkTest(t *testing.T) *linkTestEnv {
 	setupTestDB(t)
 	s := createTestServer(t, 7777, 27015, 32330)
 	database.DB.Model(&s).Update("link", true)
+	s.Link = true
 	site := &fakeLinkSite{}
 	dock := newFakeLinkDocker()
-	rt := &linkRuntime{}
+	rt := &fakeRuntimes{rt: map[uint]linkRuntime{}}
 	now := time.Now()
 	m := newTestLinkManager(t, site, dock, rt, &now)
-	return s, site, dock, rt, &now, m
+	return &linkTestEnv{s: s, site: site, dock: dock, rt: rt, now: &now, m: m}
+}
+
+func loadTestLinkRoom(t *testing.T) models.LinkRoom {
+	t.Helper()
+	room, err := loadLinkRoom()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return room
 }
 
 func expectLinkCalls(t *testing.T, site *fakeLinkSite, want ...string) {
@@ -261,8 +351,9 @@ func expectLinkCalls(t *testing.T, site *fakeLinkSite, want ...string) {
 }
 
 func TestLinkRegisterHeartbeatAndNode(t *testing.T) {
-	s, site, dock, rt, now, m := setupLinkTest(t)
-	name := utils.GetLinkContainerName(s.ID)
+	e := setupLinkTest(t)
+	s, site, dock, m := e.s, e.site, e.dock, e.m
+	name := utils.LinkContainerName
 
 	// 已停止：登记房间并保存令牌等，发一次离线心跳，不创建节点
 	m.tick()
@@ -270,30 +361,36 @@ func TestLinkRegisterHeartbeatAndNode(t *testing.T) {
 	if site.tokens[0] != "" || site.tokens[1] != "alr_tok" {
 		t.Fatalf("tokens = %v", site.tokens)
 	}
-	got := loadPublishServer(t, s.ID)
-	if got.LinkToken != "alr_tok" || got.LinkRoomID != 12 || got.LinkNetworkName != "ark-0123456789abcdef" {
-		t.Fatalf("room not saved: %+v", got)
+	room := loadTestLinkRoom(t)
+	if room.Token != "alr_tok" || room.RoomID != 12 || room.NetworkName != "ark-0123456789abcdef" {
+		t.Fatalf("room not saved: %+v", room)
 	}
-	if len(got.LinkNetworkSecret) != 64 || got.LinkRPCPort != linkRPCPortBase+int(s.ID) {
-		t.Fatalf("local params: secret %q port %d", got.LinkNetworkSecret, got.LinkRPCPort)
+	if len(room.NetworkSecret) != 64 || room.RPCPort != linkRPCPortBase {
+		t.Fatalf("local params: secret %q port %d", room.NetworkSecret, room.RPCPort)
 	}
-	if b := site.lastBeat(); b.Online || b.Players != 0 || len(b.Credentials) != 0 {
+	p := site.lastProfile()
+	if p.Name != "test" || p.ServerIP != linkVirtualIP || len(p.Servers) != 1 || p.Servers[0].Key != fmt.Sprint(s.ID) ||
+		p.Servers[0].GamePort != 7777 || p.Servers[0].QueryPort != 27015 {
+		t.Fatalf("profile = %+v", p)
+	}
+	b := site.lastBeat()
+	if sb, ok := b.server(fmt.Sprint(s.ID)); b.Online || !ok || sb.Online || sb.Players != 0 || len(b.Credentials) != 0 {
 		t.Fatalf("offline beat = %+v", b)
 	}
-	if st := m.statusFor(got); st.State != models.LinkOffline || st.RoomURL != "https://arkfgf.com/rooms/12" {
+	if st := m.statusFor(s); st.State != models.LinkOffline || st.RoomURL != "https://arkfgf.com/rooms/12" {
 		t.Fatalf("status = %+v", st)
 	}
-	if dock.creates != 0 {
+	if dock.createCount() != 0 {
 		t.Fatal("node should not run while stopped")
 	}
 
 	// 离线时每 60 秒心跳一次
-	*now = now.Add(30 * time.Second)
+	e.advance(30 * time.Second)
 	m.tick()
 	if site.beatCount() != 1 {
 		t.Fatal("offline heartbeat before 60s")
 	}
-	*now = now.Add(30 * time.Second)
+	e.advance(30 * time.Second)
 	m.tick()
 	if site.beatCount() != 2 {
 		t.Fatal("offline heartbeat missing at 60s")
@@ -301,99 +398,95 @@ func TestLinkRegisterHeartbeatAndNode(t *testing.T) {
 
 	// 运行中但还没 ready：不创建节点，状态为等待
 	database.DB.Model(&s).Update("status", "running")
-	*now = now.Add(15 * time.Second)
+	s.Status = "running"
+	e.advance(15 * time.Second)
 	m.tick()
-	if dock.creates != 0 {
+	if dock.createCount() != 0 {
 		t.Fatal("node should wait until ready")
 	}
-	if st := m.statusFor(loadPublishServer(t, s.ID)); st.State != models.LinkWaiting {
+	if st := m.statusFor(s); st.State != models.LinkWaiting {
 		t.Fatalf("status = %+v", st)
 	}
 
 	// ready：创建节点，立即发在线心跳
-	*rt = linkRuntime{Ready: true, Players: 3}
-	*now = now.Add(15 * time.Second)
+	e.rt.set(s.ID, linkRuntime{Ready: true, Players: 3})
+	e.advance(15 * time.Second)
 	m.tick()
 	c := dock.container(name)
-	if c == nil || dock.creates != 1 {
-		t.Fatalf("node not created: %d", dock.creates)
+	if c == nil || dock.createCount() != 1 {
+		t.Fatalf("node not created: %d", dock.createCount())
 	}
 	args := strings.Join(c.args, " ")
 	for _, want := range []string{
-		"--network-name ark-0123456789abcdef", "--network-secret " + got.LinkNetworkSecret, "--secure-mode",
+		"--network-name ark-0123456789abcdef", "--network-secret " + room.NetworkSecret, "--secure-mode",
 		"--credential-file /data/cred.json", "--peers tcp://et.arkfgf.com:11010 udp://et.arkfgf.com:11010 --ipv4",
-		"--ipv4 10.126.126.1 --no-tun --p2p-only", "--tcp-whitelist 0 --udp-whitelist 7777 7778 27015",
-		"--listeners tcp://0.0.0.0:0 udp://0.0.0.0:0", fmt.Sprintf("--rpc-portal 127.0.0.1:%d", got.LinkRPCPort), "--hostname test",
+		"--ipv4 10.126.126.1 --no-tun --p2p-only", "--tcp-whitelist 0 --udp-whitelist 7777 7778 27015 --listeners",
+		"--listeners tcp://0.0.0.0:0 udp://0.0.0.0:0", fmt.Sprintf("--rpc-portal 127.0.0.1:%d", room.RPCPort), "--hostname test",
 	} {
 		if !strings.Contains(args, want) {
 			t.Fatalf("args missing %q: %s", want, args)
 		}
 	}
-	if b := site.lastBeat(); !b.Online || b.Players != 3 {
+	b = site.lastBeat()
+	if sb, _ := b.server(fmt.Sprint(s.ID)); !b.Online || !sb.Online || sb.Players != 3 {
 		t.Fatalf("online beat = %+v", b)
 	}
-	if st := m.statusFor(loadPublishServer(t, s.ID)); st.State != models.LinkOnline {
+	if st := m.statusFor(s); st.State != models.LinkOnline {
 		t.Fatalf("status = %+v", st)
 	}
 
 	// 在线时每 30 秒心跳一次，节点不重复创建
 	beats := site.beatCount()
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
 	if site.beatCount() != beats {
 		t.Fatal("online heartbeat before 30s")
 	}
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
-	if site.beatCount() != beats+1 || dock.creates != 1 {
-		t.Fatalf("beats %d creates %d", site.beatCount(), dock.creates)
+	if site.beatCount() != beats+1 || dock.createCount() != 1 {
+		t.Fatalf("beats %d creates %d", site.beatCount(), dock.createCount())
 	}
 
 	// 短暂查询不到：节点保留，宽限期内仍报告在线
-	*rt = linkRuntime{}
-	*now = now.Add(15 * time.Second)
+	e.rt.set(s.ID, linkRuntime{})
+	e.advance(15 * time.Second)
 	m.tick()
 	if dock.container(name) == nil {
 		t.Fatal("node removed on a short A2S miss")
 	}
-	*rt = linkRuntime{Ready: true, Players: 2}
+	e.rt.set(s.ID, linkRuntime{Ready: true, Players: 2})
 
-	// 资料变化（改名）：带令牌重新登记，节点参数（hostname）变化，重建容器
+	// 资料变化（改名）：带令牌重新登记；房间名称跟着第一台服务器变，节点参数（hostname）变化，重建容器
 	database.DB.Model(&s).Update("session_name", "renamed")
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
-	calls := site.callList()
-	regs := 0
-	for _, c := range calls {
-		if c == "POST /link/rooms" {
-			regs++
-		}
+	if site.count("POST /link/rooms") != 2 || site.tokens[slices.Index(site.callList()[1:], "POST /link/rooms")+1] != "alr_tok" {
+		t.Fatalf("expected a re-registration with token: %v %v", site.callList(), site.tokens)
 	}
-	if regs != 2 || site.tokens[slices.Index(calls[1:], "POST /link/rooms")+1] != "alr_tok" {
-		t.Fatalf("expected a re-registration with token: %v %v", calls, site.tokens)
+	if p := site.lastProfile(); p.Name != "renamed" || p.Servers[0].Name != "renamed" {
+		t.Fatalf("profile = %+v", p)
 	}
-	if site.profiles[1].Name != "renamed" {
-		t.Fatalf("profile = %+v", site.profiles[1])
-	}
-	if dock.creates != 2 || !slices.Contains(dock.container(name).args, "renamed") {
-		t.Fatalf("node not recreated after args change: %d", dock.creates)
+	if dock.createCount() != 2 || !slices.Contains(dock.container(name).args, "renamed") {
+		t.Fatalf("node not recreated after args change: %d", dock.createCount())
 	}
 
 	// 镜像更新（镜像 ID 变化）也重建
 	dock.mu.Lock()
 	dock.imageID = "sha256:et2"
 	dock.mu.Unlock()
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
-	if dock.creates != 3 {
-		t.Fatalf("node not recreated after image update: %d", dock.creates)
+	if dock.createCount() != 3 {
+		t.Fatalf("node not recreated after image update: %d", dock.createCount())
 	}
 
 	// 停服：删除节点，立即发离线心跳
 	database.DB.Model(&s).Update("status", "stopped")
-	*rt = linkRuntime{}
+	s.Status = "stopped"
+	e.rt.set(s.ID, linkRuntime{})
 	beats = site.beatCount()
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
 	if dock.container(name) != nil {
 		t.Fatal("node should be removed when the server stops")
@@ -401,15 +494,113 @@ func TestLinkRegisterHeartbeatAndNode(t *testing.T) {
 	if site.beatCount() != beats+1 || site.lastBeat().Online {
 		t.Fatalf("expected offline beat: %+v", site.lastBeat())
 	}
-	if st := m.statusFor(loadPublishServer(t, s.ID)); st.State != models.LinkOffline {
+	if st := m.statusFor(s); st.State != models.LinkOffline {
 		t.Fatalf("status = %+v", st)
 	}
 }
 
+// 一个房间里多台服务器：一个节点放行所有服务器的端口；单台启停不重建节点；按服务器心跳
+func TestLinkMultipleServers(t *testing.T) {
+	e := setupLinkTest(t)
+	a, site, dock, m := e.s, e.site, e.dock, e.m
+	b := createTestServer(t, 7779, 27017, 32332)
+	database.DB.Model(&b).Updates(map[string]any{"link": true, "session_name": "second"})
+	b.Link, b.SessionName = true, "second"
+	// 没开联机房的服务器不在房间里
+	createTestServer(t, 7781, 27019, 32334)
+	keyA, keyB := fmt.Sprint(a.ID), fmt.Sprint(b.ID)
+
+	// a 运行中可以连接，b 停止
+	database.DB.Model(&a).Update("status", "running")
+	a.Status = "running"
+	e.rt.set(a.ID, linkRuntime{Ready: true, Players: 4, Version: "358.24"})
+	m.tick()
+
+	if site.count("POST /link/rooms") != 1 {
+		t.Fatalf("calls = %v", site.callList())
+	}
+	p := site.lastProfile()
+	if p.Name != "test" || len(p.Servers) != 2 || p.Servers[0].Key != keyA || p.Servers[1].Key != keyB ||
+		p.Servers[1].Name != "second" || p.Servers[1].GamePort != 7779 || p.Servers[0].Version != "358.24" {
+		t.Fatalf("profile = %+v", p)
+	}
+	c := dock.container(utils.LinkContainerName)
+	if c == nil || dock.createCount() != 1 {
+		t.Fatal("node not created")
+	}
+	// 已停止的 b 的端口也放行，b 启动时不用重建节点
+	if args := strings.Join(c.args, " "); !strings.Contains(args, "--udp-whitelist 7777 7778 27015 7779 7780 27017 --listeners") {
+		t.Fatalf("args = %s", args)
+	}
+	beat := site.lastBeat()
+	sa, _ := beat.server(keyA)
+	sb, okB := beat.server(keyB)
+	if !beat.Online || !sa.Online || sa.Players != 4 || !okB || sb.Online || len(beat.Servers) != 2 {
+		t.Fatalf("beat = %+v", beat)
+	}
+	if st := m.statusFor(a); st.State != models.LinkOnline {
+		t.Fatalf("a status = %+v", st)
+	}
+	if st := m.statusFor(b); st.State != models.LinkOffline || st.RoomURL == "" {
+		t.Fatalf("b status = %+v", st)
+	}
+
+	// b 启动并可以连接：节点不重建，立即心跳报告 b 在线
+	beats := site.beatCount()
+	database.DB.Model(&b).Update("status", "running")
+	b.Status = "running"
+	e.rt.set(b.ID, linkRuntime{Ready: true, Players: 1})
+	e.advance(15 * time.Second)
+	m.tick()
+	if dock.createCount() != 1 {
+		t.Fatalf("starting another server should not recreate the node: %d", dock.createCount())
+	}
+	if site.beatCount() != beats+1 {
+		t.Fatal("server state change should trigger a heartbeat")
+	}
+	if sb, _ := site.lastBeat().server(keyB); !sb.Online || sb.Players != 1 {
+		t.Fatalf("beat = %+v", site.lastBeat())
+	}
+	if st := m.statusFor(b); st.State != models.LinkOnline {
+		t.Fatalf("b status = %+v", st)
+	}
+
+	// a 停止：节点保留（b 还在运行），a 报告离线
+	database.DB.Model(&a).Update("status", "stopped")
+	a.Status = "stopped"
+	e.rt.set(a.ID, linkRuntime{})
+	e.advance(15 * time.Second)
+	m.tick()
+	if dock.container(utils.LinkContainerName) == nil || dock.createCount() != 1 {
+		t.Fatal("node should stay while another server is running")
+	}
+	beat = site.lastBeat()
+	if sa, _ := beat.server(keyA); !beat.Online || sa.Online {
+		t.Fatalf("beat = %+v", beat)
+	}
+
+	// 关闭 b 的联机房：重新登记只剩 a，节点按新端口重建；房间不下架
+	database.DB.Model(&b).Update("link", false)
+	e.advance(15 * time.Second)
+	m.tick()
+	if p := site.lastProfile(); len(p.Servers) != 1 || p.Servers[0].Key != keyA {
+		t.Fatalf("profile = %+v", p)
+	}
+	if site.count("DELETE /link/rooms/12") != 0 {
+		t.Fatal("room should not be removed while other servers are linked")
+	}
+	// 剩下的 a 没在运行，节点删除
+	if dock.container(utils.LinkContainerName) != nil {
+		t.Fatal("node should be removed when no linked server is running")
+	}
+}
+
 func TestLinkCredentialsAndRevoke(t *testing.T) {
-	s, site, dock, rt, now, m := setupLinkTest(t)
+	e := setupLinkTest(t)
+	s, site, dock, m := e.s, e.site, e.dock, e.m
 	database.DB.Model(&s).Update("status", "running")
-	*rt = linkRuntime{Ready: true}
+	s.Status = "running"
+	e.rt.set(s.ID, linkRuntime{Ready: true})
 	site.set(func(f *fakeLinkSite) { f.want = 25 })
 
 	// 第一轮：登记、建节点、在线心跳，网站要 25 个凭证
@@ -419,7 +610,7 @@ func TestLinkCredentialsAndRevoke(t *testing.T) {
 	}
 
 	// 下一轮签发 20 个（每轮上限），随心跳上传
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
 	b := site.lastBeat()
 	if len(b.Credentials) != 20 || len(dock.generated) != 20 {
@@ -429,12 +620,12 @@ func TestLinkCredentialsAndRevoke(t *testing.T) {
 	if c.ID != dock.generated[0] || c.Secret != "secret-"+c.ID {
 		t.Fatalf("credential = %+v", c)
 	}
-	if want := now.Add(30 * 24 * time.Hour).Unix(); c.ExpiresAt != want {
+	if want := e.now.Add(30 * 24 * time.Hour).Unix(); c.ExpiresAt != want {
 		t.Fatalf("expires_at = %d, want %d", c.ExpiresAt, want)
 	}
 
 	// 再下一轮补剩下的 5 个
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
 	if b := site.lastBeat(); len(b.Credentials) != 5 || len(dock.generated) != 25 {
 		t.Fatalf("credentials = %d generated = %d", len(b.Credentials), len(dock.generated))
@@ -442,7 +633,7 @@ func TestLinkCredentialsAndRevoke(t *testing.T) {
 
 	// 池满后不再提前心跳
 	beats := site.beatCount()
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
 	if site.beatCount() != beats {
 		t.Fatal("no extra heartbeat expected when the pool is full")
@@ -450,15 +641,13 @@ func TestLinkCredentialsAndRevoke(t *testing.T) {
 
 	// 踢人：网站下次心跳返回 revoke；之后在节点里吊销，再下一次心跳回报 revoked_ack
 	site.set(func(f *fakeLinkSite) { f.revoke = []string{"cred-x"} })
-	srv := loadPublishServer(t, s.ID)
-	srv.UserID = 1
-	if err := m.linkCall(srv, http.MethodPost, "/kick", models.LinkKickRequest{SteamID: "76561198000000001"}, nil); err != nil {
+	if err := m.linkCall(http.MethodPost, "/kick", models.LinkKickRequest{SteamID: "76561198000000001"}, nil); err != nil {
 		t.Fatal(err)
 	}
-	m.poke(s.ID)
-	*now = now.Add(15 * time.Second)
+	m.poke()
+	e.advance(15 * time.Second)
 	m.tick() // 提前心跳，拿到 revoke
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick() // 吊销并回报
 	if !slices.Equal(dock.revoked, []string{"cred-x"}) {
 		t.Fatalf("revoked = %v", dock.revoked)
@@ -467,7 +656,7 @@ func TestLinkCredentialsAndRevoke(t *testing.T) {
 		t.Fatalf("revoked_ack = %v", b.RevokedAck)
 	}
 	// 确认后不再重复吊销和回报
-	*now = now.Add(30 * time.Second)
+	e.advance(30 * time.Second)
 	m.tick()
 	if len(dock.revoked) != 1 || len(site.lastBeat().RevokedAck) != 0 {
 		t.Fatalf("revoked = %v ack = %v", dock.revoked, site.lastBeat().RevokedAck)
@@ -475,58 +664,64 @@ func TestLinkCredentialsAndRevoke(t *testing.T) {
 
 	// 节点出错：状态显示错误，心跳照发（不上传凭证）
 	site.set(func(f *fakeLinkSite) { f.want = 3 })
-	*now = now.Add(30 * time.Second)
+	e.advance(30 * time.Second)
 	m.tick()
 	dock.mu.Lock()
 	dock.execErr = errors.New("rpc down")
 	dock.mu.Unlock()
 	beats = site.beatCount()
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
 	if site.beatCount() != beats+1 || len(site.lastBeat().Credentials) != 0 {
 		t.Fatalf("beat = %+v", site.lastBeat())
 	}
-	if st := m.statusFor(loadPublishServer(t, s.ID)); st.State != models.LinkError || st.ErrorCode != "node_error" {
+	if st := m.statusFor(s); st.State != models.LinkError || st.ErrorCode != "node_error" {
 		t.Fatalf("status = %+v", st)
 	}
 }
 
 func TestLinkUnregisterOnDisable(t *testing.T) {
-	s, site, dock, rt, now, m := setupLinkTest(t)
+	e := setupLinkTest(t)
+	s, site, dock, m := e.s, e.site, e.dock, e.m
 	database.DB.Model(&s).Update("status", "running")
-	*rt = linkRuntime{Ready: true}
+	e.rt.set(s.ID, linkRuntime{Ready: true})
 	m.tick()
-	name := utils.GetLinkContainerName(s.ID)
+	name := utils.LinkContainerName
 	if dock.container(name) == nil {
 		t.Fatal("node not running")
 	}
 
-	// 关闭联机房：带令牌下架，删除节点和凭证目录，清空令牌，之后不再请求
+	// 最后一台服务器关闭联机房：带令牌下架，删除节点和凭证目录，清空令牌，之后不再请求
+	database.DB.Model(&models.LinkRoom{}).Where("id = ?", linkRoomID).Update("name", "My Room")
 	database.DB.Model(&s).Update("link", false)
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
 	m.tick()
 	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat", "DELETE /link/rooms/12")
 	if site.tokens[2] != "alr_tok" {
 		t.Fatalf("delete token = %q", site.tokens[2])
 	}
-	if dock.container(name) != nil || !slices.Contains(dock.removedDirs, s.ID) {
+	if dock.container(name) != nil || dock.removedDirs == 0 {
 		t.Fatal("node and data dir should be removed")
 	}
-	got := loadPublishServer(t, s.ID)
-	if got.LinkToken != "" || got.LinkRoomID != 0 || got.LinkNetworkName != "" || got.LinkNetworkSecret != "" {
-		t.Fatalf("link fields not cleared: %+v", got)
+	room := loadTestLinkRoom(t)
+	if room.Token != "" || room.RoomID != 0 || room.NetworkName != "" || room.NetworkSecret != "" {
+		t.Fatalf("link fields not cleared: %+v", room)
 	}
-	if m.statusFor(got) != nil {
+	// 房间资料保留
+	if room.Name != "My Room" {
+		t.Fatalf("room settings should be kept: %+v", room)
+	}
+	s.Link = false
+	if m.statusFor(s) != nil {
 		t.Fatal("status should be nil when link is off")
 	}
 }
 
 func TestLinkUnregisterDeleted(t *testing.T) {
-	s, site, dock, _, now, m := setupLinkTest(t)
+	e := setupLinkTest(t)
+	s, site, m := e.s, e.site, e.m
 	m.tick()
-	// 残留的节点容器（例如服务器被删除时没删掉）也会被清理
-	dock.Create(docker_manager.LinkContainerSpec{ServerID: s.ID})
 	database.DB.Delete(&models.Server{}, s.ID)
 
 	// 网站暂时不可用：退避，期间不重试
@@ -536,12 +731,9 @@ func TestLinkUnregisterDeleted(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]string{"code": "busy", "error": "busy"})
 		}
 	})
-	*now = now.Add(15 * time.Second)
+	e.advance(15 * time.Second)
 	m.tick()
-	if dock.container(utils.GetLinkContainerName(s.ID)) != nil {
-		t.Fatal("orphan node should be removed")
-	}
-	*now = now.Add(30 * time.Second)
+	e.advance(30 * time.Second)
 	m.tick()
 	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat", "DELETE /link/rooms/12")
 
@@ -552,17 +744,67 @@ func TestLinkUnregisterDeleted(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]string{"code": "invalid_token", "error": "invalid token"})
 		}
 	})
-	*now = now.Add(time.Minute)
+	e.advance(time.Minute)
 	m.tick()
 	m.tick()
 	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat", "DELETE /link/rooms/12", "DELETE /link/rooms/12")
-	if got := loadPublishServer(t, s.ID); got.LinkToken != "" {
-		t.Fatalf("token should be cleared: %q", got.LinkToken)
+	if room := loadTestLinkRoom(t); room.Token != "" {
+		t.Fatalf("token should be cleared: %q", room.Token)
+	}
+}
+
+// 升级后下架旧版每台服务器一个房间时登记的房间，删除旧的节点容器和凭证目录
+func TestLinkLegacyCleanup(t *testing.T) {
+	e := setupLinkTest(t)
+	s, site, dock, m := e.s, e.site, e.dock, e.m
+	database.DB.Model(&s).Updates(map[string]any{"link_token": "alr_old", "link_room_id": 7, "link_network_name": "ark-old",
+		"link_network_secret": "sec", "link_rpc_port": 20001})
+	// 已删除的服务器的旧房间也要下架
+	gone := createTestServer(t, 7781, 27019, 32334)
+	database.DB.Model(&gone).Updates(map[string]any{"link_token": "alr_gone", "link_room_id": 9})
+	database.DB.Delete(&models.Server{}, gone.ID)
+	dock.addContainer(fmt.Sprintf("ase-link-%d", s.ID))
+
+	m.tick()
+	calls := site.callList()
+	if !slices.Contains(calls, "DELETE /link/rooms/7") || !slices.Contains(calls, "DELETE /link/rooms/9") {
+		t.Fatalf("calls = %v", calls)
+	}
+	if i := slices.Index(calls, "DELETE /link/rooms/7"); site.tokens[i] != "alr_old" {
+		t.Fatalf("legacy token = %q", site.tokens[i])
+	}
+	// 网站没有 9 号房间（404）也算下架完成
+	var got []models.Server
+	database.DB.Unscoped().Where("link_token <> ''").Find(&got)
+	if len(got) != 0 {
+		t.Fatalf("legacy tokens not cleared: %+v", got)
+	}
+	var reloaded models.Server
+	database.DB.First(&reloaded, s.ID)
+	if reloaded.LinkRoomID != 0 || reloaded.LinkNetworkSecret != "" || reloaded.LinkRPCPort != 0 || !reloaded.Link {
+		t.Fatalf("legacy fields = %+v", reloaded)
+	}
+	if !slices.Contains(dock.removedLegacyDirs, s.ID) || !slices.Contains(dock.removedLegacyDirs, gone.ID) {
+		t.Fatalf("legacy dirs = %v", dock.removedLegacyDirs)
+	}
+	if dock.container(fmt.Sprintf("ase-link-%d", s.ID)) != nil {
+		t.Fatal("legacy node should be removed")
+	}
+	// 新房间照常登记
+	if room := loadTestLinkRoom(t); room.Token != "alr_tok" {
+		t.Fatalf("room = %+v", room)
+	}
+	// 之后不再请求旧房间
+	e.advance(time.Minute)
+	m.tick()
+	if site.count("DELETE /link/rooms/7") != 1 {
+		t.Fatalf("calls = %v", site.callList())
 	}
 }
 
 func TestLinkBackoff(t *testing.T) {
-	s, site, _, _, now, m := setupLinkTest(t)
+	e := setupLinkTest(t)
+	s, site, m := e.s, e.site, e.m
 	site.set(func(f *fakeLinkSite) {
 		f.fail = func(w http.ResponseWriter) {
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -575,14 +817,14 @@ func TestLinkBackoff(t *testing.T) {
 	for _, wait := range []time.Duration{time.Minute, 2 * time.Minute, 4 * time.Minute} {
 		m.tick()
 		expect++
-		*now = now.Add(wait - time.Second)
+		e.advance(wait - time.Second)
 		m.tick()
 		if got := len(site.callList()); got != expect {
 			t.Fatalf("retried before backoff %v: %d calls", wait, got)
 		}
-		*now = now.Add(time.Second)
+		e.advance(time.Second)
 	}
-	st := m.statusFor(loadPublishServer(t, s.ID))
+	st := m.statusFor(s)
 	if st.State != models.LinkError || st.ErrorCode != "busy" || st.RetryAt == "" {
 		t.Fatalf("status = %+v", st)
 	}
@@ -595,10 +837,10 @@ func TestLinkBackoff(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]string{"code": "rate_limited", "error": "slow down"})
 		}
 	})
-	*now = now.Add(time.Hour)
+	e.advance(time.Hour)
 	m.tick()
 	calls := len(site.callList())
-	*now = now.Add(29 * time.Minute)
+	e.advance(29 * time.Minute)
 	m.tick()
 	if len(site.callList()) != calls {
 		t.Fatal("should wait for Retry-After")
@@ -606,18 +848,19 @@ func TestLinkBackoff(t *testing.T) {
 
 	// 恢复后登记成功，错误清除
 	site.set(func(f *fakeLinkSite) { f.fail = nil })
-	*now = now.Add(2 * time.Minute)
+	e.advance(2 * time.Minute)
 	m.tick()
-	if got := loadPublishServer(t, s.ID); got.LinkToken != "alr_tok" {
-		t.Fatalf("token = %q", got.LinkToken)
+	if room := loadTestLinkRoom(t); room.Token != "alr_tok" {
+		t.Fatalf("token = %q", room.Token)
 	}
-	if st := m.statusFor(loadPublishServer(t, s.ID)); st.State != models.LinkOffline || st.ErrorCode != "" {
+	if st := m.statusFor(s); st.State != models.LinkOffline || st.ErrorCode != "" {
 		t.Fatalf("status = %+v", st)
 	}
 }
 
 func TestLinkHeartbeatInvalidTokenReregisters(t *testing.T) {
-	s, site, dock, _, now, m := setupLinkTest(t)
+	e := setupLinkTest(t)
+	site, dock, m := e.site, e.dock, e.m
 	m.tick()
 	site.set(func(f *fakeLinkSite) {
 		f.fail = func(w http.ResponseWriter) {
@@ -625,17 +868,17 @@ func TestLinkHeartbeatInvalidTokenReregisters(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]string{"code": "invalid_token", "error": "invalid token"})
 		}
 	})
-	*now = now.Add(time.Minute)
+	e.advance(time.Minute)
 	m.tick()
-	if got := loadPublishServer(t, s.ID); got.LinkToken != "" || got.LinkRoomID != 0 {
-		t.Fatalf("token should be cleared: %+v", got)
+	if room := loadTestLinkRoom(t); room.Token != "" || room.RoomID != 0 {
+		t.Fatalf("token should be cleared: %+v", room)
 	}
-	if !slices.Contains(dock.removedDirs, s.ID) {
+	if dock.removedDirs == 0 {
 		t.Fatal("credential dir should be reset")
 	}
 	// 退避结束后重新登记（不带令牌）
 	site.set(func(f *fakeLinkSite) { f.fail = nil })
-	*now = now.Add(time.Minute)
+	e.advance(time.Minute)
 	m.tick()
 	calls := site.callList()
 	if calls[len(calls)-2] != "POST /link/rooms" || site.tokens[len(calls)-2] != "" {
@@ -644,34 +887,30 @@ func TestLinkHeartbeatInvalidTokenReregisters(t *testing.T) {
 }
 
 func TestLinkMembersProxy(t *testing.T) {
-	s, site, _, _, _, m := setupLinkTest(t)
+	e := setupLinkTest(t)
+	site, m := e.site, e.m
 	old := linkManager
 	linkManager = m
 	t.Cleanup(func() { linkManager = old })
 	svc := NewServerService()
-	id := fmt.Sprint(s.ID)
 
 	// 还没登记：409
-	if _, err := svc.GetLinkMembers(1, id); !errors.Is(err, ErrLinkNotRegistered) {
+	if _, err := svc.GetLinkMembers(); !errors.Is(err, ErrLinkNotRegistered) {
 		t.Fatalf("err = %v", err)
 	}
 	m.tick()
-	members, err := svc.GetLinkMembers(1, id)
+	members, err := svc.GetLinkMembers()
 	if err != nil || len(members.Members) != 1 || members.Members[0].SteamID != "76561198000000001" || members.Bans == nil {
 		t.Fatalf("members = %+v err = %v", members, err)
 	}
-	if err := svc.KickLinkMember(1, id, models.LinkKickRequest{SteamID: "bad"}); !errors.Is(err, ErrInvalidSteamID) {
+	if err := svc.KickLinkMember(models.LinkKickRequest{SteamID: "bad"}); !errors.Is(err, ErrInvalidSteamID) {
 		t.Fatalf("err = %v", err)
 	}
-	if err := svc.KickLinkMember(1, id, models.LinkKickRequest{SteamID: "76561198000000001", Ban: true}); err != nil {
+	if err := svc.KickLinkMember(models.LinkKickRequest{SteamID: "76561198000000001", Ban: true}); err != nil {
 		t.Fatal(err)
 	}
 	// 网站没有这个接口时按网站拒绝处理
-	if err := svc.UnbanLinkMember(1, id, "76561198000000001"); !errors.Is(err, ErrLinkRequestFailed) {
-		t.Fatalf("err = %v", err)
-	}
-	// 别人的服务器
-	if _, err := svc.GetLinkMembers(2, id); !errors.Is(err, ErrServerNotFound) {
+	if err := svc.UnbanLinkMember("76561198000000001"); !errors.Is(err, ErrLinkRequestFailed) {
 		t.Fatalf("err = %v", err)
 	}
 	if !slices.Contains(site.callList(), "POST /link/rooms/12/kick") {
@@ -679,26 +918,81 @@ func TestLinkMembersProxy(t *testing.T) {
 	}
 }
 
-func TestLinkNodeArgsAndRPCPort(t *testing.T) {
-	setupTestDB(t)
-	a := createTestServer(t, 7777, 27015, 32330)
-	// 另一台服务器的游戏端口正好占了 20000 + a.ID
-	createTestServer(t, linkRPCPortBase+int(a.ID), 27017, 32332)
-	port, err := assignLinkRPCPort(a.ID)
+// 房间资料：设置页修改名称和收录资料后重新登记；都为空时用第一台服务器的
+func TestLinkRoomSettings(t *testing.T) {
+	e := setupLinkTest(t)
+	s, site, m := e.s, e.site, e.m
+	old := linkManager
+	linkManager = m
+	t.Cleanup(func() { linkManager = old })
+	svc := NewServerService()
+	database.DB.Model(&s).Updates(map[string]any{"listing_description": "server desc", "listing_tags": "pve,new"})
+
+	m.tick()
+	p := site.lastProfile()
+	if p.Name != "test" || p.Description != "server desc" || !slices.Equal(p.Tags, []string{"pve", "new"}) {
+		t.Fatalf("fallback profile = %+v", p)
+	}
+
+	// 校验
+	if _, err := svc.UpdateLinkRoom(models.LinkRoomSettings{Name: strings.Repeat("长", 65)}); !errors.Is(err, ErrInvalidListing) {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := svc.UpdateLinkRoom(models.LinkRoomSettings{Listing: models.ListingProfile{QQGroup: "abc"}}); !errors.Is(err, ErrInvalidListing) {
+		t.Fatalf("err = %v", err)
+	}
+
+	info, err := svc.UpdateLinkRoom(models.LinkRoomSettings{Name: "  Our Cluster ",
+		Listing: models.ListingProfile{Description: "room desc", Tags: []string{"pvp", "PVP", " x "}, QQGroup: "123456"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if port != linkRPCPortBase+int(a.ID)+2 { // 顺延跳过游戏端口和 +1
+	if info.Name != "Our Cluster" || !slices.Equal(info.Listing.Tags, []string{"pvp", "x"}) || len(info.Servers) != 1 ||
+		info.Servers[0].ID != s.ID || info.Status == nil {
+		t.Fatalf("info = %+v", info)
+	}
+	e.advance(15 * time.Second)
+	m.tick()
+	p = site.lastProfile()
+	if site.count("POST /link/rooms") != 2 || p.Name != "Our Cluster" || p.Description != "room desc" || p.QQGroup != "123456" ||
+		!slices.Equal(p.Tags, []string{"pvp", "x"}) {
+		t.Fatalf("profile = %+v", p)
+	}
+	// 服务器名称不受房间名称影响
+	if p.Servers[0].Name != "test" {
+		t.Fatalf("server profile = %+v", p.Servers[0])
+	}
+
+	// 没有服务器开启联机房时状态为 nil
+	database.DB.Model(&s).Update("link", false)
+	if info, err := svc.GetLinkRoom(); err != nil || info.Status != nil || len(info.Servers) != 0 {
+		t.Fatalf("info = %+v err = %v", info, err)
+	}
+}
+
+func TestLinkNodeArgsAndRPCPort(t *testing.T) {
+	setupTestDB(t)
+	// 另一台服务器的游戏端口正好占了 20000
+	createTestServer(t, linkRPCPortBase, 27017, 32332)
+	port, err := assignLinkRPCPort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port != linkRPCPortBase+2 { // 顺延跳过游戏端口和 +1
 		t.Fatalf("port = %d", port)
 	}
 
-	s := models.Server{ID: 3, SessionName: "", Port: 7777, QueryPort: 27015, LinkNetworkName: "ark-x", LinkNetworkSecret: "sec", LinkRPCPort: 20003}
-	spec1 := linkContainerSpec(s, []string{"tcp://a:1"})
-	if !slices.Contains(spec1.Args, "ark-3") || spec1.Image != utils.EasyTierImage {
+	room := models.LinkRoom{NetworkName: "ark-x", NetworkSecret: "sec", RPCPort: 20003}
+	// 查询端口和游戏端口重叠时去重
+	servers := []models.Server{{ID: 3, SessionName: "", Port: 7777, QueryPort: 7777}}
+	spec1 := linkContainerSpec(room, servers, []string{"tcp://a:1"})
+	args := strings.Join(spec1.Args, " ")
+	if !strings.Contains(args, "--udp-whitelist 7777 7778 --listeners") || !strings.Contains(args, "--hostname ARK Server") ||
+		spec1.Image != utils.EasyTierImage {
 		t.Fatalf("spec = %+v", spec1)
 	}
-	s.Port = 7779
-	spec2 := linkContainerSpec(s, []string{"tcp://a:1"})
+	servers[0].Port = 7779
+	spec2 := linkContainerSpec(room, servers, []string{"tcp://a:1"})
 	if spec1.Labels[linkCommandHashLabel] == spec2.Labels[linkCommandHashLabel] {
 		t.Fatal("hash should change with args")
 	}
