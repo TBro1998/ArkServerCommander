@@ -1,3 +1,6 @@
 [submodule "ASE-Server-Docker"]
 	path = ASE-Server-Docker
 	url = https://github.com/TBro1998/ASE-Server-Docker
+[submodule "ArkServerLink"]
+	path = ArkServerLink
+	url = https://github.com/TBro1998/ArkServerLink

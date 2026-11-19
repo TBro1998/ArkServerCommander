@@ -198,7 +198,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 ### P2P 联机房
 
-服务器的 `link` 开关（表单"运维"分组"P2P 联机房"，默认关闭，与 `publish` 独立，保存后立即生效）。没有公网 IP 的服主也能让玩家连进来：网站 arkfgf.com 登记房间并运行只做打洞信令的公共 EasyTier 节点，Commander 为每台开了联机房的服务器运行一个 EasyTier 节点容器，玩家用 ARKFGF 联机助手（外层仓库 `ArkServerLink/`）从网站领取一次性凭证加入这个 EasyTier 网络，直连到节点。只直连不中继（`--p2p-only`），打洞失败的玩家连不上。三方接口约定见外层仓库 `docs/p2p-link.md`，改动要和网站、客户端同步。
+服务器的 `link` 开关（表单"运维"分组"P2P 联机房"，默认关闭，与 `publish` 独立，保存后立即生效）。没有公网 IP 的服主也能让玩家连进来：网站 arkfgf.com 登记房间并运行只做打洞信令的公共 EasyTier 节点，Commander 为每台开了联机房的服务器运行一个 EasyTier 节点容器，玩家用 ARKFGF 联机助手（子模块 `ArkServerLink/`，单独发布到它自己的 GitHub Release，下载页 arkfgf.com/download）从网站领取一次性凭证加入这个 EasyTier 网络，直连到节点。只直连不中继（`--p2p-only`），打洞失败的玩家连不上。三方接口约定见外层仓库 `docs/p2p-link.md`，改动要和网站、客户端同步。
 
 `service/server/link.go` 的 `LinkManager` 每 15 秒检查一次（`StartLinkManager`，`ARKFGF_API` 为空时只删除残留的节点容器）：
 - 登记：没有令牌或资料变化（`buildLinkRoomProfile`，和发布到收录站共用 `profile.go` 的 `buildServerProfile`：名称、地图、人数、是否有加入密码、PvP、ArkApi、集群、Mod、倍率、收录资料，再加游戏端口、查询端口、虚拟 IP `10.126.126.1`，游戏版本取自 A2S 名称末尾的 `(vxxx)`，停服后沿用上次的值）时 `POST {ARKFGF_API}/link/rooms`（带令牌即更新）。返回的令牌、房间 ID、网络名存在 `servers.link_token` / `link_room_id` / `link_network_name`；`peers` 和房间地址只在内存里，管理端重启后第一轮重新登记拿回来。令牌对不上时网站会新建房间，此时删除节点容器和凭证目录（旧房间的凭证不能留在节点里）

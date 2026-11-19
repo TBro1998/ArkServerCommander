@@ -154,6 +154,9 @@ A: No. On first start the backend generates a strong random secret and stores it
 - `tbro98/ase-server:latest` is no longer updated. It stays at the last version that bundled ArkApi, for older manager versions
 - Image source: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
+### 🔗 P2P Rooms (no public IP)
+- Turn on "P2P room" in a server's settings and players join through [arkfgf.com/rooms](https://arkfgf.com/rooms) with the open-source client [ArkServerLink](https://github.com/TBro1998/ArkServerLink) (submodule `ArkServerLink/`, download at [arkfgf.com/download](https://arkfgf.com/download))
+
 ## 📸 Interface Screenshots
 **Home: servers, online players, resource usage, images and disk**
 

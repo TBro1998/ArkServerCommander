@@ -154,6 +154,9 @@ A: 不需要。后端首次启动时会自动生成强随机密钥，保存在�
 - `tbro98/ase-server:latest` 不再更新，停留在最后一个自带 ArkApi 的版本，只供旧版管理器使用
 - 镜像源地址: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
 
+### 🔗 P2P 联机房（无公网 IP）
+- 在服务器设置里打开「P2P 联机房」，玩家在 [arkfgf.com/rooms](https://arkfgf.com/rooms) 用开源的联机助手 [ArkServerLink](https://github.com/TBro1998/ArkServerLink)（子模块 `ArkServerLink/`，下载：[arkfgf.com/download](https://arkfgf.com/download)）加入
+
 ## 📸 界面展示
 **首页概览：服务器、在线人数、资源占用、镜像和磁盘**
 
