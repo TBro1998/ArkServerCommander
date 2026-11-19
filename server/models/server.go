@@ -24,9 +24,12 @@ type Server struct {
 	// 启用 ArkApi：用 Proton 镜像运行 Windows 版服务端并加载 ArkApi 插件；关闭时用原生 Linux 版服务端。
 	// 加这个字段之前创建的服务器在迁移时设为 true（原来都是 Proton 版并带 ArkApi）
 	ArkApi bool `json:"arkapi" gorm:"column:arkapi;default:false"`
-	// 发布到服务器收录站（arkfgf.com）：服务器可以连接后自动发布，运行期间定期心跳，停止后下线
+	// 发布到服务器收录站（arkfgf.com）：服务器每次可以连接后用绑定的账号发布一次，关闭发布或删除后取消发布
 	Publish bool `json:"publish" gorm:"default:false"`
-	// 收录站返回的发布令牌，用于心跳和更新同一条记录
+	// 收录站上有这台服务器的记录（用账号令牌发布成功过、还没取消发布）
+	Published bool `json:"-" gorm:"default:false"`
+	// 旧版匿名发布时收录站返回的发布令牌（afp_...）：只用于下次发布时让收录站清理旧记录（legacy_token），
+	// 或关闭发布 / 删除后取消旧记录，之后清空，新代码不再写入
 	PublishToken string `json:"-" gorm:"default:''"`
 	// P2P 联机房（arkfgf.com 联机助手）：加入管理端的联机房（见 LinkRoom），没有公网 IP 的玩家也能通过 P2P 连进来
 	Link bool `json:"link" gorm:"default:false"`
@@ -154,7 +157,7 @@ type ListingProfile struct {
 	Discord     string   `json:"discord"`     // Discord 邀请链接（https://discord.gg/...）
 }
 
-// PublishStats 收录站上的访问统计，由收录站按发布令牌返回
+// PublishStats 收录站上的访问统计，由收录站按账号令牌和服务器 key 返回
 type PublishStats struct {
 	ID    uint              `json:"id"`
 	URL   string            `json:"url"`
@@ -183,6 +186,8 @@ const (
 	PublishWaiting   = "waiting"   // 等待服务器启动完成（可以连接后才发布）
 	PublishPublished = "published" // 已发布，收录站上显示为在线
 	PublishError     = "error"     // 最近一次发布或心跳失败，会自动重试
+	// 还没有绑定 arkfgf.com 账号，不发布（在设置页绑定后自动开始）
+	PublishLoginRequired = "login_required"
 )
 
 // PublishStatus 发布到服务器收录站的状态
@@ -203,6 +208,8 @@ const (
 	LinkOnline   = "online"   // 服务器可以连接，联机节点在运行，心跳正常
 	LinkOffline  = "offline"  // 房间已登记，服务器未运行（网站上显示离线）
 	LinkError    = "error"    // 最近一次请求或联机节点操作失败，会自动重试
+	// 还没有绑定 arkfgf.com 账号，不登记房间、不运行联机节点（在设置页绑定后自动开始）
+	LinkLoginRequired = "login_required"
 )
 
 // LinkStatus P2P 联机房的状态

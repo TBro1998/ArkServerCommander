@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -16,9 +17,14 @@ import (
 
 // 发布到服务器收录站（arkfgf.com）。
 //
-// 开启 publish 的服务器每次变成 ready（查询端口有响应、玩家可以连接）时发布一次，之后不再发请求：
+// 需要先绑定 arkfgf.com 账号（account.go），用账号令牌发布，见外层仓库 docs/commander-account.md；
+// 未绑定时开启了发布的服务器状态为 login_required，不发请求。
+// 开启 publish 的服务器每次变成 ready（查询端口有响应、玩家可以连接）时发布一次（带 key = 服务器 ID），之后不再发请求：
 // 收录站每半小时自己向查询端口发 A2S_INFO 更新在线状态和人数，停服后查不到就显示为离线。
-// 关闭发布或删除服务器时调用 /publish/unpublish 删除收录站上的记录，成功前会一直重试（令牌存在数据库里，管理端重启后继续）。
+// 发布成功后 servers.published 为 true；关闭发布或删除服务器时用 {"key"} 调用 /publish/unpublish 删除收录站上的记录，
+// 成功前会一直重试（管理端重启后继续）。
+// 旧版匿名发布留下的发布令牌（servers.publish_token）：下次发布时作为 legacy_token 让收录站清理旧记录，成功后清空；
+// 关闭发布或删除的服务器不论是否绑定，都用它取消旧记录后清空。
 // 收录站发布时也会从它那边查询端口验证，所以查询端口（UDP）必须能从公网访问。
 //
 // 防止刷屏：
@@ -37,7 +43,7 @@ const (
 	notReadyGrace = 2 * time.Minute
 )
 
-// publishState 一台服务器的发布状态，只在内存里；管理端重启后带着数据库里的令牌重新发布
+// publishState 一台服务器的发布状态，只在内存里；管理端重启后下次可以连接时重新发布
 type publishState struct {
 	published bool      // 这一次可以连接之后已经发布过
 	nextAt    time.Time // 失败后下一次重试的时间
@@ -58,6 +64,7 @@ type Publisher struct {
 	client *http.Client
 	api    func() string
 	now    func() time.Time
+	wakeCh chan struct{} // 绑定账号后马上处理一轮
 	// ready 判断服务器能否连接；profile 生成发布内容。测试时替换
 	ready   func(models.Server) bool
 	profile func(models.Server) publishProfile
@@ -68,6 +75,7 @@ var publisher = &Publisher{
 	client:  &http.Client{Timeout: publishRequestTimeout},
 	api:     func() string { return config.PublishAPI },
 	now:     time.Now,
+	wakeCh:  make(chan struct{}, 1),
 	ready:   serverReady,
 	profile: buildPublishProfile,
 }
@@ -81,10 +89,29 @@ func StartPublisher() {
 	go func() {
 		ticker := time.NewTicker(publishTickInterval)
 		defer ticker.Stop()
-		for range ticker.C {
+		for {
+			select {
+			case <-ticker.C:
+			case <-publisher.wakeCh:
+			}
 			publisher.tick()
 		}
 	}()
+}
+
+// wake 让后台协程马上处理一轮
+func (p *Publisher) wake() {
+	select {
+	case p.wakeCh <- struct{}{}:
+	default:
+	}
+}
+
+// reset 清空所有服务器的发布状态和退避（绑定或解除绑定账号后）
+func (p *Publisher) reset() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	clear(p.states)
 }
 
 func serverReady(server models.Server) bool {
@@ -99,11 +126,14 @@ func (p *Publisher) tick() {
 	if p.api() == "" {
 		return
 	}
+	arkfgfMu.Lock()
+	defer arkfgfMu.Unlock()
+	token := accountManager.token()
 	keep := map[uint]bool{}
 
 	var servers []models.Server
 	if err := database.DB.Select("id", "session_name", "map", "max_players", "port", "query_port", "cluster_id",
-		"game_mod_ids", "arkapi", "server_args_json", "status", "publish", "publish_token",
+		"game_mod_ids", "arkapi", "server_args_json", "status", "publish", "published", "publish_token",
 		"listing_description", "listing_tags", "listing_qq", "listing_discord").
 		Where("publish = ?", true).Find(&servers).Error; err != nil {
 		utils.Warn("发布到收录站：读取服务器列表失败", zap.Error(err))
@@ -111,19 +141,29 @@ func (p *Publisher) tick() {
 	}
 	for _, server := range servers {
 		keep[server.ID] = true
-		p.process(server)
+		// 未绑定账号：状态为 login_required（见 statusFor），不发请求
+		if token != "" && !p.process(server, token) {
+			token = "" // 账号已失效，本地已清空
+		}
 	}
 
-	// 关闭了发布或已删除、但收录站上还有记录（有令牌）的服务器：取消发布
+	// 关闭了发布或已删除、但收录站上还有记录的服务器：取消发布。旧版发布令牌不需要绑定账号
 	var withdrawn []models.Server
-	if err := database.DB.Unscoped().Select("id", "query_port", "publish_token").
-		Where("publish_token <> '' AND (publish = ? OR deleted_at IS NOT NULL)", false).
+	if err := database.DB.Unscoped().Select("id", "query_port", "published", "publish_token").
+		Where("(published = ? OR publish_token <> '') AND (publish = ? OR deleted_at IS NOT NULL)", true, false).
 		Find(&withdrawn).Error; err != nil {
 		utils.Warn("发布到收录站：读取待取消发布的服务器失败", zap.Error(err))
 	}
 	for _, server := range withdrawn {
 		keep[server.ID] = true
-		p.unpublish(server)
+		switch {
+		case server.Published && token != "":
+			if !p.unpublish(server, token) {
+				token = ""
+			}
+		case server.PublishToken != "":
+			p.unpublishLegacy(server)
+		}
 	}
 
 	p.mu.Lock()
@@ -135,8 +175,8 @@ func (p *Publisher) tick() {
 	p.mu.Unlock()
 }
 
-// process 处理一台开启了发布的服务器：这一次可以连接后还没发布过就发布
-func (p *Publisher) process(server models.Server) {
+// process 处理一台开启了发布的服务器：这一次可以连接后还没发布过就发布。账号失效时返回 false
+func (p *Publisher) process(server models.Server, token string) bool {
 	st := p.state(server.ID)
 	ready := p.ready(server)
 
@@ -149,7 +189,7 @@ func (p *Publisher) process(server models.Server) {
 			}
 			if now.Sub(st.notReadySince) < notReadyGrace {
 				p.mu.Unlock()
-				return
+				return true
 			}
 		}
 		// 停止或长时间不能连接：下次可以连接时重新发布。失败退避的时间保留，避免反复启停时连续请求
@@ -157,14 +197,15 @@ func (p *Publisher) process(server models.Server) {
 		st.notReadySince = time.Time{}
 		st.errCode, st.errMsg = "", ""
 		p.mu.Unlock()
-		return
+		return true
 	}
 	st.notReadySince = time.Time{}
 	due := !st.published && !now.Before(st.nextAt)
 	p.mu.Unlock()
 	if due {
-		p.publish(server)
+		return p.publish(server, token)
 	}
+	return true
 }
 
 func (p *Publisher) state(id uint) *publishState {
@@ -201,22 +242,36 @@ type publishProfile struct {
 	Discord     string   `json:"discord"`
 }
 
-func (p *Publisher) publish(server models.Server) {
-	profile := p.profile(server)
+// publishRequest 发布请求：发布内容加上服务器在这个 Commander 里的 key，以及旧版的发布令牌
+type publishRequest struct {
+	publishProfile
+	Key         string `json:"key"`
+	LegacyToken string `json:"legacy_token,omitempty"`
+}
+
+func publishKey(id uint) string { return strconv.FormatUint(uint64(id), 10) }
+
+// publish 用账号令牌发布，成功后记下 published、清空旧版发布令牌。账号失效时返回 false
+func (p *Publisher) publish(server models.Server, token string) bool {
+	body := publishRequest{publishProfile: p.profile(server), Key: publishKey(server.ID), LegacyToken: server.PublishToken}
 	var resp struct {
 		ID    uint   `json:"id"`
-		Token string `json:"token"`
 		URL   string `json:"url"`
 		Badge string `json:"badge"`
 	}
-	status, retryAfter, code, err := p.post("/publish", server.PublishToken, profile, &resp)
+	status, retryAfter, code, err := p.post("/publish", token, body, &resp)
 	if err != nil {
+		if isInvalidAccount(status, code) {
+			accountManager.invalidateLocked()
+			return false
+		}
 		p.fail(server, status, retryAfter, code, err)
-		return
+		return true
 	}
-	if resp.Token != "" {
-		if err := database.DB.Model(&models.Server{}).Where("id = ?", server.ID).Update("publish_token", resp.Token).Error; err != nil {
-			utils.Warn("保存收录站发布令牌失败", zap.Uint("server_id", server.ID), zap.Error(err))
+	if !server.Published || server.PublishToken != "" {
+		if err := database.DB.Model(&models.Server{}).Where("id = ?", server.ID).
+			Updates(map[string]any{"published": true, "publish_token": ""}).Error; err != nil {
+			utils.Warn("保存发布记录失败", zap.Uint("server_id", server.ID), zap.Error(err))
 		}
 	}
 	p.mu.Lock()
@@ -227,15 +282,38 @@ func (p *Publisher) publish(server models.Server) {
 	p.succeed(st)
 	p.mu.Unlock()
 	utils.Info("已发布到服务器收录站", zap.Uint("server_id", server.ID), zap.Uint("listing_id", resp.ID))
+	return true
 }
 
-// unpublish 删除收录站上的记录，成功后清空令牌。收录站已经没有这条记录（invalid_token）也算成功
-func (p *Publisher) unpublish(server models.Server) {
-	st := p.state(server.ID)
+// unpublish 用账号令牌和 key 删除收录站上的记录（记录不存在也返回成功），成功后 published 置 false。账号失效时返回 false
+func (p *Publisher) unpublish(server models.Server, token string) bool {
+	if p.waiting(server.ID) {
+		return true
+	}
+	status, retryAfter, code, err := p.post("/publish/unpublish", token, map[string]string{"key": publishKey(server.ID)}, nil)
+	if err != nil {
+		if isInvalidAccount(status, code) {
+			accountManager.invalidateLocked()
+			return false
+		}
+		p.fail(server, status, retryAfter, code, err)
+		return true
+	}
+	if err := database.DB.Unscoped().Model(&models.Server{}).Where("id = ?", server.ID).Update("published", false).Error; err != nil {
+		utils.Warn("清除发布记录失败", zap.Uint("server_id", server.ID), zap.Error(err))
+		return true
+	}
 	p.mu.Lock()
-	wait := p.now().Before(st.nextAt)
+	delete(p.states, server.ID)
 	p.mu.Unlock()
-	if wait {
+	utils.Info("已从服务器收录站取消发布", zap.Uint("server_id", server.ID))
+	return true
+}
+
+// unpublishLegacy 用旧版发布令牌删除匿名发布的记录（不需要绑定账号），成功后清空令牌。
+// 收录站已经没有这条记录（invalid_token）也算成功
+func (p *Publisher) unpublishLegacy(server models.Server) {
+	if p.waiting(server.ID) {
 		return
 	}
 	status, retryAfter, code, err := p.post("/publish/unpublish", server.PublishToken, nil, nil)
@@ -250,7 +328,15 @@ func (p *Publisher) unpublish(server models.Server) {
 	p.mu.Lock()
 	delete(p.states, server.ID)
 	p.mu.Unlock()
-	utils.Info("已从服务器收录站取消发布", zap.Uint("server_id", server.ID))
+	utils.Info("已从服务器收录站取消旧版发布", zap.Uint("server_id", server.ID))
+}
+
+// waiting 这台服务器还在失败退避中
+func (p *Publisher) waiting(id uint) bool {
+	st := p.state(id)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.now().Before(st.nextAt)
 }
 
 func (p *Publisher) succeed(st *publishState) {
@@ -302,14 +388,19 @@ func publishErrorMessage(code string, server models.Server) string {
 	case "rate_limited", "busy":
 		return "收录站暂时繁忙或请求过于频繁，稍后自动重试"
 	case "too_many_servers":
-		return "这个公网 IP 发布的服务器已达上限"
+		return "这个 arkfgf.com 账号发布的服务器已达上限"
 	case "owned":
-		return "这台服务器已由 arkfgf.com 上的服主账号管理"
+		return "这个 IP 和端口上的服务器已由另一个 arkfgf.com 账号发布"
+	case "login_required":
+		return "收录站要求先绑定 arkfgf.com 账号"
 	case "invalid_input":
 		return "发布内容不符合收录站要求"
 	}
 	return ""
 }
+
+// loginRequiredMessage 未绑定账号时的状态说明
+const loginRequiredMessage = "还没有绑定 arkfgf.com 账号，请在设置页绑定"
 
 // statusFor 返回服务器的发布状态，未开启发布时为 nil
 func (p *Publisher) statusFor(server models.Server) *models.PublishStatus {
@@ -318,6 +409,9 @@ func (p *Publisher) statusFor(server models.Server) *models.PublishStatus {
 	}
 	if p.api() == "" {
 		return &models.PublishStatus{State: models.PublishDisabled}
+	}
+	if !accountManager.bound() {
+		return &models.PublishStatus{State: models.PublishLoginRequired, ErrorCode: "login_required", Error: loginRequiredMessage}
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()

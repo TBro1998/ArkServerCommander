@@ -26,7 +26,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// P2P 联机房（arkfgf.com 联机助手）。接口约定见外层仓库 docs/p2p-link.md 的"Commander 侧"。
+// P2P 联机房（arkfgf.com 联机助手）。接口约定见外层仓库 docs/p2p-link.md 的"Commander 侧"，
+// 账号绑定见 docs/commander-account.md：需要先绑定 arkfgf.com 账号（account.go），房间的请求都用账号令牌；
+// 未绑定时开启了 link 的服务器状态为 login_required，不登记、不心跳、不运行节点。
 //
 // 每个管理端一个房间（models.LinkRoom，只有一行）：所有开启了 link 的服务器是同一个房间里的多台服务器，
 // 共用一个 EasyTier 节点容器 ase-link-room（宿主机网络，--p2p-only，只放行这些服务器的游戏端口、+1 和查询端口的 UDP）
@@ -34,12 +36,16 @@ import (
 // 127.0.0.1 上 Docker 的端口映射到达各台 ARK 容器，按端口区分服务器。
 //
 // LinkManager 每 15 秒检查一次：
-//   - 有服务器开启 link：没有登记或资料变化（房间资料、各服务器的名称、地图、Mod、倍率、端口等）→ POST /link/rooms（带令牌即更新）
+//   - 有服务器开启 link：没有登记（room_id 为 0，或还留着旧版房间令牌）或资料变化（房间资料、各服务器的名称、地图、Mod、
+//     倍率、端口等）→ POST /link/rooms（账号令牌；还留着旧版房间令牌时带 legacy_token 认领旧房间，成功后清空）
 //   - 任意一台开启 link 的服务器运行中且可以连接过 → 确保节点容器在运行（参数或镜像变化时重建）；全部不在运行时删除节点。
 //     节点放行所有开启 link 的服务器的端口（包括已停止的），单台服务器启停不会重建节点、不影响其他服务器上的玩家
 //   - 心跳：在线时每 30 秒、离线时每 60 秒，带每台服务器的在线和人数；在线状态变化、有凭证要上传或吊销要确认时提前发
 //   - 按心跳返回的 want_credentials 在节点里签发凭证（每轮最多 20 个），处理 revoke 后在下次心跳回报 revoked_ack
-//   - 没有服务器开启 link 且有令牌 → DELETE 下架，删除容器、凭证目录，清空令牌
+//   - 心跳等返回 404 room_not_found → 清掉房间 ID 和网络名、删除节点和凭证，下一轮重新登记
+//   - 没有服务器开启 link：已登记 → 用账号令牌 DELETE 下架；还留着旧版房间令牌 → 用旧令牌 DELETE（不需要绑定）。
+//     之后删除容器、凭证目录，清空房间 ID、网络名、网络密钥和旧令牌
+//   - 任何请求返回 401 invalid_account → 视为已解绑，清空本地账号和登记（account.go 的 clearLocked）
 //   - 旧版每台服务器一个房间（servers.link_token 不为空）→ 用旧令牌下架后清空；旧的 ase-link-<id> 容器一律删除
 //   - 请求失败按 1、2、4…30 分钟退避，429 / 503 按 Retry-After
 
@@ -148,7 +154,7 @@ type linkServerState struct {
 	reported      bool      // 最近一次成功的心跳里报告为可以连接
 }
 
-// linkState 房间的状态，只在内存里；管理端重启后带着数据库里的令牌重新登记（拿回 peers 和房间地址）
+// linkState 房间的状态，只在内存里；管理端重启后第一轮重新登记（拿回 peers 和房间地址）
 type linkState struct {
 	linkBackoff
 
@@ -184,6 +190,7 @@ type LinkManager struct {
 	runtime func(models.Server) linkRuntime
 	profile func(models.Server) linkServerProfile
 	newID   func() string
+	wakeCh  chan struct{} // 绑定账号后马上处理一轮
 }
 
 var linkManager = &LinkManager{
@@ -197,6 +204,7 @@ var linkManager = &LinkManager{
 	runtime: linkRuntimeOf,
 	profile: buildLinkServerProfile,
 	newID:   newUUID,
+	wakeCh:  make(chan struct{}, 1),
 }
 
 // StartLinkManager 启动联机房后台协程。ARKFGF_API 为空时只清理残留的节点容器
@@ -208,10 +216,32 @@ func StartLinkManager() {
 		linkManager.tick()
 		ticker := time.NewTicker(linkTickInterval)
 		defer ticker.Stop()
-		for range ticker.C {
+		for {
+			select {
+			case <-ticker.C:
+			case <-linkManager.wakeCh:
+			}
 			linkManager.tick()
 		}
 	}()
+}
+
+// wake 让后台协程马上处理一轮
+func (m *LinkManager) wake() {
+	select {
+	case m.wakeCh <- struct{}{}:
+	default:
+	}
+}
+
+// reset 清空房间的内存状态和退避（绑定或解除绑定账号后），服务器的在线报告也一并清除
+func (m *LinkManager) reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	*m.room = linkState{}
+	for _, ss := range m.servers {
+		ss.reported = false
+	}
 }
 
 // linkServerColumns 联机房用到的服务器字段
@@ -226,11 +256,14 @@ func loadLinkRoom() (models.LinkRoom, error) {
 }
 
 func (m *LinkManager) tick() {
+	arkfgfMu.Lock()
+	defer arkfgfMu.Unlock()
 	wantNode := false
 	linked := map[uint]bool{}
 
 	if m.api() != "" {
 		m.cleanupLegacy()
+		token := accountManager.token()
 
 		var servers []models.Server
 		if err := database.DB.Select(linkServerColumns).Where("link = ?", true).Order("id").Find(&servers).Error; err != nil {
@@ -247,10 +280,16 @@ func (m *LinkManager) tick() {
 		}
 		switch {
 		case len(servers) > 0:
-			wantNode = m.process(&room, servers)
+			// 未绑定账号：状态为 login_required（见 statusFor），不登记、不运行节点
+			if token != "" {
+				wantNode = m.process(&room, servers, token)
+			}
 		case room.Token != "":
-			// 没有服务器开启联机房了：下架
-			m.unregister(room)
+			// 没有服务器开启联机房了，还留着旧版房间令牌（没有认领过）：用旧令牌下架，不需要绑定
+			m.unregister(room, room.Token)
+		case room.RoomID != 0 && token != "":
+			// 没有服务器开启联机房了：用账号令牌下架
+			m.unregister(room, token)
 		}
 	}
 
@@ -290,8 +329,14 @@ func (m *LinkManager) serverState(id uint) *linkServerState {
 
 func linkServerKey(id uint) string { return strconv.FormatUint(uint64(id), 10) }
 
-// process 处理房间（servers 是开启了联机房的服务器，按 ID 排序），返回节点容器是否应该保留
-func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server) bool {
+// linkRegistered 房间已用账号登记：有房间 ID，并且旧版房间令牌已经清空（旧房间要先带 legacy_token 登记认领）
+func linkRegistered(room models.LinkRoom) bool {
+	return room.RoomID != 0 && room.Token == ""
+}
+
+// process 处理房间（servers 是开启了联机房的服务器，按 ID 排序），返回节点容器是否应该保留。
+// 账号失效（本地已清空）时返回 false
+func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server, token string) bool {
 	if err := ensureLinkLocal(room); err != nil {
 		utils.Warn("联机房：生成本地参数失败", zap.Error(err))
 		return false
@@ -347,15 +392,15 @@ func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server) bo
 	profile := buildLinkRoomProfile(*room, servers, profiles)
 	hash := hashJSON(profile)
 	m.mu.Lock()
-	needRegister := (room.Token == "" || room.RoomID == 0 || st.profileHash != hash) && !m.now().Before(st.nextAt)
+	needRegister := (!linkRegistered(*room) || st.profileHash != hash) && !m.now().Before(st.nextAt)
 	m.mu.Unlock()
-	if needRegister {
-		m.register(room, profile, hash)
+	if needRegister && !m.register(room, profile, hash, token) {
+		return false
 	}
 
 	// 节点容器
 	nodeUp := false
-	if wantNode && room.NetworkName != "" {
+	if wantNode && linkRegistered(*room) && room.NetworkName != "" {
 		m.mu.Lock()
 		peers := slices.Clone(st.peers)
 		m.mu.Unlock()
@@ -364,66 +409,81 @@ func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server) bo
 		}
 	}
 
-	if room.Token != "" && room.RoomID != 0 {
+	if linkRegistered(*room) {
 		if !nodeUp {
 			for i := range beats {
 				beats[i].Online, beats[i].Players = false, 0
 			}
 		}
-		m.heartbeat(room, beats, nodeUp)
+		if !m.heartbeat(room, beats, nodeUp, token) {
+			return false
+		}
 	}
 	return wantNode
 }
 
-// register 登记或更新房间（POST /link/rooms），保存令牌、房间 ID、网络名和 peers
-func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, hash string) {
+// linkRegisterRequest 登记房间的请求：房间资料，加上还没认领的旧版房间令牌
+type linkRegisterRequest struct {
+	linkRoomProfile
+	LegacyToken string `json:"legacy_token,omitempty"`
+}
+
+// register 用账号令牌登记或更新房间（POST /link/rooms），保存房间 ID、网络名和 peers；
+// 带了旧版房间令牌（认领旧房间）的，成功后清空。账号失效时返回 false
+func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, hash, token string) bool {
 	st := m.room
 	var resp struct {
 		ID          uint     `json:"id"`
-		Token       string   `json:"token"`
 		NetworkName string   `json:"network_name"`
 		Peers       []string `json:"peers"`
 		URL         string   `json:"url"`
 	}
-	status, retryAfter, code, err := m.request(http.MethodPost, "/link/rooms", room.Token, profile, &resp)
+	body := linkRegisterRequest{linkRoomProfile: profile, LegacyToken: room.Token}
+	status, retryAfter, code, err := m.request(http.MethodPost, "/link/rooms", token, body, &resp)
 	if err != nil {
+		if isInvalidAccount(status, code) {
+			accountManager.invalidateLocked()
+			return false
+		}
 		m.fail(&st.linkBackoff, "room", status, retryAfter, code, err)
-		return
+		return true
 	}
-	if resp.ID == 0 && room.RoomID == 0 {
+	if resp.ID == 0 {
 		m.fail(&st.linkBackoff, "room", status, 0, "invalid_response", errors.New("网站没有返回房间 ID"))
-		return
+		return true
 	}
 
-	oldToken := room.Token
+	oldID := room.RoomID
+	fresh := !linkRegistered(*room) // 第一次用账号登记（新房间或认领旧房间）
 	updates := map[string]any{}
-	if resp.Token != "" && resp.Token != room.Token {
-		updates["token"] = resp.Token
-		room.Token = resp.Token
+	if room.Token != "" {
+		updates["token"] = ""
 	}
-	if resp.ID != 0 && resp.ID != room.RoomID {
+	if resp.ID != room.RoomID {
 		updates["room_id"] = resp.ID
-		room.RoomID = resp.ID
 	}
 	if resp.NetworkName != "" && resp.NetworkName != room.NetworkName {
 		updates["network_name"] = resp.NetworkName
-		room.NetworkName = resp.NetworkName
 	}
 	if len(updates) > 0 {
 		if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).Updates(updates).Error; err != nil {
-			// 令牌没保存下来，下次会再新建一个房间；网站上的旧房间 30 天没心跳后由网站清理
-			m.fail(&st.linkBackoff, "room", 0, 0, "local_error", fmt.Errorf("保存房间令牌失败: %w", err))
-			return
+			// 没保存下来，下一轮再登记一次（网站按 Commander 找到同一个房间）
+			m.fail(&st.linkBackoff, "room", 0, 0, "local_error", fmt.Errorf("保存房间登记失败: %w", err))
+			return true
+		}
+		room.Token, room.RoomID = "", resp.ID
+		if resp.NetworkName != "" {
+			room.NetworkName = resp.NetworkName
 		}
 	}
-	newRoom := oldToken != "" && room.Token != oldToken
+	newRoom := oldID != 0 && resp.ID != oldID
 	if newRoom {
-		// 旧令牌已失效，网站新建了房间：旧房间的凭证（含被封禁玩家的）不能留在节点里
+		// 网站给的是另一个房间：旧房间的凭证（含被封禁玩家的）不能留在节点里
 		m.resetNode()
 	}
 
 	m.mu.Lock()
-	if newRoom || oldToken == "" {
+	if newRoom || fresh {
 		st.lastBeat, st.lastOnline, st.lastServers, st.want = time.Time{}, false, "", 0
 		st.revoke, st.acks, st.pending = nil, nil, nil
 	}
@@ -434,9 +494,11 @@ func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, h
 	}
 	m.succeed(&st.linkBackoff)
 	m.mu.Unlock()
-	if oldToken == "" || newRoom {
-		utils.Info("已登记联机房", zap.Uint("room_id", room.RoomID), zap.Int("servers", len(profile.Servers)))
+	if fresh || newRoom {
+		utils.Info("已登记联机房", zap.Uint("room_id", room.RoomID), zap.Int("servers", len(profile.Servers)),
+			zap.Bool("claimed_legacy", body.LegacyToken != "" && !newRoom))
 	}
+	return true
 }
 
 // resetNode 删除节点容器和凭证文件，下次按新参数重建
@@ -506,8 +568,9 @@ func beatSignature(beats []linkServerBeat) string {
 	return b.String()
 }
 
-// heartbeat 到期时发心跳；节点在运行时先吊销网站要求吊销的凭证、签发网站要补充的凭证，随心跳上传
-func (m *LinkManager) heartbeat(room *models.LinkRoom, beats []linkServerBeat, nodeUp bool) {
+// heartbeat 到期时发心跳；节点在运行时先吊销网站要求吊销的凭证、签发网站要补充的凭证，随心跳上传。
+// 账号失效时返回 false
+func (m *LinkManager) heartbeat(room *models.LinkRoom, beats []linkServerBeat, nodeUp bool, token string) bool {
 	st := m.room
 	online := false
 	for _, b := range beats {
@@ -526,7 +589,7 @@ func (m *LinkManager) heartbeat(room *models.LinkRoom, beats []linkServerBeat, n
 		st.beatNow || work || len(st.pending) > 0 || len(st.acks) > 0
 	if !due || now.Before(st.nextAt) {
 		m.mu.Unlock()
-		return
+		return true
 	}
 	revoke := slices.Clone(st.revoke)
 	acked := slices.Clone(st.acks)
@@ -591,13 +654,19 @@ func (m *LinkManager) heartbeat(room *models.LinkRoom, beats []linkServerBeat, n
 		Peers           []string `json:"peers"`
 	}
 	path := fmt.Sprintf("/link/rooms/%d/heartbeat", room.RoomID)
-	status, retryAfter, code, err := m.request(http.MethodPost, path, room.Token, body, &resp)
+	status, retryAfter, code, err := m.request(http.MethodPost, path, token, body, &resp)
 	if err != nil {
-		if code == "invalid_token" || status == http.StatusNotFound {
+		switch {
+		case isInvalidAccount(status, code):
+			accountManager.invalidateLocked()
+			return false
+		case code == "room_not_found" || status == http.StatusNotFound:
+			// 网站上已经没有这个房间（或不属于这个账号了）：下一轮重新登记
 			m.roomGone(room)
+		default:
+			m.fail(&st.linkBackoff, "room", status, retryAfter, code, err)
 		}
-		m.fail(&st.linkBackoff, "room", status, retryAfter, code, err)
-		return
+		return true
 	}
 	if resp.NetworkName != "" && resp.NetworkName != room.NetworkName {
 		if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).
@@ -626,6 +695,7 @@ func (m *LinkManager) heartbeat(room *models.LinkRoom, beats []linkServerBeat, n
 		}
 	}
 	m.succeed(&st.linkBackoff)
+	return true
 }
 
 // resetRoomState 清空房间的内存状态（保留退避），服务器的在线报告也一并清除
@@ -639,22 +709,22 @@ func (m *LinkManager) resetRoomState() {
 	}
 }
 
-// roomGone 网站上已经没有这个房间（令牌无效）：清空令牌和节点，下一轮重新登记一个新房间
+// roomGone 网站上已经没有这个房间（room_not_found）：清掉房间 ID、网络名和节点，下一轮重新登记
 func (m *LinkManager) roomGone(room *models.LinkRoom) {
-	utils.Warn("联机房：网站上的房间已不存在，将重新登记")
+	utils.Warn("联机房：网站上的房间已不存在，将重新登记", zap.Uint("room_id", room.RoomID))
 	if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", room.ID).
-		Updates(map[string]any{"token": "", "room_id": 0, "network_name": ""}).Error; err != nil {
-		utils.Warn("联机房：清除房间令牌失败", zap.Error(err))
+		Updates(map[string]any{"room_id": 0, "network_name": ""}).Error; err != nil {
+		utils.Warn("联机房：清除房间登记失败", zap.Error(err))
 		return
 	}
-	room.Token, room.RoomID, room.NetworkName = "", 0, ""
+	room.RoomID, room.NetworkName = 0, ""
 	m.resetNode()
 	m.resetRoomState()
 }
 
-// unregister 下架房间（DELETE /link/rooms/:id），成功后删除节点容器和凭证目录，清空令牌和网络密钥（保留房间资料）。
-// 网站已经没有这个房间（invalid_token / 404）也算成功
-func (m *LinkManager) unregister(room models.LinkRoom) {
+// unregister 下架房间（DELETE /link/rooms/:id），token 是账号令牌或旧版房间令牌。成功后删除节点容器和凭证目录，
+// 清空房间 ID、网络名、网络密钥和旧令牌（保留房间资料）。网站已经没有这个房间（room_not_found / invalid_token / 404）也算成功
+func (m *LinkManager) unregister(room models.LinkRoom, token string) {
 	st := m.room
 	m.mu.Lock()
 	wait := m.now().Before(st.nextAt)
@@ -662,8 +732,12 @@ func (m *LinkManager) unregister(room models.LinkRoom) {
 	if wait {
 		return
 	}
-	status, retryAfter, code, err := m.request(http.MethodDelete, fmt.Sprintf("/link/rooms/%d", room.RoomID), room.Token, nil, nil)
-	if err != nil && code != "invalid_token" && status != http.StatusNotFound {
+	status, retryAfter, code, err := m.request(http.MethodDelete, fmt.Sprintf("/link/rooms/%d", room.RoomID), token, nil, nil)
+	if err != nil && isInvalidAccount(status, code) {
+		accountManager.invalidateLocked()
+		return
+	}
+	if err != nil && code != "invalid_token" && code != "room_not_found" && status != http.StatusNotFound {
 		m.fail(&st.linkBackoff, "room", status, retryAfter, code, err)
 		return
 	}
@@ -811,8 +885,10 @@ func linkErrorMessage(code string) string {
 		return "arkfgf.com 暂时繁忙或请求过于频繁，稍后自动重试"
 	case "too_many_rooms":
 		return "这个公网 IP 登记的联机房已达上限"
-	case "invalid_token":
+	case "room_not_found":
 		return "网站上的房间已不存在，正在重新登记"
+	case "login_required":
+		return "arkfgf.com 要求先绑定账号"
 	case "invalid_input":
 		return "房间资料不符合网站要求"
 	}
@@ -846,6 +922,9 @@ func (m *LinkManager) statusFor(server models.Server) *models.LinkStatus {
 	if m.api() == "" {
 		return &models.LinkStatus{State: models.LinkDisabled}
 	}
+	if !accountManager.bound() {
+		return linkLoginRequired()
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	status := m.roomStatusLocked()
@@ -868,6 +947,9 @@ func (m *LinkManager) roomStatus(hasServers bool) *models.LinkStatus {
 	if m.api() == "" {
 		return &models.LinkStatus{State: models.LinkDisabled}
 	}
+	if !accountManager.bound() {
+		return linkLoginRequired()
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	status := m.roomStatusLocked()
@@ -880,6 +962,10 @@ func (m *LinkManager) roomStatus(hasServers bool) *models.LinkStatus {
 		status.State = models.LinkOffline
 	}
 	return status
+}
+
+func linkLoginRequired() *models.LinkStatus {
+	return &models.LinkStatus{State: models.LinkLoginRequired, ErrorCode: "login_required", Error: loginRequiredMessage}
 }
 
 // serverReported 这台服务器在最近一次成功的心跳里是否报告为可以连接
@@ -1106,24 +1192,34 @@ func truncate(s string, n int) string {
 
 var steamIDRe = regexp.MustCompile(`^[0-9]{17}$`)
 
-// linkCall 用房间令牌调用网站的成员管理接口
+// linkCall 用账号令牌调用网站的成员管理接口
 func (m *LinkManager) linkCall(method, path string, body, out any) error {
 	if m.api() == "" {
 		return fmt.Errorf("%w：管理端已关闭与 arkfgf.com 的连接（ARKFGF_API 为空）", ErrLinkUnavailable)
+	}
+	token := accountManager.token()
+	if token == "" {
+		return ErrAccountRequired
 	}
 	room, err := loadLinkRoom()
 	if err != nil {
 		return fmt.Errorf("读取联机房失败: %w", err)
 	}
-	if room.Token == "" || room.RoomID == 0 {
+	if !linkRegistered(room) {
 		return ErrLinkNotRegistered
 	}
-	status, _, code, err := m.request(method, fmt.Sprintf("/link/rooms/%d%s", room.RoomID, path), room.Token, body, out)
+	status, _, code, err := m.request(method, fmt.Sprintf("/link/rooms/%d%s", room.RoomID, path), token, body, out)
 	if err == nil {
 		return nil
 	}
 	switch {
-	case code == "invalid_token" || status == http.StatusUnauthorized:
+	case isInvalidAccount(status, code):
+		accountManager.invalidate()
+		return ErrAccountRequired
+	case status == http.StatusUnauthorized:
+		return ErrAccountRequired
+	case code == "room_not_found":
+		// 下一次心跳也会收到 room_not_found，届时重新登记
 		return ErrLinkNotRegistered
 	case status == http.StatusBadRequest || status == http.StatusNotFound || status == http.StatusConflict || status == http.StatusUnprocessableEntity:
 		return fmt.Errorf("%w：%v", ErrLinkRequestFailed, err)

@@ -35,6 +35,7 @@ const instructions = `ARK Server Commander manages ARK: Survival Evolved dedicat
 - A running container is not necessarily joinable. runtime.phase shows progress: pulling_image, copying, downloading (first start downloads about 20 GB), installing_mods, launching, ready. Players can connect only when the phase is "ready".
 - Config edits (update_server, set_config_values) made while a server is not stopped are stored as pending (config_pending=true) and written to disk on the next start, because ARK overwrites GameUserSettings.ini when it shuts down. Restart the server to apply them.
 - Players connect at <public_host>:<port>; get_system_info returns public_host.
+- Publishing to the arkfgf.com server list (publish) and the P2P room (link) require this Commander to be bound to an arkfgf.com account; get_arkfgf_account shows whether it is. Binding is only possible in the web UI (Settings), so ask the owner to do it when publish_status or link_status is login_required.
 - Errors are returned as "[error_code] message"; messages are in Chinese.`
 
 var service = server.NewServerService()

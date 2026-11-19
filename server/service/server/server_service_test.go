@@ -21,7 +21,7 @@ func setupTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.LinkRoom{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.LinkRoom{}, &models.ArkfgfAccount{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Create(&models.User{Username: "admin", Password: "x"}).Error; err != nil {
@@ -30,8 +30,11 @@ func setupTestDB(t *testing.T) {
 
 	old := database.DB
 	database.DB = db
+	// 账号状态缓存在内存里，换数据库后重新读取
+	accountManager.forget()
 	t.Cleanup(func() {
 		database.DB = old
+		accountManager.forget()
 		// 先关闭连接，Windows 上打开着的数据库文件无法被 TempDir 清理
 		if sqlDB, err := db.DB(); err == nil {
 			sqlDB.Close()

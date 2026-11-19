@@ -1,9 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -39,6 +41,7 @@ func TestNormalizeListing(t *testing.T) {
 
 func TestListingSentAndRepublished(t *testing.T) {
 	setupTestDB(t)
+	bindTestAccount(t)
 	s := createTestServer(t, 7777, 27015, 32330)
 	database.DB.Model(&s).Updates(map[string]any{"publish": true, "status": "running", "listing_description": "旧简介", "listing_tags": "PvE,新手"})
 
@@ -46,9 +49,11 @@ func TestListingSentAndRepublished(t *testing.T) {
 	now := time.Now()
 	var bodies []publishProfile
 	f := &fakeListing{handler: func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
 		var body publishProfile
-		json.NewDecoder(r.Body).Decode(&body)
+		json.Unmarshal(data, &body)
 		bodies = append(bodies, body)
+		r.Body = io.NopCloser(bytes.NewReader(data))
 		okHandler(w, r)
 	}}
 	p := newTestPublisher(t, f, &ready, &now)
@@ -98,11 +103,16 @@ func TestListingSentAndRepublished(t *testing.T) {
 func TestFetchPublishStats(t *testing.T) {
 	setupTestDB(t)
 	s := createTestServer(t, 7777, 27015, 32330)
+	key := fmt.Sprint(s.ID)
 	ready := true
 	now := time.Now()
 	f := &fakeListing{handler: func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer afp_tok" {
-			w.WriteHeader(http.StatusUnauthorized)
+		if r.Header.Get("Authorization") != "Bearer "+testAccountToken {
+			writeAPIError(w, http.StatusUnauthorized, "invalid_account")
+			return
+		}
+		if r.URL.Query().Get("key") != key {
+			writeAPIError(w, http.StatusNotFound, "not_published")
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{"id": 9, "url": "https://arkfgf.com/servers/9", "badge": "https://arkfgf.com/badge/9.png",
@@ -111,10 +121,16 @@ func TestFetchPublishStats(t *testing.T) {
 	p := newTestPublisher(t, f, &ready, &now)
 	statsCache = map[uint]cachedStats{}
 
-	if _, err := p.fetchStats(s); !errors.Is(err, ErrNotPublished) {
-		t.Fatalf("no token: %v", err)
+	// 没有绑定账号、没有发布过：不发请求
+	if _, err := p.fetchStats(s); !errors.Is(err, ErrAccountRequired) {
+		t.Fatalf("no account: %v", err)
 	}
-	s.PublishToken = "afp_tok"
+	bindTestAccount(t)
+	if _, err := p.fetchStats(s); !errors.Is(err, ErrNotPublished) {
+		t.Fatalf("not published: %v", err)
+	}
+	expectCalls(t, f)
+	s.Published = true
 	stats, err := p.fetchStats(s)
 	if err != nil || stats.Week.Views != 12 || stats.Badge == "" {
 		t.Fatalf("stats: %+v %v", stats, err)
@@ -126,9 +142,10 @@ func TestFetchPublishStats(t *testing.T) {
 	p.fetchStats(s)
 	expectCalls(t, f, "/publish/stats", "/publish/stats")
 
+	// 收录站上没有这条记录
 	statsCache = map[uint]cachedStats{}
-	s.PublishToken = "afp_revoked"
+	s.ID = 999
 	if _, err := p.fetchStats(s); !errors.Is(err, ErrNotPublished) {
-		t.Fatalf("revoked token: %v", err)
+		t.Fatalf("missing record: %v", err)
 	}
 }

@@ -157,17 +157,21 @@ func (d *fakeLinkDocker) createCount() int {
 	return d.creates
 }
 
-// fakeLinkSite 模拟网站的联机房接口
+// fakeLinkSite 模拟网站的联机房接口：登记、心跳、成员管理都要账号令牌，下架还接受旧版房间令牌
 type fakeLinkSite struct {
 	mu       sync.Mutex
 	calls    []string // "METHOD path"
 	tokens   []string
 	beats    []linkBeat
 	profiles []linkRoomProfile
+	legacy   []string // 每次登记带的 legacy_token
 	want     int
 	revoke   []string
+	roomID   int // 登记返回的房间 ID，0 为 12
 	// fail 不为空时所有请求按它返回
 	fail func(w http.ResponseWriter)
+	// beatFail 不为空时心跳按它返回
+	beatFail func(w http.ResponseWriter)
 }
 
 type linkBeat struct {
@@ -198,17 +202,32 @@ func (f *fakeLinkSite) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	peers := []string{"tcp://et.arkfgf.com:11010", "udp://et.arkfgf.com:11010"}
+	roomID := f.roomID
+	if roomID == 0 {
+		roomID = 12
+	}
+	room := fmt.Sprintf("/link/rooms/%d", roomID)
+	// 旧版房间令牌只能下架
+	if strings.HasPrefix(token, "alr_") && r.Method == http.MethodDelete {
+		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+	if token != testAccountToken {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"code": "login_required", "error": "login required"})
+		return
+	}
 	switch {
 	case r.Method == http.MethodPost && r.URL.Path == "/link/rooms":
-		var p linkRoomProfile
+		var p linkRegisterRequest
 		_ = json.NewDecoder(r.Body).Decode(&p)
-		f.profiles = append(f.profiles, p)
-		resp := map[string]any{"id": 12, "network_name": "ark-0123456789abcdef", "peers": peers, "url": "https://arkfgf.com/rooms/12"}
-		if token != "alr_tok" {
-			resp["token"] = "alr_tok"
-		}
-		json.NewEncoder(w).Encode(resp)
-	case r.Method == http.MethodPost && r.URL.Path == "/link/rooms/12/heartbeat":
+		f.profiles = append(f.profiles, p.linkRoomProfile)
+		f.legacy = append(f.legacy, p.LegacyToken)
+		json.NewEncoder(w).Encode(map[string]any{"id": roomID, "network_name": "ark-0123456789abcdef", "peers": peers,
+			"url": fmt.Sprintf("https://arkfgf.com/rooms/%d", roomID)})
+	case r.Method == http.MethodPost && r.URL.Path == room+"/heartbeat" && f.beatFail != nil:
+		f.beatFail(w)
+	case r.Method == http.MethodPost && r.URL.Path == room+"/heartbeat":
 		var b linkBeat
 		_ = json.NewDecoder(r.Body).Decode(&b)
 		f.beats = append(f.beats, b)
@@ -216,12 +235,15 @@ func (f *fakeLinkSite) handler(w http.ResponseWriter, r *http.Request) {
 		f.want = max(f.want-len(b.Credentials), 0)
 		f.revoke = slices.DeleteFunc(f.revoke, func(id string) bool { return slices.Contains(b.RevokedAck, id) })
 		json.NewEncoder(w).Encode(map[string]any{"want_credentials": f.want, "revoke": f.revoke, "network_name": "ark-0123456789abcdef", "peers": peers})
-	case r.Method == http.MethodDelete && (r.URL.Path == "/link/rooms/12" || r.URL.Path == "/link/rooms/7"):
+	case r.Method == http.MethodDelete && r.URL.Path == room:
 		json.NewEncoder(w).Encode(map[string]any{"ok": true})
-	case r.Method == http.MethodGet && r.URL.Path == "/link/rooms/12/members":
+	case r.Method == http.MethodGet && r.URL.Path == room+"/members":
 		json.NewEncoder(w).Encode(map[string]any{"members": []map[string]any{{"steam_id": "76561198000000001", "name": "p1", "credential_id": "c1", "joined_at": 1797600000}}, "bans": []any{}})
-	case r.Method == http.MethodPost && r.URL.Path == "/link/rooms/12/kick":
+	case r.Method == http.MethodPost && r.URL.Path == room+"/kick":
 		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	case strings.HasPrefix(r.URL.Path, "/link/rooms/") && !strings.HasPrefix(r.URL.Path, room+"/bans/"):
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"code": "room_not_found", "error": "room not found"})
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"code": "not_found", "error": "not found"})
@@ -323,6 +345,7 @@ func (e *linkTestEnv) advance(d time.Duration) { *e.now = e.now.Add(d) }
 
 func setupLinkTest(t *testing.T) *linkTestEnv {
 	setupTestDB(t)
+	bindTestAccount(t)
 	s := createTestServer(t, 7777, 27015, 32330)
 	database.DB.Model(&s).Update("link", true)
 	s.Link = true
@@ -355,14 +378,14 @@ func TestLinkRegisterHeartbeatAndNode(t *testing.T) {
 	s, site, dock, m := e.s, e.site, e.dock, e.m
 	name := utils.LinkContainerName
 
-	// 已停止：登记房间并保存令牌等，发一次离线心跳，不创建节点
+	// 已停止：用账号令牌登记房间并保存房间 ID 等，发一次离线心跳，不创建节点
 	m.tick()
 	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat")
-	if site.tokens[0] != "" || site.tokens[1] != "alr_tok" {
-		t.Fatalf("tokens = %v", site.tokens)
+	if site.tokens[0] != testAccountToken || site.tokens[1] != testAccountToken || site.legacy[0] != "" {
+		t.Fatalf("tokens = %v legacy = %v", site.tokens, site.legacy)
 	}
 	room := loadTestLinkRoom(t)
-	if room.Token != "alr_tok" || room.RoomID != 12 || room.NetworkName != "ark-0123456789abcdef" {
+	if room.Token != "" || room.RoomID != 12 || room.NetworkName != "ark-0123456789abcdef" {
 		t.Fatalf("room not saved: %+v", room)
 	}
 	if len(room.NetworkSecret) != 64 || room.RPCPort != linkRPCPortBase {
@@ -461,8 +484,8 @@ func TestLinkRegisterHeartbeatAndNode(t *testing.T) {
 	database.DB.Model(&s).Update("session_name", "renamed")
 	e.advance(15 * time.Second)
 	m.tick()
-	if site.count("POST /link/rooms") != 2 || site.tokens[slices.Index(site.callList()[1:], "POST /link/rooms")+1] != "alr_tok" {
-		t.Fatalf("expected a re-registration with token: %v %v", site.callList(), site.tokens)
+	if site.count("POST /link/rooms") != 2 || site.tokens[slices.Index(site.callList()[1:], "POST /link/rooms")+1] != testAccountToken {
+		t.Fatalf("expected a re-registration with the account token: %v %v", site.callList(), site.tokens)
 	}
 	if p := site.lastProfile(); p.Name != "renamed" || p.Servers[0].Name != "renamed" {
 		t.Fatalf("profile = %+v", p)
@@ -691,14 +714,14 @@ func TestLinkUnregisterOnDisable(t *testing.T) {
 		t.Fatal("node not running")
 	}
 
-	// 最后一台服务器关闭联机房：带令牌下架，删除节点和凭证目录，清空令牌，之后不再请求
+	// 最后一台服务器关闭联机房：用账号令牌下架，删除节点和凭证目录，清空房间 ID 等，之后不再请求
 	database.DB.Model(&models.LinkRoom{}).Where("id = ?", linkRoomID).Update("name", "My Room")
 	database.DB.Model(&s).Update("link", false)
 	e.advance(15 * time.Second)
 	m.tick()
 	m.tick()
 	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat", "DELETE /link/rooms/12")
-	if site.tokens[2] != "alr_tok" {
+	if site.tokens[2] != testAccountToken {
 		t.Fatalf("delete token = %q", site.tokens[2])
 	}
 	if dock.container(name) != nil || dock.removedDirs == 0 {
@@ -737,19 +760,19 @@ func TestLinkUnregisterDeleted(t *testing.T) {
 	m.tick()
 	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat", "DELETE /link/rooms/12")
 
-	// 网站已经没有这个房间（invalid_token）：视同下架成功
+	// 网站已经没有这个房间（room_not_found）：视同下架成功
 	site.set(func(f *fakeLinkSite) {
 		f.fail = func(w http.ResponseWriter) {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"code": "invalid_token", "error": "invalid token"})
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"code": "room_not_found", "error": "room not found"})
 		}
 	})
 	e.advance(time.Minute)
 	m.tick()
 	m.tick()
 	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat", "DELETE /link/rooms/12", "DELETE /link/rooms/12")
-	if room := loadTestLinkRoom(t); room.Token != "" {
-		t.Fatalf("token should be cleared: %q", room.Token)
+	if room := loadTestLinkRoom(t); room.RoomID != 0 || room.NetworkSecret != "" {
+		t.Fatalf("room should be cleared: %+v", room)
 	}
 }
 
@@ -791,7 +814,7 @@ func TestLinkLegacyCleanup(t *testing.T) {
 		t.Fatal("legacy node should be removed")
 	}
 	// 新房间照常登记
-	if room := loadTestLinkRoom(t); room.Token != "alr_tok" {
+	if room := loadTestLinkRoom(t); room.RoomID != 12 || room.Token != "" {
 		t.Fatalf("room = %+v", room)
 	}
 	// 之后不再请求旧房间
@@ -850,39 +873,206 @@ func TestLinkBackoff(t *testing.T) {
 	site.set(func(f *fakeLinkSite) { f.fail = nil })
 	e.advance(2 * time.Minute)
 	m.tick()
-	if room := loadTestLinkRoom(t); room.Token != "alr_tok" {
-		t.Fatalf("token = %q", room.Token)
+	if room := loadTestLinkRoom(t); room.RoomID != 12 {
+		t.Fatalf("room = %+v", room)
 	}
 	if st := m.statusFor(s); st.State != models.LinkOffline || st.ErrorCode != "" {
 		t.Fatalf("status = %+v", st)
 	}
 }
 
-func TestLinkHeartbeatInvalidTokenReregisters(t *testing.T) {
+// 心跳返回 room_not_found：清掉房间 ID 和网络名、删除节点和凭证，下一轮重新登记
+func TestLinkHeartbeatRoomNotFoundReregisters(t *testing.T) {
 	e := setupLinkTest(t)
-	site, dock, m := e.site, e.dock, e.m
+	s, site, dock, m := e.s, e.site, e.dock, e.m
+	database.DB.Model(&s).Update("status", "running")
+	e.rt.set(s.ID, linkRuntime{Ready: true})
 	m.tick()
+	if dock.container(utils.LinkContainerName) == nil {
+		t.Fatal("node not running")
+	}
 	site.set(func(f *fakeLinkSite) {
-		f.fail = func(w http.ResponseWriter) {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"code": "invalid_token", "error": "invalid token"})
+		f.beatFail = func(w http.ResponseWriter) {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"code": "room_not_found", "error": "room not found"})
 		}
 	})
 	e.advance(time.Minute)
 	m.tick()
-	if room := loadTestLinkRoom(t); room.Token != "" || room.RoomID != 0 {
-		t.Fatalf("token should be cleared: %+v", room)
+	if room := loadTestLinkRoom(t); room.RoomID != 0 || room.NetworkName != "" || room.NetworkSecret == "" {
+		t.Fatalf("room id should be cleared: %+v", room)
 	}
-	if dock.removedDirs == 0 {
-		t.Fatal("credential dir should be reset")
+	if dock.removedDirs == 0 || dock.container(utils.LinkContainerName) != nil {
+		t.Fatal("node and credential dir should be reset")
 	}
-	// 退避结束后重新登记（不带令牌）
-	site.set(func(f *fakeLinkSite) { f.fail = nil })
-	e.advance(time.Minute)
+	// 下一轮马上重新登记（不等退避），节点重建
+	site.set(func(f *fakeLinkSite) { f.beatFail = nil; f.roomID = 13 })
+	e.advance(15 * time.Second)
 	m.tick()
 	calls := site.callList()
-	if calls[len(calls)-2] != "POST /link/rooms" || site.tokens[len(calls)-2] != "" {
-		t.Fatalf("calls = %v tokens = %v", calls, site.tokens)
+	if calls[len(calls)-2] != "POST /link/rooms" || calls[len(calls)-1] != "POST /link/rooms/13/heartbeat" {
+		t.Fatalf("calls = %v", calls)
+	}
+	if room := loadTestLinkRoom(t); room.RoomID != 13 {
+		t.Fatalf("room = %+v", room)
+	}
+	if dock.container(utils.LinkContainerName) == nil {
+		t.Fatal("node should be recreated")
+	}
+}
+
+// 未绑定账号：状态为 login_required，不发请求，删除残留的节点容器；绑定后正常登记
+func TestLinkUnboundLoginRequired(t *testing.T) {
+	e := setupLinkTest(t)
+	s, site, dock, m := e.s, e.site, e.dock, e.m
+	database.DB.Where("id = ?", accountRowID).Delete(&models.ArkfgfAccount{})
+	accountManager.forget()
+	database.DB.Model(&s).Update("status", "running")
+	s.Status = "running"
+	e.rt.set(s.ID, linkRuntime{Ready: true})
+	dock.addContainer(utils.LinkContainerName)
+
+	m.tick()
+	e.advance(time.Minute)
+	m.tick()
+	expectLinkCalls(t, site)
+	if dock.container(utils.LinkContainerName) != nil || dock.createCount() != 0 {
+		t.Fatal("node should not run without an account")
+	}
+	if st := m.statusFor(s); st.State != models.LinkLoginRequired || st.Error == "" {
+		t.Fatalf("status = %+v", st)
+	}
+	if info, err := (&ServerService{}).GetLinkRoom(); err != nil || info.Status.State != models.LinkLoginRequired {
+		t.Fatalf("room status = %+v err = %v", info, err)
+	}
+
+	bindTestAccount(t)
+	e.advance(15 * time.Second)
+	m.tick()
+	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat")
+	if dock.container(utils.LinkContainerName) == nil {
+		t.Fatal("node should run after binding")
+	}
+}
+
+// 升级后第一次登记：带旧版房间令牌认领旧房间（同一个房间 ID，节点和凭证保留），成功后清空，之后不再带
+func TestLinkLegacyRoomClaim(t *testing.T) {
+	e := setupLinkTest(t)
+	site, dock, m := e.site, e.dock, e.m
+	database.DB.Save(&models.LinkRoom{ID: linkRoomID, Token: "alr_old", RoomID: 12, NetworkName: "ark-0123456789abcdef",
+		NetworkSecret: strings.Repeat("ab", 32), RPCPort: 20000})
+
+	m.tick()
+	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat")
+	if site.tokens[0] != testAccountToken || site.legacy[0] != "alr_old" {
+		t.Fatalf("tokens = %v legacy = %v", site.tokens, site.legacy)
+	}
+	if room := loadTestLinkRoom(t); room.Token != "" || room.RoomID != 12 {
+		t.Fatalf("room = %+v", room)
+	}
+	if dock.removedDirs != 0 {
+		t.Fatal("claimed room should keep its credentials")
+	}
+
+	// 资料变化重新登记时不再带 legacy_token
+	database.DB.Model(&e.s).Update("session_name", "renamed")
+	e.advance(15 * time.Second)
+	m.tick()
+	if len(site.legacy) != 2 || site.legacy[1] != "" {
+		t.Fatalf("legacy = %v", site.legacy)
+	}
+}
+
+// 旧房间认领不了（网站新建了另一个房间）：删除节点和凭证
+func TestLinkLegacyRoomReplaced(t *testing.T) {
+	e := setupLinkTest(t)
+	site, dock, m := e.site, e.dock, e.m
+	database.DB.Save(&models.LinkRoom{ID: linkRoomID, Token: "alr_old", RoomID: 7, NetworkName: "ark-old",
+		NetworkSecret: strings.Repeat("ab", 32), RPCPort: 20000})
+	dock.addContainer(utils.LinkContainerName)
+
+	m.tick()
+	if site.legacy[0] != "alr_old" {
+		t.Fatalf("legacy = %v", site.legacy)
+	}
+	if room := loadTestLinkRoom(t); room.Token != "" || room.RoomID != 12 || room.NetworkName != "ark-0123456789abcdef" {
+		t.Fatalf("room = %+v", room)
+	}
+	if dock.removedDirs == 0 {
+		t.Fatal("credentials of the old room should be removed")
+	}
+}
+
+// 没有服务器开启联机房、还留着旧版房间令牌：不需要绑定也用旧令牌下架
+func TestLinkLegacyRoomDeleteWithoutAccount(t *testing.T) {
+	e := setupLinkTest(t)
+	s, site, dock, m := e.s, e.site, e.dock, e.m
+	database.DB.Where("id = ?", accountRowID).Delete(&models.ArkfgfAccount{})
+	accountManager.forget()
+	database.DB.Model(&s).Update("link", false)
+	database.DB.Save(&models.LinkRoom{ID: linkRoomID, Token: "alr_old", RoomID: 7, NetworkName: "ark-old",
+		NetworkSecret: "sec", RPCPort: 20000, Name: "My Room"})
+
+	m.tick()
+	m.tick()
+	expectLinkCalls(t, site, "DELETE /link/rooms/7")
+	if site.tokens[0] != "alr_old" {
+		t.Fatalf("token = %q", site.tokens[0])
+	}
+	room := loadTestLinkRoom(t)
+	if room.Token != "" || room.RoomID != 0 || room.NetworkName != "" || room.NetworkSecret != "" || room.Name != "My Room" {
+		t.Fatalf("room = %+v", room)
+	}
+	if dock.removedDirs == 0 {
+		t.Fatal("credential dir should be removed")
+	}
+}
+
+// 网站返回 invalid_account：视为已解绑，清空本地账号、房间登记和节点
+func TestLinkInvalidAccountClearsLocal(t *testing.T) {
+	e := setupLinkTest(t)
+	s, site, dock, m := e.s, e.site, e.dock, e.m
+	old := linkManager
+	linkManager = m
+	t.Cleanup(func() { linkManager = old })
+	database.DB.Model(&s).Updates(map[string]any{"status": "running", "published": true})
+	s.Status = "running"
+	e.rt.set(s.ID, linkRuntime{Ready: true})
+	m.tick()
+	if dock.container(utils.LinkContainerName) == nil {
+		t.Fatal("node not running")
+	}
+
+	site.set(func(f *fakeLinkSite) {
+		f.fail = func(w http.ResponseWriter) {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"code": "invalid_account", "error": "invalid account"})
+		}
+	})
+	e.advance(time.Minute)
+	m.tick()
+	if accountManager.bound() {
+		t.Fatal("account should be cleared")
+	}
+	room := loadTestLinkRoom(t)
+	if room.RoomID != 0 || room.NetworkName != "" || room.NetworkSecret != "" {
+		t.Fatalf("room = %+v", room)
+	}
+	if dock.container(utils.LinkContainerName) != nil || dock.removedDirs == 0 {
+		t.Fatal("node and credentials should be removed")
+	}
+	if loadPublishServer(t, s.ID).Published {
+		t.Fatal("published should be cleared")
+	}
+	if st := m.statusFor(s); st.State != models.LinkLoginRequired {
+		t.Fatalf("status = %+v", st)
+	}
+	// 之后不再请求
+	calls := len(site.callList())
+	e.advance(time.Hour)
+	m.tick()
+	if len(site.callList()) != calls {
+		t.Fatalf("calls = %v", site.callList())
 	}
 }
 
@@ -899,6 +1089,13 @@ func TestLinkMembersProxy(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 	m.tick()
+	// 没有绑定账号：409 account_required
+	database.DB.Model(&models.ArkfgfAccount{}).Where("id = ?", accountRowID).Update("token", "")
+	accountManager.forget()
+	if _, err := svc.GetLinkMembers(); !errors.Is(err, ErrAccountRequired) {
+		t.Fatalf("err = %v", err)
+	}
+	bindTestAccount(t)
 	members, err := svc.GetLinkMembers()
 	if err != nil || len(members.Members) != 1 || members.Members[0].SteamID != "76561198000000001" || members.Bans == nil {
 		t.Fatalf("members = %+v err = %v", members, err)

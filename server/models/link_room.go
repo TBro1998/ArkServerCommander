@@ -6,9 +6,10 @@ import "time"
 // 在 arkfgf.com 上是同一个房间里的多台服务器，共用一个 EasyTier 节点容器和凭证池，玩家加入一次就能连所有服务器
 type LinkRoom struct {
 	ID uint `gorm:"primaryKey"`
-	// 网站返回的房间令牌（alr_...），用于心跳、更新和下架
+	// 旧版网站返回的房间令牌（alr_...）。现在用绑定的 arkfgf.com 账号令牌调用网站，这个令牌只用于登记时让网站
+	// 认领旧房间（legacy_token），或没有服务器开启联机房时下架旧房间，之后清空，新代码不再写入
 	Token string `gorm:"default:''"`
-	// 网站上的房间 ID
+	// 网站上的房间 ID，不为 0 表示已用账号登记（Token 为空时）
 	RoomID uint `gorm:"default:0"`
 	// 网站分配的 EasyTier 网络名（ark-xxxxxxxxxxxxxxxx）
 	NetworkName string `gorm:"default:''"`

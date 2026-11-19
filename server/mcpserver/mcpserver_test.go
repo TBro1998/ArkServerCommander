@@ -26,7 +26,7 @@ func setupTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}, &models.LinkRoom{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}, &models.LinkRoom{}, &models.ArkfgfAccount{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Create(&models.User{Username: "admin", Password: "x"}).Error; err != nil {
@@ -135,7 +135,7 @@ func TestMCPReadOnlyTokenOnlySeesQueryTools(t *testing.T) {
 			t.Errorf("完整权限令牌缺少工具 %s", name)
 		}
 	}
-	for _, name := range []string{"list_servers", "get_server", "get_logs", "list_backups", "suggest_ports"} {
+	for _, name := range []string{"list_servers", "get_server", "get_logs", "list_backups", "suggest_ports", "get_arkfgf_account"} {
 		if !slices.Contains(roTools, name) {
 			t.Errorf("只读令牌缺少查询工具 %s", name)
 		}

@@ -54,12 +54,12 @@ func UpdateLinkRoom(c *gin.Context) {
 
 // GetLinkMembers 联机房成员和封禁列表
 // @Summary 联机房成员
-// @Description 代理 arkfgf.com 的 GET /link/rooms/:id/members（房间令牌认证）：当前持有未吊销凭证的玩家和封禁列表
+// @Description 代理 arkfgf.com 的 GET /link/rooms/:id/members（账号令牌认证）：当前持有未吊销凭证的玩家和封禁列表
 // @Tags 联机房
 // @Produce json
 // @Security Bearer
 // @Success 200 {object} map[string]models.LinkMembers "成员和封禁列表"
-// @Failure 409 {object} map[string]string "联机房还没有登记"
+// @Failure 409 {object} map[string]string "没有绑定 arkfgf.com 账号，或联机房还没有登记"
 // @Failure 502 {object} map[string]string "无法连接 arkfgf.com"
 // @Router /link/members [get]
 func GetLinkMembers(c *gin.Context) {
@@ -81,7 +81,7 @@ func GetLinkMembers(c *gin.Context) {
 // @Param request body models.LinkKickRequest true "玩家和是否封禁"
 // @Success 200 {object} map[string]string "已踢出"
 // @Failure 400 {object} map[string]string "SteamID 无效或网站拒绝"
-// @Failure 409 {object} map[string]string "联机房还没有登记"
+// @Failure 409 {object} map[string]string "没有绑定 arkfgf.com 账号，或联机房还没有登记"
 // @Failure 502 {object} map[string]string "无法连接 arkfgf.com"
 // @Router /link/kick [post]
 func KickLinkMember(c *gin.Context) {
@@ -106,7 +106,7 @@ func KickLinkMember(c *gin.Context) {
 // @Param steam_id path string true "玩家的 SteamID64"
 // @Success 200 {object} map[string]string "已解封"
 // @Failure 400 {object} map[string]string "SteamID 无效或网站拒绝"
-// @Failure 409 {object} map[string]string "联机房还没有登记"
+// @Failure 409 {object} map[string]string "没有绑定 arkfgf.com 账号，或联机房还没有登记"
 // @Failure 502 {object} map[string]string "无法连接 arkfgf.com"
 // @Router /link/bans/{steam_id} [delete]
 func UnbanLinkMember(c *gin.Context) {

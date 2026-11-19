@@ -27,6 +27,7 @@ const messages = {
     loading: 'Loading members…',
     loadFailed: 'Failed to load members',
     notRegistered: 'Members and bans appear here once the room is registered on arkfgf.com.',
+    loginRequired: 'The room requires an arkfgf.com account. Members and bans appear here once it is bound.',
     refresh: 'Refresh',
     player: 'Player',
     joinedAt: 'Joined',
@@ -51,6 +52,7 @@ const messages = {
     loading: 'Loading visitor stats…',
     statsFailed: 'Failed to load visitor stats',
     notPublished: 'Visitor stats and the status badge appear here after the server is published for the first time.',
+    loginRequired: 'Publishing requires an arkfgf.com account. Visitor stats and the status badge appear here once it is bound.',
     week: 'Last 7 days',
     stats: {
       views: 'Views',
@@ -509,6 +511,17 @@ const messages = {
   // Messages for backend error codes (the Chinese UI shows the detailed backend message instead)
   apiErrors: {
     invalid_listing: 'Invalid listing details',
+    account_required: 'No arkfgf.com account is bound yet; bind one in Settings first',
+    account_bound: 'An arkfgf.com account is already bound; unbind it first',
+    arkfgf_disabled: 'The connection to arkfgf.com is turned off for this manager (ARKFGF_API is empty)',
+    arkfgf_unavailable: 'Cannot reach arkfgf.com right now',
+    arkfgf_rejected: 'arkfgf.com rejected the request',
+    invalid_commander_name: 'The name can be at most 64 characters',
+    invalid_return_to: 'Invalid callback address',
+    expired_login: 'The login expired or was already used; sign in with Steam again',
+    login_cancelled: 'The Steam sign-in was cancelled',
+    steam_verify_failed: 'Steam sign-in could not be verified; please try again',
+    too_many_commanders: 'This arkfgf.com account already has 20 managers bound; remove unused ones in the arkfgf.com dashboard first',
     not_published: 'The server has not been published to the server list yet',
     publish_unavailable: 'Cannot reach the server list right now',
     link_not_registered: 'The P2P room is not registered on arkfgf.com yet',
@@ -865,7 +878,8 @@ const messages = {
       disabled: 'Publishing is turned off for this manager (ARKFGF_API)',
       waiting: 'Waiting until the server is joinable',
       published: 'Published',
-      error: 'Publish failed, retrying automatically'
+      error: 'Publish failed, retrying automatically',
+      login_required: 'Bind an arkfgf.com account first'
     },
     publishView: 'View',
     publishErrors: {
@@ -874,8 +888,9 @@ const messages = {
       ip_not_public: 'The request did not come from a public IPv4 address',
       rate_limited: 'Too many requests, retrying later',
       busy: 'The server list is busy, retrying later',
-      too_many_servers: 'Too many servers published from this public IP',
-      owned: 'This server is managed by an owner account on arkfgf.com',
+      too_many_servers: 'This arkfgf.com account has reached its server limit',
+      owned: 'A server on this IP and port is already published by another arkfgf.com account',
+      login_required: 'The server list requires an arkfgf.com account',
       invalid_input: 'The published data was rejected'
     },
     linkStates: {
@@ -883,7 +898,8 @@ const messages = {
       waiting: 'Preparing',
       online: 'Online',
       offline: 'Offline (server not running)',
-      error: 'Error, retrying automatically'
+      error: 'Error, retrying automatically',
+      login_required: 'Bind an arkfgf.com account first'
     },
     linkView: 'View',
     linkErrors: {
@@ -891,7 +907,8 @@ const messages = {
       rate_limited: 'Too many requests, retrying later',
       busy: 'arkfgf.com is busy, retrying later',
       too_many_rooms: 'Too many rooms registered from this public IP',
-      invalid_token: 'The room no longer exists on the website; registering again',
+      room_not_found: 'The room no longer exists on the website; registering again',
+      login_required: 'arkfgf.com requires an account',
       invalid_input: 'The room details were rejected',
       node_error: 'The P2P node (EasyTier container) failed',
       image_error: 'Failed to check or download the EasyTier image',
@@ -908,6 +925,9 @@ const messages = {
     linkOnToast: 'Added to the P2P room',
     linkOffToast: 'Removed from the P2P room',
     toggleFailed: 'Failed to save',
+    loginRequiredNotice: 'Publishing to the server list and the P2P room require binding an arkfgf.com account (sign in with Steam).',
+    loginRequiredLink: 'Bind in Settings',
+    loginRequiredSwitch: 'Bind an arkfgf.com account in Settings first',
     serverBuild: 'Server build',
     buildProton: 'Proton (ArkApi)',
     buildLinux: 'Linux',
@@ -1592,6 +1612,47 @@ const messages = {
   // Settings
   settings: {
     title: 'Settings',
+    arkfgf: {
+      title: 'arkfgf.com account',
+      description: 'Publishing to the server list and the P2P room require binding this manager to your arkfgf.com account. The arkfgf.com dashboard then lets you manage your bound managers, published servers and room members in one place.',
+      disabled: 'The connection to arkfgf.com is turned off for this manager (ARKFGF_API is empty or off), so no account can be bound.',
+      loadFailed: 'Failed to load the account status',
+      name: 'Manager name',
+      nameHint: 'Shown in the arkfgf.com dashboard to tell your managers apart, up to 64 characters',
+      loginClient: 'Sign in with the Steam client',
+      loginClientHint: 'Requires the Steam client to be installed and signed in on this computer: the sign-in page opens inside Steam, just click "Sign In" to finish binding, no password needed.',
+      loginBrowser: 'Steam client not responding? Sign in in the browser (you can scan a QR code with the Steam mobile app)',
+      loginHint: 'The site the Steam sign-in page says you are signing in to should be this manager ({origin}).',
+      waitingTitle: 'The sign-in page is open in the Steam client. Click "Sign In" in the Steam window',
+      waitingHint: 'Steam shows the result after you sign in, and this page updates automatically. The sign-in page is valid for 10 minutes.',
+      cancelWaiting: 'Stop waiting',
+      loginExpired: 'The sign-in expired; please try again',
+      bound: 'arkfgf.com account bound',
+      loginFailed: 'Could not start the Steam sign-in',
+      steamName: 'Steam account',
+      commanderName: 'Name on arkfgf.com',
+      boundAt: 'Bound',
+      manage: 'Manage on arkfgf.com',
+      unbind: 'Unbind',
+      unbindTitle: 'Unbind the arkfgf.com account',
+      unbindDesc: 'All servers this manager published and its P2P room (including members and bans) will be removed from arkfgf.com. Your servers themselves are not affected and their publish / room switches stay on, so they are published and registered again after you bind an account.',
+      unbound: 'Account unbound',
+      unbindFailed: 'Failed to unbind',
+      forceTitle: 'Cannot reach arkfgf.com',
+      forceDesc: '{error}. You can unbind locally only: the servers and room this manager published stay on arkfgf.com until you remove the manager in the arkfgf.com dashboard.',
+      force: 'Unbind anyway'
+    },
+    arkfgfCallback: {
+      tagline: 'Bind this manager to your arkfgf.com account to publish servers and run a P2P room.',
+      title: 'Bind arkfgf.com account',
+      finishing: 'Finishing the binding...',
+      success: 'Account bound',
+      successHint: 'You can close this window and go back to the Commander page.',
+      failed: 'Binding failed',
+      failedWith: 'Binding failed: {error}',
+      failedHint: 'Go back to the Commander settings page and sign in again.',
+      openSettings: 'Open Commander settings'
+    },
     account: 'Account',
     username: 'Username',
     changePassword: 'Change login password',

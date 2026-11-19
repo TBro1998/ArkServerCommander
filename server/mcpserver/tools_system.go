@@ -45,6 +45,12 @@ func registerSystemTools(r *registry) {
 			}, nil
 		})
 
+	query(r, "get_arkfgf_account", "arkfgf.com account",
+		"Whether this Commander is bound to an arkfgf.com account (required for publish and link): enabled (ARKFGF_API configured), bound, account (Steam name and ID, Commander name on arkfgf.com, bound_at), dashboard_url, and login (pending: a Steam sign-in started in the web UI has not finished yet; error_code / error: why the last sign-in failed). Binding and unbinding are only possible in the web UI (Settings), because the owner has to sign in with Steam in the browser.",
+		func(_ context.Context, _ uint, _ noInput) (any, error) {
+			return service.GetArkfgfAccount(false), nil
+		})
+
 	query(r, "suggest_ports", "Suggest free ports",
 		"Suggest a game / query / RCON port set that no existing server uses.",
 		func(_ context.Context, _ uint, _ noInput) (any, error) {

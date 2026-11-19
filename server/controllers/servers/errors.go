@@ -44,7 +44,13 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrImageNotAllowed),
 		errors.Is(err, server.ErrInvalidListing),
 		errors.Is(err, server.ErrInvalidSteamID),
-		errors.Is(err, server.ErrLinkRequestFailed):
+		errors.Is(err, server.ErrLinkRequestFailed),
+		errors.Is(err, server.ErrArkfgfRejected),
+		errors.Is(err, server.ErrInvalidCommanderName),
+		errors.Is(err, server.ErrInvalidReturnTo),
+		errors.Is(err, server.ErrLoginExpired),
+		errors.Is(err, server.ErrLoginCancelled),
+		errors.Is(err, server.ErrSteamVerifyFailed):
 		status = http.StatusBadRequest
 	case errors.Is(err, server.ErrPortConflict),
 		errors.Is(err, server.ErrServerBusy),
@@ -54,12 +60,17 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrRconUnavailable):
 		status = http.StatusConflict
 	case errors.Is(err, server.ErrNotPublished),
-		errors.Is(err, server.ErrLinkNotRegistered):
+		errors.Is(err, server.ErrLinkNotRegistered),
+		errors.Is(err, server.ErrAccountRequired),
+		errors.Is(err, server.ErrAccountBound),
+		errors.Is(err, server.ErrArkfgfDisabled),
+		errors.Is(err, server.ErrTooManyCommanders):
 		status = http.StatusConflict
 	case errors.Is(err, server.ErrRconAuthFailed),
 		errors.Is(err, server.ErrArkApiDownload),
 		errors.Is(err, server.ErrPublishUnavailable),
-		errors.Is(err, server.ErrLinkUnavailable):
+		errors.Is(err, server.ErrLinkUnavailable),
+		errors.Is(err, server.ErrArkfgfUnavailable):
 		status = http.StatusBadGateway
 	}
 	body := gin.H{"error": err.Error()}

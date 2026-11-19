@@ -68,6 +68,8 @@ export function LinkCard({ server }: { server: Server }) {
   const apiError = useApiError();
   const status = server.link_status;
   const online = status?.state === 'online';
+  // 没绑定 arkfgf.com 账号时房间没有登记，不请求成员
+  const loginRequired = status?.state === 'login_required';
 
   // data 为 null 表示还没有登记；undefined 表示加载中
   const [data, setData] = useState<LinkMembers | null | undefined>(undefined);
@@ -80,11 +82,14 @@ export function LinkCard({ server }: { server: Server }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [members, roomRes] = await Promise.allSettled([axios.get('/api/link/members'), axios.get('/api/link/room')]);
+    const [members, roomRes] = await Promise.allSettled([
+      loginRequired ? Promise.reject(null) : axios.get('/api/link/members'),
+      axios.get('/api/link/room'),
+    ]);
     if (members.status === 'fulfilled') {
       setData(members.value.data.data);
       setError('');
-    } else if (axios.isAxiosError(members.reason) && members.reason.response?.status === 409) {
+    } else if (loginRequired || (axios.isAxiosError(members.reason) && members.reason.response?.status === 409)) {
       setData(null);
       setError('');
     } else {
@@ -97,7 +102,7 @@ export function LinkCard({ server }: { server: Server }) {
       setRoomError(apiError(roomRes.reason, t('roomLoadFailed')));
     }
     setLoading(false);
-  }, [apiError, t]);
+  }, [loginRequired, apiError, t]);
 
   // 登记完成、上线后重新读取
   useEffect(() => {
@@ -213,7 +218,9 @@ export function LinkCard({ server }: { server: Server }) {
           </p>
         )}
         {error && <p className="text-sm text-red-700">{error}</p>}
-        {data === null && <p className="text-sm text-muted-foreground">{t('notRegistered')}</p>}
+        {data === null && (
+          <p className="text-sm text-muted-foreground">{status?.state === 'login_required' ? t('loginRequired') : t('notRegistered')}</p>
+        )}
 
         {data && (
           <div className="grid gap-6 md:grid-cols-2">

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import axios from 'axios';
+import { Link2 } from 'lucide-react';
+import { Link } from '@/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
-import { serversActions, type Server } from '@/stores/servers';
+import { serversActions, type ArkfgfAccountStatus, type Server } from '@/stores/servers';
 
 // 状态文字和出错原因（中文界面用后端的详情，其他语言按错误码翻译）
 function StateText({ color, text, url, linkText, detail }: { color: string; text: string; url?: string; linkText: string; detail: string }) {
@@ -73,11 +76,30 @@ function LinkState({ server }: { server: Server }) {
 }
 
 // 详情页概览的 arkfgf.com 卡片：发布到收录站、P2P 联机房的开关和状态。
-// 它们是网站提供的服务，不属于游戏设置，所以不在"编辑设置"里；开关立即生效，不用重启
+// 它们是网站提供的服务，不属于游戏设置，所以不在"编辑设置"里；开关立即生效，不用重启。
+// 都需要先在设置页绑定 arkfgf.com 账号：未绑定时不能打开开关（已打开的可以关闭）
 export function ArkfgfCard({ server }: { server: Server }) {
   const t = useTranslations('detail');
   const apiError = useApiError();
   const [saving, setSaving] = useState<'publish' | 'link' | null>(null);
+  const [account, setAccount] = useState<ArkfgfAccountStatus | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get('/api/arkfgf/account')
+      .then((res) => {
+        if (!cancelled) setAccount(res.data.data);
+      })
+      .catch(() => {
+        // 读不到时不限制开关，后端的状态（login_required）仍会显示
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // ARKFGF_API 为空时整体关闭，开关照旧（状态显示 disabled）
+  const needLogin = account !== null && account.enabled && !account.bound;
 
   const toggle = async (key: 'publish' | 'link', enabled: boolean) => {
     setSaving(key);
@@ -103,16 +125,31 @@ export function ArkfgfCard({ server }: { server: Server }) {
         <p className="text-xs text-muted-foreground">{t('externalDesc')}</p>
       </CardHeader>
       <CardContent className="divide-y">
+        {needLogin && (
+          <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <Link2 className="mt-0.5 size-4 flex-shrink-0" />
+            <span>
+              {t('loginRequiredNotice')}
+              <Link href="/settings" className="ml-1 font-medium text-primary hover:underline">
+                {t('loginRequiredLink')}
+              </Link>
+            </span>
+          </div>
+        )}
         {items.map((item) => {
           const on = server[item.key] ?? false;
           const id = `arkfgf-${item.key}`;
+          // 未绑定账号时不能打开，已打开的可以关闭
+          const blocked = needLogin && !on;
           return (
             <div key={item.key} className="space-y-1.5 py-3 first:pt-0 last:pb-0">
               <div className="flex items-center justify-between gap-4">
                 <label htmlFor={id} className="text-sm font-medium">
                   {item.label}
                 </label>
-                <Switch id={id} checked={on} disabled={saving !== null} onCheckedChange={(v) => toggle(item.key, v)} />
+                <span title={blocked ? t('loginRequiredSwitch') : undefined}>
+                  <Switch id={id} checked={on} disabled={saving !== null || blocked} onCheckedChange={(v) => toggle(item.key, v)} />
+                </span>
               </div>
               {on && <div className="text-sm">{item.state}</div>}
               <p className="text-xs leading-relaxed text-muted-foreground">{item.hint}</p>

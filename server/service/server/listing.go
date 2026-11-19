@@ -1,10 +1,9 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -12,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"ark-server-commander/models"
-	"ark-server-commander/utils"
 )
 
 // 收录资料（简介、标签、QQ 群、Discord）：在管理端填写，随发布请求提交给收录站，显示在 arkfgf.com 的详情页上。
@@ -121,7 +119,11 @@ func (p *Publisher) fetchStats(server models.Server) (*models.PublishStats, erro
 	if p.api() == "" {
 		return nil, fmt.Errorf("%w：收录站发布功能已关闭（ARKFGF_API 为空）", ErrPublishUnavailable)
 	}
-	if server.PublishToken == "" {
+	token := accountManager.token()
+	if token == "" {
+		return nil, ErrAccountRequired
+	}
+	if !server.Published {
 		return nil, ErrNotPublished
 	}
 	statsMu.Lock()
@@ -131,30 +133,18 @@ func (p *Publisher) fetchStats(server models.Server) (*models.PublishStats, erro
 	}
 	statsMu.Unlock()
 
-	req, err := http.NewRequest(http.MethodGet, p.api()+"/publish/stats", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", "ArkServerCommander/"+utils.Version)
-	req.Header.Set("Authorization", "Bearer "+server.PublishToken)
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w：%v", ErrPublishUnavailable, err)
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 256<<10))
-	if err != nil {
-		return nil, fmt.Errorf("%w：读取响应失败: %v", ErrPublishUnavailable, err)
-	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, ErrNotPublished
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w：收录站返回 %d", ErrPublishUnavailable, resp.StatusCode)
-	}
 	var stats models.PublishStats
-	if err := json.Unmarshal(data, &stats); err != nil {
-		return nil, fmt.Errorf("%w：解析响应失败: %v", ErrPublishUnavailable, err)
+	path := "/publish/stats?key=" + url.QueryEscape(publishKey(server.ID))
+	status, _, code, err := arkfgfRequest(p.client, http.MethodGet, p.api()+path, token, nil, &stats, "收录站")
+	if err != nil {
+		switch {
+		case isInvalidAccount(status, code):
+			accountManager.invalidate()
+			return nil, ErrAccountRequired
+		case code == "not_published" || status == http.StatusNotFound:
+			return nil, ErrNotPublished
+		}
+		return nil, fmt.Errorf("%w：%v", ErrPublishUnavailable, err)
 	}
 	statsMu.Lock()
 	statsCache[server.ID] = cachedStats{stats: &stats, fetched: p.now()}

@@ -41,6 +41,10 @@ func RegisterRoutes(r *gin.Engine) {
 			authRoutes.POST("/login", auth.Login)
 		}
 
+		// 完成 arkfgf.com 账号的 Steam 登录：回调页可能在 Steam 客户端的内置浏览器里打开，没有登录 cookie，
+		// 所以不要求 JWT，服务层只接受本机开始的登录的 state（用一次就删）
+		api.POST("/arkfgf/account/login/finish", servers.FinishArkfgfLogin)
+
 		// MCP：供 Agent 调用，使用 API 令牌认证（不接受登录 JWT），对外由 Next 的 /mcp 转发。
 		// 无状态模式只处理 POST，GET / DELETE 返回 405
 		api.Any("/mcp", gin.WrapH(mcpserver.Handler()))
@@ -65,6 +69,11 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.GET("/system/suggest-ports", system.SuggestPorts)
 			protected.GET("/system/server-defaults", system.GetServerDefaults)
 			protected.GET("/mods", system.GetMods)
+
+			// arkfgf.com 账号绑定（发布到收录站和 P2P 联机房都需要）
+			protected.GET("/arkfgf/account", servers.GetArkfgfAccount)
+			protected.DELETE("/arkfgf/account", servers.UnbindArkfgfAccount)
+			protected.POST("/arkfgf/account/login", servers.StartArkfgfLogin)
 
 			// P2P 联机房（每个管理端一个房间，开启了 link 的服务器都在里面）
 			protected.GET("/link/room", servers.GetLinkRoom)

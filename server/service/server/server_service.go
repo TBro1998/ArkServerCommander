@@ -562,8 +562,9 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	}
 
 	// 保存时不写 status / last_error：读取之后启停协程可能已经改了它们，整行写回会把状态覆盖成旧值。
-	// 联机房的令牌等字段由后台的 LinkManager 写入，同样不能用读取时的旧值覆盖
-	if err := database.DB.Omit("Status", "LastError", "LinkToken", "LinkRoomID", "LinkNetworkName", "LinkNetworkSecret", "LinkRPCPort").
+	// 发布记录和联机房的令牌等字段由后台的 Publisher / LinkManager 写入，同样不能用读取时的旧值覆盖
+	if err := database.DB.Omit("Status", "LastError", "Published", "PublishToken",
+		"LinkToken", "LinkRoomID", "LinkNetworkName", "LinkNetworkSecret", "LinkRPCPort").
 		Save(&server).Error; err != nil {
 		return nil, false, fmt.Errorf("服务器更新失败: %w", err)
 	}

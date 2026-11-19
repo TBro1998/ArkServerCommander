@@ -9,6 +9,8 @@ const LOCALE_COOKIE = {
 };
 
 // 需要登录的页面前缀
+// /arkfgf-callback（arkfgf.com 账号的 Steam 登录回调）故意不在里面：它可能在 Steam 客户端的内置浏览器里打开，
+// 那里没有管理端的登录 cookie
 const PROTECTED_PREFIXES = ['/home', '/servers', '/settings'];
 
 export async function proxy(request: NextRequest) {

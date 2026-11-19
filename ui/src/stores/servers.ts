@@ -25,7 +25,7 @@ export interface RuntimeInfo {
 
 // 发布到服务器收录站（arkfgf.com）的状态
 export interface PublishStatus {
-    state: 'disabled' | 'waiting' | 'published' | 'error';
+    state: 'disabled' | 'waiting' | 'published' | 'error' | 'login_required';
     url?: string;
     // 状态徽章图片（旧版收录站不返回）
     badge?: string;
@@ -37,11 +37,36 @@ export interface PublishStatus {
 
 // P2P 联机房的状态
 export interface LinkStatus {
-    state: 'disabled' | 'waiting' | 'online' | 'offline' | 'error';
+    state: 'disabled' | 'waiting' | 'online' | 'offline' | 'error' | 'login_required';
     room_url?: string;
     error_code?: string;
     error?: string;
     retry_at?: string;
+}
+
+// 绑定的 arkfgf.com 账号：GET /api/arkfgf/account（发布到收录站和 P2P 联机房都需要先绑定）
+export interface ArkfgfAccountStatus {
+    /** ARKFGF_API 不为空 */
+    enabled: boolean;
+    bound: boolean;
+    account?: {
+        commander_id: number;
+        commander_name: string;
+        steam_id: string;
+        user_name: string;
+        avatar_url: string;
+        bound_at: string;
+    };
+    /** 网站的服主后台 */
+    dashboard_url?: string;
+    /** 进行中的 Steam 登录：在 Steam 客户端里登录时设置页轮询这里等结果 */
+    login?: {
+        pending: boolean;
+        expires_at?: string;
+        /** 最近一次完成登录失败的错误码和原因（开始新的登录或绑定成功时清除） */
+        error_code?: string;
+        error?: string;
+    };
 }
 
 // 收录资料：显示在 arkfgf.com 收录站的详情页上

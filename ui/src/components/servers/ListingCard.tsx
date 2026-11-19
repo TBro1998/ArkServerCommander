@@ -37,6 +37,8 @@ export function ListingCard({ server }: { server: Server }) {
   const apiError = useApiError();
   const listing = server.listing ?? EMPTY_LISTING;
   const published = server.publish_status?.state === 'published';
+  // 没绑定 arkfgf.com 账号时没有统计可查，不发请求
+  const loginRequired = server.publish_status?.state === 'login_required';
 
   // stats 为 null 表示还没有发布过；undefined 表示加载中
   const [stats, setStats] = useState<PublishStats | null | undefined>(undefined);
@@ -44,6 +46,10 @@ export function ListingCard({ server }: { server: Server }) {
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
+    if (loginRequired) {
+      setStats(null);
+      return;
+    }
     try {
       const res = await axios.get(`/api/servers/${server.id}/publish/stats`);
       setStats(res.data.data);
@@ -55,7 +61,7 @@ export function ListingCard({ server }: { server: Server }) {
         setStatsError(apiError(err, t('statsFailed')));
       }
     }
-  }, [server.id, apiError, t]);
+  }, [server.id, loginRequired, apiError, t]);
 
   // 发布成功后（第一次发布才有令牌和统计）重新读取
   useEffect(() => {
@@ -99,7 +105,11 @@ export function ListingCard({ server }: { server: Server }) {
         <div className="space-y-4">
           {stats === undefined && !statsError && <p className="text-sm text-muted-foreground">{t('loading')}</p>}
           {statsError && <p className="text-sm text-red-700">{statsError}</p>}
-          {stats === null && <p className="text-sm text-muted-foreground">{t('notPublished')}</p>}
+          {stats === null && (
+            <p className="text-sm text-muted-foreground">
+              {server.publish_status?.state === 'login_required' ? t('loginRequired') : t('notPublished')}
+            </p>
+          )}
           {stats && (
             <>
               <div>
