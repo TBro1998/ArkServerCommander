@@ -1703,7 +1703,7 @@ const messages = {
       copyFailed: '复制失败，请手动复制',
       upToDate: '已是最新版本',
       devHint: '当前是本地构建的开发版本，不比较版本号',
-      qqGroup: 'QQ 交流群',
+      qqGroup: '服主 QQ 交流群',
       copyQQ: '复制群号',
       qqCopied: '群号已复制'
     },

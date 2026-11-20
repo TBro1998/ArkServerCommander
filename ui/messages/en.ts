@@ -1691,7 +1691,7 @@ const messages = {
       copyFailed: 'Copy failed, please copy manually',
       upToDate: 'You are on the latest version',
       devHint: 'This is a local development build, so versions are not compared',
-      qqGroup: 'QQ group',
+      qqGroup: 'Server owners QQ group',
       copyQQ: 'Copy group number',
       qqCopied: 'Group number copied'
     },
