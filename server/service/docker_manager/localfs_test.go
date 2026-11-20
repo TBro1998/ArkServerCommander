@@ -9,8 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf16"
 
 	"ark-server-commander/config"
 )
@@ -71,6 +73,25 @@ func TestConfigFileReadWrite(t *testing.T) {
 	entries, _ := os.ReadDir(configDir)
 	if len(entries) != 1 {
 		t.Fatalf("temporary file left behind: %v", entries)
+	}
+
+	// ARK 在内容含中文时把配置写成带 BOM 的 UTF-16，读取时要转成 UTF-8
+	text := "[ServerSettings]\r\nServerAdminPassword=pw\r\n[SessionSettings]\r\nSessionName=测试-孤岛\r\n"
+	units := utf16.Encode([]rune(text))
+	le := []byte{0xFF, 0xFE}
+	be := []byte{0xFE, 0xFF}
+	for _, u := range units {
+		le = append(le, byte(u), byte(u>>8))
+		be = append(be, byte(u>>8), byte(u))
+	}
+	for name, data := range map[string][]byte{"utf-16le": le, "utf-16be": be} {
+		if err := os.WriteFile(filepath.Join(configDir, "GameUserSettings.ini"), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		got, err := dm.ReadConfigFile(1, "GameUserSettings.ini")
+		if err != nil || got != strings.TrimSpace(text) {
+			t.Fatalf("%s: read = %q, %v", name, got, err)
+		}
 	}
 }
 

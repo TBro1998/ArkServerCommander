@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf16"
 
 	"go.uber.org/zap"
 )
@@ -89,8 +90,33 @@ func (dm *DockerManager) ReadConfigFile(serverID uint, fileName string) (string,
 		return "", fmt.Errorf("读取文件内容失败: %v", err)
 	}
 
-	// 去掉 UTF-8 BOM 和首尾空白，写入时会补上结尾换行
-	return strings.TrimSpace(strings.TrimPrefix(string(data), utf8BOM)), nil
+	// 统一转成 UTF-8，去掉 BOM 和首尾空白，写入时会补上结尾换行
+	return strings.TrimSpace(strings.TrimPrefix(decodeConfigText(data), utf8BOM)), nil
+}
+
+// decodeConfigText 把配置文件内容转成 UTF-8 字符串。
+// ARK（UE4）保存配置时，内容含非 ASCII 字符（如中文服务器名）就会写成带 BOM 的 UTF-16LE。
+// 不转换的话按 UTF-8 处理会找不到任何段落，管理员密码写不进 [ServerSettings]，RCON 因此不会启动。
+// 写回时统一用 UTF-8，ARK 能正常读取
+func decodeConfigText(data []byte) string {
+	var bigEndian bool
+	switch {
+	case len(data) >= 2 && data[0] == 0xFF && data[1] == 0xFE:
+	case len(data) >= 2 && data[0] == 0xFE && data[1] == 0xFF:
+		bigEndian = true
+	default:
+		return string(data)
+	}
+	data = data[2:]
+	units := make([]uint16, len(data)/2)
+	for i := range units {
+		if bigEndian {
+			units[i] = uint16(data[2*i])<<8 | uint16(data[2*i+1])
+		} else {
+			units[i] = uint16(data[2*i]) | uint16(data[2*i+1])<<8
+		}
+	}
+	return string(utf16.Decode(units))
 }
 
 // WriteConfigFile 向数据卷中写入配置文件（覆盖已有内容）。

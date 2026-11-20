@@ -249,7 +249,7 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 ### 配置文件
 
-GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 直接读写后端本地的 `servers/<id>/saved/Config/WindowsServer/`，写入先写临时文件再改名。服务器未停止时保存的配置先存入 `pending_game_user_settings` / `pending_game_ini`（ARK 停服时会覆盖 GameUserSettings.ini），下次启动或重建前写入数据卷，响应里 `config_pending` 为 true。前端每次修改一个设置项，就用 `lib/ini.ts` 的 `setIniValue` 在原文本的对应 section 里改这一行，未知键、注释和自定义 section 原样保留。
+GameUserSettings.ini 和 Game.ini 不存数据库（暂存内容除外），而是直接保存在数据卷的 `Config/WindowsServer/` 下：`docker_config.go` 直接读写后端本地的 `servers/<id>/saved/Config/WindowsServer/`，写入先写临时文件再改名。ARK 停服写回时，内容含非 ASCII 字符（如中文服务器名）会存成带 BOM 的 UTF-16LE，`ReadConfigFile` 按 BOM 自动转成 UTF-8，写入统一用 UTF-8（ARK 能读）；以前按 UTF-8 读这种文件会找不到 `[ServerSettings]`，管理员密码写不进去，RCON 就不会启动。服务器未停止时保存的配置先存入 `pending_game_user_settings` / `pending_game_ini`（ARK 停服时会覆盖 GameUserSettings.ini），下次启动或重建前写入数据卷，响应里 `config_pending` 为 true。前端每次修改一个设置项，就用 `lib/ini.ts` 的 `setIniValue` 在原文本的对应 section 里改这一行，未知键、注释和自定义 section 原样保留。
 
 ### 配置导入导出
 
