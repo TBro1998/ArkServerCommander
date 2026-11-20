@@ -917,6 +917,7 @@ const messages = {
       busy: 'arkfgf.com is busy, retrying later',
       too_many_rooms: 'Too many rooms registered from this public IP',
       room_not_found: 'The room no longer exists on the website; registering again',
+      room_exists: 'This arkfgf.com account already has a P2P room on another Commander. An account can only have one room: turn it off there or remove that Commander in the arkfgf.com dashboard',
       login_required: 'arkfgf.com requires an account',
       invalid_input: 'The room details were rejected',
       node_error: 'The P2P node (EasyTier container) failed',

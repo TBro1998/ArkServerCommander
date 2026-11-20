@@ -37,7 +37,7 @@ import (
 //
 // LinkManager 每 15 秒检查一次：
 //   - 有服务器开启 link：没有登记（room_id 为 0，或还留着旧版房间令牌）或资料变化（房间资料、各服务器的名称、地图、Mod、
-//     倍率、端口等）→ POST /link/rooms（账号令牌；还留着旧版房间令牌时带 legacy_token 认领旧房间，成功后清空）
+//     倍率、端口等）→ POST /link/rooms（账号令牌；还留着旧版房间令牌时带 legacy_token 让网站删除旧房间，成功后清空）
 //   - 任意一台开启 link 的服务器运行中且可以连接过 → 确保节点容器在运行（参数或镜像变化时重建）；全部不在运行时删除节点。
 //     节点放行所有开启 link 的服务器的端口（包括已停止的），单台服务器启停不会重建节点、不影响其他服务器上的玩家
 //   - 心跳：在线时每 30 秒、离线时每 60 秒，带每台服务器的在线和人数；在线状态变化、有凭证要上传或吊销要确认时提前发
@@ -285,7 +285,7 @@ func (m *LinkManager) tick() {
 				wantNode = m.process(&room, servers, token)
 			}
 		case room.Token != "":
-			// 没有服务器开启联机房了，还留着旧版房间令牌（没有认领过）：用旧令牌下架，不需要绑定
+			// 没有服务器开启联机房了，还留着旧版房间令牌（升级后还没登记过）：用旧令牌下架，不需要绑定
 			m.unregister(room, room.Token)
 		case room.RoomID != 0 && token != "":
 			// 没有服务器开启联机房了：用账号令牌下架
@@ -329,7 +329,7 @@ func (m *LinkManager) serverState(id uint) *linkServerState {
 
 func linkServerKey(id uint) string { return strconv.FormatUint(uint64(id), 10) }
 
-// linkRegistered 房间已用账号登记：有房间 ID，并且旧版房间令牌已经清空（旧房间要先带 legacy_token 登记认领）
+// linkRegistered 房间已用账号登记：有房间 ID，并且旧版房间令牌已经清空（还留着旧令牌时要先带 legacy_token 登记一次，网站删除旧房间）
 func linkRegistered(room models.LinkRoom) bool {
 	return room.RoomID != 0 && room.Token == ""
 }
@@ -422,14 +422,14 @@ func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server, to
 	return wantNode
 }
 
-// linkRegisterRequest 登记房间的请求：房间资料，加上还没认领的旧版房间令牌
+// linkRegisterRequest 登记房间的请求：房间资料，加上还没清理的旧版房间令牌
 type linkRegisterRequest struct {
 	linkRoomProfile
 	LegacyToken string `json:"legacy_token,omitempty"`
 }
 
 // register 用账号令牌登记或更新房间（POST /link/rooms），保存房间 ID、网络名和 peers；
-// 带了旧版房间令牌（认领旧房间）的，成功后清空。账号失效时返回 false
+// 带了旧版房间令牌（网站删除旧房间）的，成功后清空。账号失效时返回 false
 func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, hash, token string) bool {
 	st := m.room
 	var resp struct {
@@ -454,7 +454,7 @@ func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, h
 	}
 
 	oldID := room.RoomID
-	fresh := !linkRegistered(*room) // 第一次用账号登记（新房间或认领旧房间）
+	fresh := !linkRegistered(*room) // 第一次用账号登记
 	updates := map[string]any{}
 	if room.Token != "" {
 		updates["token"] = ""
@@ -496,7 +496,7 @@ func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, h
 	m.mu.Unlock()
 	if fresh || newRoom {
 		utils.Info("已登记联机房", zap.Uint("room_id", room.RoomID), zap.Int("servers", len(profile.Servers)),
-			zap.Bool("claimed_legacy", body.LegacyToken != "" && !newRoom))
+			zap.Bool("legacy_token", body.LegacyToken != ""))
 	}
 	return true
 }

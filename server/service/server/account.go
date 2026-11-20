@@ -496,7 +496,7 @@ func (a *AccountManager) clearLocked(reason string) error {
 		Update("published", false).Error; err != nil {
 		utils.Warn("清除发布记录失败", zap.Error(err))
 	}
-	// 房间资料和旧版令牌保留：重新绑定后旧令牌还能用来认领旧房间
+	// 房间资料和旧版令牌保留：重新绑定后登记时旧令牌还能让网站删除旧房间
 	if err := database.DB.Model(&models.LinkRoom{}).Where("id = ?", linkRoomID).
 		Updates(map[string]any{"room_id": 0, "network_name": "", "network_secret": ""}).Error; err != nil {
 		utils.Warn("清除联机房登记失败", zap.Error(err))

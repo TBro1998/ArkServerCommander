@@ -917,6 +917,7 @@ const messages = {
       busy: 'arkfgf.com 繁忙，稍后自动重试',
       too_many_rooms: '这个公网 IP 登记的联机房已达上限',
       room_not_found: '网站上的房间已不存在，正在重新登记',
+      room_exists: '这个 arkfgf.com 账号的联机房已经开在另一个 Commander 上，一个账号只能开一个联机房：先在那里关闭，或在 arkfgf.com 服主后台移除那个 Commander',
       login_required: 'arkfgf.com 要求先绑定账号',
       invalid_input: '房间资料不符合网站要求',
       node_error: '联机节点（EasyTier 容器）出错',
