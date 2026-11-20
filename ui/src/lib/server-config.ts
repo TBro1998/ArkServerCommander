@@ -1,7 +1,7 @@
 // 服务器配置的导出、导入和复制。格式与后端 models.ServerConfig 一致：
 // 不含端口和管理员密码，导入或复制时目标服务器保留自己的名称、端口、人数和密码
 import axios from 'axios';
-import { keepIniValues, replaceIniValues } from '@/lib/ini';
+import { indexIni, keepIniValues, replaceIniValues } from '@/lib/ini';
 import type { Server } from '@/stores/servers';
 
 export const SERVER_CONFIG_FORMAT = 'ark-server-commander/server-config';
@@ -35,7 +35,87 @@ export const DEFAULT_CONFIG_PARTS: ConfigPart[] = ['config_files', 'server_args'
 // 每台服务器自己的键，导入配置文件时保留原值（与后端 identityIniKeys 一致）
 const IDENTITY_INI_KEYS = ['SessionName', 'ServerAdminPassword', 'Port', 'QueryPort', 'RCONPort', 'MaxPlayers'];
 
-export class InvalidConfigFileError extends Error {}
+// invalid：不是本程序导出的 JSON 或版本不支持；iniUnknown：认不出是哪个 ini；
+// iniDuplicate：同一种 ini 选了两份；mixed：JSON 和 ini 混选或选了多个 JSON；empty：ini 文件是空的
+export type InvalidConfigFileReason = 'invalid' | 'iniUnknown' | 'iniDuplicate' | 'mixed' | 'empty';
+
+export class InvalidConfigFileError extends Error {
+  reason: InvalidConfigFileReason;
+  fileName?: string;
+  constructor(message: string, reason: InvalidConfigFileReason = 'invalid', fileName?: string) {
+    super(message);
+    this.reason = reason;
+    this.fileName = fileName;
+  }
+}
+
+export type IniFileKind = 'game_user_settings' | 'game_ini';
+
+// 各自独有的 section（小写），用来认出是哪个文件
+const GUS_SECTIONS = [
+  '[serversettings]',
+  '[sessionsettings]',
+  '[/script/shootergame.shootergameusersettings]',
+  '[/script/engine.gamesession]',
+  '[messageoftheday]',
+  '[scalabilitygroups]',
+];
+const GAME_INI_SECTIONS = ['[/script/shootergame.shootergamemode]'];
+
+/** 判断 ini 是 GameUserSettings.ini 还是 Game.ini：先看内容里的 section，认不出再看文件名 */
+export function detectIniKind(fileName: string, text: string): IniFileKind | null {
+  const sections = [...indexIni(text).keys()];
+  const isGus = sections.some((s) => GUS_SECTIONS.includes(s));
+  const isGame = sections.some((s) => GAME_INI_SECTIONS.includes(s));
+  if (isGus !== isGame) return isGus ? 'game_user_settings' : 'game_ini';
+  const name = fileName.toLowerCase();
+  if (name.includes('gameusersettings')) return 'game_user_settings';
+  if (/^game\b/.test(name)) return 'game_ini';
+  return null;
+}
+
+/** 按 BOM 选择编码读取文本：服务端写入含中文的 ini 时会用 UTF-16 */
+async function readTextFile(file: File): Promise<string> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let encoding = 'utf-8';
+  if (buf[0] === 0xff && buf[1] === 0xfe) encoding = 'utf-16le';
+  else if (buf[0] === 0xfe && buf[1] === 0xff) encoding = 'utf-16be';
+  return new TextDecoder(encoding).decode(buf);
+}
+
+const isIniFile = (file: File) => file.name.toLowerCase().endsWith('.ini');
+
+export interface ImportedConfigFile {
+  config: ServerConfig;
+  // ini：只含配置文件，只能导入「游戏设置」部分；iniKinds 为读到的文件
+  kind: 'json' | 'ini';
+  iniKinds: IniFileKind[];
+}
+
+/**
+ * 读取导入时选择的文件：一个导出的 JSON，或者 GameUserSettings.ini / Game.ini（可同时选两个）。
+ * ini 被包装成只含配置文件的 ServerConfig，导入时只用 config_files 部分，没选的那个文件保持不变
+ */
+export async function readImportFiles(files: File[]): Promise<ImportedConfigFile> {
+  const inis = files.filter(isIniFile);
+  if (inis.length === 0) {
+    if (files.length !== 1) throw new InvalidConfigFileError('multiple json', 'mixed');
+    return { config: parseServerConfig(await readTextFile(files[0])), kind: 'json', iniKinds: [] };
+  }
+  if (inis.length !== files.length) throw new InvalidConfigFileError('mixed', 'mixed');
+
+  const config: ServerConfig = { format: SERVER_CONFIG_FORMAT, version: SERVER_CONFIG_VERSION };
+  for (const file of inis) {
+    const text = await readTextFile(file);
+    if (text.trim() === '') throw new InvalidConfigFileError('empty', 'empty', file.name);
+    const kind = detectIniKind(file.name, text);
+    if (!kind) throw new InvalidConfigFileError('unknown ini', 'iniUnknown', file.name);
+    if (config[kind] !== undefined) throw new InvalidConfigFileError('duplicate ini', 'iniDuplicate', file.name);
+    config[kind] = text;
+  }
+  const iniKinds = (['game_user_settings', 'game_ini'] as const).filter((k) => config[k] !== undefined);
+  return { config, kind: 'ini', iniKinds };
+}
 
 /** 解析导入的文件，不是本程序导出的配置时抛出 InvalidConfigFileError */
 export function parseServerConfig(text: string): ServerConfig {

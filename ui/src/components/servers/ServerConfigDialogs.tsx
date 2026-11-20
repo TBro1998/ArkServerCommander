@@ -23,8 +23,9 @@ import {
   DEFAULT_CONFIG_PARTS,
   InvalidConfigFileError,
   fetchServerConfig,
-  parseServerConfig,
+  readImportFiles,
   type ConfigPart,
+  type ImportedConfigFile,
   type ServerConfig,
 } from '@/lib/server-config';
 import { cn } from '@/lib/utils';
@@ -82,7 +83,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [source, setSource] = useState<'file' | 'server'>('file');
-  const [fileConfig, setFileConfig] = useState<ServerConfig | null>(null);
+  const [imported, setImported] = useState<ImportedConfigFile | null>(null);
   const [fileName, setFileName] = useState('');
   const [fileError, setFileError] = useState('');
   const [sourceId, setSourceId] = useState('');
@@ -94,7 +95,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
-      setFileConfig(null);
+      setImported(null);
       setFileName('');
       setFileError('');
       setSourceId('');
@@ -102,24 +103,29 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
     }
   }
 
-  const readFile = async (file: File | undefined) => {
-    if (!file) return;
-    setFileName(file.name);
-    setFileConfig(null);
+  const readFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+    setFileName(files.map((f) => f.name).join('、'));
+    setImported(null);
     setFileError('');
     try {
-      setFileConfig(parseServerConfig(await file.text()));
+      setImported(await readImportFiles(files));
     } catch (err) {
-      setFileError(err instanceof InvalidConfigFileError ? t('invalidFile') : t('readFileFailed'));
+      if (!(err instanceof InvalidConfigFileError)) setFileError(t('readFileFailed'));
+      else if (err.reason === 'invalid') setFileError(t('invalidFile'));
+      else setFileError(t(`fileError.${err.reason}`, { name: err.fileName ?? '' }));
     }
   };
 
-  const ready = parts.length > 0 && (source === 'file' ? fileConfig !== null : sourceId !== '');
+  // 导入 ini 文件时只有「游戏设置」部分，不显示部分选择
+  const iniImport = source === 'file' && imported?.kind === 'ini';
+  const effectiveParts: ConfigPart[] = iniImport ? ['config_files'] : parts;
+  const ready = effectiveParts.length > 0 && (source === 'file' ? imported !== null : sourceId !== '');
 
   const confirm = async () => {
     setLoading(true);
     try {
-      let cfg = fileConfig;
+      let cfg = imported?.config ?? null;
       if (source === 'server') {
         try {
           cfg = await fetchServerConfig(Number(sourceId));
@@ -129,7 +135,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
         }
       }
       if (!cfg) return;
-      await onImport(cfg, parts);
+      await onImport(cfg, effectiveParts);
       onOpenChange(false);
     } catch {
       // 调用方负责提示错误
@@ -169,10 +175,11 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
               <input
                 ref={fileInput}
                 type="file"
-                accept=".json,application/json"
+                accept=".json,.ini,application/json"
+                multiple
                 className="hidden"
                 onChange={(e) => {
-                  readFile(e.target.files?.[0]);
+                  readFiles(Array.from(e.target.files ?? []));
                   e.target.value = '';
                 }}
               />
@@ -181,10 +188,25 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
                 {fileName || t('chooseFile')}
               </Button>
               {fileError && <p className="text-xs text-red-700">{fileError}</p>}
-              {fileConfig && (
+              {!imported && !fileError && <p className="text-xs text-gray-500">{t('chooseFileHint')}</p>}
+              {imported?.kind === 'json' && (
                 <p className="text-xs text-gray-600">
-                  {fileConfig.session_name ? t('fileFrom', { name: fileConfig.session_name }) : t('fileLoaded')}
+                  {imported.config.session_name ? t('fileFrom', { name: imported.config.session_name }) : t('fileLoaded')}
                 </p>
+              )}
+              {imported?.kind === 'ini' && (
+                <div className="space-y-1 text-xs text-gray-600">
+                  <p>
+                    {t('iniLoaded', {
+                      files: imported.iniKinds.map((k) => (k === 'game_user_settings' ? 'GameUserSettings.ini' : 'Game.ini')).join('、'),
+                    })}
+                  </p>
+                  {imported.iniKinds.length === 1 && (
+                    <p className="text-gray-500">
+                      {t('iniOtherUnchanged', { file: imported.iniKinds[0] === 'game_user_settings' ? 'Game.ini' : 'GameUserSettings.ini' })}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           ) : servers.length === 0 ? (
@@ -204,7 +226,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
             </Select>
           )}
 
-          <ConfigPartsPicker value={parts} onChange={setParts} />
+          {!iniImport && <ConfigPartsPicker value={parts} onChange={setParts} />}
           <p className="text-xs text-gray-500">{t('keepIdentity')}</p>
         </div>
 
