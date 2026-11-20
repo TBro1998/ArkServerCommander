@@ -1690,7 +1690,10 @@ const messages = {
       copied: 'Command copied',
       copyFailed: 'Copy failed, please copy manually',
       upToDate: 'You are on the latest version',
-      devHint: 'This is a local development build, so versions are not compared'
+      devHint: 'This is a local development build, so versions are not compared',
+      qqGroup: 'QQ group',
+      copyQQ: 'Copy group number',
+      qqCopied: 'Group number copied'
     },
     mcp: {
       title: 'Agent access (MCP)',

@@ -21,6 +21,7 @@ interface VersionInfo {
 }
 
 const UPGRADE_COMMAND = 'docker compose pull && docker compose up -d';
+const QQ_GROUP = '953242676';
 
 // 设置页"关于"：当前版本、最新发布版本和升级方法。管理器不自我更新（要替换正在运行的自身容器），只给出命令
 export function VersionCard() {
@@ -86,6 +87,26 @@ export function VersionCard() {
               '-'
             )}
             {info?.published_at && <span className="text-xs font-normal text-muted-foreground">{formatDateTime(info.published_at, locale)}</span>}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between py-1">
+          <span className="text-muted-foreground">{t('qqGroup')}</span>
+          <span className="flex items-center gap-1">
+            <span className="num font-medium select-all">{QQ_GROUP}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={async () => {
+                if (await copyText(QQ_GROUP)) toast.success(t('qqCopied'));
+                else toast.error(t('copyFailed'));
+              }}
+              aria-label={t('copyQQ')}
+              title={t('copyQQ')}
+            >
+              <Copy />
+            </Button>
           </span>
         </div>
 
