@@ -111,6 +111,9 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		defaultVal := true
 		req.AutoRestart = &defaultVal
 	}
+	if !utils.ValidGameBranch(req.GameBranch) {
+		return nil, ErrInvalidGameBranch
+	}
 
 	// 开始数据库事务
 	tx := database.DB.Begin()
@@ -133,6 +136,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		AutoRestart:   *req.AutoRestart,
 		AutoUpdate:    req.AutoUpdate != nil && *req.AutoUpdate,
 		ArkApi:        req.ArkApi != nil && *req.ArkApi,
+		GameBranch:    req.GameBranch,
 		Publish:       req.Publish != nil && *req.Publish,
 		Link:          req.Link != nil && *req.Link,
 		UserID:        userID,
@@ -488,6 +492,13 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	if req.ArkApi != nil {
 		server.ArkApi = *req.ArkApi
 	}
+	// 切换游戏版本：下次启动时重建容器（APP_UPDATE 不同），并让入口脚本重新校验服务端文件
+	if req.GameBranch != nil {
+		if !utils.ValidGameBranch(*req.GameBranch) {
+			return nil, false, ErrInvalidGameBranch
+		}
+		server.GameBranch = *req.GameBranch
+	}
 	// 发布开关立即生效：打开后服务器在运行就会发布，关闭后会通知收录站下线
 	if req.Publish != nil {
 		server.Publish = *req.Publish
@@ -823,8 +834,13 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 		return err
 	}
 
-	// 还没下载过服务端时，从另一台已安装的服务器复制，省去首次下载
+	// 还没下载过服务端时，从另一台已安装的同一游戏版本的服务器复制，省去首次下载
 	seedServerFiles(server, dockerManager)
+
+	// 记录文件卷对应的游戏版本；已有的服务端文件是另一个版本时清除安装标记，入口脚本会重新校验、只下载差异
+	if err := dockerManager.PrepareGameBranch(server.ID, server.GameBranch); err != nil {
+		return err
+	}
 
 	// 启用了 ArkApi 但文件卷里还没有（新服务器，或刚打开开关）：安装版本库里最新的版本。
 	// 放在复制服务端文件之后，复制来源带有 ArkApi 时沿用它的版本
@@ -876,6 +892,11 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 
 			// 集群卷挂载与当前 cluster_id 不一致（包括升级前创建、没有挂载集群卷的旧容器）
 			if !needRecreateContainer && envVars["CLUSTER_VOLUME"] != docker_manager.ExpectedClusterVolume(server.ClusterID) {
+				needRecreateContainer = true
+			}
+
+			// 游戏版本改过（旧容器的 APP_UPDATE 是镜像默认值，即正式版）
+			if !needRecreateContainer && envVars["APP_UPDATE"] != utils.ArkAppUpdateFor(server.GameBranch) {
 				needRecreateContainer = true
 			}
 

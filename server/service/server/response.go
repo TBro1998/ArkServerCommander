@@ -27,6 +27,7 @@ func toResponse(server models.Server) models.ServerResponse {
 		AutoUpdate:    server.AutoUpdate,
 		ArkApi:        server.ArkApi,
 		Image:         utils.ArkServerImageFor(server.ArkApi),
+		GameBranch:    server.GameBranch,
 		Publish:       server.Publish,
 		Link:          server.Link,
 		Listing:       listingOf(server),

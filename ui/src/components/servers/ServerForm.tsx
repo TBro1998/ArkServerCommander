@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2, Dices, Save, Plus, RotateCw, ExternalLink, Search, X, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapSelector } from '@/components/servers/MapSelector';
 import { ModList, WORKSHOP_BROWSE_URL, isValidModIds, normalizeModIds } from '@/components/servers/ModList';
@@ -33,6 +34,9 @@ import { cn } from '@/lib/utils';
 import type { Server } from '@/stores/servers';
 
 const CLUSTER_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+
+// 可选的游戏版本（Steam 分支），public 对应后端的空字符串
+const GAME_BRANCHES = ['public', 'preaquatica'] as const;
 
 export interface ServerFormProps {
   mode: 'create' | 'edit';
@@ -234,6 +238,28 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
             <MapSelector value={form.map || ''} onChange={(value) => setField('map', value)} />
           </SettingTile>
         );
+      case 'game_branch': {
+        // Select 不能用空字符串作值，正式版（后端为空）在界面上用 public 表示
+        const branch = form.game_branch || 'public';
+        const switched = mode === 'edit' && (form.game_branch || '') !== (initial.game_branch || '');
+        return (
+          <SettingTile {...common}>
+            <Select value={branch} onValueChange={(v) => setField('game_branch', v === 'public' ? '' : v)}>
+              <SelectTrigger id={common.htmlFor} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GAME_BRANCHES.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {t(`gameBranches.${b}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {switched && <p className="mt-1.5 text-xs text-amber-800">{t('gameBranchSwitched')}</p>}
+          </SettingTile>
+        );
+      }
       case 'max_players':
       case 'port':
       case 'query_port':

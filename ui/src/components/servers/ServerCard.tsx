@@ -44,11 +44,16 @@ export function MapBand({ server, className, children }: { server: Server; class
   );
 }
 
-// 服务器的附加标记：ArkApi、旧镜像、配置待生效、Mod 有更新、集群
+// 服务器的附加标记：游戏版本（不是正式版时）、ArkApi、旧镜像、配置待生效、Mod 有更新、集群
 export function ServerTags({ server }: { server: Server }) {
   const t = useTranslations('serverCard');
   return (
     <>
+      {server.game_branch === 'preaquatica' && (
+        <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-800" title={t('preaquaticaTip')}>
+          {t('preaquatica')}
+        </span>
+      )}
       {server.arkapi && (
         <span className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-800" title={t('arkapiTip')}>
           {t('arkapi')}

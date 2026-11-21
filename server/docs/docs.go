@@ -4529,6 +4529,10 @@ const docTemplate = `{
                     "description": "集群ID",
                     "type": "string"
                 },
+                "game_branch": {
+                    "description": "游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本",
+                    "type": "string"
+                },
                 "game_ini": {
                     "description": "Game.ini 文件内容",
                     "type": "string"
@@ -4617,6 +4621,10 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "game_branch": {
+                    "description": "游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本",
                     "type": "string"
                 },
                 "game_ini": {
@@ -4753,6 +4761,10 @@ const docTemplate = `{
                 },
                 "cluster_id": {
                     "description": "集群ID，传空字符串表示清空",
+                    "type": "string"
+                },
+                "game_branch": {
+                    "description": "游戏版本，传空字符串表示正式版；切换后下次启动时重新校验服务端文件，只下载差异",
                     "type": "string"
                 },
                 "game_ini": {

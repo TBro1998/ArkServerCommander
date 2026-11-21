@@ -108,7 +108,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
     id: 'general',
     icon: Settings2,
     sections: [
-      { id: 'server', settings: [field('session_name'), field('map'), field('max_players')] },
+      { id: 'server', settings: [field('session_name'), field('map'), field('max_players'), field('game_branch')] },
       {
         id: 'access',
         settings: [

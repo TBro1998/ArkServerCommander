@@ -545,6 +545,7 @@ const messages = {
     invalid_cluster_id: '集群ID格式无效',
     cluster_in_use: '集群仍在使用中',
     invalid_mod_ids: 'Mod ID 只能是逗号分隔的数字',
+    invalid_game_branch: '游戏版本无效',
     server_not_running: '服务器未运行',
     server_not_stopped: '请先停止服务器',
     invalid_command: '命令无效',
@@ -650,6 +651,8 @@ const messages = {
     pullingImageHint: '正在下载镜像 {image}，完成后继续启动',
     arkapi: 'ArkApi',
     arkapiTip: '使用 Proton 版服务端并加载 ArkApi 插件',
+    preaquatica: 'preaquatica',
+    preaquaticaTip: '海洋 DLC 更新前的版本（-beta preaquatica），玩家要切换到同一版本才能加入',
     launchingHint: '正在加载地图，通常需要几分钟',
     players: '在线玩家',
     memory: '内存',
@@ -941,6 +944,7 @@ const messages = {
     serverBuild: '服务端',
     buildProton: 'Proton 版（ArkApi）',
     buildLinux: 'Linux 版',
+    gameBranch: '游戏版本',
     on: '开启',
     off: '关闭',
     createdAt: '创建时间',
@@ -1249,7 +1253,8 @@ const messages = {
       query_port: '查询端口',
       rcon_port: 'RCON 端口',
       game_mod_ids: 'Mod',
-      cluster_id: '集群 ID'
+      cluster_id: '集群 ID',
+      game_branch: '游戏版本'
     },
     fieldHints: {
       session_name: '玩家在服务器列表里看到的名称，可以包含空格和中文',
@@ -1258,7 +1263,8 @@ const messages = {
       query_port: 'Steam 服务器列表使用',
       rcon_port: '远程管理使用',
       game_mod_ids: '创意工坊 Mod ID 或链接，多个用逗号分隔，下方会显示 Mod 名称，可以拖动调整加载顺序',
-      cluster_id: '填写相同集群 ID 的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -'
+      cluster_id: '填写相同集群 ID 的服务器之间可以传送角色、恐龙和物品（共享集群存储）。只能包含字母、数字、_ . -',
+      game_branch: '玩家的游戏版本要和服务器一致才能加入。两个版本的服务端文件不同，新服务器只会从同一版本的服务器复制服务端文件'
     },
     params: {
       // 常规
@@ -1571,6 +1577,11 @@ const messages = {
   // 服务器表单
   serverForm: {
     unsaved: '有未保存的修改',
+    gameBranches: {
+      public: '正式版',
+      preaquatica: '海洋 DLC 前（-beta preaquatica）'
+    },
+    gameBranchSwitched: '切换版本后，下次启动时会重新校验服务端文件，只下载两个版本的差异。高版本的存档可能无法在低版本加载，建议先备份存档',
     saveShortcut: '保存（Ctrl+S）',
     passwordHint: '用于游戏内管理员命令（enablecheats）和 RCON',
     passwordKeepHint: '留空则保持原密码不变',

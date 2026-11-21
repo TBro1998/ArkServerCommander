@@ -109,6 +109,8 @@ export interface Server {
     arkapi?: boolean;
     // 服务器使用的镜像，由 arkapi 决定
     image?: string;
+    // 游戏版本（Steam 分支）：空为正式版，preaquatica 为海洋 DLC 更新前的版本
+    game_branch?: string;
     // 发布到服务器收录站（arkfgf.com）
     publish?: boolean;
     publish_status?: PublishStatus;

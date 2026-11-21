@@ -79,3 +79,35 @@ const LinkContainerName = "ase-link-room"
 
 // EasyTierImage P2P 联机房节点使用的 EasyTier 镜像（入口是 easytier-core）
 const EasyTierImage = "easytier/easytier:v2.6.4"
+
+// ASE 服务端在 Steam 上的 AppID
+const ArkServerAppID = "376030"
+
+// 游戏版本（Steam 分支）：主流的两个版本是正式版（public）和海洋 DLC 更新前的 preaquatica 测试分支。
+// 两个版本的服务端文件不同，复制服务端文件时只能在同一版本的服务器之间复制
+const (
+	GameBranchPublic      = ""            // 正式版（Steam 默认分支）
+	GameBranchPreAquatica = "preaquatica" // 海洋 DLC 更新前的版本（-beta preaquatica）
+)
+
+// GameBranches 可选的游戏版本
+var GameBranches = []string{GameBranchPublic, GameBranchPreAquatica}
+
+// ValidGameBranch 是否是可选的游戏版本
+func ValidGameBranch(branch string) bool {
+	for _, b := range GameBranches {
+		if b == branch {
+			return true
+		}
+	}
+	return false
+}
+
+// ArkAppUpdateFor 容器环境变量 APP_UPDATE 的值，入口脚本按空格拆开传给 steamcmd 的 app_update。
+// 正式版和镜像里的默认值相同（只有 AppID）
+func ArkAppUpdateFor(branch string) string {
+	if branch == GameBranchPublic {
+		return ArkServerAppID
+	}
+	return ArkServerAppID + " -beta " + branch
+}

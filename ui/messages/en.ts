@@ -545,6 +545,7 @@ const messages = {
     invalid_cluster_id: 'Invalid cluster ID',
     cluster_in_use: 'The cluster is still in use',
     invalid_mod_ids: 'Mod IDs must be comma-separated numbers',
+    invalid_game_branch: 'Invalid game version',
     server_not_running: 'Server is not running',
     server_not_stopped: 'Stop the server first',
     invalid_command: 'Invalid command',
@@ -650,6 +651,8 @@ const messages = {
     pullingImageHint: 'Downloading image {image}, starting continues afterwards',
     arkapi: 'ArkApi',
     arkapiTip: 'Runs the Proton server build and loads ArkApi plugins',
+    preaquatica: 'preaquatica',
+    preaquaticaTip: 'Version before the Aquatica DLC update (-beta preaquatica); players must switch to the same version to join',
     launchingHint: 'Loading the map, this usually takes a few minutes',
     players: 'Players online',
     memory: 'Memory',
@@ -941,6 +944,7 @@ const messages = {
     serverBuild: 'Server build',
     buildProton: 'Proton (ArkApi)',
     buildLinux: 'Linux',
+    gameBranch: 'Game version',
     on: 'On',
     off: 'Off',
     createdAt: 'Created',
@@ -1249,7 +1253,8 @@ const messages = {
       query_port: 'Query port',
       rcon_port: 'RCON port',
       game_mod_ids: 'Mods',
-      cluster_id: 'Cluster ID'
+      cluster_id: 'Cluster ID',
+      game_branch: 'Game version'
     },
     fieldHints: {
       session_name: 'The name players see in the server list; spaces and non-Latin characters are fine',
@@ -1258,7 +1263,8 @@ const messages = {
       query_port: 'Used by the Steam server list',
       rcon_port: 'Used for remote administration',
       game_mod_ids: 'Workshop mod IDs or links, separated by commas. Mod names appear below and can be dragged to change load order',
-      cluster_id: 'Servers with the same cluster ID can transfer survivors, dinos and items (shared cluster storage). Letters, digits, _ . - only'
+      cluster_id: 'Servers with the same cluster ID can transfer survivors, dinos and items (shared cluster storage). Letters, digits, _ . - only',
+      game_branch: 'Players need the same game version to join. The two versions have different server files, so a new server only copies server files from servers on the same version'
     },
     params: {
       ServerPassword: 'Join password',
@@ -1559,6 +1565,11 @@ const messages = {
   // Server form
   serverForm: {
     unsaved: 'Unsaved changes',
+    gameBranches: {
+      public: 'Normal (public)',
+      preaquatica: 'Pre-Aquatica (-beta preaquatica)'
+    },
+    gameBranchSwitched: 'After switching, the server files are validated on next start and only the differences between the two versions are downloaded. Saves from a newer version may not load on an older one, so back up first',
     saveShortcut: 'Save (Ctrl+S)',
     passwordHint: 'Used for in-game admin commands (enablecheats) and RCON',
     passwordKeepHint: 'Leave empty to keep the current password',

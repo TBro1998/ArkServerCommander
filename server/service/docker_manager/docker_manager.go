@@ -134,6 +134,8 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 	envVars := []string{
 		"TZ=" + config.ContainerTZ,
 		fmt.Sprintf("SERVER_ARGS=%s", argsString),
+		// 游戏版本（Steam 分支），入口脚本传给 steamcmd 的 app_update；也用于判断是否需要重建容器
+		"APP_UPDATE=" + utils.ArkAppUpdateFor(server.GameBranch),
 	}
 	if server.GameModIds != "" {
 		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", server.GameModIds))
