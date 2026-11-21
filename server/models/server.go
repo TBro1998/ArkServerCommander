@@ -24,7 +24,7 @@ type Server struct {
 	// 启用 ArkApi：用 Proton 镜像运行 Windows 版服务端并加载 ArkApi 插件；关闭时用原生 Linux 版服务端。
 	// 加这个字段之前创建的服务器在迁移时设为 true（原来都是 Proton 版并带 ArkApi）
 	ArkApi bool `json:"arkapi" gorm:"column:arkapi;default:false"`
-	// 游戏版本（Steam 分支）：空为正式版，preaquatica 为海洋 DLC 更新前的版本，见 utils.GameBranches。
+	// 游戏版本（Steam 分支）：空为蜗牛海洋正式版，preaquatica 为通配符原版（海洋 DLC 更新前），见 utils.GameBranches。
 	// 切换后下次启动时重建容器并重新校验服务端文件
 	GameBranch string `json:"game_branch" gorm:"default:''"`
 	// 发布到服务器收录站（arkfgf.com）：服务器每次可以连接后用绑定的账号发布一次，关闭发布或删除后取消发布
@@ -73,7 +73,7 @@ type ServerRequest struct {
 	AutoRestart   *bool           `json:"auto_restart"`                        // 是否自动重启（可选）
 	AutoUpdate    *bool           `json:"auto_update"`                         // 每次启动前检查游戏本体和 Mod 更新（可选）
 	ArkApi        *bool           `json:"arkapi"`                              // 启用 ArkApi（Proton 镜像），默认关闭（Linux 镜像）
-	GameBranch    string          `json:"game_branch"`                         // 游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本
+	GameBranch    string          `json:"game_branch"`                         // 游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版
 	Publish       *bool           `json:"publish"`                             // 发布到服务器收录站，默认关闭
 	Link          *bool           `json:"link"`                                // P2P 联机房，默认关闭
 	Listing       *ListingProfile `json:"listing,omitempty"`                   // 收录资料（可选）
@@ -100,7 +100,7 @@ type ServerResponse struct {
 	AutoUpdate  bool   `json:"auto_update"`
 	ArkApi      bool   `json:"arkapi"`      // 启用 ArkApi（Proton 镜像运行 Windows 版服务端）
 	Image       string `json:"image"`       // 服务器使用的镜像，由 arkapi 决定
-	GameBranch  string `json:"game_branch"` // 游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本
+	GameBranch  string `json:"game_branch"` // 游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版
 	Publish     bool   `json:"publish"`     // 发布到服务器收录站
 	// 收录资料：简介、标签、QQ 群、Discord
 	Listing ListingProfile `json:"listing"`
@@ -143,7 +143,7 @@ type ServerUpdateRequest struct {
 	AutoRestart   *bool   `json:"auto_restart"`
 	AutoUpdate    *bool   `json:"auto_update"`
 	ArkApi        *bool   `json:"arkapi"`      // 切换后下次启动时重建容器
-	GameBranch    *string `json:"game_branch"` // 游戏版本，传空字符串表示正式版；切换后下次启动时重新校验服务端文件，只下载差异
+	GameBranch    *string `json:"game_branch"` // 游戏版本，传空字符串表示蜗牛海洋正式版；切换后下次启动时重新校验服务端文件，只下载差异
 	Publish       *bool   `json:"publish"`     // 发布到服务器收录站
 	Link          *bool   `json:"link"`        // P2P 联机房，立即生效
 	// 收录资料，传了就整体替换；运行中的服务器会重新发布

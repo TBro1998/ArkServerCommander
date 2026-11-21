@@ -651,8 +651,8 @@ const messages = {
     pullingImageHint: '正在下载镜像 {image}，完成后继续启动',
     arkapi: 'ArkApi',
     arkapiTip: '使用 Proton 版服务端并加载 ArkApi 插件',
-    preaquatica: 'preaquatica',
-    preaquaticaTip: '海洋 DLC 更新前的版本（-beta preaquatica），玩家要切换到同一版本才能加入',
+    preaquatica: '通配符原版',
+    preaquaticaTip: '通配符原版：海洋 DLC 更新前的版本（Steam 测试分支 preaquatica），玩家要切换到同一版本才能加入',
     launchingHint: '正在加载地图，通常需要几分钟',
     players: '在线玩家',
     memory: '内存',
@@ -1578,8 +1578,8 @@ const messages = {
   serverForm: {
     unsaved: '有未保存的修改',
     gameBranches: {
-      public: '正式版',
-      preaquatica: '海洋 DLC 前（-beta preaquatica）'
+      public: '蜗牛海洋正式版',
+      preaquatica: '通配符原版'
     },
     gameBranchSwitched: '切换版本后，下次启动时会重新校验服务端文件，只下载两个版本的差异。高版本的存档可能无法在低版本加载，建议先备份存档',
     saveShortcut: '保存（Ctrl+S）',

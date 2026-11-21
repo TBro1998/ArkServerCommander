@@ -44,7 +44,7 @@ export function MapBand({ server, className, children }: { server: Server; class
   );
 }
 
-// 服务器的附加标记：游戏版本（不是正式版时）、ArkApi、旧镜像、配置待生效、Mod 有更新、集群
+// 服务器的附加标记：游戏版本（通配符原版时）、ArkApi、旧镜像、配置待生效、Mod 有更新、集群
 export function ServerTags({ server }: { server: Server }) {
   const t = useTranslations('serverCard');
   return (

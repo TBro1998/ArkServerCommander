@@ -239,7 +239,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
           </SettingTile>
         );
       case 'game_branch': {
-        // Select 不能用空字符串作值，正式版（后端为空）在界面上用 public 表示
+        // Select 不能用空字符串作值，蜗牛海洋正式版（后端为空）在界面上用 public 表示
         const branch = form.game_branch || 'public';
         const switched = mode === 'edit' && (form.game_branch || '') !== (initial.game_branch || '');
         return (

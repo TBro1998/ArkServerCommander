@@ -22,7 +22,7 @@ var (
 	ErrImageNotAllowed      = errors.New("不允许操作该镜像")
 	ErrInvalidClusterID     = errors.New("集群ID只能包含字母、数字、下划线、点和连字符，且以字母或数字开头，最长64个字符")
 	ErrInvalidModIDs        = errors.New("Mod ID 只能是逗号分隔的数字")
-	ErrInvalidGameBranch    = errors.New("游戏版本无效，只能是正式版（空）或 preaquatica")
+	ErrInvalidGameBranch    = errors.New("游戏版本无效，只能是蜗牛海洋正式版（空）或通配符原版（preaquatica）")
 	ErrServerNotRunning     = errors.New("服务器未运行")
 	ErrServerNotStopped     = errors.New("请先停止服务器")
 	ErrInvalidCommand       = errors.New("命令不能为空、不能包含换行，且不超过1000个字符")

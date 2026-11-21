@@ -651,8 +651,8 @@ const messages = {
     pullingImageHint: 'Downloading image {image}, starting continues afterwards',
     arkapi: 'ArkApi',
     arkapiTip: 'Runs the Proton server build and loads ArkApi plugins',
-    preaquatica: 'preaquatica',
-    preaquaticaTip: 'Version before the Aquatica DLC update (-beta preaquatica); players must switch to the same version to join',
+    preaquatica: 'Wildcard Original',
+    preaquaticaTip: 'Wildcard Original: the version before the Aquatica DLC update (Steam beta branch preaquatica); players must switch to the same version to join',
     launchingHint: 'Loading the map, this usually takes a few minutes',
     players: 'Players online',
     memory: 'Memory',
@@ -1566,8 +1566,8 @@ const messages = {
   serverForm: {
     unsaved: 'Unsaved changes',
     gameBranches: {
-      public: 'Normal (public)',
-      preaquatica: 'Pre-Aquatica (-beta preaquatica)'
+      public: 'Snail Aquatica',
+      preaquatica: 'Wildcard Original'
     },
     gameBranchSwitched: 'After switching, the server files are validated on next start and only the differences between the two versions are downloaded. Saves from a newer version may not load on an older one, so back up first',
     saveShortcut: 'Save (Ctrl+S)',

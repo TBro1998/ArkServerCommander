@@ -83,11 +83,12 @@ const EasyTierImage = "easytier/easytier:v2.6.4"
 // ASE 服务端在 Steam 上的 AppID
 const ArkServerAppID = "376030"
 
-// 游戏版本（Steam 分支）：主流的两个版本是正式版（public）和海洋 DLC 更新前的 preaquatica 测试分支。
+// 游戏版本（Steam 分支）：主流的两个版本是蜗牛海洋正式版（public，发行商 Snail 的海洋 DLC 更新后的版本）
+// 和通配符原版（preaquatica 测试分支，开发商 Wildcard 在海洋 DLC 更新前的版本）。
 // 两个版本的服务端文件不同，复制服务端文件时只能在同一版本的服务器之间复制
 const (
-	GameBranchPublic      = ""            // 正式版（Steam 默认分支）
-	GameBranchPreAquatica = "preaquatica" // 海洋 DLC 更新前的版本（-beta preaquatica）
+	GameBranchPublic      = ""            // 蜗牛海洋正式版（Steam 默认分支）
+	GameBranchPreAquatica = "preaquatica" // 通配符原版（-beta preaquatica）
 )
 
 // GameBranches 可选的游戏版本
