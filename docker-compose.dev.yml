@@ -1,6 +1,8 @@
 # 开发用部署：从本地源码构建镜像（正式部署用 docker-compose.yml，拉取已发布的镜像）
-# 用法：docker compose -f docker-compose.dev.yml up -d --build
-# 服务名、容器名和数据目录与 docker-compose.yml 相同，两者切换时会替换同一个容器，不要同时运行
+# 用法：docker compose -f docker-compose.dev.yml up -d --build（访问不了 proxy.golang.org 时先设置 GOPROXY）
+# 服务名、容器名和数据目录与 docker-compose.yml 相同，两者切换时会替换同一个容器，不要同时运行。
+# 服务端文件卷 /server-files 镜像里已经声明（Docker Desktop 上自动启用，见 files_volume.go）；这里挂成命名卷
+# ark-server-files，删除容器（down）后再起不会换卷。查看：docker run --rm -it -v ark-server-files:/files alpine sh
 services:
   ark-commander:
     build:
@@ -9,6 +11,8 @@ services:
       args:
         # 界面显示的版本号，dev 表示本地构建
         VERSION: dev
+        # Go 模块代理，取自运行 compose 时的环境变量 GOPROXY（访问不了 proxy.golang.org 时设置），为空用默认代理
+        GOPROXY: ${GOPROXY:-}
     image: arkservercommander:dev
     container_name: ark-commander
     ports:
@@ -18,10 +22,16 @@ services:
       - path: .env
         required: false
     volumes:
-      # 数据库、自动生成的登录密钥和 ARK 服务器数据
+      # 数据库、自动生成的登录密钥、备份和 ARK 服务器数据（Docker Desktop 上服务端文件除外）
       - ./data:/data
+      # ARK 服务端文件（Docker Desktop 上使用）
+      - ark-server-files:/server-files
       # Docker socket（用于管理 ARK 服务器容器）
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     # 需要操作宿主机 Docker 的特权模式
     privileged: true
+
+volumes:
+  ark-server-files:
+    name: ark-server-files

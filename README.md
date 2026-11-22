@@ -14,7 +14,7 @@
 - 🔌 ArkApi can be enabled per server: enabled servers run the Windows build on the Proton image, others run the native Linux build; switching takes effect on the next start
 - 🔄 Server containers support automatic restart on crash
 - ⬆️ Server files and mods are downloaded on first start and kept on their own volume, so recreating a container does not download them again; new servers copy server files from an already installed server
-- 💾 Saves, configs, plugins and server files live under `data/servers/<id>/` and can be managed directly on the host; they are kept when a server is deleted unless you choose to delete them
+- 💾 Saves, configs, plugins and server files live under `data/servers/<id>/` (except server files on Docker Desktop, see the FAQ) and can be managed directly on the host; they are kept when a server is deleted unless you choose to delete them
 - 🖥️ Add and manage multiple ARK servers, with cluster support (shared cluster directory)
 - ⚙️ Edit GameUserSettings.ini, Game.ini and launch arguments visually or as text
 - 📤 Export a server's config to a file, import it from a file or another server, or copy it to several servers at once (choose game settings, launch arguments, mods and more; names, ports and admin passwords are never overwritten)
@@ -147,6 +147,9 @@ Servers still on the old image show an "Old Image" badge on their card. Server f
 
 ### ❓ Q: Where is the login secret? Do I need to configure it?
 A: No. On first start the backend generates a strong random secret and stores it in `jwt_secret` in the data directory (the mounted `./data/jwt_secret`). Deleting that file and restarting the container invalidates all logged-in sessions.
+
+### ❓ Q: Can I run it on Docker Desktop (Windows / macOS)?
+A: Yes, without changing `docker-compose.yml`. Docker Desktop reaches the host disk (`./data`) through file sharing, which makes downloading the ~20 GB of server files very slow. On Docker Desktop the manager therefore puts **the server files of new servers** in a volume built into the image (Docker's own filesystem); saves, configs, plugins and backups stay in `./data` where you can manage them directly. Server files already downloaded into `./data` keep being used and are not downloaded again. These server files are not visible on the host. After `docker compose down` the next start gets a new volume, and the manager copies the server files over automatically (this can take a few minutes). Set the environment variable `SERVER_FILES_VOLUME=off` to turn this off.
 
 ### 🖼️ ARK Server Image
 - Servers without ArkApi use `tbro98/ase-server:linux` (native Linux server); servers with ArkApi use `tbro98/ase-server:proton` (Windows server under GE-Proton)

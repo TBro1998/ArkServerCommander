@@ -47,32 +47,43 @@ func (dm *DockerManager) EnsureClusterVolume(clusterID string) error {
 	return dm.ensureBindVolume(clusterVolumeSpec(clusterID))
 }
 
-// ensureBindVolume 创建数据目录下的目录，并创建指向该目录的命名卷；卷已存在时只确保目录存在
+// ensureBindVolume 创建数据目录下的目录，并创建指向该目录的命名卷。卷已存在但绑定的目录不对时
+// （启用了单独的服务端文件卷、服务端文件卷换过，见 files_volume.go）删除后按新目录重建：删除绑定卷不会删除目录里的文件。
+// 卷正被容器使用时删除失败，调用方要先删除容器。不是绑定卷的（早期版本创建的普通卷）不动，删除它会删掉里面的数据
 func (dm *DockerManager) ensureBindVolume(spec volumeSpec) error {
-	if hostDataDir == "" {
+	if !storageReady {
 		return errors.New("数据目录尚未初始化")
 	}
 	if err := os.MkdirAll(spec.localDir(), 0o755); err != nil {
 		return fmt.Errorf("创建目录失败: %w", err)
 	}
 
-	exists, err := dm.VolumeExists(spec.Name)
-	if err != nil {
+	want := spec.hostDir()
+	v, err := dm.client.VolumeInspect(dm.ctx, spec.Name)
+	switch {
+	case errdefs.IsNotFound(err):
+	case err != nil:
 		return fmt.Errorf("检查卷是否存在失败: %v", err)
-	}
-	if exists {
+	case !isBindVolume(v) || v.Options["device"] == want:
 		utils.Debug("Docker卷已存在，跳过创建", zap.String("volume", spec.Name))
 		return nil
+	default:
+		utils.Info("卷绑定的目录变了，重建卷", zap.String("volume", spec.Name),
+			zap.String("old", v.Options["device"]), zap.String("new", want))
+		if err := dm.client.VolumeRemove(dm.ctx, spec.Name, false); err != nil {
+			return fmt.Errorf("删除旧卷失败: %v", err)
+		}
+		defer CleanupRetiredFilesVolumes()
 	}
 
-	utils.Infof("正在创建Docker卷: %s -> %s", spec.Name, spec.hostDir())
+	utils.Infof("正在创建Docker卷: %s -> %s", spec.Name, want)
 	_, err = dm.client.VolumeCreate(dm.ctx, volume.CreateOptions{
 		Name:   spec.Name,
 		Driver: "local",
 		DriverOpts: map[string]string{
 			"type":   "none",
 			"o":      "bind",
-			"device": spec.hostDir(),
+			"device": want,
 		},
 	})
 	if err != nil {
@@ -81,6 +92,28 @@ func (dm *DockerManager) ensureBindVolume(spec volumeSpec) error {
 
 	utils.Info("Docker卷创建成功", zap.String("volume", spec.Name))
 	return nil
+}
+
+// isBindVolume 卷是管理端创建的、绑定到目录的命名卷
+func isBindVolume(v volume.Volume) bool {
+	return v.Driver == "local" && v.Options["type"] == "none" && v.Options["o"] == "bind"
+}
+
+// ServerVolumesOutdated 服务器的卷有缺失，或绑定的目录和当前应使用的不同，需要删除容器后重建卷
+func (dm *DockerManager) ServerVolumesOutdated(serverID uint) bool {
+	for _, spec := range serverVolumeSpecs(serverID) {
+		v, err := dm.client.VolumeInspect(dm.ctx, spec.Name)
+		if errdefs.IsNotFound(err) {
+			return true
+		}
+		if err != nil {
+			continue
+		}
+		if isBindVolume(v) && v.Options["device"] != spec.hostDir() {
+			return true
+		}
+	}
+	return false
 }
 
 // RemoveVolume 删除服务器的 Docker 卷（服务端文件卷、游戏数据卷和插件卷）。

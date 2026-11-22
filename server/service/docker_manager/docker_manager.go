@@ -210,6 +210,14 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 		},
 	}
 
+	// 服务器的三个卷通常在创建服务器时就建好了；被手动删除（例如迁移数据目录）时在这里补建，
+	// 否则 Docker 会自动创建普通卷，文件不在数据目录里，后端读写不到
+	for _, spec := range serverVolumeSpecs(serverID) {
+		if err := dm.ensureBindVolume(spec); err != nil {
+			return "", fmt.Errorf("创建卷 %s 失败: %v", spec.Name, err)
+		}
+	}
+
 	// 集群：同一 cluster_id 的服务器共享 ARK 默认的集群目录 Saved/clusters，跨服传送的角色和物品存放在这里。
 	// 先把卷建成绑定到数据目录 clusters/<cluster_id> 的命名卷，否则 Docker 会自动创建一个普通卷
 	if cv := ExpectedClusterVolume(server.ClusterID); cv != "" {

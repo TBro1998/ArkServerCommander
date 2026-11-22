@@ -41,9 +41,15 @@ var (
 	// DataDir 数据目录（数据库所在目录，镜像内为 /data）。ARK 服务器的服务端文件、存档、插件和集群数据
 	// 放在其下的 servers/<id>/ 和 clusters/<cluster_id>/，宿主机上可以直接管理
 	DataDir string
+	// ServerFilesVolume 是否把服务端文件放在单独的卷 ServerFilesMount 里（SERVER_FILES_VOLUME：auto / on / off，默认 auto：
+	// Docker Desktop 上并且数据目录是绑定的宿主机目录时启用），见 docker_manager/files_volume.go
+	ServerFilesVolume = "auto"
 	// HostDataDir DataDir 在宿主机上的路径，通过 HOST_DATA_DIR 指定；为空时自动探测（见 docker_manager.InitStorage）
 	HostDataDir string
 )
+
+// ServerFilesMount 镜像声明的服务端文件卷（Dockerfile 的 VOLUME）在后端容器里的路径
+const ServerFilesMount = "/server-files"
 
 // 弱密钥黑名单，仅用于校验手动指定的 JWT_SECRET
 var weakSecrets = []string{
@@ -97,6 +103,9 @@ func InitConfig() error {
 	}
 	DataDir = dataDir
 	HostDataDir = strings.TrimSpace(os.Getenv("HOST_DATA_DIR"))
+	if mode := strings.TrimSpace(os.Getenv("SERVER_FILES_VOLUME")); mode != "" {
+		ServerFilesVolume = mode
+	}
 
 	secret, err := loadJWTSecret()
 	if err != nil {

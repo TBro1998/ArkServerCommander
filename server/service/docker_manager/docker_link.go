@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -99,7 +98,7 @@ func (dm *DockerManager) CreateLinkContainer(spec LinkContainerSpec) error {
 	hostCfg := &container.HostConfig{
 		NetworkMode:   "host",
 		RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyUnlessStopped},
-		Binds:         []string{path.Join(hostDataDir, linkDirRel) + ":/data"},
+		Binds:         []string{hostPath(filepath.Join(config.DataDir, linkDirRel)) + ":/data"},
 	}
 	resp, err := dm.client.ContainerCreate(dm.ctx, cfg, hostCfg, nil, nil, name)
 	if err != nil {

@@ -14,6 +14,10 @@ FROM golang:1.27-alpine AS backend-builder
 # 设置工作目录
 WORKDIR /app
 
+# Go 模块代理，可选。访问不了 proxy.golang.org 时传入，例如 --build-arg GOPROXY=https://goproxy.cn,direct；
+# 为空时 Go 使用默认代理
+ARG GOPROXY
+
 # 复制后端项目文件
 COPY server/go.mod server/go.sum ./
 
@@ -51,7 +55,12 @@ COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 # 创建数据目录
-RUN mkdir -p /data
+RUN mkdir -p /data /server-files
+
+# 服务端文件卷：compose 不用写，Docker 自动创建匿名卷（重建容器时接回原来的卷）。只在 Docker Desktop
+# （Windows / macOS，经文件共享访问宿主机磁盘很慢）上并且 /data 绑定了宿主机目录时使用，Linux 上服务端文件仍在 /data，
+# 这个卷是空的。见 server/service/docker_manager/files_volume.go
+VOLUME ["/server-files"]
 
 # 对外只暴露 Next.js 的 8080；Go 后端监听 127.0.0.1:8081，不对外
 EXPOSE 8080

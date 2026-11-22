@@ -911,6 +911,11 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 				}
 			}
 
+			// 卷缺失或绑定的目录变了（启用了单独的服务端文件卷、服务端文件卷换过）：删除容器后才能重建卷
+			if !needRecreateContainer && dockerManager.ServerVolumesOutdated(server.ID) {
+				needRecreateContainer = true
+			}
+
 			// 镜像更新后，旧容器仍指向旧镜像，需要重建才能使用新镜像；切换了 ArkApi（换了镜像）时同样重建
 			if !needRecreateContainer {
 				outdated, err := dockerManager.IsContainerImageOutdated(containerName, imageName)

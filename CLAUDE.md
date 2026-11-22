@@ -51,6 +51,8 @@ docker compose down        # 停止
 docker build -t arkservercommander:dev .   # 需要验证镜像时手动构建
 ```
 
+`docker-compose.dev.yml` 从本地源码构建（`docker compose -f docker-compose.dev.yml up -d --build`），数据在 `./data`；`/server-files` 挂成命名卷 `ark-server-files`（不用匿名卷，`down` 之后不会换卷），在 Docker Desktop 上服务端文件放在这里（见"单独的服务端文件卷"）。访问不了 proxy.golang.org 时运行前设置 `GOPROXY=https://goproxy.cn,direct`，作为构建参数传给 Dockerfile。
+
 ### 本地开发运行
 
 `bash dev.sh` 在本机同时运行后端（`go run .`，`127.0.0.1:8081`）和前端开发服务器（`next dev`，`http://localhost:3000`），不构建镜像，Ctrl+C 同时停止。默认值：`DB_PATH=data-dev/ark_server.db`（数据、`jwt_secret`、备份和 ARK 服务器文件都在 `data-dev/`，已加入 `.gitignore`）、`GIN_MODE=debug`、`LOG_FORMAT=console`，前端的 `API_BASE` 指向后端端口；都可以在运行前 export 覆盖，端口用 `SERVER_PORT` / `UI_PORT`。脚本不读取 `.env`（`.env.example` 里的 `DB_PATH=/data/...` 是容器内路径）。
@@ -71,6 +73,7 @@ Windows 上用 PowerShell 运行 `.\dev.ps1`（执行策略不允许时 `powersh
 - `PUBLIC_HOST`：玩家连接用的公网地址（IP 或域名）；为空时自动探测公网 IP（ipify / ifconfig.me，缓存 1 小时）
 - `BACKUP_DIR`：存档备份目录（默认数据库所在目录下的 `backups`，镜像内为 `/data/backups`）
 - `HOST_DATA_DIR`：数据目录在宿主机上的绝对路径，可选。ARK 服务器的卷绑定到数据目录下，Docker 需要宿主机路径；为空时后端检查自身容器的挂载自动探测（目标为数据目录的那一项的 Source），探测失败会拒绝启动并提示设置它；后端直接运行在宿主机上时使用数据目录本身
+- `SERVER_FILES_VOLUME`：`auto`（默认）/ `on` / `off`，是否把新服务器的服务端文件放进镜像声明的卷 `/server-files`（`config.ServerFilesMount`），见下文"单独的服务端文件卷"。`auto` 在 Docker Desktop（`docker info` 的 OperatingSystem 含 `Docker Desktop`）上并且 `/data` 是绑定的宿主机目录时启用
 - `ARKFGF_API`：arkfgf.com 接口地址（默认 `https://arkfgf.com/api/v1`），设为空或 `off` 时关闭账号绑定、发布功能和 P2P 联机房，见下文"arkfgf.com 账号""发布到收录站""P2P 联机房"
 - `GIN_MODE`、`LOG_LEVEL`、`LOG_FORMAT`：Gin 模式和日志配置
 
@@ -179,6 +182,8 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - 镜像：`tbro98/ase-server:linux`（原生 Linux 版服务端，默认）和 `tbro98/ase-server:proton`（GE-Proton 运行 Windows 版，`arkapi` 为 true 的服务器用），子模块 `ASE-Server-Docker` 的同一个 dockerfile 用 `--target linux|proton` 构建，入口脚本按 `SERVER_PLATFORM` 区分。`latest` 不再更新，停在最后一个自带 ArkApi 的版本，留给旧版管理端
 
 卷是绑定到数据目录的命名卷（local 驱动，`type=none, o=bind`，见 `docker_manager/storage.go`、`docker_volume.go`）：卷名不变，数据实际放在后端容器的 `/data`（宿主机 `./data`）下，宿主机上可以直接管理文件：`servers/<id>/files`（服务端文件）、`servers/<id>/saved`（存档和配置）、`servers/<id>/plugins`（插件）、`clusters/<cluster_id>`（集群共享）。后端启动时 `InitStorage` 确定数据目录的宿主机路径，失败则退出。删除卷不会删除目录里的文件，需要再调用 `RemoveServerDirs`；集群卷在创建容器前由 `EnsureClusterVolume` 建好，否则 Docker 会自动创建一个普通卷。磁盘占用由 `LocalVolumeSizes` 遍历目录统计（Docker 的 DiskUsage 查不到绑定卷的大小），key 仍是卷名。
+
+**单独的服务端文件卷**（`docker_manager/files_volume.go`）：Docker Desktop 经文件共享访问宿主机磁盘，steamcmd 下载和预分配 20 GB 极慢（实测每分钟几 MB）。镜像 `VOLUME ["/server-files"]`，compose 不用写，Docker 自动建匿名卷；`InitStorage` 判断启用后（见 `SERVER_FILES_VOLUME`），`ServerFilesDir` 对新服务器返回 `/server-files/<id>`，数据目录里 `servers/<id>/files` 不为空的旧服务器继续用原位置（结果缓存在 `filesDirCache`），存档、插件、集群仍在数据目录。宿主机路径从自身挂载换算（`hostMounts`，按目标路径最长的挂载，支持嵌套挂载），所以卷的 device 是 `/var/lib/docker/volumes/<卷>/_data/<id>`。匿名卷在 `compose up` 重建容器时会接回，但 `down` 后再 `up` 会换新卷：卷名记在数据目录 `.server-files-volume.json`，发现换了就用管理端自己的镜像起临时容器 `cp -a` 旧卷到新卷（目标卷挂在 `/server-files` 上，否则临时容器又会多一个匿名卷），旧卷记入 `retired`；`ensureBindVolume` 发现绑定卷（`type=none, o=bind`）的 device 和应有的不同时删卷重建（删绑定卷不删文件；早期的普通卷不动），启动时 `ServerVolumesOutdated` 为 true 会先重建容器；没有 `ase-server-files-*` 卷的 device 还在旧卷下时 `CleanupRetiredFilesVolumes` 删除旧卷。`CreateContainer` 创建容器前会补建缺少的服务器卷，否则 Docker 会自动建普通卷。Linux 上不启用，镜像声明的卷是空的。
 
 容器挂载三个卷：服务端文件卷挂到 `/home/steam/arkserver`，数据卷嵌套挂到 `ShooterGame/Saved`，插件卷嵌套挂到 `ArkApi/Plugins`。设置了 `cluster_id` 时再挂共享的集群卷 `ase-cluster-<cluster_id>` 到 ARK 默认集群目录 `Saved/clusters`（容器环境变量 `CLUSTER_VOLUME` 记录挂载的卷，用于判断是否需要重建）。镜像不再预下载游戏本体，入口脚本在首次启动时把服务端文件下载到文件卷；安装标记 `.install_complete` 和已装 Mod 记录 `.installed_mods`（每行 `Mod ID 安装时间`，旧版只有 ID，后端用 `Content/Mods/<id>.mod` 的修改时间代替）也在卷里，所以重建容器不会重新下载，新增 Mod 时只下载缺少的。`.install_complete` 的内容是安装时的平台（`linux` / `windows`，旧版是空文件，视为 windows），切换 ArkApi 换了镜像后平台不同，入口脚本会重新 validate，补下载这个平台的主程序（Mod 两个平台都用 WindowsNoEditor，不用重下）。游戏版本（`servers.game_branch`，Steam 分支）：空为蜗牛海洋正式版（英文界面 Snail Aquatica），`preaquatica` 为通配符原版（Wildcard Original，海洋 DLC 更新前的版本）（`utils.GameBranches`；界面上中文用"蜗牛""通配符"，英文用发行商 Snail、开发商 Wildcard 的原名），新建和编辑页"常规"里选择；容器环境变量 `APP_UPDATE` 由 `utils.ArkAppUpdateFor` 得出（蜗牛海洋正式版 `376030`，和镜像默认值相同；否则 `376030 -beta <分支>`），入口脚本原样传给 steamcmd，镜像不用改，`APP_UPDATE` 不同时重建容器。文件卷里的 `.game_branch` 记录服务端文件属于哪个版本（没有时视为正式版），启动前由 `PrepareGameBranch`（`docker_seed.go`）写入：已有文件属于另一个版本时删除 `.install_complete`，入口脚本 validate 只下载两个版本的差异；切回蜗牛海洋正式版时还要删掉 `steamapps/appmanifest_376030.acf` 里的 `BetaKey` 行，否则 steamcmd 会留在 beta 分支。两个版本的服务端文件不同，复制服务端文件只在同一版本之间进行。Linux 版服务端读 `Config/LinuxServer`，入口脚本把它建成指向 `WindowsServer` 的符号链接，管理端只维护 `WindowsServer`；备份导出时跳过符号链接。ArkApi 不随镜像发布（`assets/arkapi/ArkApi_3.56.zip` 内置在后端里），由 `arkapi.go` 解压到文件卷的 `ShooterGame/Binaries/Win64`（保留已有的 `config.json`，跳过压缩包里的 `ArkApi/Plugins`），版本号写入 `.arkapi_version`。版本库：内置版本、数据目录 `arkapi/<版本>.zip`（从 GitHub `Michidu/ARK-Server-API` 下载或上传的），以及 GitHub 上还没下载的版本（安装时下载）。GitHub 上只到 3.54，3.56 来自 gameservershub。启用 ArkApi 的服务器启动时如果还没有 `version.dll`，自动装本地最新版本（不联网）。停用的插件移到不挂载进容器的 `servers/<id>/plugins-disabled/`；插件的安装、删除、启停只能在已停止时进行。镜像侧的改动需要重新构建并推送镜像后才生效。
 
