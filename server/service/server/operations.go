@@ -218,8 +218,9 @@ type Player struct {
 	SteamID string `json:"steam_id"`
 }
 
-// listPlayersPattern ListPlayers 的输出格式："0. 玩家名, 76561198000000000"
-var listPlayersPattern = regexp.MustCompile(`^\s*(\d+)\.\s*(.*),\s*(\d+)\s*$`)
+// listPlayersPattern ListPlayers 的输出格式："0. 玩家名, 76561198000000000"。Steam 玩家是 SteamID64；
+// Epic 跨平台玩家的 ID 可能不是纯数字（没有在真实服务器上确认过格式），所以 ID 只要求是字母和数字
+var listPlayersPattern = regexp.MustCompile(`^\s*(\d+)\.\s*(.*),\s*([0-9A-Za-z]+)\s*$`)
 
 // parsePlayers 解析 ListPlayers 的输出，没有玩家时输出 "No Players Connected"
 func parsePlayers(output string) []Player {

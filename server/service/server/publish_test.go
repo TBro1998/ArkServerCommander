@@ -246,21 +246,24 @@ func TestPublisherReportsPlayers(t *testing.T) {
 	now := time.Now()
 	f := &fakeListing{handler: okHandler}
 	p := newTestPublisher(t, f, &ready, &now)
-	// a 有 4 个玩家；b 的 RCON 连不上，跳过
-	p.players = func(s models.Server) (int, error) {
+	// a 有 2 个玩家；b 的 RCON 连不上，跳过
+	p.players = func(s models.Server) ([]Player, error) {
 		if s.ID == b.ID {
-			return 0, ErrRconUnavailable
+			return nil, ErrRconUnavailable
 		}
-		return 4, nil
+		return []Player{{Name: "Alice", SteamID: "76561198000000001"}, {Name: "Bob", SteamID: "76561198000000002"}}, nil
 	}
 
-	// 发布后同一轮就上报一次人数，只带数得出来的
+	// 发布后同一轮就上报一次在线玩家（ID 和名称），只带列得出来的
 	p.tick()
 	expectCalls(t, f, "/publish", "/publish", "/publish/players")
 	entries := f.body(2)["servers"].([]any)
-	if f.token(2) != testAccountToken || len(entries) != 1 ||
-		entries[0].(map[string]any)["key"] != publishKey(a.ID) || entries[0].(map[string]any)["players"] != 4.0 {
+	if f.token(2) != testAccountToken || len(entries) != 1 || entries[0].(map[string]any)["key"] != publishKey(a.ID) {
 		t.Fatalf("players request: %v", f.body(2))
+	}
+	list := entries[0].(map[string]any)["players"].([]any)
+	if len(list) != 2 || list[0].(map[string]any)["id"] != "76561198000000001" || list[1].(map[string]any)["name"] != "Bob" {
+		t.Fatalf("players list: %v", list)
 	}
 
 	// 间隔内不再上报，到时间再报

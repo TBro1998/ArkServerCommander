@@ -56,9 +56,9 @@ func TestParsePlayers(t *testing.T) {
 	if got := parsePlayers("No Players Connected"); len(got) != 0 {
 		t.Fatalf("expected no players, got %+v", got)
 	}
-	out := "0. Alice, 76561198000000001\n1. Bob, The Builder, 76561198000000002\n\n"
+	out := "0. Alice, 76561198000000001\n1. Bob, The Builder, 76561198000000002\n2. EpicGuy, 0002a1b2c3d4e5f6\n\n"
 	got := parsePlayers(out)
-	if len(got) != 2 {
+	if len(got) != 3 || got[2].SteamID != "0002a1b2c3d4e5f6" {
 		t.Fatalf("expected 2 players, got %+v", got)
 	}
 	if got[0].Name != "Alice" || got[0].SteamID != "76561198000000001" || got[0].Index != 0 {
