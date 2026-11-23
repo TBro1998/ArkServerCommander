@@ -226,7 +226,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	}
 
 	// 写入配置文件
-	if err := dockerManager.WriteConfigFile(server.ID, utils.GameUserSettingsFileName, gameUserSettings); err != nil {
+	if err := writeGameUserSettings(dockerManager, server.ID, server.AdminPassword, gameUserSettings); err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("写入GameUserSettings.ini失败: %w", err)
 	}
@@ -337,21 +337,40 @@ func fillConfigFiles(response *models.ServerResponse, server models.Server, dock
 	}
 }
 
+// withAdminPassword 在 GameUserSettings.ini 内容的 [ServerSettings] 里设置 ServerAdminPassword。
+// ARK 只有在这个文件里有管理员密码时才开启 RCON
+func withAdminPassword(content, adminPassword string) (string, error) {
+	if strings.ContainsAny(adminPassword, "\r\n") {
+		return "", fmt.Errorf("管理员密码不能包含换行符")
+	}
+	return utils.SetIniValue(content, "ServerSettings", "ServerAdminPassword", adminPassword), nil
+}
+
+// writeGameUserSettings 写入 GameUserSettings.ini，并补上管理员密码。
+// 写入的内容（编辑器、导入、暂存）可能没有密码这一行；容器又可能被 Docker 的重启策略直接拉起，
+// 不经过启动流程里的 syncAdminPassword，所以每次写入都要带上密码，否则 RCON 不会启动
+func writeGameUserSettings(dockerManager *docker_manager.DockerManager, serverID uint, adminPassword, content string) error {
+	content, err := withAdminPassword(content, adminPassword)
+	if err != nil {
+		return err
+	}
+	return dockerManager.WriteConfigFile(serverID, utils.GameUserSettingsFileName, content)
+}
+
 // syncAdminPassword 把管理员密码写入 GameUserSettings.ini 的 [ServerSettings]。
 // 密码不再放进启动参数和环境变量（docker inspect 能直接看到），ARK 会从这个文件读取 ServerAdminPassword，RCON 同样使用它。
 // 每次启动前都以数据库里的值为准覆盖；此时容器已停止，ARK 停服时的写回不会再改动它
 func syncAdminPassword(server models.Server, dockerManager *docker_manager.DockerManager) error {
-	if strings.ContainsAny(server.AdminPassword, "\r\n") {
-		return fmt.Errorf("管理员密码不能包含换行符")
-	}
-
 	current, err := dockerManager.ReadConfigFile(server.ID, utils.GameUserSettingsFileName)
 	if err != nil && !errors.Is(err, docker_manager.ErrConfigNotFound) {
 		// 读取失败时不能当作文件为空，否则会用只含密码的内容覆盖掉整个配置文件
 		return fmt.Errorf("读取GameUserSettings.ini失败: %w", err)
 	}
 
-	updated := utils.SetIniValue(current, "ServerSettings", "ServerAdminPassword", server.AdminPassword)
+	updated, err := withAdminPassword(current, server.AdminPassword)
+	if err != nil {
+		return err
+	}
 	if strings.TrimSpace(updated) == strings.TrimSpace(current) {
 		return nil
 	}
@@ -366,7 +385,7 @@ func syncAdminPassword(server models.Server, dockerManager *docker_manager.Docke
 func applyPendingConfig(serverID uint, dockerManager *docker_manager.DockerManager) error {
 	// 重新读取，拿到启动请求之后才保存的修改
 	var server models.Server
-	if err := database.DB.Select("id", "pending_game_user_settings", "pending_game_ini").First(&server, serverID).Error; err != nil {
+	if err := database.DB.Select("id", "admin_password", "pending_game_user_settings", "pending_game_ini").First(&server, serverID).Error; err != nil {
 		return fmt.Errorf("读取待应用的配置失败: %w", err)
 	}
 
@@ -380,7 +399,13 @@ func applyPendingConfig(serverID uint, dockerManager *docker_manager.DockerManag
 		if f.content == "" {
 			continue
 		}
-		if err := dockerManager.WriteConfigFile(serverID, f.fileName, f.content); err != nil {
+		var err error
+		if f.fileName == utils.GameUserSettingsFileName {
+			err = writeGameUserSettings(dockerManager, serverID, server.AdminPassword, f.content)
+		} else {
+			err = dockerManager.WriteConfigFile(serverID, f.fileName, f.content)
+		}
+		if err != nil {
 			return fmt.Errorf("写入%s失败: %w", f.fileName, err)
 		}
 		// 只清除刚写入的内容；写入期间用户又保存了新内容时保留，留到下次启动
@@ -594,7 +619,7 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 		}
 
 		if req.GameUserSettings != "" {
-			if err := dockerManager.WriteConfigFile(uint(id), utils.GameUserSettingsFileName, req.GameUserSettings); err != nil {
+			if err := writeGameUserSettings(dockerManager, uint(id), server.AdminPassword, req.GameUserSettings); err != nil {
 				return nil, false, fmt.Errorf("写入GameUserSettings.ini失败: %w", err)
 			}
 		}

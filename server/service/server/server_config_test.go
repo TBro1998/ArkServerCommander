@@ -28,6 +28,9 @@ func TestServerConfigCopyAndImport(t *testing.T) {
 	dst := createTestServer(t, 7787, 27025, 32340)
 	running := createTestServer(t, 7797, 27035, 32350)
 	database.DB.Model(&running).Update("status", "running")
+	// 写 ini 时以数据库里的管理员密码为准，目标服务器的密码要和下面写入的配置文件一致
+	database.DB.Model(&dst).Update("admin_password", "dstpw")
+	database.DB.Model(&running).Update("admin_password", "dstpw")
 
 	write := func(id uint, file, content string) {
 		t.Helper()
