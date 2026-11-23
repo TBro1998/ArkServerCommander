@@ -46,7 +46,7 @@ const (
 	// 避免恢复后马上重新发布，触发收录站的发布频率限制
 	notReadyGrace = 2 * time.Minute
 	// 上报在线人数的间隔，和一台服务器 RCON ListPlayers 的超时
-	playersReportInterval = 5 * time.Minute
+	playersReportInterval = 30 * time.Minute
 	playersRconTimeout    = 10 * time.Second
 )
 
