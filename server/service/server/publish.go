@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,8 +20,11 @@ import (
 //
 // 需要先绑定 arkfgf.com 账号（account.go），用账号令牌发布，见外层仓库 docs/commander-account.md；
 // 未绑定时开启了发布的服务器状态为 login_required，不发请求。
-// 开启 publish 的服务器每次变成 ready（查询端口有响应、玩家可以连接）时发布一次（带 key = 服务器 ID），之后不再发请求：
-// 收录站每半小时自己向查询端口发 A2S_INFO 更新在线状态和人数，停服后查不到就显示为离线。
+// 开启 publish 的服务器每次变成 ready（查询端口有响应、玩家可以连接）时发布一次（带 key = 服务器 ID）：
+// 收录站每半小时自己向查询端口发 A2S_INFO 更新在线状态，停服后查不到就显示为离线。
+// 在线人数：A2S 里的人数可以用插件改大，所以已发布、可以连接的服务器每 playersReportInterval 用 RCON ListPlayers
+// 数一次实际连接的玩家，一次请求全部上报到 /publish/players（reportPlayers）。收录站标为真实人数，
+// 停止上报一段时间后退回 A2S 的人数。
 // 发布成功后 servers.published 为 true；关闭发布或删除服务器时用 {"key"} 调用 /publish/unpublish 删除收录站上的记录，
 // 成功前会一直重试（管理端重启后继续）。
 // 旧版匿名发布留下的发布令牌（servers.publish_token）：下次发布时作为 legacy_token 让收录站清理旧记录，成功后清空；
@@ -41,6 +45,9 @@ const (
 	// 运行中但暂时查询不到（监控的一次 A2S 超时会让阶段短暂变回 launching）时，超过这个时间才算断开，
 	// 避免恢复后马上重新发布，触发收录站的发布频率限制
 	notReadyGrace = 2 * time.Minute
+	// 上报在线人数的间隔，和一台服务器 RCON ListPlayers 的超时
+	playersReportInterval = 5 * time.Minute
+	playersRconTimeout    = 10 * time.Second
 )
 
 // publishState 一台服务器的发布状态，只在内存里；管理端重启后下次可以连接时重新发布
@@ -65,9 +72,12 @@ type Publisher struct {
 	api    func() string
 	now    func() time.Time
 	wakeCh chan struct{} // 绑定账号后马上处理一轮
-	// ready 判断服务器能否连接；profile 生成发布内容。测试时替换
+	// ready 判断服务器能否连接；profile 生成发布内容；players 数在线玩家（nil 时不上报人数）。测试时替换
 	ready   func(models.Server) bool
 	profile func(models.Server) publishProfile
+	players func(models.Server) (int, error)
+	// 下一次上报在线人数的时间
+	playersAt time.Time
 }
 
 var publisher = &Publisher{
@@ -78,6 +88,7 @@ var publisher = &Publisher{
 	wakeCh:  make(chan struct{}, 1),
 	ready:   serverReady,
 	profile: buildPublishProfile,
+	players: countPlayers,
 }
 
 // StartPublisher 启动后台发布协程。ARKFGF_API 为空时不启动
@@ -132,8 +143,8 @@ func (p *Publisher) tick() {
 	keep := map[uint]bool{}
 
 	var servers []models.Server
-	if err := database.DB.Select("id", "session_name", "map", "max_players", "port", "query_port", "cluster_id",
-		"game_mod_ids", "arkapi", "server_args_json", "status", "publish", "published", "publish_token",
+	if err := database.DB.Select("id", "session_name", "map", "max_players", "port", "query_port", "rcon_port", "admin_password",
+		"cluster_id", "game_mod_ids", "arkapi", "server_args_json", "status", "publish", "published", "publish_token",
 		"listing_description", "listing_tags", "listing_qq", "listing_discord").
 		Where("publish = ?", true).Find(&servers).Error; err != nil {
 		utils.Warn("发布到收录站：读取服务器列表失败", zap.Error(err))
@@ -145,6 +156,9 @@ func (p *Publisher) tick() {
 		if token != "" && !p.process(server, token) {
 			token = "" // 账号已失效，本地已清空
 		}
+	}
+	if token != "" && !p.reportPlayers(servers, token) {
+		token = ""
 	}
 
 	// 关闭了发布或已删除、但收录站上还有记录的服务器：取消发布。旧版发布令牌不需要绑定账号
@@ -329,6 +343,71 @@ func (p *Publisher) unpublishLegacy(server models.Server) {
 	delete(p.states, server.ID)
 	p.mu.Unlock()
 	utils.Info("已从服务器收录站取消旧版发布", zap.Uint("server_id", server.ID))
+}
+
+// playersEntry /publish/players 里的一台服务器
+type playersEntry struct {
+	Key     string `json:"key"`
+	Players int    `json:"players"`
+}
+
+// reportPlayers 到时间时，数一遍已发布、可以连接的服务器的在线玩家，一次上报。数不出来的（RCON 连不上等）跳过，
+// 收录站过一段时间会退回 A2S 的人数。失败只记日志，下一轮再报。账号失效时返回 false
+func (p *Publisher) reportPlayers(servers []models.Server, token string) bool {
+	now := p.now()
+	if p.players == nil || now.Before(p.playersAt) {
+		return true
+	}
+	p.playersAt = now.Add(playersReportInterval)
+	var entries []playersEntry
+	for _, server := range servers {
+		p.mu.Lock()
+		st := p.states[server.ID]
+		published := st != nil && st.published
+		p.mu.Unlock()
+		if !published || !p.ready(server) {
+			continue
+		}
+		n, err := p.players(server)
+		if err != nil {
+			utils.Debug("统计在线人数失败", zap.Uint("server_id", server.ID), zap.Error(err))
+			continue
+		}
+		entries = append(entries, playersEntry{Key: publishKey(server.ID), Players: n})
+	}
+	if len(entries) == 0 {
+		return true
+	}
+	status, retryAfter, code, err := p.post("/publish/players", token, map[string]any{"servers": entries}, nil)
+	if err != nil {
+		if isInvalidAccount(status, code) {
+			accountManager.invalidateLocked()
+			return false
+		}
+		if retryAfter > playersReportInterval {
+			p.playersAt = now.Add(min(retryAfter, time.Hour))
+		}
+		utils.Warn("上报在线人数失败", zap.Int("status", status), zap.String("code", code), zap.Error(err))
+	}
+	return true
+}
+
+// countPlayers 用 RCON ListPlayers 数实际连接的玩家（含 Epic 跨平台玩家）。输出既没有玩家行也不是"没有玩家"时
+// 当作失败，免得把异常输出报成 0 人
+func countPlayers(server models.Server) (int, error) {
+	exec, err := rconForServer(server)
+	if err != nil {
+		return 0, err
+	}
+	out, err := exec("ListPlayers", playersRconTimeout)
+	if err != nil {
+		return 0, err
+	}
+	players := parsePlayers(out)
+	if len(players) == 0 && !strings.Contains(out, "No Players Connected") {
+		return 0, fmt.Errorf("无法识别的 ListPlayers 输出")
+	}
+	return len(players), nil
 }
 
 // waiting 这台服务器还在失败退避中

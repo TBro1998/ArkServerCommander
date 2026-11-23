@@ -97,6 +97,12 @@ func okHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	case r.URL.Path == "/publish/players":
+		if body["servers"] == nil {
+			writeAPIError(w, http.StatusBadRequest, "invalid_input")
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"updated": len(body["servers"].([]any))})
 	case r.URL.Path == "/publish/stats":
 		if r.URL.Query().Get("key") == "" {
 			writeAPIError(w, http.StatusNotFound, "not_published")
@@ -229,6 +235,49 @@ func TestPublisherLifecycle(t *testing.T) {
 }
 
 // 未绑定账号：开启发布的服务器状态为 login_required，不发请求；绑定后正常发布
+func TestPublisherReportsPlayers(t *testing.T) {
+	setupTestDB(t)
+	bindTestAccount(t)
+	a := createTestServer(t, 7777, 27015, 32330)
+	b := createTestServer(t, 7779, 27017, 32332)
+	database.DB.Model(&models.Server{}).Where("id IN ?", []uint{a.ID, b.ID}).Updates(map[string]any{"publish": true, "status": "running"})
+
+	ready := true
+	now := time.Now()
+	f := &fakeListing{handler: okHandler}
+	p := newTestPublisher(t, f, &ready, &now)
+	// a 有 4 个玩家；b 的 RCON 连不上，跳过
+	p.players = func(s models.Server) (int, error) {
+		if s.ID == b.ID {
+			return 0, ErrRconUnavailable
+		}
+		return 4, nil
+	}
+
+	// 发布后同一轮就上报一次人数，只带数得出来的
+	p.tick()
+	expectCalls(t, f, "/publish", "/publish", "/publish/players")
+	entries := f.body(2)["servers"].([]any)
+	if f.token(2) != testAccountToken || len(entries) != 1 ||
+		entries[0].(map[string]any)["key"] != publishKey(a.ID) || entries[0].(map[string]any)["players"] != 4.0 {
+		t.Fatalf("players request: %v", f.body(2))
+	}
+
+	// 间隔内不再上报，到时间再报
+	now = now.Add(playersReportInterval - time.Second)
+	p.tick()
+	expectCalls(t, f, "/publish", "/publish", "/publish/players")
+	now = now.Add(time.Second)
+	p.tick()
+	expectCalls(t, f, "/publish", "/publish", "/publish/players", "/publish/players")
+
+	// 不能连接的（停服、断开）不上报；一台都没有时不发请求
+	ready = false
+	now = now.Add(playersReportInterval + notReadyGrace)
+	p.tick()
+	expectCalls(t, f, "/publish", "/publish", "/publish/players", "/publish/players")
+}
+
 func TestPublisherUnboundLoginRequired(t *testing.T) {
 	setupTestDB(t)
 	s := createTestServer(t, 7777, 27015, 32330)
