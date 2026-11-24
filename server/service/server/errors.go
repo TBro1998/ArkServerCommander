@@ -38,6 +38,7 @@ var (
 	ErrInvalidPlugin               = errors.New("插件压缩包无效")
 	ErrInvalidPluginConfig         = errors.New("插件配置无效")
 	ErrPluginDownload              = errors.New("下载插件失败")
+	ErrPluginLogNotFound           = errors.New("插件日志文件不存在")
 	ErrPluginCatalogUnavailable    = errors.New("暂时无法获取插件目录")
 	ErrCatalogPluginNotFound       = errors.New("插件目录里没有这个插件，请刷新目录后再试")
 	ErrCatalogPluginNotInstallable = errors.New("这个插件不能一键安装（付费或需要到网站上下载），请打开插件页面下载后上传")
@@ -104,6 +105,7 @@ var errorCodes = []struct {
 	{ErrInvalidPlugin, "invalid_plugin"},
 	{ErrInvalidPluginConfig, "invalid_plugin_config"},
 	{ErrPluginDownload, "plugin_download_failed"},
+	{ErrPluginLogNotFound, "plugin_log_not_found"},
 	{ErrPluginCatalogUnavailable, "plugin_catalog_unavailable"},
 	{ErrCatalogPluginNotFound, "catalog_plugin_not_found"},
 	{ErrCatalogPluginNotInstallable, "catalog_plugin_not_installable"},

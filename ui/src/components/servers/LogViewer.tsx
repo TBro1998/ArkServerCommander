@@ -21,8 +21,8 @@ type LogSource = 'container' | 'game';
 // steamcmd 下载进度行，下载服务端时会刷屏
 const PROGRESS_LINE = /Update state|progress:/i;
 
-// 按内容给日志行着色：错误、警告、脚本的阶段提示
-function lineClass(line: string): string {
+// 按内容给日志行着色：错误、警告、脚本的阶段提示（插件日志 PluginLogsCard 也用）
+export function lineClass(line: string): string {
   if (/\[!\]|error|failed|fatal/i.test(line)) return 'text-red-700';
   if (/warn/i.test(line)) return 'text-amber-700';
   if (/^\s*\[\*\]|^\s*\[i\]/.test(line)) return 'text-primary';

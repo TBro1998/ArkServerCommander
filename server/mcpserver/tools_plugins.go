@@ -48,6 +48,12 @@ type installCatalogPluginInput struct {
 	ResourceID uint `json:"resource_id" jsonschema:"Catalog entry id (from list_plugin_catalog)"`
 }
 
+type pluginLogInput struct {
+	ServerID uint   `json:"server_id" jsonschema:"Server ID (from list_servers)"`
+	File     string `json:"file,omitempty" jsonschema:"Log file name (from the files list). Omit to only list the files"`
+	Tail     int    `json:"tail,omitempty" jsonschema:"Number of lines from the end, 1-5000 (default 200)"`
+}
+
 type arkApiVersionInput struct {
 	Version string `json:"version" jsonschema:"Downloaded ArkApi version to delete"`
 }
@@ -57,6 +63,15 @@ func registerPluginTools(r *registry) {
 		"List the server's ArkApi plugins (enabled and disabled) and whether / which ArkApi version is installed. Plugins only load on servers with arkapi enabled. Plugins installed from the catalog have a source with the catalog resource_id and version. New plugins can be installed with install_catalog_plugin; uploading a zip requires the web UI.",
 		func(_ context.Context, userID uint, in serverInput) (any, error) {
 			return service.ListPlugins(userID, sid(in.ServerID))
+		})
+
+	query(r, "get_plugin_logs", "Get ArkApi / plugin logs",
+		"Without file: list the .log files ArkApi and its plugins write to ShooterGame/Binaries/Win64/logs (newest first, at most 200; total is the full count). With file: get the last lines of that log file. Available even when the server is stopped.",
+		func(_ context.Context, userID uint, in pluginLogInput) (any, error) {
+			if in.File == "" {
+				return service.ListPluginLogs(userID, sid(in.ServerID))
+			}
+			return service.GetPluginLog(userID, sid(in.ServerID), in.File, clampTail(in.Tail, 200))
 		})
 
 	query(r, "list_plugin_catalog", "List plugin catalog",

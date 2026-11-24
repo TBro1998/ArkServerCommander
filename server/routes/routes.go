@@ -135,6 +135,8 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.GET("/:id/arkapi/config", servers.GetArkApiConfig)
 				serverRoutes.PUT("/:id/arkapi/config", servers.SaveArkApiConfig)
 				serverRoutes.POST("/:id/arkapi/install", servers.InstallArkApi)
+				serverRoutes.GET("/:id/arkapi/logs", servers.ListPluginLogs)
+				serverRoutes.GET("/:id/arkapi/logs/:file", servers.GetPluginLog)
 			}
 
 			// ArkApi 插件目录（arkfgf.com 提供，所有服务器共用）

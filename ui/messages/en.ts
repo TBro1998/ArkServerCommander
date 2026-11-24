@@ -557,6 +557,7 @@ const messages = {
     invalid_schedule: 'Invalid scheduled task',
     rcon_unavailable: 'RCON is not responding; the server may still be downloading, installing mods or loading the map',
     plugin_not_found: 'Plugin not found',
+    plugin_log_not_found: 'Log file not found. It may have been deleted; refresh the list.',
     invalid_plugin: 'Invalid plugin archive',
     invalid_plugin_config: 'The plugin config is not valid JSON',
     plugin_download_failed: 'Failed to download the plugin. Make sure the URL is directly reachable.',
@@ -1186,6 +1187,27 @@ const messages = {
     hideProgress: 'Hide download progress',
     gameEmpty: 'No game log yet (it is created once the server starts loading the map)',
     gameHint: 'The last 2000 lines of Logs/ShooterGame.log in the save directory, refreshed every 5 seconds. The log of the last run is still available after the server stops.'
+  },
+
+  // Plugin logs (Plugins tab)
+  pluginLogs: {
+    title: 'Plugin logs',
+    refresh: 'Refresh',
+    selectFile: 'Select a log file',
+    latest: 'Latest',
+    filter: 'Filter log...',
+    autoRefresh: 'Auto refresh',
+    download: 'Download log',
+    downloadFailed: 'Failed to download log',
+    listFailed: 'Failed to load plugin log files',
+    loadFailed: 'Failed to read the log file',
+    loading: 'Loading...',
+    empty: 'No plugin logs yet. ArkApi and its plugins write logs to ShooterGame/Binaries/Win64/logs once a server with ArkApi enabled starts.',
+    fileEmpty: 'This log file is empty',
+    filterEmpty: 'No lines match the filter',
+    scrollToBottom: 'Back to bottom',
+    truncated: 'Showing the newest {shown} of {total} log files',
+    hint: 'The last {tail} lines of the .log files in ShooterGame/Binaries/Win64/logs, newest file first. Refreshed every 5 seconds while the server is running; the logs of the last run are still available after it stops.'
   },
 
   // Console

@@ -2,6 +2,7 @@ package servers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -202,6 +203,49 @@ func GetArkApiConfig(c *gin.Context) {
 // @Router /servers/{id}/arkapi/config [put]
 func SaveArkApiConfig(c *gin.Context) {
 	saveConfig(c, "")
+}
+
+// ListPluginLogs 插件日志文件列表
+// @Summary ArkApi 和插件的日志文件列表
+// @Description 列出服务端文件里 ShooterGame/Binaries/Win64/logs 下的 .log 文件，按修改时间从新到旧，最多 200 个（total 是总数）。目录不存在时为空。服务器停止后也能看
+// @Tags 插件管理
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string]server.PluginLogFiles "日志文件列表"
+// @Router /servers/{id}/arkapi/logs [get]
+func ListPluginLogs(c *gin.Context) {
+	files, err := serverService.ListPluginLogs(c.GetUint("user_id"), c.Param("id"))
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": files})
+}
+
+// GetPluginLog 读取插件日志
+// @Summary 读取一个 ArkApi / 插件日志文件
+// @Description 返回 ShooterGame/Binaries/Win64/logs 下这个 .log 文件最后 tail 行（默认 1000，最多 5000），UTF-8 / UTF-16 自动识别
+// @Tags 插件管理
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param file path string true "日志文件名（来自日志文件列表）"
+// @Param tail query int false "行数"
+// @Success 200 {object} map[string]server.GameLog "日志内容"
+// @Failure 404 {object} map[string]string "日志文件不存在"
+// @Router /servers/{id}/arkapi/logs/{file} [get]
+func GetPluginLog(c *gin.Context) {
+	tail, _ := strconv.Atoi(c.DefaultQuery("tail", "1000"))
+	if tail <= 0 || tail > 5000 {
+		tail = 1000
+	}
+	log, err := serverService.GetPluginLog(c.GetUint("user_id"), c.Param("id"), c.Param("file"), tail)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": log})
 }
 
 func getConfig(c *gin.Context, name string) {

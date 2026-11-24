@@ -1691,6 +1691,102 @@
                 }
             }
         },
+        "/servers/{id}/arkapi/logs": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "列出服务端文件里 ShooterGame/Binaries/Win64/logs 下的 .log 文件，按修改时间从新到旧，最多 200 个（total 是总数）。目录不存在时为空。服务器停止后也能看",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "ArkApi 和插件的日志文件列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "日志文件列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.PluginLogFiles"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/arkapi/logs/{file}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回 ShooterGame/Binaries/Win64/logs 下这个 .log 文件最后 tail 行（默认 1000，最多 5000），UTF-8 / UTF-16 自动识别",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "读取一个 ArkApi / 插件日志文件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "日志文件名（来自日志文件列表）",
+                        "name": "file",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "行数",
+                        "name": "tail",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "日志内容",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.GameLog"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "日志文件不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/servers/{id}/backups": {
             "get": {
                 "security": [
@@ -5499,6 +5595,36 @@
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "server.PluginLogFile": {
+            "type": "object",
+            "properties": {
+                "modified_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "server.PluginLogFiles": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "description": "从新到旧，最多 maxPluginLogFiles 个",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.PluginLogFile"
+                    }
+                },
+                "total": {
+                    "description": "目录里 .log 文件的总数",
+                    "type": "integer"
                 }
             }
         },

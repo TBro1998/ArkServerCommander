@@ -1056,6 +1056,26 @@ definitions:
       version:
         type: string
     type: object
+  server.PluginLogFile:
+    properties:
+      modified_at:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+    type: object
+  server.PluginLogFiles:
+    properties:
+      files:
+        description: 从新到旧，最多 maxPluginLogFiles 个
+        items:
+          $ref: '#/definitions/server.PluginLogFile'
+        type: array
+      total:
+        description: 目录里 .log 文件的总数
+        type: integer
+    type: object
   server.PluginSource:
     properties:
       installed_at:
@@ -2329,6 +2349,69 @@ paths:
       security:
       - Bearer: []
       summary: 安装 ArkApi
+      tags:
+      - 插件管理
+  /servers/{id}/arkapi/logs:
+    get:
+      description: 列出服务端文件里 ShooterGame/Binaries/Win64/logs 下的 .log 文件，按修改时间从新到旧，最多
+        200 个（total 是总数）。目录不存在时为空。服务器停止后也能看
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 日志文件列表
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.PluginLogFiles'
+            type: object
+      security:
+      - Bearer: []
+      summary: ArkApi 和插件的日志文件列表
+      tags:
+      - 插件管理
+  /servers/{id}/arkapi/logs/{file}:
+    get:
+      description: 返回 ShooterGame/Binaries/Win64/logs 下这个 .log 文件最后 tail 行（默认 1000，最多
+        5000），UTF-8 / UTF-16 自动识别
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 日志文件名（来自日志文件列表）
+        in: path
+        name: file
+        required: true
+        type: string
+      - description: 行数
+        in: query
+        name: tail
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 日志内容
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.GameLog'
+            type: object
+        "404":
+          description: 日志文件不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 读取一个 ArkApi / 插件日志文件
       tags:
       - 插件管理
   /servers/{id}/backups:

@@ -557,6 +557,7 @@ const messages = {
     invalid_schedule: '定时任务配置无效',
     rcon_unavailable: 'RCON 端口没有响应，服务器可能还在下载、安装 Mod 或加载地图',
     plugin_not_found: '插件不存在',
+    plugin_log_not_found: '日志文件不存在，可能已被删除，请刷新列表',
     invalid_plugin: '插件压缩包无效',
     invalid_plugin_config: '插件配置不是合法的 JSON',
     plugin_download_failed: '下载插件失败，请确认下载地址可以直接访问',
@@ -1186,6 +1187,27 @@ const messages = {
     hideProgress: '隐藏下载进度',
     gameEmpty: '还没有游戏日志（服务器启动并加载地图后才会生成）',
     gameHint: '存档目录 Logs/ShooterGame.log 的最后 2000 行，每 5 秒刷新一次；服务器停止后仍可查看上次运行的日志。'
+  },
+
+  // 插件日志（插件标签）
+  pluginLogs: {
+    title: '插件日志',
+    refresh: '刷新',
+    selectFile: '选择日志文件',
+    latest: '最新',
+    filter: '筛选日志...',
+    autoRefresh: '自动刷新',
+    download: '下载日志',
+    downloadFailed: '下载日志失败',
+    listFailed: '读取插件日志列表失败',
+    loadFailed: '读取日志文件失败',
+    loading: '读取中...',
+    empty: '还没有插件日志。启用了 ArkApi 的服务器启动后，ArkApi 和插件会把日志写到 ShooterGame/Binaries/Win64/logs。',
+    fileEmpty: '这个日志文件是空的',
+    filterEmpty: '没有符合筛选条件的行',
+    scrollToBottom: '回到底部',
+    truncated: '只列出最新的 {shown} 个，共 {total} 个日志文件',
+    hint: 'ShooterGame/Binaries/Win64/logs 下 .log 文件的最后 {tail} 行，默认显示最新的文件。运行中每 5 秒刷新一次；服务器停止后仍可查看上次运行的日志。'
   },
 
   // 控制台

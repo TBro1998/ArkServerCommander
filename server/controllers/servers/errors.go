@@ -18,6 +18,7 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrBackupNotFound),
 		errors.Is(err, server.ErrScheduleNotFound),
 		errors.Is(err, server.ErrPluginNotFound),
+		errors.Is(err, server.ErrPluginLogNotFound),
 		errors.Is(err, server.ErrCatalogPluginNotFound),
 		errors.Is(err, server.ErrArkApiNotInstalled),
 		errors.Is(err, server.ErrArkApiNotFound):
