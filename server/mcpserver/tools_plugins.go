@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"strings"
 )
 
 type pluginInput struct {
@@ -35,15 +36,67 @@ type arkApiVersionsInput struct {
 	Refresh bool `json:"refresh,omitempty" jsonschema:"Query GitHub again instead of using the cache"`
 }
 
+type pluginCatalogInput struct {
+	Search          string `json:"search,omitempty" jsonschema:"Only entries whose title, tagline, author or plugin names contain this text (case-insensitive)"`
+	Category        string `json:"category,omitempty" jsonschema:"official, free or paid. Omit for all"`
+	InstallableOnly bool   `json:"installable_only,omitempty" jsonschema:"Only entries that can be installed with install_catalog_plugin"`
+	Refresh         bool   `json:"refresh,omitempty" jsonschema:"Fetch the catalog again instead of using the 1-hour cache"`
+}
+
+type installCatalogPluginInput struct {
+	ServerID   uint `json:"server_id" jsonschema:"Server ID (from list_servers)"`
+	ResourceID uint `json:"resource_id" jsonschema:"Catalog entry id (from list_plugin_catalog)"`
+}
+
 type arkApiVersionInput struct {
 	Version string `json:"version" jsonschema:"Downloaded ArkApi version to delete"`
 }
 
 func registerPluginTools(r *registry) {
 	query(r, "list_plugins", "List ArkApi plugins",
-		"List the server's ArkApi plugins (enabled and disabled) and whether / which ArkApi version is installed. Plugins only load on servers with arkapi enabled. Installing new plugins requires uploading a zip in the web UI.",
+		"List the server's ArkApi plugins (enabled and disabled) and whether / which ArkApi version is installed. Plugins only load on servers with arkapi enabled. Plugins installed from the catalog have a source with the catalog resource_id and version. New plugins can be installed with install_catalog_plugin; uploading a zip requires the web UI.",
 		func(_ context.Context, userID uint, in serverInput) (any, error) {
 			return service.ListPlugins(userID, sid(in.ServerID))
+		})
+
+	query(r, "list_plugin_catalog", "List plugin catalog",
+		"List ARK: Survival Evolved ArkApi plugins published on ark-server-api.com, as indexed by arkfgf.com (no account binding needed). Entries with download_url can be installed with install_catalog_plugin; paid ones and those that must be downloaded on the site cannot. plugins lists the plugin folder names inside the archive with their version and dependencies; compare with list_plugins to find updates. Fails when the manager has ARKFGF_API disabled.",
+		func(_ context.Context, _ uint, in pluginCatalogInput) (any, error) {
+			catalog, err := service.GetPluginCatalog(in.Refresh)
+			if err != nil {
+				return nil, err
+			}
+			search := strings.ToLower(strings.TrimSpace(in.Search))
+			entries := []any{}
+			for _, p := range catalog.Plugins {
+				if in.Category != "" && p.Category != in.Category {
+					continue
+				}
+				if in.InstallableOnly && p.DownloadURL == "" {
+					continue
+				}
+				if search != "" {
+					text := strings.ToLower(p.Title + " " + p.Tagline + " " + p.Author)
+					for _, info := range p.Plugins {
+						text += " " + strings.ToLower(info.Name)
+					}
+					if !strings.Contains(text, search) {
+						continue
+					}
+				}
+				entries = append(entries, p)
+			}
+			return map[string]any{"source": catalog.Source, "generated_at": catalog.GeneratedAt, "plugins": entries}, nil
+		})
+
+	action(r, idempotent, "install_catalog_plugin", "Install plugin from catalog",
+		"Download a catalog entry (from list_plugin_catalog) from ark-server-api.com and install it; if already installed it is updated, keeping its config.json and enabled state. The server must be stopped. Dependencies are not installed automatically: check the entry's plugins[].dependencies.",
+		func(_ context.Context, userID uint, in installCatalogPluginInput) (any, error) {
+			names, err := service.InstallCatalogPlugin(userID, sid(in.ServerID), in.ResourceID)
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{"ok": true, "installed": names}, nil
 		})
 
 	action(r, idempotent, "set_plugin_enabled", "Enable / disable plugin",
@@ -94,7 +147,7 @@ func registerPluginTools(r *registry) {
 		})
 
 	query(r, "list_arkapi_versions", "List ArkApi versions",
-		"List ArkApi versions available to install: built-in, already downloaded, and releases on GitHub not yet downloaded.",
+		"List ArkApi versions available to install: built-in, already downloaded, releases on GitHub, and the version in the arkfgf.com plugin catalog (on_catalog, downloaded from ark-server-api.com on install).",
 		func(_ context.Context, _ uint, in arkApiVersionsInput) (any, error) {
 			return service.ListArkApiVersions(in.Refresh), nil
 		})

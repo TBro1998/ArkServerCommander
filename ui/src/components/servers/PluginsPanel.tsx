@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  Store,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -29,9 +30,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useApiError } from '@/lib/api-error';
 import { formatBytes } from '@/lib/format';
+import {
+  availableUpdate,
+  catalogEntryFor,
+  compareVersions,
+  indexCatalog,
+  type CatalogPlugin,
+  type PluginCatalog,
+  type PluginSource,
+} from '@/lib/plugin-catalog';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { serversActions, type Server } from '@/stores/servers';
+import { PluginCatalogDialog } from './PluginCatalogDialog';
 
 interface Plugin {
   name: string;
@@ -44,6 +55,7 @@ interface Plugin {
   has_dll: boolean;
   has_config: boolean;
   size: number;
+  source?: PluginSource;
 }
 
 interface PluginsOverview {
@@ -59,6 +71,7 @@ interface ArkApiVersion {
   local: boolean;
   deletable?: boolean;
   on_github?: boolean;
+  on_catalog?: boolean;
   size?: number;
   published_at?: string;
 }
@@ -67,24 +80,6 @@ interface ArkApiVersions {
   versions: ArkApiVersion[];
   latest?: string;
   github_error?: string;
-}
-
-// 按点分隔的数字比较版本号，与后端 compareVersions 一致
-function compareVersions(a: string, b: string): number {
-  const pa = a.split('.');
-  const pb = b.split('.');
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const x = pa[i] ?? '';
-    const y = pb[i] ?? '';
-    const nx = /^\d+$/.test(x) ? Number(x) : NaN;
-    const ny = /^\d+$/.test(y) ? Number(y) : NaN;
-    if (!Number.isNaN(nx) && !Number.isNaN(ny)) {
-      if (nx !== ny) return nx < ny ? -1 : 1;
-    } else if (x !== y) {
-      return x < y ? -1 : 1;
-    }
-  }
-  return 0;
 }
 
 // ISO 时间只显示日期，用于版本列表
@@ -159,6 +154,13 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
 
+  // 插件目录（arkfgf.com 提供）
+  const [catalog, setCatalog] = useState<PluginCatalog | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [installingId, setInstallingId] = useState<number | null>(null);
+
   const stopped = server.status === 'stopped';
   const arkApiEnabled = server.arkapi ?? false;
 
@@ -197,6 +199,34 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     }, 0);
     return () => clearTimeout(timer);
   }, [active, load, server.status]);
+
+  const loadCatalog = useCallback(
+    async (refresh = false) => {
+      setCatalogLoading(true);
+      try {
+        const res = await axios.get('/api/plugins/catalog', { params: refresh ? { refresh: true } : undefined });
+        setCatalog(res.data.data);
+        setCatalogError('');
+      } catch (err) {
+        // 打开标签时静默失败，在目录弹窗里显示原因
+        setCatalogError(apiError(err, t('catalogUnavailable')));
+      } finally {
+        setCatalogLoading(false);
+      }
+    },
+    [apiError, t],
+  );
+
+  // 目录用来提示更新和缺失的依赖，标签第一次打开时读取一次
+  const catalogRequested = useRef(false);
+  useEffect(() => {
+    if (!active || catalogRequested.current) return;
+    catalogRequested.current = true;
+    const timer = setTimeout(() => {
+      loadCatalog();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [active, loadCatalog]);
 
   // 版本库变化不频繁，标签第一次打开时读取一次
   const versionsRequested = useRef(false);
@@ -278,7 +308,11 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
   };
 
   const versionTags = (v: ArkApiVersion) =>
-    [v.builtin ? t('builtinTag') : v.local ? t('localTag') : t('githubTag'), v.size ? formatBytes(v.size) : '', formatDate(v.published_at, locale)]
+    [
+      v.builtin ? t('builtinTag') : v.local ? t('localTag') : v.on_github ? t('githubTag') : v.on_catalog ? t('catalogTag') : '',
+      v.size ? formatBytes(v.size) : '',
+      formatDate(v.published_at, locale),
+    ]
       .filter(Boolean)
       .join(' · ');
 
@@ -320,6 +354,19 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     }
   };
 
+  const installCatalog = async (entry: CatalogPlugin) => {
+    setInstallingId(entry.id);
+    try {
+      const res = await axios.post(`/api/servers/${server.id}/plugins/catalog`, { resource_id: entry.id });
+      toast.success(t('installed', { names: (res.data.data ?? []).join(', ') }));
+      load();
+    } catch (err) {
+      toast.error(apiError(err, t('installFailed')));
+    } finally {
+      setInstallingId(null);
+    }
+  };
+
   const toggle = async (plugin: Plugin, enabled: boolean) => {
     try {
       await axios.put(`/api/servers/${server.id}/plugins/${encodeURIComponent(plugin.name)}`, { enabled });
@@ -356,6 +403,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
   const allPicked = filtered.length > 0 && filtered.every((p) => pickedSet.has(p.name));
 
   const installedNames = useMemo(() => new Set((plugins ?? []).map((p) => p.name.toLowerCase())), [plugins]);
+  const catalogIndex = useMemo(() => indexCatalog(catalog), [catalog]);
   // 依赖里没装上的（不算插件自己），在列表里标红
   const missingDeps = (plugin: Plugin) =>
     (plugin.dependencies ?? []).filter((d) => {
@@ -669,11 +717,22 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-2">
           <CardTitle className="font-display flex items-center gap-2 text-base">
             {t('title')}
             {plugins && plugins.length > 0 && <span className="num text-sm font-normal text-muted-foreground">{plugins.length}</span>}
           </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setCatalogOpen(true);
+              if (!catalog && !catalogLoading) loadCatalog();
+            }}
+          >
+            <Store className="mr-1.5" />
+            {t('browseCatalog')}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -813,6 +872,8 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
                 <ul className="divide-y rounded-sm border">
                   {filtered.map((p) => {
                     const missing = missingDeps(p);
+                    const entry = catalogEntryFor(p, catalogIndex);
+                    const update = availableUpdate(p, entry);
                     return (
                       <li
                         key={p.name}
@@ -831,6 +892,22 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
                               {p.full_name && p.full_name !== p.name && <span className="font-mono text-xs text-muted-foreground">{p.name}</span>}
                               {p.version && <span className="num text-xs text-muted-foreground">v{p.version}</span>}
                               {!p.enabled && <span className="rounded-full border px-1.5 text-xs text-muted-foreground">{t('disabled')}</span>}
+                              {p.source && (
+                                <a
+                                  href={entry?.page_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded-full border px-1.5 text-xs text-muted-foreground hover:underline"
+                                  title={t('fromCatalogTip', { version: p.source.version })}
+                                >
+                                  {p.source.source}
+                                </a>
+                              )}
+                              {update && (
+                                <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 text-xs text-amber-800">
+                                  {t('updateAvailable', { version: update })}
+                                </span>
+                              )}
                               {!p.has_dll && (
                                 <span className="rounded-full border border-red-200 bg-red-50 px-1.5 text-xs text-red-800" title={t('missingDllTip', { name: p.name })}>
                                   {t('missingDll')}
@@ -847,6 +924,22 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
                                 <span>{t('dependsOn')}</span>
                                 {p.dependencies.map((dep) => {
                                   const isMissing = missing.some((m) => m.toLowerCase() === dep.toLowerCase());
+                                  const depEntry = isMissing ? catalogIndex.byPluginName.get(dep.toLowerCase()) : undefined;
+                                  if (depEntry) {
+                                    return (
+                                      <button
+                                        key={dep}
+                                        type="button"
+                                        onClick={() => installCatalog(depEntry)}
+                                        disabled={!stopped || installingId !== null}
+                                        className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-1.5 text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                        title={stopped ? t('installDependencyTip', { name: dep, title: depEntry.title }) : t('stopFirst')}
+                                      >
+                                        {installingId === depEntry.id ? <Loader2 className="size-3 animate-spin" /> : <Download className="size-3" />}
+                                        {dep} · {t('installDependency')}
+                                      </button>
+                                    );
+                                  }
                                   return (
                                     <span
                                       key={dep}
@@ -867,6 +960,14 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
                           </div>
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-2">
+                          {update && entry && (
+                            <span title={stopped ? undefined : t('stopFirst')} className="inline-flex">
+                              <Button size="sm" onClick={() => installCatalog(entry)} disabled={!stopped || installingId !== null}>
+                                {installingId === entry.id ? <Loader2 className="mr-1.5 animate-spin" /> : <Download className="mr-1.5" />}
+                                {t('update')}
+                              </Button>
+                            </span>
+                          )}
                           <span title={stopped ? (p.enabled ? t('disable') : t('enable')) : t('stopFirst')} className="inline-flex">
                             <Switch checked={p.enabled} onCheckedChange={(v) => toggle(p, v)} disabled={!stopped} aria-label={p.enabled ? t('disable') : t('enable')} />
                           </span>
@@ -889,6 +990,20 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
           )}
         </CardContent>
       </Card>
+
+      <PluginCatalogDialog
+        open={catalogOpen}
+        onOpenChange={setCatalogOpen}
+        catalog={catalog}
+        index={catalogIndex}
+        loading={catalogLoading}
+        error={catalogError}
+        onRefresh={() => loadCatalog(true)}
+        installed={plugins ?? []}
+        stopped={stopped}
+        installingId={installingId}
+        onInstall={installCatalog}
+      />
 
       <ConfirmDialog
         open={!!deleteVersion}

@@ -85,6 +85,16 @@ func TestPluginRoots(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:  "Windows 打包的 zip 用反斜杠分隔",
+			files: map[string]string{"MissionDisabler\\MissionDisabler.dll": "x", "MissionDisabler\\config.json": "{}"},
+			want:  map[string]string{"MissionDisabler": "MissionDisabler/"},
+		},
+		{
+			name:    "反斜杠的路径穿越",
+			files:   map[string]string{"..\\evil\\evil.dll": "x"},
+			wantErr: true,
+		},
+		{
 			name:    "没有 dll",
 			files:   map[string]string{"readme.txt": "x"},
 			wantErr: true,
@@ -284,5 +294,34 @@ func TestInstallPluginsFromURL(t *testing.T) {
 	}
 	if content, _ := s.GetPluginConfig(1, id, "ArkShop"); content != `{"mine":2}` {
 		t.Fatalf("config not kept: %q", content)
+	}
+}
+
+// Windows 上打包、用反斜杠分隔的 zip 解压到正确的目录结构
+func TestInstallPluginWithBackslashPaths(t *testing.T) {
+	setupTestDB(t)
+	old := config.DataDir
+	config.DataDir = t.TempDir()
+	t.Cleanup(func() { config.DataDir = old })
+	srv := createTestServer(t, 7777, 27015, 32330)
+	s := NewServerService()
+
+	z := makeZip(t, map[string]string{
+		"AdvancedMessages\\AdvancedMessages.dll": "dll",
+		"AdvancedMessages\\config.json":          "{}",
+		"AdvancedMessages\\lib\\helper.dll":   "lib",
+	})
+	names, err := s.InstallPlugins(1, fmt.Sprint(srv.ID), z, z.Size(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(names) != "[AdvancedMessages]" {
+		t.Fatalf("unexpected names %v", names)
+	}
+	dir := filepath.Join(docker_manager.ServerPluginsDir(srv.ID), "AdvancedMessages")
+	for _, f := range []string{"AdvancedMessages.dll", "config.json", filepath.Join("lib", "helper.dll")} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Fatalf("missing %s: %v", f, err)
+		}
 	}
 }

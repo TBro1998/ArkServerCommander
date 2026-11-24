@@ -225,3 +225,55 @@ func saveConfig(c *gin.Context, name string) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "配置已保存"})
 }
+
+// GetPluginCatalog 插件目录
+// @Summary ArkApi 插件目录
+// @Description arkfgf.com 整理的 ark-server-api.com 上的 ASE 插件（官方、免费、付费），带 download_url 的可以一键安装。缓存 1 小时，refresh=true 时重新获取。ARKFGF_API 关闭时返回 409 arkfgf_disabled
+// @Tags 插件管理
+// @Produce json
+// @Security Bearer
+// @Param refresh query bool false "重新获取"
+// @Success 200 {object} map[string]server.PluginCatalog "插件目录"
+// @Failure 502 {object} map[string]string "暂时无法获取插件目录"
+// @Router /plugins/catalog [get]
+func GetPluginCatalog(c *gin.Context) {
+	catalog, err := serverService.GetPluginCatalog(c.Query("refresh") == "true")
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": catalog})
+}
+
+// InstallCatalogPluginRequest 从插件目录安装
+type InstallCatalogPluginRequest struct {
+	ResourceID uint `json:"resource_id" binding:"required"`
+}
+
+// InstallCatalogPlugin 从插件目录安装或更新插件
+// @Summary 从插件目录安装插件
+// @Description 按目录里的资源 ID 从 ark-server-api.com 下载并安装（已安装时更新，保留原 config.json 和启用状态）。只能在服务器停止时操作
+// @Tags 插件管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param body body InstallCatalogPluginRequest true "资源 ID"
+// @Success 200 {object} map[string][]string "安装的插件名称"
+// @Failure 400 {object} map[string]string "不能一键安装、压缩包无效或服务器未停止"
+// @Failure 404 {object} map[string]string "目录里没有这个插件"
+// @Failure 502 {object} map[string]string "获取目录或下载失败"
+// @Router /servers/{id}/plugins/catalog [post]
+func InstallCatalogPlugin(c *gin.Context) {
+	var req InstallCatalogPluginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c)
+		return
+	}
+	names, err := serverService.InstallCatalogPlugin(c.GetUint("user_id"), c.Param("id"), req.ResourceID)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "插件已安装", "data": names})
+}

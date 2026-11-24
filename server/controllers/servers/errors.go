@@ -18,6 +18,7 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrBackupNotFound),
 		errors.Is(err, server.ErrScheduleNotFound),
 		errors.Is(err, server.ErrPluginNotFound),
+		errors.Is(err, server.ErrCatalogPluginNotFound),
 		errors.Is(err, server.ErrArkApiNotInstalled),
 		errors.Is(err, server.ErrArkApiNotFound):
 		status = http.StatusNotFound
@@ -37,6 +38,7 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrInvalidBackup),
 		errors.Is(err, server.ErrInvalidSchedule),
 		errors.Is(err, server.ErrInvalidPlugin),
+		errors.Is(err, server.ErrCatalogPluginNotInstallable),
 		errors.Is(err, server.ErrInvalidPluginConfig),
 		errors.Is(err, server.ErrInvalidArkApi),
 		errors.Is(err, server.ErrInvalidConfigValue),
@@ -70,6 +72,7 @@ func RespondServiceError(c *gin.Context, err error) {
 	case errors.Is(err, server.ErrRconAuthFailed),
 		errors.Is(err, server.ErrArkApiDownload),
 		errors.Is(err, server.ErrPluginDownload),
+		errors.Is(err, server.ErrPluginCatalogUnavailable),
 		errors.Is(err, server.ErrPublishUnavailable),
 		errors.Is(err, server.ErrLinkUnavailable),
 		errors.Is(err, server.ErrArkfgfUnavailable):

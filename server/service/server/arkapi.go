@@ -59,6 +59,7 @@ type ArkApiVersion struct {
 	Local       bool   `json:"local"`                  // 已在本地（内置、已下载或上传），安装时不需要联网
 	Deletable   bool   `json:"deletable,omitempty"`    // 本地文件，可以从版本库删除
 	OnGitHub    bool   `json:"on_github,omitempty"`    // GitHub 上有这个版本
+	OnCatalog   bool   `json:"on_catalog,omitempty"`   // arkfgf.com 插件目录（ark-server-api.com）里有这个版本
 	Size        int64  `json:"size,omitempty"`         // 本地压缩包大小
 	PublishedAt string `json:"published_at,omitempty"` // GitHub 发布时间
 	ReleaseURL  string `json:"release_url,omitempty"`  // GitHub 发布页
@@ -271,6 +272,21 @@ func (s *ServerService) ListArkApiVersions(refresh bool) ArkApiVersions {
 		v.ReleaseURL = r.url
 		versions[r.version] = v
 	}
+	// arkfgf.com 插件目录里的 ArkApi 本体（GitHub 只到 3.54，更新的版本发布在 ark-server-api.com）
+	if refresh {
+		_, _ = pluginCatalog.get(true)
+	} else if pluginCatalog.peek() == nil && pluginCatalog.api() != "" {
+		_, _ = pluginCatalog.get(false)
+	}
+	if a := catalogArkApi(); a != nil {
+		v := versions[a.Version]
+		v.Version = a.Version
+		v.OnCatalog = true
+		if v.PublishedAt == "" && a.UpdatedAt != nil {
+			v.PublishedAt = a.UpdatedAt.UTC().Format(time.RFC3339)
+		}
+		versions[a.Version] = v
+	}
 
 	result := ArkApiVersions{Versions: []ArkApiVersion{}, GitHubError: ghErr}
 	if !checked.IsZero() {
@@ -308,10 +324,13 @@ func openArkApiZip(version string) ([]byte, error) {
 			return downloadArkApi(r)
 		}
 	}
+	if a := catalogArkApi(); a != nil && a.Version == version {
+		return downloadArkApi(arkApiRelease{version: a.Version, url: a.PageURL, download: a.DownloadURL})
+	}
 	return nil, ErrArkApiNotFound
 }
 
-// downloadArkApi 从 GitHub 下载一个版本，校验后存入版本库
+// downloadArkApi 从 GitHub 或插件目录给出的地址下载一个版本，校验后存入版本库
 func downloadArkApi(r arkApiRelease) ([]byte, error) {
 	utils.Info("下载 ArkApi", zap.String("version", r.version), zap.String("url", r.download))
 	ctx, cancel := context.WithTimeout(context.Background(), arkApiDownloadTime)
@@ -327,7 +346,7 @@ func downloadArkApi(r arkApiRelease) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: GitHub 返回 %d", ErrArkApiDownload, resp.StatusCode)
+		return nil, fmt.Errorf("%w: 下载地址返回 %d", ErrArkApiDownload, resp.StatusCode)
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxArkApiZip+1))
 	if err != nil {
@@ -376,7 +395,7 @@ func readArkApiZip(r io.ReaderAt, size int64) (*zip.Reader, string, error) {
 	var total uint64
 	root, found := "", false
 	for _, f := range zr.File {
-		p := f.Name
+		p := zipEntryName(f)
 		if strings.HasPrefix(p, "__MACOSX/") {
 			continue
 		}
@@ -390,7 +409,7 @@ func readArkApiZip(r io.ReaderAt, size int64) (*zip.Reader, string, error) {
 		if total > maxPluginUnpacked {
 			return nil, "", fmt.Errorf("%w: 解压后超过 500 MB", ErrInvalidArkApi)
 		}
-		if f.FileInfo().IsDir() || !strings.EqualFold(path.Base(p), "version.dll") {
+		if zipEntryIsDir(f) || !strings.EqualFold(path.Base(p), "version.dll") {
 			continue
 		}
 		dir := ""
@@ -535,10 +554,11 @@ func installArkApi(serverID uint, data []byte, version string) error {
 	_, hasConfig := os.Stat(filepath.Join(dest, "config.json"))
 
 	for _, f := range zr.File {
-		if f.FileInfo().IsDir() || strings.HasPrefix(f.Name, "__MACOSX/") || !strings.HasPrefix(f.Name, root) {
+		name := zipEntryName(f)
+		if zipEntryIsDir(f) || strings.HasPrefix(name, "__MACOSX/") || !strings.HasPrefix(name, root) {
 			continue
 		}
-		rel := strings.TrimPrefix(f.Name, root)
+		rel := strings.TrimPrefix(name, root)
 		lower := strings.ToLower(rel)
 		if strings.HasPrefix(lower, "arkapi/plugins/") {
 			continue

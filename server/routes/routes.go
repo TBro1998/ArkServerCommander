@@ -126,6 +126,7 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.GET("/:id/plugins", servers.ListPlugins)
 				serverRoutes.POST("/:id/plugins", servers.InstallPlugin)
 				serverRoutes.POST("/:id/plugins/fetch", servers.InstallPluginFromURL)
+				serverRoutes.POST("/:id/plugins/catalog", servers.InstallCatalogPlugin)
 				serverRoutes.PUT("/:id/plugins/:name", servers.SetPluginState)
 				serverRoutes.DELETE("/:id/plugins/:name", servers.DeletePlugin)
 				serverRoutes.GET("/:id/plugins/:name/config", servers.GetPluginConfig)
@@ -134,6 +135,9 @@ func RegisterRoutes(r *gin.Engine) {
 				serverRoutes.PUT("/:id/arkapi/config", servers.SaveArkApiConfig)
 				serverRoutes.POST("/:id/arkapi/install", servers.InstallArkApi)
 			}
+
+			// ArkApi 插件目录（arkfgf.com 提供，所有服务器共用）
+			protected.GET("/plugins/catalog", servers.GetPluginCatalog)
 
 			// ArkApi 版本库（所有服务器共用）
 			arkApiRoutes := protected.Group("/arkapi")

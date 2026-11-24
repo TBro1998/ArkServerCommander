@@ -64,6 +64,8 @@ type PluginInfo struct {
 	HasDLL        bool     `json:"has_dll"` // 目录里有 <名称>.dll，没有时 ArkApi 加载会失败
 	HasConfig     bool     `json:"has_config"`
 	Size          int64    `json:"size"`
+	// Source 从插件目录安装时记下的来源（资源 ID 和版本），其他方式安装的没有
+	Source *PluginSource `json:"source,omitempty"`
 }
 
 // PluginsOverview 插件列表和 ArkApi 本体信息
@@ -118,6 +120,7 @@ func readPluginInfo(dir, name string, enabled bool) PluginInfo {
 	if _, err := os.Stat(filepath.Join(dir, "config.json")); err == nil {
 		info.HasConfig = true
 	}
+	info.Source = readPluginSource(dir)
 	filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {
 			if fi, err := d.Info(); err == nil {
@@ -233,6 +236,11 @@ func (s *ServerService) InstallPluginsFromURL(userID uint, serverID, rawURL, nam
 	if err != nil {
 		return nil, err
 	}
+	return s.installPluginsData(userID, serverID, data, name)
+}
+
+// installPluginsData 安装下载到内存里的插件 zip
+func (s *ServerService) installPluginsData(userID uint, serverID string, data []byte, name string) ([]string, error) {
 	return s.InstallPlugins(userID, serverID, bytes.NewReader(data), int64(len(data)), name)
 }
 
@@ -287,7 +295,7 @@ func pluginRoots(files []*zip.File, name string) ([]pluginRoot, error) {
 	var total uint64
 	var dlls []string
 	for _, f := range files {
-		p := f.Name
+		p := zipEntryName(f)
 		if strings.HasPrefix(p, "__MACOSX/") {
 			continue
 		}
@@ -301,7 +309,7 @@ func pluginRoots(files []*zip.File, name string) ([]pluginRoot, error) {
 		if total > maxPluginUnpacked {
 			return nil, fmt.Errorf("%w: 解压后超过 500 MB", ErrInvalidPlugin)
 		}
-		if !f.FileInfo().IsDir() && strings.EqualFold(path.Ext(p), ".dll") {
+		if !zipEntryIsDir(f) && strings.EqualFold(path.Ext(p), ".dll") {
 			dlls = append(dlls, p)
 		}
 	}
@@ -358,6 +366,17 @@ func pluginRoots(files []*zip.File, name string) ([]pluginRoot, error) {
 	return nil, fmt.Errorf("%w: 无法识别插件目录，压缩包里应包含 <插件名>/<插件名>.dll，或填写插件名称", ErrInvalidPlugin)
 }
 
+// zipEntryName 压缩包条目的路径。Windows 上打包的 zip 可能用反斜杠分隔（例如 Plugin\Plugin.dll），统一成 /，
+// 之后再由 safeZipPath 检查
+func zipEntryName(f *zip.File) string {
+	return strings.ReplaceAll(f.Name, "\\", "/")
+}
+
+// zipEntryIsDir 目录条目（包括用反斜杠结尾的）
+func zipEntryIsDir(f *zip.File) bool {
+	return f.FileInfo().IsDir() || strings.HasSuffix(zipEntryName(f), "/")
+}
+
 // safeZipPath 只允许相对路径，不能包含 .. 或盘符
 func safeZipPath(p string) bool {
 	if p == "" || strings.Contains(p, "\\") || strings.HasPrefix(p, "/") || strings.Contains(p, ":") {
@@ -385,15 +404,16 @@ func installPlugin(serverID uint, files []*zip.File, prefix, name string) error 
 	defer os.RemoveAll(tmp)
 
 	for _, f := range files {
-		if !strings.HasPrefix(f.Name, prefix) || strings.HasPrefix(f.Name, "__MACOSX/") {
+		name := zipEntryName(f)
+		if !strings.HasPrefix(name, prefix) || strings.HasPrefix(name, "__MACOSX/") {
 			continue
 		}
-		rel := strings.TrimPrefix(f.Name, prefix)
+		rel := strings.TrimPrefix(name, prefix)
 		if rel == "" {
 			continue
 		}
 		target := filepath.Join(tmp, filepath.FromSlash(rel))
-		if f.FileInfo().IsDir() {
+		if zipEntryIsDir(f) {
 			if err := os.MkdirAll(target, 0o755); err != nil {
 				return fmt.Errorf("解压插件失败: %w", err)
 			}

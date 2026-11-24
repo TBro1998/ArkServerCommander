@@ -555,7 +555,7 @@ definitions:
         description: 集群ID
         type: string
       game_branch:
-        description: 游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本
+        description: 游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版
         type: string
       game_ini:
         description: Game.ini 文件内容
@@ -626,7 +626,7 @@ definitions:
       created_at:
         type: string
       game_branch:
-        description: 游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本
+        description: 游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版
         type: string
       game_ini:
         description: Game.ini 文件内容
@@ -717,7 +717,7 @@ definitions:
         description: 集群ID，传空字符串表示清空
         type: string
       game_branch:
-        description: 游戏版本，传空字符串表示正式版；切换后下次启动时重新校验服务端文件，只下载差异
+        description: 游戏版本，传空字符串表示蜗牛海洋正式版；切换后下次启动时重新校验服务端文件，只下载差异
         type: string
       game_ini:
         description: Game.ini 文件内容
@@ -793,6 +793,9 @@ definitions:
       local:
         description: 已在本地（内置、已下载或上传），安装时不需要联网
         type: boolean
+      on_catalog:
+        description: arkfgf.com 插件目录（ark-server-api.com）里有这个版本
+        type: boolean
       on_github:
         description: GitHub 上有这个版本
         type: boolean
@@ -833,6 +836,69 @@ definitions:
         type: string
       size:
         type: integer
+    type: object
+  server.CatalogArkApi:
+    properties:
+      download_url:
+        type: string
+      file_name:
+        type: string
+      page_url:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
+  server.CatalogPlugin:
+    properties:
+      author:
+        type: string
+      category:
+        description: official / free / paid
+        type: string
+      download_url:
+        description: 为空表示不能一键安装（付费、需要到网站下载）
+        type: string
+      downloads:
+        type: integer
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      id:
+        type: integer
+      page_url:
+        type: string
+      plugins:
+        items:
+          $ref: '#/definitions/server.CatalogPluginInfo'
+        type: array
+      rating:
+        type: number
+      tagline:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
+  server.CatalogPluginInfo:
+    properties:
+      dependencies:
+        items:
+          type: string
+        type: array
+      full_name:
+        type: string
+      min_api_version:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
     type: object
   server.GameLog:
     properties:
@@ -915,6 +981,21 @@ definitions:
       steam_id:
         type: string
     type: object
+  server.PluginCatalog:
+    properties:
+      arkapi:
+        $ref: '#/definitions/server.CatalogArkApi'
+      generated_at:
+        type: string
+      plugins:
+        items:
+          $ref: '#/definitions/server.CatalogPlugin'
+        type: array
+      source:
+        type: string
+      source_url:
+        type: string
+    type: object
   server.PluginInfo:
     properties:
       dependencies:
@@ -940,6 +1021,21 @@ definitions:
         type: string
       size:
         type: integer
+      source:
+        allOf:
+        - $ref: '#/definitions/server.PluginSource'
+        description: Source 从插件目录安装时记下的来源（资源 ID 和版本），其他方式安装的没有
+      version:
+        type: string
+    type: object
+  server.PluginSource:
+    properties:
+      installed_at:
+        type: string
+      resource_id:
+        type: integer
+      source:
+        type: string
       version:
         type: string
     type: object
@@ -1066,6 +1162,22 @@ definitions:
       version:
         description: 为空时安装最新版本
         type: string
+    type: object
+  servers.InstallCatalogPluginRequest:
+    properties:
+      resource_id:
+        type: integer
+    required:
+    - resource_id
+    type: object
+  servers.InstallPluginFromURLRequest:
+    properties:
+      name:
+        type: string
+      url:
+        type: string
+    required:
+    - url
     type: object
   servers.PluginConfigRequest:
     properties:
@@ -1816,6 +1928,35 @@ paths:
       summary: 查询创意工坊 Mod 信息
       tags:
       - 系统
+  /plugins/catalog:
+    get:
+      description: arkfgf.com 整理的 ark-server-api.com 上的 ASE 插件（官方、免费、付费），带 download_url
+        的可以一键安装。缓存 1 小时，refresh=true 时重新获取。ARKFGF_API 关闭时返回 409 arkfgf_disabled
+      parameters:
+      - description: 重新获取
+        in: query
+        name: refresh
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 插件目录
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.PluginCatalog'
+            type: object
+        "502":
+          description: 暂时无法获取插件目录
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: ArkApi 插件目录
+      tags:
+      - 插件管理
   /profile:
     get:
       consumes:
@@ -2781,6 +2922,103 @@ paths:
       security:
       - Bearer: []
       summary: 保存插件 config.json
+      tags:
+      - 插件管理
+  /servers/{id}/plugins/catalog:
+    post:
+      consumes:
+      - application/json
+      description: 按目录里的资源 ID 从 ark-server-api.com 下载并安装（已安装时更新，保留原 config.json 和启用状态）。只能在服务器停止时操作
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 资源 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/servers.InstallCatalogPluginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 安装的插件名称
+          schema:
+            additionalProperties:
+              items:
+                type: string
+              type: array
+            type: object
+        "400":
+          description: 不能一键安装、压缩包无效或服务器未停止
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 目录里没有这个插件
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: 获取目录或下载失败
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 从插件目录安装插件
+      tags:
+      - 插件管理
+  /servers/{id}/plugins/fetch:
+    post:
+      consumes:
+      - application/json
+      description: 后端下载 zip（http/https，最多 200 MB）后按上传安装的规则安装；识别不出插件目录时用 name 指定插件名称。覆盖安装时保留原
+        config.json。只能在服务器停止时操作
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 下载地址和可选的插件名称
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/servers.InstallPluginFromURLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 安装的插件名称
+          schema:
+            additionalProperties:
+              items:
+                type: string
+              type: array
+            type: object
+        "400":
+          description: 地址无效、压缩包无效或服务器未停止
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: 下载失败
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 从下载地址安装插件
       tags:
       - 插件管理
   /servers/{id}/publish/stats:

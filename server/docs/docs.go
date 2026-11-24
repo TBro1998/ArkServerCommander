@@ -1113,6 +1113,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/plugins/catalog": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "arkfgf.com 整理的 ark-server-api.com 上的 ASE 插件（官方、免费、付费），带 download_url 的可以一键安装。缓存 1 小时，refresh=true 时重新获取。ARKFGF_API 关闭时返回 409 arkfgf_disabled",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "ArkApi 插件目录",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "重新获取",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "插件目录",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/server.PluginCatalog"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "暂时无法获取插件目录",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/profile": {
             "get": {
                 "security": [
@@ -2415,6 +2460,155 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "压缩包无效或服务器未停止",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/plugins/catalog": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "按目录里的资源 ID 从 ark-server-api.com 下载并安装（已安装时更新，保留原 config.json 和启用状态）。只能在服务器停止时操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "从插件目录安装插件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "资源 ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.InstallCatalogPluginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "安装的插件名称",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "不能一键安装、压缩包无效或服务器未停止",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "目录里没有这个插件",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "获取目录或下载失败",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/servers/{id}/plugins/fetch": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "后端下载 zip（http/https，最多 200 MB）后按上传安装的规则安装；识别不出插件目录时用 name 指定插件名称。覆盖安装时保留原 config.json。只能在服务器停止时操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "从下载地址安装插件",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "服务器ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "下载地址和可选的插件名称",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servers.InstallPluginFromURLRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "安装的插件名称",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "地址无效、压缩包无效或服务器未停止",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "下载失败",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -4530,7 +4724,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "game_branch": {
-                    "description": "游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本",
+                    "description": "游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版",
                     "type": "string"
                 },
                 "game_ini": {
@@ -4624,7 +4818,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "game_branch": {
-                    "description": "游戏版本：空为正式版，preaquatica 为海洋 DLC 更新前的版本",
+                    "description": "游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版",
                     "type": "string"
                 },
                 "game_ini": {
@@ -4764,7 +4958,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "game_branch": {
-                    "description": "游戏版本，传空字符串表示正式版；切换后下次启动时重新校验服务端文件，只下载差异",
+                    "description": "游戏版本，传空字符串表示蜗牛海洋正式版；切换后下次启动时重新校验服务端文件，只下载差异",
                     "type": "string"
                 },
                 "game_ini": {
@@ -4874,6 +5068,10 @@ const docTemplate = `{
                     "description": "已在本地（内置、已下载或上传），安装时不需要联网",
                     "type": "boolean"
                 },
+                "on_catalog": {
+                    "description": "arkfgf.com 插件目录（ark-server-api.com）里有这个版本",
+                    "type": "boolean"
+                },
                 "on_github": {
                     "description": "GitHub 上有这个版本",
                     "type": "boolean"
@@ -4931,6 +5129,101 @@ const docTemplate = `{
                 },
                 "size": {
                     "type": "integer"
+                }
+            }
+        },
+        "server.CatalogArkApi": {
+            "type": "object",
+            "properties": {
+                "download_url": {
+                    "type": "string"
+                },
+                "file_name": {
+                    "type": "string"
+                },
+                "page_url": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.CatalogPlugin": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "category": {
+                    "description": "official / free / paid",
+                    "type": "string"
+                },
+                "download_url": {
+                    "description": "为空表示不能一键安装（付费、需要到网站下载）",
+                    "type": "string"
+                },
+                "downloads": {
+                    "type": "integer"
+                },
+                "file_name": {
+                    "type": "string"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "page_url": {
+                    "type": "string"
+                },
+                "plugins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.CatalogPluginInfo"
+                    }
+                },
+                "rating": {
+                    "type": "number"
+                },
+                "tagline": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.CatalogPluginInfo": {
+            "type": "object",
+            "properties": {
+                "dependencies": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "min_api_version": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
                 }
             }
         },
@@ -5056,6 +5349,29 @@ const docTemplate = `{
                 }
             }
         },
+        "server.PluginCatalog": {
+            "type": "object",
+            "properties": {
+                "arkapi": {
+                    "$ref": "#/definitions/server.CatalogArkApi"
+                },
+                "generated_at": {
+                    "type": "string"
+                },
+                "plugins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/server.CatalogPlugin"
+                    }
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_url": {
+                    "type": "string"
+                }
+            }
+        },
         "server.PluginInfo": {
             "type": "object",
             "properties": {
@@ -5091,6 +5407,31 @@ const docTemplate = `{
                 },
                 "size": {
                     "type": "integer"
+                },
+                "source": {
+                    "description": "Source 从插件目录安装时记下的来源（资源 ID 和版本），其他方式安装的没有",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/server.PluginSource"
+                        }
+                    ]
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "server.PluginSource": {
+            "type": "object",
+            "properties": {
+                "installed_at": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
                 },
                 "version": {
                     "type": "string"
@@ -5275,6 +5616,31 @@ const docTemplate = `{
             "properties": {
                 "version": {
                     "description": "为空时安装最新版本",
+                    "type": "string"
+                }
+            }
+        },
+        "servers.InstallCatalogPluginRequest": {
+            "type": "object",
+            "required": [
+                "resource_id"
+            ],
+            "properties": {
+                "resource_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "servers.InstallPluginFromURLRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }
