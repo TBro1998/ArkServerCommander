@@ -13,7 +13,7 @@ import (
 )
 
 // 服务端主程序相对安装目录的路径，存在才说明游戏本体已下载。Windows 版（Proton 镜像）和 Linux 版的主程序不同，
-// 同一个文件卷换过镜像后两个都可能存在
+// 但在 Steam 上属于同一个 depot，下载时两个一起装上；任一个存在都算已下载
 const (
 	windowsServerExecutable = "ShooterGame/Binaries/Win64/ShooterGameServer.exe"
 	linuxServerExecutable   = "ShooterGame/Binaries/Linux/ShooterGameServer"
@@ -43,14 +43,6 @@ type ServerFilesState struct {
 // HasExecutable 任一平台的服务端主程序存在，说明游戏本体已经下载过
 func (s ServerFilesState) HasExecutable() bool {
 	return s.Windows || s.Linux
-}
-
-// HasExecutableFor 指定平台的服务端主程序存在（arkApi 为 true 表示 Windows 版）
-func (s ServerFilesState) HasExecutableFor(arkApi bool) bool {
-	if arkApi {
-		return s.Windows
-	}
-	return s.Linux
 }
 
 // isRegularFile 路径存在且是普通文件（跟随符号链接）

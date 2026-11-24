@@ -150,45 +150,38 @@ func TestPickSeedSource(t *testing.T) {
 	}
 
 	// 已停止的优先，其次按 ID
-	if got, ok := pickSeedSource(none, true, "", candidates, states); !ok || got.ID != 4 {
+	if got, ok := pickSeedSource(none, "", candidates, states); !ok || got.ID != 4 {
 		t.Fatalf("expected server 4, got %+v %v", got, ok)
 	}
 	// 只有运行中的服务器已安装时也可以作为来源
-	if got, ok := pickSeedSource(none, true, "", candidates[:2], states); !ok || got.ID != 2 {
+	if got, ok := pickSeedSource(none, "", candidates[:2], states); !ok || got.ID != 2 {
 		t.Fatalf("expected server 2, got %+v %v", got, ok)
 	}
 	// 目标已有服务端文件（例如更新游戏刚清除了标记、切换了平台）时不复制
-	if _, ok := pickSeedSource(installed, true, "", candidates, states); ok {
+	if _, ok := pickSeedSource(installed, "", candidates, states); ok {
 		t.Fatal("should not copy when the target already has server files")
 	}
-	if _, ok := pickSeedSource(linux, true, "", candidates, states); ok {
+	if _, ok := pickSeedSource(linux, "", candidates, states); ok {
 		t.Fatal("should not copy when the target has files of the other platform")
 	}
 	// 没有已安装完成的服务器
-	if _, ok := pickSeedSource(none, true, "", candidates[1:2], states); ok {
+	if _, ok := pickSeedSource(none, "", candidates[1:2], states); ok {
 		t.Fatal("should not copy from an incomplete install")
 	}
-	// 优先同平台的来源：Linux 版目标选 Linux 版的 5，Windows 版目标仍选 4
-	states[5] = linux
-	if got, ok := pickSeedSource(none, false, "", candidates, states); !ok || got.ID != 5 {
-		t.Fatalf("expected linux server 5, got %+v %v", got, ok)
-	}
-	if got, ok := pickSeedSource(none, true, "", candidates, states); !ok || got.ID != 4 {
-		t.Fatalf("expected windows server 4, got %+v %v", got, ok)
-	}
-	// 没有同平台的来源时用另一个平台的
-	if got, ok := pickSeedSource(none, false, "", candidates[:3], states); !ok || got.ID != 4 {
-		t.Fatalf("expected server 4 as fallback, got %+v %v", got, ok)
+	// 不区分平台：只有 Linux 版主程序的来源同样可以用，仍按已停止、ID 顺序选
+	states[4] = linux
+	if got, ok := pickSeedSource(none, "", candidates, states); !ok || got.ID != 4 {
+		t.Fatalf("expected linux server 4, got %+v %v", got, ok)
 	}
 	// 只从同一游戏版本复制：preaquatica 的目标只能用 preaquatica 的 3，正式版的目标不能用 3
 	states[3] = docker_manager.ServerFilesState{Installed: true, Windows: true, Branch: utils.GameBranchPreAquatica}
-	if got, ok := pickSeedSource(none, true, utils.GameBranchPreAquatica, candidates, states); !ok || got.ID != 3 {
+	if got, ok := pickSeedSource(none, utils.GameBranchPreAquatica, candidates, states); !ok || got.ID != 3 {
 		t.Fatalf("expected preaquatica server 3, got %+v %v", got, ok)
 	}
-	if _, ok := pickSeedSource(none, true, utils.GameBranchPreAquatica, candidates[:1], states); ok {
+	if _, ok := pickSeedSource(none, utils.GameBranchPreAquatica, candidates[:1], states); ok {
 		t.Fatal("should not copy server files of another game branch")
 	}
-	if got, ok := pickSeedSource(none, true, "", candidates[1:3], states); !ok || got.ID != 4 {
+	if got, ok := pickSeedSource(none, "", candidates[1:3], states); !ok || got.ID != 4 {
 		t.Fatalf("expected public server 4, got %+v %v", got, ok)
 	}
 }

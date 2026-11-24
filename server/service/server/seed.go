@@ -29,20 +29,15 @@ func seedSourceName(serverID uint) (string, bool) {
 }
 
 // pickSeedSource 选出复制来源：必须已安装完成（有标记和任一平台的主程序），并且游戏版本和目标相同
-// （正式版和 preaquatica 的服务端文件不同，不能互相复制）。优先已有目标平台主程序的
-// （arkApi 为 true 表示 Windows 版，否则 Linux 版；另一个平台的也能用，validate 时只补下载主程序），
-// 其次已停止的服务器（文件不会在复制时变动），最后按 ID 顺序。
+// （正式版和 preaquatica 的服务端文件不同，不能互相复制）。不区分平台：服务端的游戏文件是 Linux 版和 Windows 版
+// 共用的同一个 depot，两个平台的主程序会一起下载。优先已停止的服务器（文件不会在复制时变动），其次按 ID 顺序。
 // 目标已有服务端主程序（例如"更新游戏"刚清除了标记，或切换了平台）时不复制
-func pickSeedSource(target docker_manager.ServerFilesState, arkApi bool, branch string, candidates []models.Server, states map[uint]docker_manager.ServerFilesState) (models.Server, bool) {
+func pickSeedSource(target docker_manager.ServerFilesState, branch string, candidates []models.Server, states map[uint]docker_manager.ServerFilesState) (models.Server, bool) {
 	if target.HasExecutable() {
 		return models.Server{}, false
 	}
 	sorted := append([]models.Server(nil), candidates...)
 	sort.SliceStable(sorted, func(i, j int) bool {
-		pi, pj := states[sorted[i].ID].HasExecutableFor(arkApi), states[sorted[j].ID].HasExecutableFor(arkApi)
-		if pi != pj {
-			return pi
-		}
 		si, sj := sorted[i].Status == "stopped", sorted[j].Status == "stopped"
 		if si != sj {
 			return si
@@ -85,7 +80,7 @@ func seedServerFiles(server models.Server, dm *docker_manager.DockerManager) {
 		return
 	}
 
-	source, ok := pickSeedSource(states[server.ID], server.ArkApi, server.GameBranch, others, states)
+	source, ok := pickSeedSource(states[server.ID], server.GameBranch, others, states)
 	if !ok {
 		return
 	}
