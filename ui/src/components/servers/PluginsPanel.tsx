@@ -9,7 +9,6 @@ import {
   FileCog,
   Globe,
   Loader2,
-  Plus,
   Puzzle,
   RefreshCw,
   Search,
@@ -22,12 +21,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { useApiError } from '@/lib/api-error';
 import { formatBytes } from '@/lib/format';
 import {
@@ -43,6 +39,7 @@ import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { serversActions, type Server } from '@/stores/servers';
 import { PluginCatalogDialog } from './PluginCatalogDialog';
+import { PluginConfigDialog, configUrl, type ConfigTarget } from './PluginConfigDialog';
 
 interface Plugin {
   name: string;
@@ -90,31 +87,6 @@ function formatDate(value: string | undefined, locale: string): string {
   return d.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US');
 }
 
-type ConfigObject = Record<string, unknown>;
-
-// 源码能解析成 JSON 对象时返回它；数组、标量和非法 JSON 不能按字段编辑
-function parseConfigObject(content: string): ConfigObject | null {
-  try {
-    const value: unknown = JSON.parse(content);
-    return value && typeof value === 'object' && !Array.isArray(value) ? (value as ConfigObject) : null;
-  } catch {
-    return null;
-  }
-}
-
-// 正在编辑的配置：name 为 null 表示 ArkApi 本体
-interface ConfigTarget {
-  name: string | null;
-  content: string;
-}
-
-type ConfigMode = 'fields' | 'source';
-type NewFieldType = 'text' | 'number' | 'boolean';
-
-function configUrl(serverId: number, name: string | null) {
-  return name === null ? `/api/servers/${serverId}/arkapi/config` : `/api/servers/${serverId}/plugins/${encodeURIComponent(name)}/config`;
-}
-
 // 详情页"插件"标签：ArkApi 插件的安装、启停、删除和 config.json 编辑
 export function PluginsPanel({ server, active }: { server: Server; active: boolean }) {
   const t = useTranslations('plugins');
@@ -126,13 +98,6 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
   const [pluginName, setPluginName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Plugin | null>(null);
   const [config, setConfig] = useState<ConfigTarget | null>(null);
-  const [configError, setConfigError] = useState('');
-  const [configMode, setConfigMode] = useState<ConfigMode>('source');
-  const [fieldDrafts, setFieldDrafts] = useState<Record<string, string>>({});
-  const [newFieldKey, setNewFieldKey] = useState('');
-  const [newFieldType, setNewFieldType] = useState<NewFieldType>('text');
-  const [newFieldValue, setNewFieldValue] = useState('');
-  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [versions, setVersions] = useState<ArkApiVersions | null>(null);
   const [loadingVersions, setLoadingVersions] = useState(false);
@@ -464,145 +429,12 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
   const openConfig = async (name: string | null) => {
     try {
       const res = await axios.get(configUrl(server.id, name));
-      let content: string = res.data.data?.content ?? '';
+      const content: string = res.data.data?.content ?? '';
       // 新建配置时从空对象开始，按字段编辑可以直接用
-      if (!content.trim()) content = '{}';
-      setConfigError('');
-      setFieldDrafts({});
-      setNewFieldKey('');
-      setNewFieldValue('');
-      setNewFieldType('text');
-      setConfigMode(parseConfigObject(content) ? 'fields' : 'source');
-      setConfig({ name, content });
+      setConfig({ name, content: content.trim() ? content : '{}' });
     } catch (err) {
       toast.error(apiError(err, t('configLoadFailed')));
     }
-  };
-
-  const configObj = useMemo(() => (config ? parseConfigObject(config.content) : null), [config]);
-
-  // 改一个字段后重新序列化，保持 JSON 合法
-  const updateConfigObject = (mutate: (obj: ConfigObject) => void) => {
-    setConfig((current) => {
-      if (!current) return current;
-      const obj = parseConfigObject(current.content) ?? {};
-      mutate(obj);
-      return { ...current, content: JSON.stringify(obj, null, 2) };
-    });
-  };
-
-  const setConfigValue = (key: string, value: unknown) => updateConfigObject((obj) => { obj[key] = value; });
-
-  const removeConfigKey = (key: string) => {
-    updateConfigObject((obj) => { delete obj[key]; });
-    setFieldDrafts((drafts) => {
-      const next = { ...drafts };
-      delete next[key];
-      return next;
-    });
-  };
-
-  const addConfigField = () => {
-    const key = newFieldKey.trim();
-    if (!key) {
-      setConfigError(t('fieldKeyInvalid'));
-      return;
-    }
-    if (key.includes('.')) {
-      setConfigError(t('fieldKeyInvalid'));
-      return;
-    }
-    if (configObj && Object.prototype.hasOwnProperty.call(configObj, key)) {
-      setConfigError(t('fieldKeyInvalid'));
-      return;
-    }
-    let value: unknown = newFieldValue;
-    if (newFieldType === 'number') {
-      const n = Number(newFieldValue);
-      if (newFieldValue.trim() === '' || !Number.isFinite(n)) {
-        setConfigError(t('fieldNumberInvalid'));
-        return;
-      }
-      value = n;
-    } else if (newFieldType === 'boolean') {
-      value = true;
-    }
-    setConfigValue(key, value);
-    setNewFieldKey('');
-    setNewFieldValue('');
-    setConfigError('');
-  };
-
-  const formatConfig = () => {
-    if (!config) return;
-    try {
-      setConfig({ ...config, content: JSON.stringify(JSON.parse(config.content), null, 2) });
-      setConfigError('');
-    } catch (e) {
-      setConfigError(t('invalidJson', { message: (e as Error).message }));
-    }
-  };
-
-  const saveConfig = async () => {
-    if (!config) return;
-    try {
-      JSON.parse(config.content);
-    } catch (e) {
-      setConfigError(t('invalidJson', { message: (e as Error).message }));
-      return;
-    }
-    setSaving(true);
-    try {
-      await axios.put(configUrl(server.id, config.name), { content: config.content });
-      toast.success(server.status === 'stopped' ? t('configSaved') : t('configSavedRunning'));
-      setConfig(null);
-      load();
-    } catch (err) {
-      toast.error(apiError(err, t('configSaveFailed')));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 按值的类型渲染字段编辑控件；对象和数组转到源码编辑
-  const renderFieldValue = (key: string, value: unknown) => {
-    if (typeof value === 'boolean') {
-      return <Switch checked={value} onCheckedChange={(checked) => setConfigValue(key, checked)} aria-label={key} />;
-    }
-    if (typeof value === 'number') {
-      return (
-        <Input
-          className="num font-mono text-xs"
-          value={fieldDrafts[key] ?? String(value)}
-          onChange={(e) => {
-            const text = e.target.value;
-            setFieldDrafts((drafts) => ({ ...drafts, [key]: text }));
-            const n = Number(text);
-            if (text.trim() !== '' && Number.isFinite(n)) setConfigValue(key, n);
-          }}
-          onBlur={() =>
-            setFieldDrafts((drafts) => {
-              const next = { ...drafts };
-              delete next[key];
-              return next;
-            })
-          }
-        />
-      );
-    }
-    if (typeof value === 'string') {
-      return <Input className="font-mono text-xs" value={value} onChange={(e) => setConfigValue(key, e.target.value)} />;
-    }
-    return (
-      <div className="flex flex-1 items-center justify-between gap-2 rounded-sm border px-2 py-1">
-        <span className="truncate text-xs text-muted-foreground" title={JSON.stringify(value)}>
-          {t('complexValue')}
-        </span>
-        <Button variant="ghost" size="sm" onClick={() => setConfigMode('source')}>
-          {t('editInSource')}
-        </Button>
-      </div>
-    );
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -1035,118 +867,17 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
         onConfirm={bulkDelete}
       />
 
-      <Dialog open={!!config} onOpenChange={(open) => !open && setConfig(null)}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{config?.name === null ? t('arkapiConfig') : t('configTitle', { name: config?.name ?? '' })}</DialogTitle>
-            <DialogDescription>{server.status === 'stopped' ? t('configDesc') : t('configDescRunning')}</DialogDescription>
-          </DialogHeader>
-
-          <Tabs value={configMode} onValueChange={(value) => { setConfigMode(value as ConfigMode); setConfigError(''); }}>
-            <TabsList variant="line">
-              <TabsTrigger value="fields" disabled={!configObj}>
-                {t('fieldsMode')}
-              </TabsTrigger>
-              <TabsTrigger value="source">{t('sourceMode')}</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="fields" className="space-y-2">
-              <p className="text-xs text-muted-foreground">{t('fieldsHint')}</p>
-              <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
-                {configObj && Object.keys(configObj).length === 0 && <p className="text-sm text-muted-foreground">{t('fieldsEmpty')}</p>}
-                {configObj &&
-                  Object.entries(configObj).map(([key, value]) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <span className="w-36 shrink-0 truncate font-mono text-xs text-muted-foreground" title={key}>
-                        {key}
-                      </span>
-                      <div className="flex min-w-0 flex-1 items-center gap-2">{renderFieldValue(key, value)}</div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => removeConfigKey(key)}
-                        title={t('removeField')}
-                        aria-label={t('removeField')}
-                      >
-                        <Trash2 className="size-3.5 text-red-600" />
-                      </Button>
-                    </div>
-                  ))}
-              </div>
-
-              <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center">
-                <Input
-                  value={newFieldKey}
-                  onChange={(e) => {
-                    setNewFieldKey(e.target.value);
-                    if (configError) setConfigError('');
-                  }}
-                  placeholder={t('newFieldKey')}
-                  className="font-mono text-xs sm:max-w-44"
-                />
-                <Select value={newFieldType} onValueChange={(value) => setNewFieldType(value as NewFieldType)}>
-                  <SelectTrigger className="sm:w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">{t('typeText')}</SelectItem>
-                    <SelectItem value="number">{t('typeNumber')}</SelectItem>
-                    <SelectItem value="boolean">{t('typeBoolean')}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {newFieldType !== 'boolean' && (
-                  <Input
-                    value={newFieldValue}
-                    onChange={(e) => {
-                      setNewFieldValue(e.target.value);
-                      if (configError) setConfigError('');
-                    }}
-                    placeholder={t('newFieldValue')}
-                    className="font-mono text-xs"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') addConfigField();
-                    }}
-                  />
-                )}
-                <Button variant="outline" onClick={addConfigField} className="shrink-0">
-                  <Plus className="mr-1.5" />
-                  {t('addField')}
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="source">
-              <Textarea
-                value={config?.content ?? ''}
-                onChange={(e) => {
-                  if (config) setConfig({ ...config, content: e.target.value });
-                  if (configError) setConfigError('');
-                }}
-                spellCheck={false}
-                className="h-[55vh] [field-sizing:fixed] resize-none bg-terminal text-terminal-foreground font-mono text-xs"
-                placeholder="{}"
-              />
-            </TabsContent>
-          </Tabs>
-
-          {configError && <p className="text-xs text-red-600">{configError}</p>}
-          <DialogFooter>
-            {configMode === 'source' && (
-              <Button variant="outline" onClick={formatConfig}>
-                {t('format')}
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setConfig(null)}>
-              {tCommon('cancel')}
-            </Button>
-            <Button onClick={saveConfig} disabled={saving}>
-              {saving && <Loader2 className="mr-1.5 animate-spin" />}
-              {tCommon('save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {config && (
+        <PluginConfigDialog
+          server={server}
+          target={config}
+          onClose={() => setConfig(null)}
+          onSaved={() => {
+            setConfig(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
