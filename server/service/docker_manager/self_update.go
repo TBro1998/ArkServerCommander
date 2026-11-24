@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -328,9 +329,8 @@ func (dm *DockerManager) waitCommanderReady(id string, timeout time.Duration) er
 		}
 		ready := true
 		for _, u := range urls {
-			// wget 退出码 0 是成功，8 是服务器返回了错误状态码（也说明端口在响应）
 			res, err := dm.ExecCommand(id, []string{"wget", "-q", "-T", "5", "-O", "/dev/null", u}, nil, 15*time.Second)
-			if err != nil || (res.ExitCode != 0 && res.ExitCode != 8) {
+			if err != nil || !httpResponded(res) {
 				ready = false
 				break
 			}
@@ -343,6 +343,12 @@ func (dm *DockerManager) waitCommanderReady(id string, timeout time.Duration) er
 		}
 		time.Sleep(3 * time.Second)
 	}
+}
+
+// httpResponded wget 的结果是否说明端口有 HTTP 响应：成功，或者服务器返回了错误状态码
+// （GNU wget 退出码 8；busybox wget 退出码 1，输出 "server returned error"）
+func httpResponded(res ExecResult) bool {
+	return res.ExitCode == 0 || res.ExitCode == 8 || strings.Contains(res.Stderr, "server returned error")
 }
 
 // logSummary 容器日志的最后几行，放进错误信息
@@ -363,24 +369,9 @@ func buildReplacement(old container.InspectResponse, oldImage *dockerspec.Docker
 
 	cfg := *old.Config
 	cfg.Env = slices.Clone(old.Config.Env)
-	cfg.Labels = make(map[string]string, len(old.Config.Labels))
-	for k, v := range old.Config.Labels {
-		cfg.Labels[k] = v
-	}
-	cfg.ExposedPorts = nil
-	if old.Config.ExposedPorts != nil {
-		cfg.ExposedPorts = make(nat.PortSet, len(old.Config.ExposedPorts))
-	}
-	for p := range old.Config.ExposedPorts {
-		cfg.ExposedPorts[p] = struct{}{}
-	}
-	cfg.Volumes = nil
-	if old.Config.Volumes != nil {
-		cfg.Volumes = make(map[string]struct{}, len(old.Config.Volumes))
-	}
-	for v := range old.Config.Volumes {
-		cfg.Volumes[v] = struct{}{}
-	}
+	cfg.Labels = maps.Clone(old.Config.Labels)
+	cfg.ExposedPorts = maps.Clone(old.Config.ExposedPorts)
+	cfg.Volumes = maps.Clone(old.Config.Volumes)
 
 	// 没有指定 hostname 时 Docker 用容器 ID 的前 12 位；照抄的话新容器的 hostname 是旧容器的 ID，
 	// 管理端靠 hostname 找自己的容器（selfContainer），会找不到
@@ -441,7 +432,10 @@ func buildReplacement(old container.InspectResponse, oldImage *dockerspec.Docker
 	var primary *network.NetworkingConfig
 	extra := map[string]*network.EndpointSettings{}
 	mode := string(old.HostConfig.NetworkMode)
-	if old.NetworkSettings != nil {
+	// host / none / container: 模式由 NetworkMode 决定，不能再连接别的网络。
+	// 不用 NetworkMode.IsHost 等方法：SDK 在 Windows 上编译时它们恒为 false
+	special := mode == "host" || mode == "none" || strings.HasPrefix(mode, "container:")
+	if old.NetworkSettings != nil && !special {
 		for netName, ep := range old.NetworkSettings.Networks {
 			if ep == nil {
 				continue
@@ -461,9 +455,8 @@ func buildReplacement(old container.InspectResponse, oldImage *dockerspec.Docker
 				primary = &network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{netName: settings}}
 				continue
 			}
-			// host / none / container: 模式没有别的网络；默认的 bridge 由 NetworkMode 决定，不用再连接
-			if container.NetworkMode(mode).IsHost() || container.NetworkMode(mode).IsNone() ||
-				container.NetworkMode(mode).IsContainer() || (netName == "bridge" && (mode == "default" || mode == "")) {
+			// 默认的 bridge 由 NetworkMode 决定，不用再连接
+			if netName == "bridge" && (mode == "default" || mode == "") {
 				continue
 			}
 			extra[netName] = settings

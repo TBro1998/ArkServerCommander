@@ -69,7 +69,10 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrAccountRequired),
 		errors.Is(err, server.ErrAccountBound),
 		errors.Is(err, server.ErrArkfgfDisabled),
-		errors.Is(err, server.ErrTooManyCommanders):
+		errors.Is(err, server.ErrTooManyCommanders),
+		errors.Is(err, server.ErrSelfUpdateUnsupported),
+		errors.Is(err, server.ErrSelfUpdateRunning),
+		errors.Is(err, server.ErrSelfUpdateBusy):
 		status = http.StatusConflict
 	case errors.Is(err, server.ErrRconAuthFailed),
 		errors.Is(err, server.ErrArkApiDownload),

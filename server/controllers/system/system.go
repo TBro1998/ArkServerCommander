@@ -43,7 +43,7 @@ func GetInfo(c *gin.Context) {
 
 // GetVersion 版本信息
 // @Summary 版本信息
-// @Description 当前版本和 GitHub 上的最新发布版本（结果缓存 6 小时，查询失败 10 分钟后重试）。当前为开发版本（dev）时 has_update 始终为 false
+// @Description 当前版本和 GitHub 上的最新发布版本（结果缓存 6 小时，查询失败 10 分钟后重试）。当前为开发版本（dev）时 has_update 始终为 false。self_update 是能否一键更新、更新进度和最近一次更新的结果
 // @Tags 系统
 // @Produce json
 // @Security Bearer
@@ -52,6 +52,37 @@ func GetInfo(c *gin.Context) {
 // @Router /system/version [get]
 func GetVersion(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": serverService.GetVersionInfo(c.Query("refresh") == "true")})
+}
+
+// SelfUpdateRequest 更新管理端请求
+type SelfUpdateRequest struct {
+	Version string `json:"version" binding:"max=64"` // 界面上看到的最新版本，只用于记录，可以为空
+}
+
+// StartSelfUpdate 更新管理端
+// @Summary 更新管理端
+// @Description 下载管理端的新镜像，再由一个临时的更新容器用新镜像重建管理端容器（失败时恢复旧容器），立即返回。进度和结果看 GET /system/version 的 self_update。只支持用 tbro98/arkservercommander:latest 运行、挂载了 /var/run/docker.sock 的容器；有服务器正在启停、正在备份恢复或下载镜像时返回 409
+// @Tags 系统
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body SelfUpdateRequest false "最新版本"
+// @Success 202 {object} map[string]string "已开始更新"
+// @Failure 409 {object} map[string]string "不支持或正在进行"
+// @Router /system/update [post]
+func StartSelfUpdate(c *gin.Context) {
+	var req SelfUpdateRequest
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
+			return
+		}
+	}
+	if err := serverService.StartSelfUpdate(req.Version); err != nil {
+		servers.RespondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{"message": "已开始更新管理端"})
 }
 
 // DeleteCluster 删除未使用的集群数据

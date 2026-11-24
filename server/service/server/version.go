@@ -25,6 +25,8 @@ type VersionInfo struct {
 	PublishedAt string `json:"published_at,omitempty"` // 最新版本的发布时间
 	CheckedAt   string `json:"checked_at,omitempty"`
 	Error       string `json:"error,omitempty"` // 查询失败的原因
+	// SelfUpdate 能否在界面上一键更新和更新进度
+	SelfUpdate SelfUpdateStatus `json:"self_update"`
 }
 
 var latestRelease struct {
@@ -36,6 +38,12 @@ var latestRelease struct {
 
 // GetVersionInfo 返回当前版本，并查询 GitHub 上的最新发布版本。成功结果缓存 6 小时，失败 10 分钟；refresh 时重新查询
 func (s *ServerService) GetVersionInfo(refresh bool) VersionInfo {
+	info := s.latestVersionInfo(refresh)
+	info.SelfUpdate = s.GetSelfUpdateStatus()
+	return info
+}
+
+func (s *ServerService) latestVersionInfo(refresh bool) VersionInfo {
 	latestRelease.Lock()
 	defer latestRelease.Unlock()
 

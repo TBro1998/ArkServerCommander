@@ -3875,6 +3875,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/system/update": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "下载管理端的新镜像，再由一个临时的更新容器用新镜像重建管理端容器（失败时恢复旧容器），立即返回。进度和结果看 GET /system/version 的 self_update。只支持用 tbro98/arkservercommander:latest 运行、挂载了 /var/run/docker.sock 的容器；有服务器正在启停、正在备份恢复或下载镜像时返回 409",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统"
+                ],
+                "summary": "更新管理端",
+                "parameters": [
+                    {
+                        "description": "最新版本",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/system.SelfUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "已开始更新",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "不支持或正在进行",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/system/version": {
             "get": {
                 "security": [
@@ -3882,7 +3932,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "当前版本和 GitHub 上的最新发布版本（结果缓存 6 小时，查询失败 10 分钟后重试）。当前为开发版本（dev）时 has_update 始终为 false",
+                "description": "当前版本和 GitHub 上的最新发布版本（结果缓存 6 小时，查询失败 10 分钟后重试）。当前为开发版本（dev）时 has_update 始终为 false。self_update 是能否一键更新、更新进度和最近一次更新的结果",
                 "produces": [
                     "application/json"
                 ],
@@ -4050,6 +4100,40 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "old_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "docker_manager.SelfUpdateRecord": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "from_version": {
+                    "type": "string"
+                },
+                "image_cleaned": {
+                    "description": "ImageCleaned 旧镜像已删除（或不需要删除）",
+                    "type": "boolean"
+                },
+                "new_image_id": {
+                    "type": "string"
+                },
+                "old_image_id": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "to_version": {
+                    "description": "GitHub 上的最新版本，只用于显示；实际版本以新管理端的版本号为准",
                     "type": "string"
                 }
             }
@@ -5670,6 +5754,40 @@ const docTemplate = `{
                 }
             }
         },
+        "server.SelfUpdateStatus": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "error_code": {
+                    "type": "string"
+                },
+                "last": {
+                    "description": "最近一次更新的记录，state 为 interrupted 表示辅助容器没有写入结果就退出了",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/docker_manager.SelfUpdateRecord"
+                        }
+                    ]
+                },
+                "progress": {
+                    "description": "pulling 时的下载进度（0-100，估算）",
+                    "type": "integer"
+                },
+                "reason": {
+                    "description": "不支持的原因：dev / not_container / custom_image / no_socket / unavailable",
+                    "type": "string"
+                },
+                "state": {
+                    "description": "State idle / pulling（下载新镜像）/ restarting（辅助容器正在替换容器）/ error（下载阶段失败，替换阶段的结果看 last）",
+                    "type": "string"
+                },
+                "supported": {
+                    "type": "boolean"
+                }
+            }
+        },
         "server.ServerDefaults": {
             "type": "object",
             "properties": {
@@ -5821,6 +5939,14 @@ const docTemplate = `{
                 "release_url": {
                     "description": "最新版本的发布说明",
                     "type": "string"
+                },
+                "self_update": {
+                    "description": "SelfUpdate 能否在界面上一键更新和更新进度",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/server.SelfUpdateStatus"
+                        }
+                    ]
                 }
             }
         },
@@ -5902,6 +6028,16 @@ const docTemplate = `{
                 "mods": {
                     "description": "重新下载全部 Mod",
                     "type": "boolean"
+                }
+            }
+        },
+        "system.SelfUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "description": "界面上看到的最新版本，只用于记录，可以为空",
+                    "type": "string",
+                    "maxLength": 64
                 }
             }
         }

@@ -86,6 +86,11 @@ func finishPull(imageName string, err error) {
 	}
 }
 
+// ReleasePull 不拉取就释放 ClaimPull 的占用（占用后发现无法继续时调用）
+func ReleasePull(imageName string, err error) {
+	finishPull(imageName, err)
+}
+
 // PullClaimedImage 拉取已经通过 ClaimPull 占用的镜像并记录进度，结束时释放占用
 func (dm *DockerManager) PullClaimedImage(imageName string) error {
 	// 记录拉取前的镜像 ID，拉取成功后用来清理被替换下来的旧镜像

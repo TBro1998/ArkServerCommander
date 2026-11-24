@@ -68,6 +68,9 @@ var (
 	ErrLoginCancelled              = errors.New("已在 Steam 取消登录")
 	ErrSteamVerifyFailed           = errors.New("Steam 登录核验失败，请重新登录")
 	ErrTooManyCommanders           = errors.New("这个 arkfgf.com 账号绑定的 Commander 已达上限（20 个），请先在 arkfgf.com 的服主后台移除不用的")
+	ErrSelfUpdateUnsupported       = errors.New("不能在界面上更新管理端")
+	ErrSelfUpdateRunning           = errors.New("管理端正在更新")
+	ErrSelfUpdateBusy              = errors.New("现在不能更新管理端，请等操作完成后再试")
 )
 
 // errorCodes 错误码，前端据此显示对应语言的提示；中文界面直接显示 error 字段（包含具体细节）
@@ -135,6 +138,9 @@ var errorCodes = []struct {
 	{ErrLoginCancelled, "login_cancelled"},
 	{ErrSteamVerifyFailed, "steam_verify_failed"},
 	{ErrTooManyCommanders, "too_many_commanders"},
+	{ErrSelfUpdateUnsupported, "self_update_unsupported"},
+	{ErrSelfUpdateRunning, "self_update_running"},
+	{ErrSelfUpdateBusy, "self_update_busy"},
 }
 
 // ErrorCode 返回错误对应的错误码，未知错误返回空字符串

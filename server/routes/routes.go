@@ -65,6 +65,7 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.GET("/system/overview", system.GetOverview)
 			protected.GET("/system/info", system.GetInfo)
 			protected.GET("/system/version", system.GetVersion)
+			protected.POST("/system/update", system.StartSelfUpdate)
 			protected.DELETE("/system/clusters/:clusterId", system.DeleteCluster)
 			protected.GET("/system/suggest-ports", system.SuggestPorts)
 			protected.GET("/system/server-defaults", system.GetServerDefaults)

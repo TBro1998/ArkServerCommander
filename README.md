@@ -145,6 +145,11 @@ A: After logging in, click "Check Updates" under image management on the home pa
 
 Servers still on the old image show an "Old Image" badge on their card. Server files, saves and configs live in volumes, so recreating a container loses nothing and does not download them again.
 
+### ❓ Q: How to update the commander itself?
+A: In "Settings → About", click "Check for updates", then "Update now" when a new version is available. The commander downloads the new image, and a temporary updater container (`ark-commander-updater`) recreates the commander container with it. The page is unavailable for about a minute and reloads automatically when done. Running ARK servers and the P2P room keep running; if the new version does not start properly, the previous version is restored automatically. The database is copied to `./data/ark_server.db.before-update` first.
+
+One-click update requires running the `tbro98/arkservercommander:latest` image from `docker-compose.yml` with `/var/run/docker.sock` mounted. If you pinned a version or build your own image, run `docker compose pull && docker compose up -d` in the directory containing `docker-compose.yml`.
+
 ### ❓ Q: Where is the login secret? Do I need to configure it?
 A: No. On first start the backend generates a strong random secret and stores it in `jwt_secret` in the data directory (the mounted `./data/jwt_secret`). Deleting that file and restarting the container invalidates all logged-in sessions.
 

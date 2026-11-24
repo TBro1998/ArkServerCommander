@@ -2,6 +2,7 @@ package main
 
 import (
 	"net"
+	"os"
 
 	"ark-server-commander/config"
 	"ark-server-commander/database"
@@ -46,6 +47,11 @@ func main() {
 	}
 	defer utils.Sync()
 
+	// 自我更新的辅助容器：替换管理端容器后退出，见 docker_manager/self_update.go
+	if len(os.Args) > 1 && os.Args[1] == "self-update" {
+		os.Exit(runSelfUpdateHelper(os.Args[2:]))
+	}
+
 	// 初始化配置
 	if err := config.InitConfig(); err != nil {
 		utils.Fatal("配置初始化失败", zap.Error(err))
@@ -76,6 +82,9 @@ func main() {
 	if err := server.NewServerService().ReconcileStatuses(); err != nil {
 		utils.Warn("校正服务器状态失败", zap.Error(err))
 	}
+
+	// 上一次在界面上更新成功后，删除旧版本的镜像
+	server.StartSelfUpdateCleanup()
 
 	// 后台采集运行阶段、在线人数和资源占用；定时任务调度；检查 Mod 更新
 	server.StartRuntimeMonitor()
@@ -118,4 +127,16 @@ func main() {
 	if err := r.Run(addr); err != nil {
 		utils.Fatal("服务器启动失败", zap.Error(err))
 	}
+}
+
+// runSelfUpdateHelper 参数：管理端容器 ID、新镜像 ID、数据目录
+func runSelfUpdateHelper(args []string) int {
+	if len(args) != 3 {
+		utils.Error("用法: main self-update <容器ID> <新镜像ID> <数据目录>")
+		return 2
+	}
+	if err := docker_manager.RunSelfUpdateHelper(args[0], args[1], args[2]); err != nil {
+		return 1
+	}
+	return 0
 }
