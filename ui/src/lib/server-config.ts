@@ -1,7 +1,7 @@
 // 服务器配置的导出、导入和复制。格式与后端 models.ServerConfig 一致：
 // 不含端口和管理员密码，导入或复制时目标服务器保留自己的名称、端口、人数和密码
 import axios from 'axios';
-import { indexIni, keepIniValues, replaceIniValues } from '@/lib/ini';
+import { getIniValue, indexIni, keepIniValues, replaceIniValues, setIniValue } from '@/lib/ini';
 import type { Server } from '@/stores/servers';
 
 export const SERVER_CONFIG_FORMAT = 'ark-server-commander/server-config';
@@ -87,14 +87,29 @@ const isIniFile = (file: File) => file.name.toLowerCase().endsWith('.ini');
 
 export interface ImportedConfigFile {
   config: ServerConfig;
-  // ini：只含配置文件，只能导入「游戏设置」部分；iniKinds 为读到的文件
+  // ini：只含配置文件，只能导入「游戏设置」部分（以及 ActiveMods 里的 Mod）；iniKinds 为读到的文件
   kind: 'json' | 'ini';
   iniKinds: IniFileKind[];
 }
 
+const SERVER_SETTINGS_SECTION = '[ServerSettings]';
+
+/**
+ * 取出 GameUserSettings.ini 里 [ServerSettings] 的 ActiveMods，并从文本里删掉这一行。
+ * 管理端用 Mod 列表（启动参数 ?GameModIds=）管理 Mod，入口脚本也只下载列表里的 Mod；
+ * 留着 ActiveMods 时，Mod 列表为空的服务器会去加载没下载的 Mod
+ */
+export function extractActiveMods(gus: string): { gus: string; modIds: string } {
+  const value = getIniValue(indexIni(gus), SERVER_SETTINGS_SECTION, 'ActiveMods');
+  if (value === undefined) return { gus, modIds: '' };
+  const ids = [...new Set(value.split(',').map((id) => id.trim()).filter((id) => /^\d+$/.test(id)))];
+  return { gus: setIniValue(gus, SERVER_SETTINGS_SECTION, 'ActiveMods', undefined), modIds: ids.join(',') };
+}
+
 /**
  * 读取导入时选择的文件：一个导出的 JSON，或者 GameUserSettings.ini / Game.ini（可同时选两个）。
- * ini 被包装成只含配置文件的 ServerConfig，导入时只用 config_files 部分，没选的那个文件保持不变
+ * ini 被包装成只含配置文件的 ServerConfig，导入时只用 config_files 部分，没选的那个文件保持不变；
+ * GameUserSettings.ini 里的 ActiveMods 去掉，Mod ID 放进 game_mod_ids，由用户决定是否同时导入 mods 部分
  */
 export async function readImportFiles(files: File[]): Promise<ImportedConfigFile> {
   const inis = files.filter(isIniFile);
@@ -111,7 +126,13 @@ export async function readImportFiles(files: File[]): Promise<ImportedConfigFile
     const kind = detectIniKind(file.name, text);
     if (!kind) throw new InvalidConfigFileError('unknown ini', 'iniUnknown', file.name);
     if (config[kind] !== undefined) throw new InvalidConfigFileError('duplicate ini', 'iniDuplicate', file.name);
-    config[kind] = text;
+    if (kind === 'game_user_settings') {
+      const { gus, modIds } = extractActiveMods(text);
+      config.game_user_settings = gus;
+      if (modIds) config.game_mod_ids = modIds;
+    } else {
+      config.game_ini = text;
+    }
   }
   const iniKinds = (['game_user_settings', 'game_ini'] as const).filter((k) => config[k] !== undefined);
   return { config, kind: 'ini', iniKinds };

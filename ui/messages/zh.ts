@@ -776,6 +776,8 @@ const messages = {
     readFileFailed: '读取文件失败',
     iniLoaded: '已读取 {files}，只导入游戏设置',
     iniOtherUnchanged: '{file} 保持不变。',
+    iniMods: '同时导入 Mod 列表（{count} 个）',
+    iniModsDesc: '来自 GameUserSettings.ini 的 ActiveMods，会替换这台服务器的 Mod 列表；关闭则 Mod 列表不变。ActiveMods 这一行不会写进配置文件，Mod 统一由 Mod 列表管理。',
     fileError: {
       iniUnknown: '认不出 {name} 是 GameUserSettings.ini 还是 Game.ini',
       iniDuplicate: '选了两份同一种配置文件（{name}）',

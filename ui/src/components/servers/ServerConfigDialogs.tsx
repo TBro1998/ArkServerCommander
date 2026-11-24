@@ -88,6 +88,8 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
   const [fileError, setFileError] = useState('');
   const [sourceId, setSourceId] = useState('');
   const [parts, setParts] = useState<ConfigPart[]>(DEFAULT_CONFIG_PARTS);
+  // 导入 ini 时，GameUserSettings.ini 的 ActiveMods 是否同时导入为 Mod 列表
+  const [iniMods, setIniMods] = useState(true);
   const [loading, setLoading] = useState(false);
 
   // 每次打开时清空上次的选择
@@ -100,6 +102,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
       setFileError('');
       setSourceId('');
       setParts(DEFAULT_CONFIG_PARTS);
+      setIniMods(true);
     }
   }
 
@@ -108,6 +111,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
     setFileName(files.map((f) => f.name).join('、'));
     setImported(null);
     setFileError('');
+    setIniMods(true);
     try {
       setImported(await readImportFiles(files));
     } catch (err) {
@@ -117,9 +121,10 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
     }
   };
 
-  // 导入 ini 文件时只有「游戏设置」部分，不显示部分选择
+  // 导入 ini 文件时只有「游戏设置」部分，不显示部分选择；ini 里有 ActiveMods 时可以同时导入 Mod 列表
   const iniImport = source === 'file' && imported?.kind === 'ini';
-  const effectiveParts: ConfigPart[] = iniImport ? ['config_files'] : parts;
+  const iniModCount = iniImport ? (imported.config.game_mod_ids?.split(',').length ?? 0) : 0;
+  const effectiveParts: ConfigPart[] = iniImport ? (iniModCount > 0 && iniMods ? ['config_files', 'mods'] : ['config_files']) : parts;
   const ready = effectiveParts.length > 0 && (source === 'file' ? imported !== null : sourceId !== '');
 
   const confirm = async () => {
@@ -207,6 +212,15 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
                     </p>
                   )}
                 </div>
+              )}
+              {iniModCount > 0 && (
+                <label className="flex items-start justify-between gap-4 pt-1">
+                  <span>
+                    <span className="font-medium">{t('iniMods', { count: iniModCount })}</span>
+                    <span className="block text-xs text-gray-500">{t('iniModsDesc')}</span>
+                  </span>
+                  <Switch checked={iniMods} onCheckedChange={setIniMods} />
+                </label>
               )}
             </div>
           ) : servers.length === 0 ? (

@@ -776,6 +776,8 @@ const messages = {
     readFileFailed: 'Failed to read the file',
     iniLoaded: 'Loaded {files}; only game settings are imported',
     iniOtherUnchanged: '{file} stays unchanged.',
+    iniMods: 'Also import the mod list ({count, plural, one {# mod} other {# mods}})',
+    iniModsDesc: 'Taken from ActiveMods in GameUserSettings.ini and replaces this server’s mod list; when off, the mod list stays unchanged. The ActiveMods line is not written to the config file; mods are managed by the mod list.',
     fileError: {
       iniUnknown: 'Cannot tell whether {name} is GameUserSettings.ini or Game.ini',
       iniDuplicate: 'Two files of the same kind were selected ({name})',
