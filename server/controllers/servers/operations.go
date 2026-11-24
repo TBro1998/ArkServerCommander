@@ -222,6 +222,25 @@ func GetPublishStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
+// CheckReachability 重新检测公网可达性
+// @Summary 重新检测公网可达性
+// @Description 管理端向玩家连接的地址（PUBLIC_HOST 或自动探测的公网 IP）的查询端口发 A2S_INFO，检测这台服务器是否发布到了公网（没有公网 IP、没做端口转发或防火墙没放行时访问不到；路由器不支持 NAT 回环时可能误报访问不到）。服务器每次可以连接后会自动检测一次，这个接口用于修改端口转发或防火墙之后手动重新检测，同步返回结果；10 秒内重复调用直接返回当前状态
+// @Tags 服务器管理
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Success 200 {object} map[string]models.Reachability "检测结果"
+// @Failure 409 {object} map[string]string "服务器还不能连接（server_not_ready）"
+// @Router /servers/{id}/reachability [post]
+func CheckReachability(c *gin.Context) {
+	result, err := serverService.CheckReachability(c.GetUint("user_id"), c.Param("id"))
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
 // ListPlayers 在线玩家
 // @Summary 在线玩家列表
 // @Description 通过 RCON ListPlayers 获取在线玩家（名称和 SteamID）

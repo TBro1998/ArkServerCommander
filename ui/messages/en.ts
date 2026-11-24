@@ -547,6 +547,7 @@ const messages = {
     invalid_mod_ids: 'Mod IDs must be comma-separated numbers',
     invalid_game_branch: 'Invalid game version',
     server_not_running: 'Server is not running',
+    server_not_ready: 'The server is not joinable yet; check again after it finishes loading',
     server_not_stopped: 'Stop the server first',
     invalid_command: 'Invalid command',
     backup_not_found: 'Backup not found',
@@ -827,6 +828,30 @@ const messages = {
     hint: 'Type "open" followed by the address in the game console, or click the Steam link to join. The address comes from PUBLIC_HOST or the detected public IP; the ports must be open on your router/firewall.'
   },
 
+  // Public reachability
+  reachability: {
+    checking: 'Checking query port {port} at the public address…',
+    reachable: 'Exposed to the internet: query port {port} answered at the public address {ip}',
+    reachableHint: 'Only the query port (UDP) is checked; game ports {port} and {port1} (UDP) must be open too for players to join. If this machine has the public IP itself, the check does not go through a cloud security group, so make sure the security group allows these ports too.',
+    unreachable: 'Not reachable from the internet: no answer from {ip}:{port} (UDP), so players outside your LAN may not be able to join',
+    causeNoPublicIp: 'No public IP: your ISP gives you a private (NAT) address; ask your ISP for a public IP',
+    causeForward: 'Your router does not forward game ports {port}, {port1} and query port {query} (UDP) to this machine',
+    causeFirewall: 'The local firewall does not allow these UDP ports',
+    loopbackNote: 'The check is sent from this machine itself: if your router does not support NAT loopback, it shows unreachable even when port forwarding works. Ask a player outside your network to try.',
+    linkSuggestion: 'Without a public IP, turn on the P2P link room in the arkfgf.com card below; players join with the ARKFGF Link client. Click "Check again" after changing port forwarding or the firewall.',
+    mismatch: 'Another server answers at {ip}:{port}',
+    mismatchHint: 'It answered as "{name}". The port forwarding may point to another machine on your LAN, or several servers use the same port.',
+    mismatchHintNoName: 'The port forwarding may point to another machine on your LAN, or several servers use the same port.',
+    notPublic: 'The connection address {ip} is a private address; only players on your LAN can connect',
+    notPublicHint: 'PUBLIC_HOST is set to a private address. To let players on the internet connect, set it to a public IP or domain, or remove it so the manager detects the public IP.',
+    error: 'Could not finish the public check; it will retry automatically',
+    recheck: 'Check again',
+    recheckFailed: 'Check failed',
+    errors: {
+      public_ip_unknown: 'Could not detect the public address; set PUBLIC_HOST to configure it'
+    }
+  },
+
   // Mods
   mods: {
     invalid: 'Mod IDs must be comma-separated numbers',
@@ -892,6 +917,7 @@ const messages = {
     advertisedName: 'Name in server list',
     connection: 'Connection',
     noPublicHost: 'Could not detect the public address. Set PUBLIC_HOST to configure it.',
+    notPublic: 'Not reachable from the internet',
     gamePort: 'Game port',
     queryPort: 'Query port',
     rconPort: 'RCON port',

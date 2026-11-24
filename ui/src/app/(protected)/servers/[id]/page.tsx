@@ -22,6 +22,7 @@ import { StatusBadge } from '@/components/servers/StatusBadge';
 import { PowerButtons, useServerControls } from '@/components/servers/ServerActions';
 import { ServerManagePanel } from '@/components/servers/ServerManagePanel';
 import { ConnectionInfo } from '@/components/servers/ConnectionInfo';
+import { ReachabilityInfo } from '@/components/servers/ReachabilityInfo';
 import { LogViewer } from '@/components/servers/LogViewer';
 import { ConsolePanel } from '@/components/servers/ConsolePanel';
 import { BackupsPanel } from '@/components/servers/BackupsPanel';
@@ -102,6 +103,11 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
         </CardHeader>
         <CardContent>
           {publicHost ? <ConnectionInfo server={server} host={publicHost} /> : <p className="text-sm text-muted-foreground">{t('noPublicHost')}</p>}
+          {server.status === 'running' && server.reachability && (
+            <div className="mt-3">
+              <ReachabilityInfo server={server} />
+            </div>
+          )}
           <div className="mt-3 border-t pt-2">
             <Row label={t('gamePort')}>{`${server.port} (+${server.port + 1})`}</Row>
             <Row label={t('queryPort')}>{server.query_port}</Row>
@@ -244,6 +250,9 @@ function ServerDetail({
               )}
               {server.config_pending && (
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800">{t('configPending')}</span>
+              )}
+              {server.status === 'running' && ['unreachable', 'mismatch', 'not_public'].includes(server.reachability?.state ?? '') && (
+                <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-800">{t('notPublic')}</span>
               )}
               {!!server.mods_outdated?.length && (
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">

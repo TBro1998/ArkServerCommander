@@ -60,7 +60,8 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrBackupBusy),
 		errors.Is(err, server.ErrClusterInUse),
 		errors.Is(err, server.ErrImagePulling),
-		errors.Is(err, server.ErrRconUnavailable):
+		errors.Is(err, server.ErrRconUnavailable),
+		errors.Is(err, server.ErrServerNotReady):
 		status = http.StatusConflict
 	case errors.Is(err, server.ErrNotPublished),
 		errors.Is(err, server.ErrLinkNotRegistered),

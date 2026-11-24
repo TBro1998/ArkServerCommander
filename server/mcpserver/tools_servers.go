@@ -297,6 +297,12 @@ func registerServerTools(r *registry) {
 			return message("Restarting. Poll list_servers for status."), nil
 		})
 
+	action(r, idempotent, "check_reachability", "Check public reachability",
+		"Query the server's query port (UDP) at the address players connect to (PUBLIC_HOST, or the auto-detected public IP) from this Commander, to check whether the server is actually exposed to the internet. Result: reachable, unreachable (no public IP, missing port forwarding, or a firewall blocks the port; the P2P link room lets players join without a public IP), mismatch (another server answers on that public port), not_public (PUBLIC_HOST is a private address), or error (no public address detected). Because the query comes from the same network, a router without NAT loopback can report unreachable even when forwarding works, and a cloud security group is not tested. Runs automatically once each time the server becomes joinable and is also shown as `reachability` in list_servers; call this after changing port forwarding or the firewall. The server must be running and joinable. Waits for the result (a few seconds).",
+		func(_ context.Context, userID uint, in serverInput) (any, error) {
+			return service.CheckReachability(userID, sid(in.ServerID))
+		})
+
 	action(r, additive, "recreate_container", "Recreate container",
 		"Recreate the server's Docker container from the current configuration (stops it first if running). The server ends up stopped. Usually unnecessary: start_server recreates the container when needed. Asynchronous.",
 		func(_ context.Context, userID uint, in serverInput) (any, error) {

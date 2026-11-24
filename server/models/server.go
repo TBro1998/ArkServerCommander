@@ -109,6 +109,8 @@ type ServerResponse struct {
 	Link          bool           `json:"link"` // P2P 联机房
 	// 联机房状态，未开启联机房时为空
 	LinkStatus *LinkStatus `json:"link_status,omitempty"`
+	// 公网可达性：管理端用公网地址查询这台服务器的查询端口的结果。未运行时为空
+	Reachability *Reachability `json:"reachability,omitempty"`
 	// 运行中服务器的实时信息（阶段、在线人数、资源占用），由后台监控定期采集
 	Runtime *RuntimeInfo `json:"runtime,omitempty"`
 	// 有已保存但尚未写入数据卷的配置文件修改，下次启动时生效
@@ -225,6 +227,27 @@ type LinkStatus struct {
 	ErrorCode string `json:"error_code,omitempty"` // 网站返回的错误码，或 network / node_error / image_error
 	Error     string `json:"error,omitempty"`      // 错误详情（中文）
 	RetryAt   string `json:"retry_at,omitempty"`   // 请求失败后下一次重试的时间
+}
+
+// 公网可达性检测结果
+const (
+	ReachChecking    = "checking"    // 等待检测或正在检测
+	ReachReachable   = "reachable"   // 从公网能查询到这台服务器
+	ReachUnreachable = "unreachable" // 从公网查询不到：没有公网 IP、没做端口转发或防火墙没放行
+	ReachMismatch    = "mismatch"    // 公网上这个端口回应的是另一台服务器（端口转发到了别的机器）
+	ReachNotPublic   = "not_public"  // 连接地址（PUBLIC_HOST）是内网地址，公网上的玩家连不上
+	ReachError       = "error"       // 没拿到公网地址，会自动重试
+)
+
+// Reachability 公网可达性：管理端向玩家连接的地址（PUBLIC_HOST 或自动探测的公网 IP）的查询端口发 A2S_INFO
+type Reachability struct {
+	State     string `json:"state"`                // 见 Reach* 常量
+	IP        string `json:"ip,omitempty"`         // 检测的 IPv4（PUBLIC_HOST 是域名时为解析结果）
+	Name      string `json:"name,omitempty"`       // 公网上查询到的服务器名称（mismatch 时用来提示是哪台）
+	CheckedAt string `json:"checked_at,omitempty"` // 最近一次得出结论的时间
+	ErrorCode string `json:"error_code,omitempty"` // public_ip_unknown
+	Error     string `json:"error,omitempty"`      // 错误详情（中文）
+	RetryAt   string `json:"retry_at,omitempty"`   // 下一次重试的时间
 }
 
 // LinkMember 联机房成员：当前持有未吊销凭证的玩家

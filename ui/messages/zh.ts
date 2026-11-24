@@ -547,6 +547,7 @@ const messages = {
     invalid_mod_ids: 'Mod ID 只能是逗号分隔的数字',
     invalid_game_branch: '游戏版本无效',
     server_not_running: '服务器未运行',
+    server_not_ready: '服务器还不能连接，请等它加载完成后再检测',
     server_not_stopped: '请先停止服务器',
     invalid_command: '命令无效',
     backup_not_found: '备份不存在',
@@ -827,6 +828,30 @@ const messages = {
     hint: '在游戏控制台输入 open 连接地址，或点击 Steam 链接加入。地址来自 PUBLIC_HOST 或自动探测的公网 IP，需要在路由器/防火墙放行端口。'
   },
 
+  // 公网可达性
+  reachability: {
+    checking: '正在用公网地址检测查询端口 {port}…',
+    reachable: '已发布到公网：用公网地址 {ip} 查询到了查询端口 {port}',
+    reachableHint: '检测的是查询端口（UDP）；游戏端口 {port}、{port1}（UDP）也要同样放行，玩家才能进服。机器本身有公网 IP 时，这个检测不经过云服务器的安全组，安全组也要放行这些端口。',
+    unreachable: '公网无法访问：查询 {ip}:{port}（UDP）没有响应，局域网外的玩家可能连不上这台服务器',
+    causeNoPublicIp: '没有公网 IP：宽带是运营商的内网地址（NAT），可以向运营商申请公网 IP',
+    causeForward: '路由器没有把游戏端口 {port}、{port1} 和查询端口 {query}（UDP）转发到这台机器',
+    causeFirewall: '本机防火墙没有放行这些 UDP 端口',
+    loopbackNote: '检测是从这台机器自己发出的：路由器不支持 NAT 回环时，端口转发正确也会显示访问不到，可以请外网的玩家试一下。',
+    linkSuggestion: '没有公网 IP 时，可以在下方的 arkfgf.com 卡片里开启 P2P 联机房，玩家用 ARKFGF 联机助手加入。修改端口转发或防火墙后点"重新检测"。',
+    mismatch: '公网上 {ip}:{port} 回应的不是这台服务器',
+    mismatchHint: '回应的是"{name}"，端口转发可能指向了局域网里的另一台机器，或者多台服务器用了同一个端口。',
+    mismatchHintNoName: '端口转发可能指向了局域网里的另一台机器，或者多台服务器用了同一个端口。',
+    notPublic: '连接地址 {ip} 是内网地址，只有局域网里的玩家能连接',
+    notPublicHint: '环境变量 PUBLIC_HOST 设成了内网地址。要让公网玩家连接，把它改成公网 IP 或域名，或者去掉它让管理端自动探测。',
+    error: '没能完成公网检测，稍后会自动重试',
+    recheck: '重新检测',
+    recheckFailed: '检测失败',
+    errors: {
+      public_ip_unknown: '没有拿到公网地址，可通过环境变量 PUBLIC_HOST 设置'
+    }
+  },
+
   // Mod
   mods: {
     invalid: 'Mod ID 只能是逗号分隔的数字',
@@ -892,6 +917,7 @@ const messages = {
     advertisedName: '服务器列表中的名称',
     connection: '连接信息',
     noPublicHost: '无法获取公网地址，可在环境变量 PUBLIC_HOST 中设置',
+    notPublic: '公网无法访问',
     gamePort: '游戏端口',
     queryPort: '查询端口',
     rconPort: 'RCON 端口',

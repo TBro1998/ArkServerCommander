@@ -85,6 +85,8 @@ func main() {
 	server.StartPublisher()
 	// 开启"P2P 联机房"的服务器在 arkfgf.com 登记房间，可以连接时运行 EasyTier 节点容器
 	server.StartLinkManager()
+	// 运行中的服务器可以连接后用公网地址查询一次查询端口，检测是否发布到了公网（服主可能没有公网 IP、没做端口转发）
+	server.StartReachabilityChecker()
 
 	// 创建Gin实例
 	r := gin.Default()

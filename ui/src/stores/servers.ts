@@ -44,6 +44,20 @@ export interface LinkStatus {
     retry_at?: string;
 }
 
+// 公网可达性：管理端用玩家连接的地址（PUBLIC_HOST 或自动探测的公网 IP）查询服务器查询端口的结果（服务器每次可以连接后自动检测一次）
+export interface Reachability {
+    // mismatch：公网上这个端口回应的是另一台服务器；not_public：PUBLIC_HOST 是内网地址；error：没拿到公网地址，会自动重试
+    state: 'checking' | 'reachable' | 'unreachable' | 'mismatch' | 'not_public' | 'error';
+    /** 检测的 IPv4（PUBLIC_HOST 是域名时为解析结果） */
+    ip?: string;
+    /** 公网上查询到的服务器名称 */
+    name?: string;
+    checked_at?: string;
+    error_code?: string;
+    error?: string;
+    retry_at?: string;
+}
+
 // 绑定的 arkfgf.com 账号：GET /api/arkfgf/account（发布到收录站和 P2P 联机房都需要先绑定）
 export interface ArkfgfAccountStatus {
     /** ARKFGF_API 不为空 */
@@ -117,6 +131,8 @@ export interface Server {
     // P2P 联机房（玩家用 ARKFGF 联机助手加入）
     link?: boolean;
     link_status?: LinkStatus;
+    // 公网可达性，未运行时没有
+    reachability?: Reachability;
     listing?: ListingProfile;
     game_user_settings?: string;
     game_ini?: string;

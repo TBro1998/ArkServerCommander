@@ -372,6 +372,30 @@ definitions:
         description: 收录站页面
         type: string
     type: object
+  models.Reachability:
+    properties:
+      checked_at:
+        description: 最近一次得出结论的时间
+        type: string
+      error:
+        description: 错误详情（中文）
+        type: string
+      error_code:
+        description: public_ip_unknown
+        type: string
+      ip:
+        description: 检测的 IPv4（PUBLIC_HOST 是域名时为解析结果）
+        type: string
+      name:
+        description: 公网上查询到的服务器名称（mismatch 时用来提示是哪台）
+        type: string
+      retry_at:
+        description: 下一次重试的时间
+        type: string
+      state:
+        description: 见 Reach* 常量
+        type: string
+    type: object
   models.RuntimeInfo:
     properties:
       copy_source:
@@ -684,6 +708,10 @@ definitions:
         type: integer
       rcon_port:
         type: integer
+      reachability:
+        allOf:
+        - $ref: '#/definitions/models.Reachability'
+        description: 公网可达性：管理端用公网地址查询这台服务器的查询端口的结果。未运行时为空
       runtime:
         allOf:
         - $ref: '#/definitions/models.RuntimeInfo'
@@ -3134,6 +3162,37 @@ paths:
       security:
       - Bearer: []
       summary: 执行 RCON 命令
+      tags:
+      - 服务器管理
+  /servers/{id}/reachability:
+    post:
+      description: 管理端向玩家连接的地址（PUBLIC_HOST 或自动探测的公网 IP）的查询端口发 A2S_INFO，检测这台服务器是否发布到了公网（没有公网
+        IP、没做端口转发或防火墙没放行时访问不到；路由器不支持 NAT 回环时可能误报访问不到）。服务器每次可以连接后会自动检测一次，这个接口用于修改端口转发或防火墙之后手动重新检测，同步返回结果；10
+        秒内重复调用直接返回当前状态
+      parameters:
+      - description: 服务器ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 检测结果
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.Reachability'
+            type: object
+        "409":
+          description: 服务器还不能连接（server_not_ready）
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 重新检测公网可达性
       tags:
       - 服务器管理
   /servers/{id}/recreate:

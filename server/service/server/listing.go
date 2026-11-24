@@ -152,6 +152,15 @@ func (p *Publisher) fetchStats(server models.Server) (*models.PublishStats, erro
 	return &stats, nil
 }
 
+// CheckReachability 用公网地址重新检测服务器的查询端口，返回检测后的状态
+func (s *ServerService) CheckReachability(userID uint, serverID string) (*models.Reachability, error) {
+	server, err := getUserServer(userID, serverID)
+	if err != nil {
+		return nil, err
+	}
+	return reachability.Recheck(server)
+}
+
 // GetPublishStats 查询服务器在收录站上的访问统计、详情页和徽章地址
 func (s *ServerService) GetPublishStats(userID uint, serverID string) (*models.PublishStats, error) {
 	server, err := getUserServer(userID, serverID)

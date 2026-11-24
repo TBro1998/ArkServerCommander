@@ -24,6 +24,7 @@ var (
 	ErrInvalidModIDs               = errors.New("Mod ID 只能是逗号分隔的数字")
 	ErrInvalidGameBranch           = errors.New("游戏版本无效，只能是蜗牛海洋正式版（空）或通配符原版（preaquatica）")
 	ErrServerNotRunning            = errors.New("服务器未运行")
+	ErrServerNotReady              = errors.New("服务器还不能连接，请等它加载完成后再检测")
 	ErrServerNotStopped            = errors.New("请先停止服务器")
 	ErrInvalidCommand              = errors.New("命令不能为空、不能包含换行，且不超过1000个字符")
 	ErrBackupNotFound              = errors.New("备份不存在")
@@ -89,6 +90,7 @@ var errorCodes = []struct {
 	{ErrInvalidModIDs, "invalid_mod_ids"},
 	{ErrInvalidGameBranch, "invalid_game_branch"},
 	{ErrServerNotRunning, "server_not_running"},
+	{ErrServerNotReady, "server_not_ready"},
 	{ErrServerNotStopped, "server_not_stopped"},
 	{ErrInvalidCommand, "invalid_command"},
 	{ErrBackupNotFound, "backup_not_found"},

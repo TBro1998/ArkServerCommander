@@ -40,6 +40,7 @@ func toResponse(server models.Server) models.ServerResponse {
 	response.ModsOutdated = modsOutdatedFor(server.ID, server.GameModIds)
 	response.PublishStatus = publisher.statusFor(server)
 	response.LinkStatus = linkManager.statusFor(server)
+	response.Reachability = reachability.statusFor(server)
 	return response
 }
 
