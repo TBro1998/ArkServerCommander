@@ -3,11 +3,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import axios from 'axios';
-import { Download, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CloudOff, Download, ExternalLink, Loader2, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { ModThumb, formatUnixDate, type ModInfo } from '@/components/servers/ModList';
+import {
+  ModIdInput,
+  ModThumb,
+  formatUnixDate,
+  mergeModIds,
+  modStateOf,
+  normalizeModIds,
+  type ModInfo,
+} from '@/components/servers/ModList';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import { serversActions, isTransitioning, type Server } from '@/stores/servers';
@@ -18,7 +26,7 @@ interface ServerMod extends ModInfo {
   has_update: boolean;
 }
 
-// 详情页的 Mod 卡片：安装状态、创意工坊是否有更新，可以只重新下载选中的 Mod
+// 详情页的 Mod 卡片：安装状态、创意工坊是否有更新，可以添加 / 移除 Mod，只重新下载选中的 Mod
 export function ServerModsPanel({ server }: { server: Server }) {
   const t = useTranslations('mods');
   const locale = useLocale();
@@ -26,6 +34,7 @@ export function ServerModsPanel({ server }: { server: Server }) {
   const [mods, setMods] = useState<ServerMod[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const load = useCallback(
@@ -67,6 +76,31 @@ export function ServerModsPanel({ server }: { server: Server }) {
     });
   };
 
+  // 添加和移除只改服务器记录里的 Mod 列表，下次启动才下载或停止加载
+  const saveModIds = async (next: string, message: string) => {
+    setSaving(true);
+    try {
+      await serversActions.updateServer(server.id, { game_mod_ids: next });
+      toast.success(message);
+    } catch (err) {
+      toast.error(apiError(err, t('modChangeFailed')));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addMods = (ids: string[]) => {
+    saveModIds(mergeModIds(server.game_mod_ids ?? '', ids.join(',')), t('modAdded'));
+  };
+
+  const removeMod = (id: string) => {
+    const next = normalizeModIds(server.game_mod_ids ?? '')
+      .split(',')
+      .filter((x) => x && x !== id)
+      .join(',');
+    saveModIds(next, t('modRemoved'));
+  };
+
   const updateSelected = async () => {
     try {
       await serversActions.updateGame(server.id, false, false, Array.from(selected));
@@ -83,7 +117,8 @@ export function ServerModsPanel({ server }: { server: Server }) {
         <CardHeader className="pb-2">
           <CardTitle className="font-display text-base">{t('title')}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-2">
+          <ModIdInput existing="" onAdd={addMods} disabled={saving} />
           <p className="text-sm text-muted-foreground">{t('none')}</p>
         </CardContent>
       </Card>
@@ -92,6 +127,8 @@ export function ServerModsPanel({ server }: { server: Server }) {
 
   const busy = isTransitioning(server.status);
   const outdated = mods?.filter((m) => m.has_update).length ?? 0;
+  // 运行中改 Mod 列表要等重启才生效，先说明白，免得服主以为刚移除的 Mod 立刻就不加载了
+  const running = server.status === 'running';
 
   return (
     <Card className="lg:col-span-2">
@@ -117,57 +154,83 @@ export function ServerModsPanel({ server }: { server: Server }) {
           </span>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-2">
+        <ModIdInput existing={server.game_mod_ids} onAdd={addMods} disabled={saving} />
         {!mods ? (
           <p className="text-sm text-muted-foreground">{t('loading')}</p>
         ) : (
           <ul className="space-y-1.5">
-            {mods.map((m, i) => (
-              <li key={m.id} className="flex items-center justify-between gap-3 rounded-sm border bg-muted/50 px-2 py-1.5 text-xs">
-                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="size-3.5 flex-shrink-0 accent-primary"
-                    checked={selected.has(m.id)}
-                    disabled={!m.installed}
-                    onChange={() => toggle(m.id)}
-                    aria-label={t('select', { name: m.title || m.id })}
-                  />
-                  <span className="num w-5 flex-shrink-0 text-right text-gray-400">{i + 1}.</span>
-                  <ModThumb url={m.preview_url} />
-                  <span className="min-w-0">
-                    <span className={`block truncate ${!m.checked ? 'text-gray-500' : m.found ? 'text-gray-800' : 'text-red-600'}`}>
-                      {!m.checked ? t('unavailable') : m.found ? m.title || m.id : t('notFound')}
-                    </span>
-                    <span className="flex flex-wrap items-center gap-x-2 text-[11px] text-gray-500">
-                      <span>
-                        {m.installed
-                          ? m.installed_at
-                            ? t('installedAt', { date: formatUnixDate(m.installed_at, locale) })
-                            : t('installed')
-                          : t('notInstalled')}
+            {mods.map((m, i) => {
+              const state = modStateOf(m);
+              return (
+                <li key={m.id} className="flex items-center justify-between gap-3 rounded-sm border bg-muted/50 px-2 py-1.5 text-xs">
+                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="size-3.5 flex-shrink-0 accent-primary"
+                      checked={selected.has(m.id)}
+                      disabled={!m.installed}
+                      onChange={() => toggle(m.id)}
+                      aria-label={t('select', { name: m.title || m.id })}
+                    />
+                    <span className="num w-5 flex-shrink-0 text-right text-gray-400">{i + 1}.</span>
+                    <ModThumb url={m.preview_url} />
+                    <span className="min-w-0">
+                      <span
+                        className={`flex items-center gap-1 truncate ${
+                          state === 'notFound' ? 'text-red-600' : state === 'ok' ? 'text-gray-800' : 'text-gray-500 italic'
+                        }`}
+                      >
+                        {state === 'notFound' && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+                        {state === 'unavailable' && <CloudOff className="h-3 w-3 flex-shrink-0" />}
+                        <span className="truncate">
+                          {state === 'unavailable' ? t('unavailable') : state === 'notFound' ? t('notFound') : m.title || m.id}
+                        </span>
                       </span>
-                      {m.found && m.time_updated ? <span>{t('updatedAt', { date: formatUnixDate(m.time_updated, locale) })}</span> : null}
-                      {m.has_update && (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 text-amber-800">{t('hasUpdate')}</span>
-                      )}
+                      <span className="flex flex-wrap items-center gap-x-2 text-[11px] text-gray-500">
+                        <span>
+                          {m.installed
+                            ? m.installed_at
+                              ? t('installedAt', { date: formatUnixDate(m.installed_at, locale) })
+                              : t('installed')
+                            : t('notInstalled')}
+                        </span>
+                        {state === 'ok' && m.time_updated ? <span>{t('updatedAt', { date: formatUnixDate(m.time_updated, locale) })}</span> : null}
+                        {state === 'unavailable' ? <span>{t('unavailableHint')}</span> : null}
+                        {m.has_update && (
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 text-amber-800">{t('hasUpdate')}</span>
+                        )}
+                      </span>
                     </span>
+                  </label>
+                  <span className="flex flex-shrink-0 items-center gap-1">
+                    <a
+                      href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-0.5 font-mono text-gray-500 hover:text-blue-600"
+                    >
+                      {m.id}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removeMod(m.id)}
+                      disabled={saving || busy}
+                      aria-label={t('removeMod')}
+                      title={t('removeMod')}
+                      className="rounded-sm p-0.5 text-gray-500 hover:text-red-600 disabled:opacity-30"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </span>
-                </label>
-                <a
-                  href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex flex-shrink-0 items-center gap-0.5 font-mono text-gray-500 hover:text-blue-600"
-                >
-                  {m.id}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
-        <p className="mt-2 text-xs text-muted-foreground">{t('hint')}</p>
+        <p className="text-xs text-muted-foreground">{t('hint')}</p>
+        {running && <p className="text-xs text-amber-800">{t('changesApplyOnRestart')}</p>}
       </CardContent>
 
       <ConfirmDialog

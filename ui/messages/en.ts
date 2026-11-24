@@ -852,7 +852,19 @@ const messages = {
     updateConfirmStopped: 'The server will start and download the {count} selected mod(s) again.',
     updateConfirm: 'Update',
     updateSent: 'Update started; the selected mods are downloaded again when the server starts',
-    updateFailed: 'Failed to update mods'
+    updateFailed: 'Failed to update mods',
+    addMod: 'Add',
+    addModPlaceholder: 'Mod ID or Workshop URL',
+    removeMod: 'Remove mod',
+    alreadyAdded: 'Already in the list',
+    unavailableHint: 'Temporary: Steam could not be reached. The mod itself is not affected',
+    modAdded: 'Mod added',
+    modRemoved: 'Mod removed',
+    modChangeFailed: 'Failed to save mod list',
+    changesApplyOnRestart: 'Changes take effect the next time the server restarts',
+    totalSize: 'Total known size: {size}',
+    pasteIds: 'Paste several IDs at once',
+    doneEditing: 'Done'
   },
 
   // Server details

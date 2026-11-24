@@ -852,7 +852,19 @@ const messages = {
     updateConfirmStopped: '服务器会启动并重新下载所选的 {count} 个 Mod。',
     updateConfirm: '更新',
     updateSent: '已开始更新，服务器启动时会重新下载所选 Mod',
-    updateFailed: '更新 Mod 失败'
+    updateFailed: '更新 Mod 失败',
+    addMod: '添加',
+    addModPlaceholder: 'Mod ID 或创意工坊链接',
+    removeMod: '移除 Mod',
+    alreadyAdded: '已经在列表里了',
+    unavailableHint: '只是暂时查不到，Mod 本身没问题',
+    modAdded: '已添加 Mod',
+    modRemoved: '已移除 Mod',
+    modChangeFailed: '保存 Mod 列表失败',
+    changesApplyOnRestart: '修改会在下次重启服务器后生效',
+    totalSize: '已知总大小：{size}',
+    pasteIds: '批量粘贴多个 ID',
+    doneEditing: '完成'
   },
 
   // 服务器详情

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapSelector } from '@/components/servers/MapSelector';
-import { ModList, WORKSHOP_BROWSE_URL, isValidModIds, normalizeModIds } from '@/components/servers/ModList';
+import { ModIdInput, ModList, WORKSHOP_BROWSE_URL, isValidModIds, mergeModIds, normalizeModIds } from '@/components/servers/ModList';
 import { SettingTile, SettingControl, PasswordInput } from '@/components/servers/settings/SettingTile';
 import { CustomArgsPanel, RawConfigPanel } from '@/components/servers/settings/Panels';
 import { ImportConfigDialog } from '@/components/servers/ServerConfigDialogs';
@@ -58,6 +58,7 @@ for (const group of SETTING_GROUPS) {
 export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel, onDirtyChange }: ServerFormProps) {
   const t = useTranslations('serverForm');
   const tS = useTranslations('serverSettings');
+  const tMods = useTranslations('mods');
   const tEdit = useTranslations('servers.edit');
   const tCommon = useTranslations('common');
   const tConfig = useTranslations('serverConfig');
@@ -305,36 +306,49 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
             )}
           </SettingTile>
         );
-      case 'game_mod_ids':
+      case 'game_mod_ids': {
+        const ids = form.game_mod_ids ?? '';
         return (
           <SettingTile {...common}>
-            <Input
-              id={common.htmlFor}
-              value={form.game_mod_ids || ''}
-              onChange={(e) => setField('game_mod_ids', e.target.value)}
-              onBlur={() => {
-                // 粘贴的创意工坊链接换成 ID
-                const ids = form.game_mod_ids ?? '';
-                if (isValidModIds(ids) && normalizeModIds(ids) !== ids) update({ game_mod_ids: normalizeModIds(ids) });
-              }}
-              placeholder={tEdit('modIdsPlaceholder')}
-            />
-            <a
-              href={WORKSHOP_BROWSE_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-            >
-              {t('browseWorkshop')}
-              <ExternalLink className="size-3" />
-            </a>
-            {form.game_mod_ids && (
-              <div className="mt-2">
-                <ModList ids={form.game_mod_ids} onChange={(ids) => update({ game_mod_ids: ids })} />
-              </div>
-            )}
+            <div className="space-y-2">
+              <ModIdInput
+                id={common.htmlFor}
+                existing={ids}
+                onAdd={(added) => update({ game_mod_ids: mergeModIds(ids, added.join(',')) })}
+              />
+              {ids ? (
+                <ModList ids={ids} onChange={(value) => update({ game_mod_ids: value })} />
+              ) : (
+                <p className="text-xs text-gray-500">{tMods('none')}</p>
+              )}
+              {/* 想一次粘贴一串 ID 或修格式时用原始输入框，平时直接在上面添加 */}
+              <details>
+                <summary className="cursor-pointer text-xs text-gray-500 select-none hover:text-gray-800">{tMods('pasteIds')}</summary>
+                <Input
+                  id={`${common.htmlFor}-raw`}
+                  className="mt-1.5 font-mono"
+                  value={ids}
+                  onChange={(e) => setField('game_mod_ids', e.target.value)}
+                  onBlur={() => {
+                    // 粘贴的创意工坊链接换成 ID
+                    if (isValidModIds(ids) && normalizeModIds(ids) !== ids) update({ game_mod_ids: normalizeModIds(ids) });
+                  }}
+                  placeholder={tEdit('modIdsPlaceholder')}
+                />
+              </details>
+              <a
+                href={WORKSHOP_BROWSE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                {t('browseWorkshop')}
+                <ExternalLink className="size-3" />
+              </a>
+            </div>
           </SettingTile>
         );
+      }
       default:
         return null;
     }
