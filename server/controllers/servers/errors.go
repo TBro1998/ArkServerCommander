@@ -69,6 +69,7 @@ func RespondServiceError(c *gin.Context, err error) {
 		status = http.StatusConflict
 	case errors.Is(err, server.ErrRconAuthFailed),
 		errors.Is(err, server.ErrArkApiDownload),
+		errors.Is(err, server.ErrPluginDownload),
 		errors.Is(err, server.ErrPublishUnavailable),
 		errors.Is(err, server.ErrLinkUnavailable),
 		errors.Is(err, server.ErrArkfgfUnavailable):

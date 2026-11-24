@@ -558,6 +558,7 @@ const messages = {
     plugin_not_found: 'Plugin not found',
     invalid_plugin: 'Invalid plugin archive',
     invalid_plugin_config: 'The plugin config is not valid JSON',
+    plugin_download_failed: 'Failed to download the plugin. Make sure the URL is directly reachable.',
     arkapi_not_installed: 'ArkApi is not installed yet',
     invalid_arkapi: 'Invalid ArkApi archive',
     arkapi_version_not_found: 'ArkApi version not found',
@@ -1037,7 +1038,57 @@ const messages = {
     configSavedRunning: 'Config saved; it takes effect after the plugin is reloaded or the server restarts',
     configSaveFailed: 'Failed to save config',
     invalidJson: 'Invalid JSON: {message}',
-    format: 'Format'
+    format: 'Format',
+
+    // Search, multi-select and bulk actions
+    searchPlaceholder: 'Search plugins...',
+    searchEmpty: 'No plugins match',
+    selectAll: 'Select all',
+    count: '{shown} / {total}',
+    selectPlugin: 'Select {name}',
+    selectedCount: '{count} selected',
+    clearSelection: 'Clear selection',
+    enableSelected: 'Enable selected',
+    disableSelected: 'Disable selected',
+    deleteSelected: 'Delete selected',
+    deleteSelectedTitle: 'Delete selected plugins',
+    deleteSelectedDesc: 'Delete all files of these {count} plugins, including config.json. This cannot be undone.',
+    bulkEnabled: 'Enabled {count} plugins',
+    bulkDisabled: 'Disabled {count} plugins',
+    bulkDeleted: 'Deleted {count} plugins',
+    bulkUpToDate: 'The selected plugins already have that state',
+    bulkPartial: '{count} plugins were not changed, please retry',
+
+    // Install from URL and drag-and-drop
+    dropHint: 'Drop a plugin zip here, or click to choose a file',
+    urlPlaceholder: 'Plugin zip download URL (http:// or https://)',
+    installFromUrl: 'Install from URL',
+    fetching: 'Downloading...',
+    urlInvalid: 'Enter a download URL starting with http:// or https://',
+    fetchFailed: 'Failed to install plugin from URL',
+    urlHint: 'Accepts direct zip links such as the ones GameServersHub provides. The manager downloads the archive, so the server itself does not need internet access.',
+
+    // Dependencies
+    dependsOn: 'Depends on',
+    dependencyMissing: 'not installed',
+    dependencyMissingTip: '{name} is not installed, so this plugin may not work',
+
+    // Field-by-field config.json editing
+    fieldsMode: 'Fields',
+    sourceMode: 'Source',
+    fieldsHint: 'Edit top-level values one field at a time. Switch to source for nested objects and arrays; the JSON is validated before saving.',
+    fieldsEmpty: 'No fields yet. Add one below.',
+    removeField: 'Remove this field',
+    newFieldKey: 'Field name',
+    newFieldValue: 'Value',
+    addField: 'Add field',
+    typeText: 'Text',
+    typeNumber: 'Number',
+    typeBoolean: 'Switch',
+    fieldKeyInvalid: 'The field name cannot be empty, contain dots, or duplicate an existing field',
+    fieldNumberInvalid: 'Number fields need a number',
+    complexValue: 'Nested object or array',
+    editInSource: 'Edit in source'
   },
 
   // Logs

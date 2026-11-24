@@ -36,6 +36,7 @@ var (
 	ErrPluginNotFound       = errors.New("插件不存在")
 	ErrInvalidPlugin        = errors.New("插件压缩包无效")
 	ErrInvalidPluginConfig  = errors.New("插件配置无效")
+	ErrPluginDownload       = errors.New("下载插件失败")
 	ErrClusterInUse         = errors.New("集群仍在使用中")
 	ErrArkApiNotInstalled   = errors.New("还没有安装 ArkApi，请先在插件页安装，或启用 ArkApi 后启动一次服务器")
 	ErrInvalidArkApi        = errors.New("ArkApi 压缩包无效")
@@ -97,6 +98,7 @@ var errorCodes = []struct {
 	{ErrPluginNotFound, "plugin_not_found"},
 	{ErrInvalidPlugin, "invalid_plugin"},
 	{ErrInvalidPluginConfig, "invalid_plugin_config"},
+	{ErrPluginDownload, "plugin_download_failed"},
 	{ErrArkApiNotInstalled, "arkapi_not_installed"},
 	{ErrInvalidArkApi, "invalid_arkapi"},
 	{ErrArkApiNotFound, "arkapi_version_not_found"},

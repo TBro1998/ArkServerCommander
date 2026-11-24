@@ -125,6 +125,7 @@ func RegisterRoutes(r *gin.Engine) {
 				// ArkApi 插件
 				serverRoutes.GET("/:id/plugins", servers.ListPlugins)
 				serverRoutes.POST("/:id/plugins", servers.InstallPlugin)
+				serverRoutes.POST("/:id/plugins/fetch", servers.InstallPluginFromURL)
 				serverRoutes.PUT("/:id/plugins/:name", servers.SetPluginState)
 				serverRoutes.DELETE("/:id/plugins/:name", servers.DeletePlugin)
 				serverRoutes.GET("/:id/plugins/:name/config", servers.GetPluginConfig)

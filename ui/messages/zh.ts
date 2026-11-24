@@ -558,6 +558,7 @@ const messages = {
     plugin_not_found: '插件不存在',
     invalid_plugin: '插件压缩包无效',
     invalid_plugin_config: '插件配置不是合法的 JSON',
+    plugin_download_failed: '下载插件失败，请确认下载地址可以直接访问',
     arkapi_not_installed: '还没有安装 ArkApi',
     invalid_arkapi: 'ArkApi 压缩包无效',
     arkapi_version_not_found: '没有这个 ArkApi 版本',
@@ -1037,7 +1038,57 @@ const messages = {
     configSavedRunning: '配置已保存，重新加载插件或重启服务器后生效',
     configSaveFailed: '保存配置失败',
     invalidJson: 'JSON 格式错误：{message}',
-    format: '格式化'
+    format: '格式化',
+
+    // 搜索、多选和批量操作
+    searchPlaceholder: '搜索插件...',
+    searchEmpty: '没有匹配的插件',
+    selectAll: '全选',
+    count: '{shown} / {total} 个',
+    selectPlugin: '选择 {name}',
+    selectedCount: '已选 {count} 个',
+    clearSelection: '取消选择',
+    enableSelected: '启用所选',
+    disableSelected: '停用所选',
+    deleteSelected: '删除所选',
+    deleteSelectedTitle: '删除所选插件',
+    deleteSelectedDesc: '删除这 {count} 个插件的全部文件，包括 config.json。此操作不可撤销。',
+    bulkEnabled: '已启用 {count} 个插件',
+    bulkDisabled: '已停用 {count} 个插件',
+    bulkDeleted: '已删除 {count} 个插件',
+    bulkUpToDate: '所选插件的状态已经是这样了',
+    bulkPartial: '有 {count} 个插件没有处理成功，请重试',
+
+    // 从地址安装和拖拽上传
+    dropHint: '把插件 zip 拖到这里，或点击选择文件',
+    urlPlaceholder: '插件 zip 下载地址（http:// 或 https://）',
+    installFromUrl: '从地址安装',
+    fetching: '下载中...',
+    urlInvalid: '请填写 http:// 或 https:// 开头的下载地址',
+    fetchFailed: '从地址安装插件失败',
+    urlHint: '支持 GameServersHub 等网站给出的 zip 直链，由管理端下载后安装，服务器上不需要联网。',
+
+    // 依赖
+    dependsOn: '依赖',
+    dependencyMissing: '未安装',
+    dependencyMissingTip: '{name} 还没有安装，这个插件可能无法正常工作',
+
+    // config.json 的分字段编辑
+    fieldsMode: '字段',
+    sourceMode: '源码',
+    fieldsHint: '按字段编辑顶层的值。嵌套的对象和数组请切换到源码编辑，保存前会检查 JSON 是否合法。',
+    fieldsEmpty: '还没有字段，可以在下面添加',
+    removeField: '删除这个字段',
+    newFieldKey: '字段名',
+    newFieldValue: '值',
+    addField: '添加字段',
+    typeText: '文本',
+    typeNumber: '数字',
+    typeBoolean: '开关',
+    fieldKeyInvalid: '字段名不能为空、不能包含点，也不能和已有字段重名',
+    fieldNumberInvalid: '数字字段要填一个数字',
+    complexValue: '嵌套的对象或数组',
+    editInSource: '在源码中编辑'
   },
 
   // 日志

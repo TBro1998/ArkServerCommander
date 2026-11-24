@@ -61,6 +61,39 @@ func InstallPlugin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "插件已安装", "data": names})
 }
 
+// InstallPluginFromURLRequest 从下载地址安装插件
+type InstallPluginFromURLRequest struct {
+	URL  string `json:"url" binding:"required"`
+	Name string `json:"name"`
+}
+
+// InstallPluginFromURL 从下载地址安装插件
+// @Summary 从下载地址安装插件
+// @Description 后端下载 zip（http/https，最多 200 MB）后按上传安装的规则安装；识别不出插件目录时用 name 指定插件名称。覆盖安装时保留原 config.json。只能在服务器停止时操作
+// @Tags 插件管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "服务器ID"
+// @Param body body InstallPluginFromURLRequest true "下载地址和可选的插件名称"
+// @Success 200 {object} map[string][]string "安装的插件名称"
+// @Failure 400 {object} map[string]string "地址无效、压缩包无效或服务器未停止"
+// @Failure 502 {object} map[string]string "下载失败"
+// @Router /servers/{id}/plugins/fetch [post]
+func InstallPluginFromURL(c *gin.Context) {
+	var req InstallPluginFromURLRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c)
+		return
+	}
+	names, err := serverService.InstallPluginsFromURL(c.GetUint("user_id"), c.Param("id"), req.URL, req.Name)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "插件已安装", "data": names})
+}
+
 // SetPluginStateRequest 启用或停用插件
 type SetPluginStateRequest struct {
 	Enabled bool `json:"enabled"`

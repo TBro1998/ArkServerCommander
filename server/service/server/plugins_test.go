@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -203,5 +206,83 @@ func TestPluginLifecycle(t *testing.T) {
 	// ArkApi 还没有下载时不能编辑它的配置
 	if _, err := s.GetPluginConfig(1, id, ""); !errors.Is(err, ErrArkApiNotInstalled) {
 		t.Fatalf("expected ErrArkApiNotInstalled, got %v", err)
+	}
+}
+
+func TestInstallPluginsFromURL(t *testing.T) {
+	setupTestDB(t)
+	old := config.DataDir
+	config.DataDir = t.TempDir()
+	t.Cleanup(func() { config.DataDir = old })
+
+	srv := createTestServer(t, 7777, 27015, 32330)
+	id := fmt.Sprint(srv.ID)
+	s := NewServerService()
+
+	z := makeZip(t, map[string]string{"ArkShop/ArkShop.dll": "v1", "ArkShop/config.json": `{"a":1}`})
+	zipData, err := io.ReadAll(z)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/plugin.zip", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(zipData)
+	})
+	mux.HandleFunc("/missing.zip", func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	})
+	mux.HandleFunc("/notzip.zip", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello"))
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	// 只接受 http / https
+	if _, err := s.InstallPluginsFromURL(1, id, "file:///etc/passwd", ""); !errors.Is(err, ErrInvalidPlugin) {
+		t.Fatalf("expected ErrInvalidPlugin, got %v", err)
+	}
+	if _, err := s.InstallPluginsFromURL(1, id, "  ", ""); !errors.Is(err, ErrInvalidPlugin) {
+		t.Fatalf("expected ErrInvalidPlugin, got %v", err)
+	}
+
+	// 404 和内容不是 zip 时报错，且不会创建插件
+	if _, err := s.InstallPluginsFromURL(1, id, ts.URL+"/missing.zip", ""); !errors.Is(err, ErrPluginDownload) {
+		t.Fatalf("expected ErrPluginDownload, got %v", err)
+	}
+	if _, err := s.InstallPluginsFromURL(1, id, ts.URL+"/notzip.zip", ""); !errors.Is(err, ErrInvalidPlugin) {
+		t.Fatalf("expected ErrInvalidPlugin, got %v", err)
+	}
+
+	// 运行中不能安装，且不下载
+	database.DB.Model(&models.Server{}).Where("id = ?", srv.ID).Update("status", "running")
+	if _, err := s.InstallPluginsFromURL(1, id, ts.URL+"/plugin.zip", ""); !errors.Is(err, ErrServerNotStopped) {
+		t.Fatalf("expected ErrServerNotStopped, got %v", err)
+	}
+	database.DB.Model(&models.Server{}).Where("id = ?", srv.ID).Update("status", "stopped")
+
+	names, err := s.InstallPluginsFromURL(1, id, ts.URL+"/plugin.zip", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(names) != "[ArkShop]" {
+		t.Fatalf("unexpected installed plugins %v", names)
+	}
+	overview, err := s.ListPlugins(1, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(overview.Plugins) != 1 || overview.Plugins[0].Name != "ArkShop" || !overview.Plugins[0].HasDLL {
+		t.Fatalf("unexpected plugins %+v", overview.Plugins)
+	}
+
+	// 覆盖安装保留配置
+	if err := s.SavePluginConfig(1, id, "ArkShop", `{"mine":2}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.InstallPluginsFromURL(1, id, ts.URL+"/plugin.zip", ""); err != nil {
+		t.Fatal(err)
+	}
+	if content, _ := s.GetPluginConfig(1, id, "ArkShop"); content != `{"mine":2}` {
+		t.Fatalf("config not kept: %q", content)
 	}
 }

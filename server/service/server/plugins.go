@@ -3,10 +3,13 @@ package server
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,9 +17,11 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"ark-server-commander/models"
 	"ark-server-commander/service/docker_manager"
+	"ark-server-commander/utils"
 )
 
 // ArkApi 插件管理。插件卷绑定在数据目录 servers/<id>/plugins，后端直接读写；
@@ -26,7 +31,13 @@ const (
 	maxPluginZipEntries = 5000
 	maxPluginUnpacked   = 500 << 20 // 解压后总大小上限
 	maxPluginConfigSize = 4 << 20   // config.json 大小上限
+	maxPluginDownload   = 200 << 20 // 从下载地址获取的压缩包大小上限
+	maxPluginURLSize    = 2048      // 下载地址长度上限
+	pluginDownloadTime  = 5 * time.Minute
 )
+
+// pluginDownloadClient 下载插件压缩包，超时后放弃
+var pluginDownloadClient = &http.Client{Timeout: pluginDownloadTime}
 
 // pluginNamePattern 插件目录名（也是 dll 名称）
 var pluginNamePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_. -]{0,99}$`)
@@ -210,6 +221,57 @@ func (s *ServerService) InstallPlugins(userID uint, serverID string, r io.Reader
 		installed = append(installed, root.name)
 	}
 	return installed, nil
+}
+
+// InstallPluginsFromURL 从 http(s) 地址下载插件 zip 并安装，返回安装的插件名称。
+// 和上传安装一样只能在服务器停止时进行，覆盖安装保留原来的 config.json 和启用状态
+func (s *ServerService) InstallPluginsFromURL(userID uint, serverID, rawURL, name string) ([]string, error) {
+	if _, err := stoppedServer(userID, serverID); err != nil {
+		return nil, err
+	}
+	data, err := downloadPluginZip(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	return s.InstallPlugins(userID, serverID, bytes.NewReader(data), int64(len(data)), name)
+}
+
+// downloadPluginZip 下载插件压缩包。只接受 http / https，按大小上限读取，内容必须是 zip
+func downloadPluginZip(rawURL string) ([]byte, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" || len(rawURL) > maxPluginURLSize {
+		return nil, fmt.Errorf("%w: 下载地址不能为空，且不超过 %d 个字符", ErrInvalidPlugin, maxPluginURLSize)
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return nil, fmt.Errorf("%w: 下载地址必须是 http:// 或 https:// 开头", ErrInvalidPlugin)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), pluginDownloadTime)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrPluginDownload, err)
+	}
+	req.Header.Set("User-Agent", "ArkServerCommander/"+utils.Version)
+	resp, err := pluginDownloadClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrPluginDownload, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: 下载地址返回 %d", ErrPluginDownload, resp.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxPluginDownload+1))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrPluginDownload, err)
+	}
+	if len(data) > maxPluginDownload {
+		return nil, fmt.Errorf("%w: 压缩包超过 200 MB", ErrPluginDownload)
+	}
+	if _, err := zip.NewReader(bytes.NewReader(data), int64(len(data))); err != nil {
+		return nil, fmt.Errorf("%w: 下载的文件不是 zip", ErrInvalidPlugin)
+	}
+	return data, nil
 }
 
 type pluginRoot struct {
