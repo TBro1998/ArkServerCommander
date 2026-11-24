@@ -1186,28 +1186,14 @@ const messages = {
     sourceGame: 'Game log',
     hideProgress: 'Hide download progress',
     gameEmpty: 'No game log yet (it is created once the server starts loading the map)',
-    gameHint: 'The last 2000 lines of Logs/ShooterGame.log in the save directory, refreshed every 5 seconds. The log of the last run is still available after the server stops.'
-  },
-
-  // Plugin logs (Plugins tab)
-  pluginLogs: {
-    title: 'Plugin logs',
-    refresh: 'Refresh',
+    gameHint: 'The last 2000 lines of Logs/ShooterGame.log in the save directory, refreshed every 5 seconds. The log of the last run is still available after the server stops.',
+    sourcePlugin: 'Plugin logs',
     selectFile: 'Select a log file',
-    latest: 'Latest',
-    filter: 'Filter log...',
-    autoRefresh: 'Auto refresh',
-    download: 'Download log',
-    downloadFailed: 'Failed to download log',
-    listFailed: 'Failed to load plugin log files',
-    loadFailed: 'Failed to read the log file',
-    loading: 'Loading...',
-    empty: 'No plugin logs yet. ArkApi and its plugins write logs to ShooterGame/Binaries/Win64/logs once a server with ArkApi enabled starts.',
-    fileEmpty: 'This log file is empty',
-    filterEmpty: 'No lines match the filter',
-    scrollToBottom: 'Back to bottom',
-    truncated: 'Showing the newest {shown} of {total} log files',
-    hint: 'The last {tail} lines of the .log files in ShooterGame/Binaries/Win64/logs, newest file first. Refreshed every 5 seconds while the server is running; the logs of the last run are still available after it stops.'
+    latestFile: 'Latest',
+    pluginEmpty: 'No plugin logs yet. ArkApi and its plugins write logs to ShooterGame/Binaries/Win64/logs once a server with ArkApi enabled starts.',
+    pluginFileEmpty: 'This log file is empty',
+    pluginHint: 'The last 2000 lines of a .log file in ShooterGame/Binaries/Win64/logs, written by ArkApi and its plugins. Follows the newest file by default and refreshes every 5 seconds; the logs of the last run are still available after the server stops.',
+    pluginTruncated: 'Showing the newest {shown} of {total} log files.'
   },
 
   // Console

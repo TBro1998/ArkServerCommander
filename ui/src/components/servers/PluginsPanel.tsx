@@ -40,7 +40,6 @@ import { cn } from '@/lib/utils';
 import { serversActions, type Server } from '@/stores/servers';
 import { PluginCatalogDialog } from './PluginCatalogDialog';
 import { PluginConfigDialog, configUrl, type ConfigTarget } from './PluginConfigDialog';
-import { PluginLogsCard } from './PluginLogsCard';
 
 interface Plugin {
   name: string;
@@ -823,8 +822,6 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
           )}
         </CardContent>
       </Card>
-
-      <PluginLogsCard server={server} active={active} />
 
       <PluginCatalogDialog
         open={catalogOpen}

@@ -1,28 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import axios from 'axios';
 import { Pause, Play, Download, Trash2, RefreshCw, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatBytes } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 
 const MAX_LINES = 5000;
 const INITIAL_TAIL = 500;
-const GAME_LOG_TAIL = 2000;
-const GAME_LOG_INTERVAL = 5000;
+const FILE_LOG_TAIL = 2000;
+const FILE_LOG_INTERVAL = 5000;
 
 type StreamState = 'connecting' | 'live' | 'ended' | 'error';
-// container：容器输出（入口脚本、steamcmd），SSE 实时推送；game：存档目录里的 ShooterGame.log，定时读取
-type LogSource = 'container' | 'game';
+// container：容器输出（入口脚本、steamcmd），SSE 实时推送；
+// game：存档目录里的 ShooterGame.log；plugin：ArkApi 和插件写在 Win64/logs 下的 .log 文件。后两种定时读取
+type LogSource = 'container' | 'game' | 'plugin';
+const SOURCES: LogSource[] = ['container', 'game', 'plugin'];
+
+interface PluginLogFile {
+  name: string;
+  size: number;
+  modified_at: string;
+}
 
 // steamcmd 下载进度行，下载服务端时会刷屏
 const PROGRESS_LINE = /Update state|progress:/i;
 
-// 按内容给日志行着色：错误、警告、脚本的阶段提示（插件日志 PluginLogsCard 也用）
-export function lineClass(line: string): string {
+// 按内容给日志行着色：错误、警告、脚本的阶段提示
+function lineClass(line: string): string {
   if (/\[!\]|error|failed|fatal/i.test(line)) return 'text-red-700';
   if (/warn/i.test(line)) return 'text-amber-700';
   if (/^\s*\[\*\]|^\s*\[i\]/.test(line)) return 'text-primary';
@@ -30,8 +40,17 @@ export function lineClass(line: string): string {
   return 'text-terminal-foreground';
 }
 
+function formatTime(value: string, locale: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US', { hour12: false });
+}
+
+const pluginLogUrl = (serverId: number, name: string) => `/api/servers/${serverId}/arkapi/logs/${encodeURIComponent(name)}`;
+
 export function LogViewer({ serverId, active }: { serverId: number; active: boolean }) {
   const t = useTranslations('logs');
+  const locale = useLocale();
   const [lines, setLines] = useState<string[]>([]);
   const [state, setState] = useState<StreamState>('connecting');
   const [paused, setPaused] = useState(false);
@@ -41,6 +60,10 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
   const [source, setSource] = useState<LogSource>('container');
   const [hideProgress, setHideProgress] = useState(false);
   const [gameLogMissing, setGameLogMissing] = useState(false);
+  // 插件日志：文件列表（从新到旧）和所选文件，空字符串表示跟随最新的文件（重启后会换成新的日志文件）
+  const [pluginFiles, setPluginFiles] = useState<PluginLogFile[] | null>(null);
+  const [pluginTotal, setPluginTotal] = useState(0);
+  const [pickedFile, setPickedFile] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   // 暂停期间收到的行先放在这里，恢复时一次性追加
   const bufferRef = useRef<string[]>([]);
@@ -67,7 +90,7 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
     const load = async () => {
       if (pausedRef.current) return;
       try {
-        const res = await axios.get(`/api/servers/${serverId}/logs/game`, { params: { tail: GAME_LOG_TAIL } });
+        const res = await axios.get(`/api/servers/${serverId}/logs/game`, { params: { tail: FILE_LOG_TAIL } });
         if (cancelled) return;
         setLines(res.data.data?.lines ?? []);
         setGameLogMissing(!res.data.data?.exists);
@@ -77,13 +100,48 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
       }
     };
     const first = setTimeout(load, 0);
-    const timer = setInterval(load, GAME_LOG_INTERVAL);
+    const timer = setInterval(load, FILE_LOG_INTERVAL);
     return () => {
       cancelled = true;
       clearTimeout(first);
       clearInterval(timer);
     };
   }, [serverId, active, source, session]);
+
+  // 插件日志：每次先读文件列表，再读所选文件（或最新的文件）的末尾，整体替换；暂停时不刷新
+  useEffect(() => {
+    if (!active || source !== 'plugin') return;
+    let cancelled = false;
+    const load = async () => {
+      if (pausedRef.current) return;
+      try {
+        const res = await axios.get(`/api/servers/${serverId}/arkapi/logs`);
+        if (cancelled) return;
+        const files: PluginLogFile[] = res.data.data?.files ?? [];
+        setPluginFiles(files);
+        setPluginTotal(res.data.data?.total ?? files.length);
+        const name = pickedFile && files.some((f) => f.name === pickedFile) ? pickedFile : files[0]?.name;
+        if (!name) {
+          setLines([]);
+          setState('live');
+          return;
+        }
+        const log = await axios.get(pluginLogUrl(serverId, name), { params: { tail: FILE_LOG_TAIL } });
+        if (cancelled) return;
+        setLines(log.data.data?.lines ?? []);
+        setState('live');
+      } catch {
+        if (!cancelled) setState('error');
+      }
+    };
+    const first = setTimeout(load, 0);
+    const timer = setInterval(load, FILE_LOG_INTERVAL);
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [serverId, active, source, session, pickedFile]);
 
   // 打开日志页时建立 SSE 连接，离开或重连时关闭
   useEffect(() => {
@@ -150,6 +208,19 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
     setSource(next);
   };
 
+  const files = pluginFiles ?? [];
+  const currentFile = pickedFile && files.some((f) => f.name === pickedFile) ? pickedFile : (files[0]?.name ?? '');
+
+  const chooseFile = (name: string) => {
+    if (name === currentFile) return;
+    // 选中最新的文件等于跟随最新
+    setPickedFile(name === files[0]?.name ? '' : name);
+    setLines([]);
+    setPaused(false);
+    setAutoScroll(true);
+    setState('connecting');
+  };
+
   const togglePause = () => {
     if (paused) flush();
     setPaused(!paused);
@@ -157,16 +228,25 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
 
   const download = async () => {
     try {
-      const data: string[] =
-        source === 'game'
-          ? ((await axios.get(`/api/servers/${serverId}/logs/game`, { params: { tail: MAX_LINES } })).data.data?.lines ?? [])
-          : (await axios.get(`/api/servers/${serverId}/logs`, { params: { tail: MAX_LINES } })).data.data;
+      let data: string[];
+      let fileName: string;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      if (source === 'plugin') {
+        if (!currentFile) return;
+        data = (await axios.get(pluginLogUrl(serverId, currentFile), { params: { tail: MAX_LINES } })).data.data?.lines ?? [];
+        fileName = currentFile;
+      } else if (source === 'game') {
+        data = (await axios.get(`/api/servers/${serverId}/logs/game`, { params: { tail: MAX_LINES } })).data.data?.lines ?? [];
+        fileName = `ShooterGame-${serverId}-${stamp}.log`;
+      } else {
+        data = (await axios.get(`/api/servers/${serverId}/logs`, { params: { tail: MAX_LINES } })).data.data;
+        fileName = `server-${serverId}-${stamp}.log`;
+      }
       const blob = new Blob([data.join('\n')], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const prefix = source === 'game' ? 'ShooterGame' : 'server';
-      a.download = `${prefix}-${serverId}-${new Date().toISOString().replace(/[:.]/g, '-')}.log`;
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -188,11 +268,29 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
     error: t('error'),
   }[state];
 
+  const sourceLabel = { container: t('sourceContainer'), game: t('sourceGame'), plugin: t('sourcePlugin') };
+
+  const emptyText = () => {
+    if (state === 'connecting') return t('connecting');
+    if (source === 'game' && gameLogMissing) return t('gameEmpty');
+    if (source === 'plugin') return files.length === 0 ? t('pluginEmpty') : keyword ? t('empty') : t('pluginFileEmpty');
+    return t('empty');
+  };
+
+  const hint = () => {
+    if (source === 'game') return t('gameHint');
+    if (source === 'plugin') {
+      const base = t('pluginHint');
+      return pluginTotal > files.length ? `${base} ${t('pluginTruncated', { shown: files.length, total: pluginTotal })}` : base;
+    }
+    return t('hint');
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-sm border p-0.5" role="tablist" aria-label={t('source')}>
-          {(['container', 'game'] as const).map((s) => (
+          {SOURCES.map((s) => (
             <button
               key={s}
               type="button"
@@ -204,7 +302,7 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
                 source === s ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {s === 'container' ? t('sourceContainer') : t('sourceGame')}
+              {sourceLabel[s]}
             </button>
           ))}
         </div>
@@ -217,6 +315,23 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
           <span className={cn('h-2 w-2 rounded-full', state === 'live' && !paused ? 'animate-pulse bg-green-500' : 'bg-gray-400')} />
           {stateLabel}
         </span>
+        {source === 'plugin' && files.length > 0 && (
+          <Select value={currentFile} onValueChange={chooseFile}>
+            <SelectTrigger className="h-8 w-full font-mono text-xs sm:w-80" aria-label={t('selectFile')}>
+              <SelectValue placeholder={t('selectFile')} />
+            </SelectTrigger>
+            <SelectContent>
+              {files.map((f, i) => (
+                <SelectItem key={f.name} value={f.name} className="font-mono text-xs">
+                  {f.name}
+                  <span className="ml-2 font-sans text-muted-foreground">
+                    {[i === 0 ? t('latestFile') : '', formatBytes(f.size), formatTime(f.modified_at, locale)].filter(Boolean).join(' · ')}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -250,7 +365,13 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
           <Button variant="outline" size="sm" onClick={() => setLines([])} title={t('clear')}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="outline" size="sm" onClick={download} title={t('download')}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={download}
+            title={t('download')}
+            disabled={source === 'plugin' && !currentFile}
+          >
             <Download className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -263,9 +384,7 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
           className="h-[55vh] min-h-[320px] overflow-auto rounded-sm border bg-terminal p-3 font-mono text-xs leading-5"
         >
           {visible.length === 0 ? (
-            <div className="text-gray-500">
-              {state === 'connecting' ? t('connecting') : source === 'game' ? (gameLogMissing ? t('gameEmpty') : t('empty')) : t('empty')}
-            </div>
+            <div className="text-gray-500">{emptyText()}</div>
           ) : (
             visible.map((line, i) => (
               <div key={i} className={cn('whitespace-pre-wrap break-all', lineClass(line))}>
@@ -289,7 +408,7 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
           </Button>
         )}
       </div>
-      <p className="text-xs text-gray-500">{source === 'game' ? t('gameHint') : t('hint')}</p>
+      <p className="text-xs text-gray-500">{hint()}</p>
     </div>
   );
 }

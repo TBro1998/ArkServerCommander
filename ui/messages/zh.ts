@@ -1186,28 +1186,14 @@ const messages = {
     sourceGame: '游戏日志',
     hideProgress: '隐藏下载进度',
     gameEmpty: '还没有游戏日志（服务器启动并加载地图后才会生成）',
-    gameHint: '存档目录 Logs/ShooterGame.log 的最后 2000 行，每 5 秒刷新一次；服务器停止后仍可查看上次运行的日志。'
-  },
-
-  // 插件日志（插件标签）
-  pluginLogs: {
-    title: '插件日志',
-    refresh: '刷新',
+    gameHint: '存档目录 Logs/ShooterGame.log 的最后 2000 行，每 5 秒刷新一次；服务器停止后仍可查看上次运行的日志。',
+    sourcePlugin: '插件日志',
     selectFile: '选择日志文件',
-    latest: '最新',
-    filter: '筛选日志...',
-    autoRefresh: '自动刷新',
-    download: '下载日志',
-    downloadFailed: '下载日志失败',
-    listFailed: '读取插件日志列表失败',
-    loadFailed: '读取日志文件失败',
-    loading: '读取中...',
-    empty: '还没有插件日志。启用了 ArkApi 的服务器启动后，ArkApi 和插件会把日志写到 ShooterGame/Binaries/Win64/logs。',
-    fileEmpty: '这个日志文件是空的',
-    filterEmpty: '没有符合筛选条件的行',
-    scrollToBottom: '回到底部',
-    truncated: '只列出最新的 {shown} 个，共 {total} 个日志文件',
-    hint: 'ShooterGame/Binaries/Win64/logs 下 .log 文件的最后 {tail} 行，默认显示最新的文件。运行中每 5 秒刷新一次；服务器停止后仍可查看上次运行的日志。'
+    latestFile: '最新',
+    pluginEmpty: '还没有插件日志。启用了 ArkApi 的服务器启动后，ArkApi 和插件会把日志写到 ShooterGame/Binaries/Win64/logs。',
+    pluginFileEmpty: '这个日志文件是空的',
+    pluginHint: 'ArkApi 和插件写在 ShooterGame/Binaries/Win64/logs 下的 .log 文件的最后 2000 行，默认跟随最新的文件，每 5 秒刷新一次；服务器停止后仍可查看上次运行的日志。',
+    pluginTruncated: '只列出最新的 {shown} 个，共 {total} 个日志文件。'
   },
 
   // 控制台
