@@ -35,15 +35,11 @@
 - 📝 API文档（Swagger，本地直接运行后端时可访问）
 - 🤖 MCP 接口，Claude Code、Claude Desktop、Cursor 等 Agent 可以直接管理服务器，支持完全控制和只读两种令牌
 
-### 🚧 待实现功能
-开发计划和进度见 [docs/DEV_PLAN.md](docs/DEV_PLAN.md)。
-- 👤 多用户管理
-- 🔌 MCP 支持
-
-### 🚀 未来计划
-- ☸️ 多主机管理，可能基于K8S实现
-- 🌍 服务器收录网站，脱离糟糕的steam搜服
-- 👥 玩家使用界面
+### 🗺️ 路线图
+接下来的计划见 [ROADMAP-zh.md](ROADMAP-zh.md)，主要有：
+- 🧪 在真实 Linux 服务器上验证新功能（Linux 原生镜像、联机房、一键更新等）
+- 👤 多用户管理和按服务器授权
+- ☸️ 多主机管理
 
 ## 🚀 快速开始
 

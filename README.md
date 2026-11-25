@@ -35,15 +35,11 @@
 - 📝 API documentation (Swagger, available when running the backend locally)
 - 🤖 MCP endpoint for agents (Claude Code, Claude Desktop, Cursor…), with full-control or read-only access tokens
 
-### 🚧 Planned Features
-See [docs/DEV_PLAN.md](docs/DEV_PLAN.md) for the development plan and progress.
-- 👤 Multi-user management
-- 🔌 MCP (Model Context Protocol) support
-
-### 🚀 Future Plans
-- ☸️ Multi-host management based on K8S
-- 🌍 Server listing website, breaking free from poor Steam server search
-- 👥 Player user interface
+### 🗺️ Roadmap
+See [ROADMAP.md](ROADMAP.md) for what's planned next. Highlights:
+- 🧪 Verifying recent features on real Linux servers (native Linux image, P2P rooms, one-click update, etc.)
+- 👤 Multi-user management and per-server access
+- ☸️ Multi-host management
 
 ## 🚀 Quick Start
 

@@ -11,16 +11,16 @@ README "已实现功能"的 12 项都有对应实现，后端 `go build/vet/test
 - "删除服务器时保留卷中的数据"：默认仍保留，但删除时可以勾选同时删除数据和备份；卷绑定到 `data/servers/<id>/`
 - 常见问题里"备份未实现""日志看不到"已不成立
 
-README "待实现功能"中以下几项实际已完成（见 [ROADMAP.md](ROADMAP.md)），已移到"已实现"：
+README "待实现功能"中以下几项实际已完成（见 [UX_PLAN.md](UX_PLAN.md)），已移到"已实现"：
 
 | README 条目 | 实现 |
 |---|---|
-| RCON 命令执行 | 详情页"控制台"，ROADMAP 3.1、3.2 |
-| 服务器运行状态监控 | 运行阶段、在线人数、CPU / 内存 / 磁盘，ROADMAP 1.3、1.4、3.4、5.5 |
-| 服务器日志查看 | 详情页"日志"，ROADMAP 1.1、1.2（只有容器输出，见下文 6.1） |
-| 服务器存档及配置备份 | 详情页"备份"，ROADMAP 2.3 |
-| 可选更新服务端文件和 Mod | "更新游戏/Mod"和 `auto_update`，ROADMAP 2.2 |
-| 用户管理中的"修改密码" | 设置页，ROADMAP 5.6（多用户未做，见下文 3.x） |
+| RCON 命令执行 | 详情页"控制台"，UX_PLAN 3.1、3.2 |
+| 服务器运行状态监控 | 运行阶段、在线人数、CPU / 内存 / 磁盘，UX_PLAN 1.3、1.4、3.4、5.5 |
+| 服务器日志查看 | 详情页"日志"，UX_PLAN 1.1、1.2（只有容器输出，见下文 6.1） |
+| 服务器存档及配置备份 | 详情页"备份"，UX_PLAN 2.3 |
+| 可选更新服务端文件和 Mod | "更新游戏/Mod"和 `auto_update`，UX_PLAN 2.2 |
+| 用户管理中的"修改密码" | 设置页，UX_PLAN 5.6（多用户未做，见下文 3.x） |
 
 ## 一、Mod 管理对接 Steam 创意工坊
 
@@ -70,14 +70,14 @@ README "待实现功能"中以下几项实际已完成（见 [ROADMAP.md](ROADMA
 
 ## 五、MCP 支持
 
-让 AI 助手通过 MCP 管理服务器。
+2026-11-14 完成。实现和用法见 README "Agent 接入（MCP）"。
 
 | # | 项目 | 状态 | 备注 |
 |---|------|------|------|
-| 5.1 | API 令牌：设置页生成 / 吊销长期令牌，只保存哈希 | [ ] | MCP 和脚本调用都需要，不能复用 24 小时的登录 JWT |
-| 5.2 | MCP 服务端（Streamable HTTP），挂在后端 `/mcp`，经 Next 代理对外 | [ ] | Go 用官方 `modelcontextprotocol/go-sdk`；代理需要支持流式（通配代理已支持） |
-| 5.3 | 工具：列出服务器和状态、启动 / 停止 / 重启、执行 RCON、在线玩家、创建备份、读取最近日志 | [ ] | 直接调用 `service/server`，权限与令牌所属用户一致；危险操作（删除、恢复）先不提供 |
-| 5.4 | 文档：README 增加 MCP 客户端配置示例 | [ ] | |
+| 5.1 | API 令牌：设置页生成 / 吊销长期令牌，只保存哈希 | [x] | `service/apitoken`，数据库只存 SHA-256；分完全控制和只读两档（只读只能调用查询类工具） |
+| 5.2 | MCP 服务端（Streamable HTTP），挂在后端 `/mcp`，经 Next 代理对外 | [x] | `server/mcpserver` |
+| 5.3 | 工具：服务器状态、启停、RCON、在线玩家、备份、日志等 | [x] | 范围比计划大：还包括创建和修改服务器、配置导入导出、定时任务、插件和镜像。上传插件、上传和下载备份只能在网页上操作 |
+| 5.4 | 文档：README 增加 MCP 客户端配置示例 | [x] | |
 
 ## 六、遗留改进
 
@@ -92,8 +92,6 @@ README "待实现功能"中以下几项实际已完成（见 [ROADMAP.md](ROADMA
 | 6.5 | 默认 Game.ini 模板中倍率 key 的位置 | [x] | 按 `docs/ASE_Game.ini.md` 和 `docs/ASE_GameUserSetting.md` 逐个核对：倍率、难度、昼夜速度，以及 `AllowFlyerCarryPvE`、`DisableStructureDecayPvE`、`EnablePvPGamma`（这三个不带 b 前缀）都属于 `[ServerSettings]`，已移到 GameUserSettings.ini 模板；Game.ini 只留它自己的选项，统一放在 `[/script/shootergame.shootergamemode]`。两个可视化编辑器同步调整，Game.ini 编辑器的空文件不再写入全部默认值。注意：模板里原本无效的 `OverrideOfficialDifficulty=5.0`、`AllowFlyerCarryPvE=True` 现在会生效（只影响新建的服务器）。没有用真实服务器验证 |
 | 6.6 | 更新 `docs/ISSUES.md` | [x] | 改为复核表：9 个问题中 6 个已解决，2 个部分解决（令牌失效、审计日志），1 个不处理（多实例） |
 
-## 长期计划（暂不排期）
+## 长期计划
 
-- 多主机管理（可能基于 K8S）
-- 服务器收录网站
-- 玩家使用界面
+见仓库根目录的 [ROADMAP-zh.md](../ROADMAP-zh.md)。服务器收录网站已上线（arkfgf.com），管理端可以把服务器发布上去。
