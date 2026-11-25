@@ -26,8 +26,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// P2P 联机房（arkfgf.com 联机助手）。接口约定见外层仓库 docs/p2p-link.md 的"Commander 侧"，
-// 账号绑定见 docs/commander-account.md：需要先绑定 arkfgf.com 账号（account.go），房间的请求都用账号令牌；
+// P2P 联机房（arkfgf.com 联机助手）。
+// 需要先绑定 arkfgf.com 账号（account.go），房间的请求都用账号令牌；
 // 未绑定时开启了 link 的服务器状态为 login_required，不登记、不心跳、不运行节点。
 //
 // 每个管理端一个房间（models.LinkRoom，只有一行）：所有开启了 link 的服务器是同一个房间里的多台服务器，
@@ -1013,7 +1013,7 @@ func linkNodePorts(servers []models.Server) []string {
 	return ports
 }
 
-// linkNodeArgs easytier-core 的参数，见 docs/p2p-link.md 的"服主节点"
+// linkNodeArgs easytier-core 的参数
 func linkNodeArgs(room models.LinkRoom, servers []models.Server, peers []string) []string {
 	args := []string{
 		"--network-name", room.NetworkName,

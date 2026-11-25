@@ -18,24 +18,23 @@ import (
 
 // 发布到服务器收录站（arkfgf.com）。
 //
-// 需要先绑定 arkfgf.com 账号（account.go），用账号令牌发布，见外层仓库 docs/commander-account.md；
+// 需要先绑定 arkfgf.com 账号（account.go），用账号令牌发布；
 // 未绑定时开启了发布的服务器状态为 login_required，不发请求。
 // 开启 publish 的服务器每次变成 ready（查询端口有响应、玩家可以连接）时发布一次（带 key = 服务器 ID）：
-// 收录站每半小时自己向查询端口发 A2S_INFO 更新在线状态，停服后查不到就显示为离线。
-// 在线人数：A2S 里的人数可以用插件改大，所以已发布、可以连接的服务器每 playersReportInterval 用 RCON ListPlayers
+// 之后没有心跳，停服也不通知，收录站自己判断是否在线。
+// 在线人数：已发布、可以连接的服务器每 playersReportInterval 用 RCON ListPlayers
 // 列一次实际连接的玩家，一次请求把玩家列表（ID 和名称）全部上报到 /publish/players（reportPlayers）。
-// 收录站按列表算人数、标为真实人数，玩家列表留作事后核查（不公开）；停止上报一段时间后退回 A2S 的人数。
+// 收录站据此显示真实人数，玩家列表不公开。
 // 发布成功后 servers.published 为 true；关闭发布或删除服务器时用 {"key"} 调用 /publish/unpublish 删除收录站上的记录，
 // 成功前会一直重试（管理端重启后继续）。
 // 旧版匿名发布留下的发布令牌（servers.publish_token）：下次发布时作为 legacy_token 让收录站清理旧记录，成功后清空；
 // 关闭发布或删除的服务器不论是否绑定，都用它取消旧记录后清空。
-// 收录站发布时也会从它那边查询端口验证，所以查询端口（UDP）必须能从公网访问。
+// 查询端口（UDP）必须能从公网访问。
 //
 // 防止刷屏：
 //   - 每次可以连接只发布一次；运行中短暂查询不到（notReadyGrace 内）不算断开，不会重新发布
 //   - 失败后指数退避（1 分钟起，最长 30 分钟），收录站返回 429 / 503 时按 Retry-After 等待；退避时间在停服后保留
 //   - 请求串行发出，同一时刻只有一个请求
-//   - 收录站那边还有按 IP、端口、全站的限流，见 web/backend/controllers/publish.go
 
 const (
 	publishTickInterval   = 15 * time.Second
@@ -356,8 +355,8 @@ type reportPlayer struct {
 	Name string `json:"name"`
 }
 
-// reportPlayers 到时间时，列一遍已发布、可以连接的服务器的在线玩家，一次上报。列不出来的（RCON 连不上等）跳过，
-// 收录站过一段时间会退回 A2S 的人数。失败只记日志，下一轮再报。账号失效时返回 false
+// reportPlayers 到时间时，列一遍已发布、可以连接的服务器的在线玩家，一次上报。列不出来的（RCON 连不上等）跳过。
+// 失败只记日志，下一轮再报。账号失效时返回 false
 func (p *Publisher) reportPlayers(servers []models.Server, token string) bool {
 	now := p.now()
 	if p.players == nil || now.Before(p.playersAt) {

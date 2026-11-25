@@ -14,7 +14,7 @@ import (
 )
 
 // 收录资料（简介、标签、QQ 群、Discord）：在管理端填写，随发布请求提交给收录站，显示在 arkfgf.com 的详情页上。
-// 收录站那边也会清理和校验（web/backend/controllers/listing.go），这里先校验，让服主在保存时就看到错误
+// 这里先校验，让服主在保存时就看到错误
 
 const (
 	listingDescriptionMax = 500

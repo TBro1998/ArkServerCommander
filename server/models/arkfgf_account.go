@@ -3,7 +3,7 @@ package models
 import "time"
 
 // ArkfgfAccount 绑定的 arkfgf.com 账号。每个管理端最多绑定一个账号（只有一行，ID 固定为 1，未绑定时没有这一行）。
-// 发布到收录站和 P2P 联机房都用账号令牌调用网站，见外层仓库 docs/commander-account.md
+// 发布到收录站和 P2P 联机房都用账号令牌调用网站
 type ArkfgfAccount struct {
 	ID uint `gorm:"primaryKey"`
 	// 账号令牌（acm_...），只存在本机，不返回给浏览器

@@ -20,7 +20,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// 绑定 arkfgf.com 账号（在 Commander 里直接用 Steam 登录）。接口约定见外层仓库 docs/commander-account.md。
+// 绑定 arkfgf.com 账号（在 Commander 里直接用 Steam 登录）。
 //
 // 发布到收录站和 P2P 联机房都要求先绑定。设置页点"用 Steam 登录"：前端把回调地址（本页面所在的
 // origin + /settings/arkfgf-callback）和名称交给后端，后端转给 POST /commander/login 拿到 Steam 登录地址，
