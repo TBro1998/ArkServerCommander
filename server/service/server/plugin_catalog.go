@@ -111,7 +111,7 @@ type pluginCatalogCache struct {
 }
 
 var pluginCatalog = &pluginCatalogCache{
-	api:    func() string { return config.PublishAPI },
+	api:    func() string { return config.AccountAPI },
 	client: &http.Client{Timeout: 15 * time.Second},
 }
 

@@ -198,7 +198,7 @@ var linkManager = &LinkManager{
 	servers: map[uint]*linkServerState{},
 	legacy:  map[uint]*linkBackoff{},
 	client:  &http.Client{Timeout: linkRequestTimeout},
-	api:     func() string { return config.PublishAPI },
+	api:     func() string { return config.LinkAPI },
 	now:     time.Now,
 	docker:  dockerLinkOps{},
 	runtime: linkRuntimeOf,

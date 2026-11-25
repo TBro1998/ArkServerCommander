@@ -76,7 +76,7 @@ type AccountManager struct {
 
 var accountManager = &AccountManager{
 	client: &http.Client{Timeout: accountRequestTimeout},
-	api:    func() string { return config.PublishAPI },
+	api:    func() string { return config.AccountAPI },
 	now:    time.Now,
 }
 

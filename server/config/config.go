@@ -35,9 +35,15 @@ var (
 
 	// PublicHost 玩家连接用的公网地址（IP 或域名），为空时自动探测公网 IP
 	PublicHost string
-	// PublishAPI 服务器收录站（arkfgf.com）的接口地址，开启"发布到收录站"的服务器启动后自动发布。
-	// 通过 ARKFGF_API 修改，设为空或 off 时整体关闭发布功能
-	PublishAPI = "https://arkfgf.com/api/v1"
+	// arkfgf.com 的接口地址，分三个：
+	//   AccountAPI（ARKFGF_API）：账号绑定、插件目录
+	//   ServersAPI（ARKFGF_SERVERS_API）：发布到收录站
+	//   LinkAPI（ARKFGF_LINK_API）：P2P 联机房
+	// ARKFGF_API 设为空或 off 时三个都为空，整体关闭与 arkfgf.com 的连接（账号、发布、联机房、插件目录）。
+	// 见 loadArkfgfAPIs
+	AccountAPI = DefaultAccountAPI
+	ServersAPI = DefaultServersAPI
+	LinkAPI    = DefaultLinkAPI
 	// DataDir 数据目录（数据库所在目录，镜像内为 /data）。ARK 服务器的服务端文件、存档、插件和集群数据
 	// 放在其下的 servers/<id>/ 和 clusters/<cluster_id>/，宿主机上可以直接管理
 	DataDir string
@@ -46,6 +52,13 @@ var (
 	ServerFilesVolume = "auto"
 	// HostDataDir DataDir 在宿主机上的路径，通过 HOST_DATA_DIR 指定；为空时自动探测（见 docker_manager.InitStorage）
 	HostDataDir string
+)
+
+// arkfgf.com 接口的默认地址
+const (
+	DefaultAccountAPI = "https://arkfgf.com/api/v1"
+	DefaultServersAPI = "https://servers.arkfgf.com/api/v1"
+	DefaultLinkAPI    = "https://link.arkfgf.com/api/v1"
 )
 
 // ServerFilesMount 镜像声明的服务端文件卷（Dockerfile 的 VOLUME）在后端容器里的路径
@@ -89,13 +102,7 @@ func InitConfig() error {
 		BackupDir = filepath.Join(filepath.Dir(DBPath), "backups")
 	}
 	PublicHost = strings.TrimSpace(os.Getenv("PUBLIC_HOST"))
-	if api, ok := os.LookupEnv("ARKFGF_API"); ok {
-		api = strings.TrimRight(strings.TrimSpace(api), "/")
-		if strings.EqualFold(api, "off") {
-			api = ""
-		}
-		PublishAPI = api
-	}
+	AccountAPI, ServersAPI, LinkAPI = loadArkfgfAPIs(os.LookupEnv)
 
 	dataDir, err := filepath.Abs(filepath.Dir(DBPath))
 	if err != nil {
@@ -114,6 +121,42 @@ func InitConfig() error {
 	JWTSecret = secret
 
 	return nil
+}
+
+// loadArkfgfAPIs 读取 arkfgf.com 的三个接口地址：
+//   - ARKFGF_API 没有设置时，三个都用默认地址（ARKFGF_SERVERS_API / ARKFGF_LINK_API 设置了的用设置的值）
+//   - ARKFGF_API 为空或 off 时三个都为空，关闭与 arkfgf.com 的连接
+//   - ARKFGF_API 设置成某个地址时，没有设置的 ARKFGF_SERVERS_API / ARKFGF_LINK_API 也用这个地址
+//     （本地联调时一个模拟网站提供所有接口）
+//
+// ARKFGF_SERVERS_API / ARKFGF_LINK_API 设为空或 off 时同样回到上面的规则。地址末尾的斜杠会去掉。
+func loadArkfgfAPIs(lookup func(string) (string, bool)) (account, servers, link string) {
+	get := func(key string) (string, bool) {
+		v, ok := lookup(key)
+		if !ok {
+			return "", false
+		}
+		v = strings.TrimRight(strings.TrimSpace(v), "/")
+		if strings.EqualFold(v, "off") {
+			v = ""
+		}
+		return v, true
+	}
+
+	account, servers, link = DefaultAccountAPI, DefaultServersAPI, DefaultLinkAPI
+	if v, ok := get("ARKFGF_API"); ok {
+		if v == "" {
+			return "", "", ""
+		}
+		account, servers, link = v, v, v
+	}
+	if v, _ := get("ARKFGF_SERVERS_API"); v != "" {
+		servers = v
+	}
+	if v, _ := get("ARKFGF_LINK_API"); v != "" {
+		link = v
+	}
+	return account, servers, link
 }
 
 // loadJWTSecret 优先使用环境变量 JWT_SECRET；未设置时从数据库目录下的密钥文件读取，文件不存在则生成

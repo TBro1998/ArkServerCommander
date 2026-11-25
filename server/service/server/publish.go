@@ -82,7 +82,7 @@ type Publisher struct {
 var publisher = &Publisher{
 	states:  map[uint]*publishState{},
 	client:  &http.Client{Timeout: publishRequestTimeout},
-	api:     func() string { return config.PublishAPI },
+	api:     func() string { return config.ServersAPI },
 	now:     time.Now,
 	wakeCh:  make(chan struct{}, 1),
 	ready:   serverReady,

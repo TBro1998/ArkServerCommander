@@ -53,3 +53,34 @@ func TestLoadJWTSecretFromEnv(t *testing.T) {
 		t.Fatal("过短的 JWT_SECRET 应被拒绝")
 	}
 }
+
+func TestLoadArkfgfAPIs(t *testing.T) {
+	cases := []struct {
+		name                  string
+		env                   map[string]string
+		account, servers, lnk string
+	}{
+		{"默认", nil, DefaultAccountAPI, DefaultServersAPI, DefaultLinkAPI},
+		{"关闭", map[string]string{"ARKFGF_API": "off", "ARKFGF_LINK_API": "http://x/api/v1"}, "", "", ""},
+		{"为空", map[string]string{"ARKFGF_API": " "}, "", "", ""},
+		{"本地一个地址", map[string]string{"ARKFGF_API": "http://127.0.0.1:8090/api/v1/"},
+			"http://127.0.0.1:8090/api/v1", "http://127.0.0.1:8090/api/v1", "http://127.0.0.1:8090/api/v1"},
+		{"分别指定", map[string]string{"ARKFGF_API": "http://a/api/v1", "ARKFGF_SERVERS_API": "http://s/api/v1/", "ARKFGF_LINK_API": "http://l/api/v1"},
+			"http://a/api/v1", "http://s/api/v1", "http://l/api/v1"},
+		{"只改联机房", map[string]string{"ARKFGF_LINK_API": "http://l/api/v1"}, DefaultAccountAPI, DefaultServersAPI, "http://l/api/v1"},
+		{"单独的为空时按 ARKFGF_API", map[string]string{"ARKFGF_API": "http://a/api/v1", "ARKFGF_SERVERS_API": ""},
+			"http://a/api/v1", "http://a/api/v1", "http://a/api/v1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			lookup := func(key string) (string, bool) {
+				v, ok := tc.env[key]
+				return v, ok
+			}
+			account, servers, link := loadArkfgfAPIs(lookup)
+			if account != tc.account || servers != tc.servers || link != tc.lnk {
+				t.Fatalf("得到 %q %q %q，应为 %q %q %q", account, servers, link, tc.account, tc.servers, tc.lnk)
+			}
+		})
+	}
+}
