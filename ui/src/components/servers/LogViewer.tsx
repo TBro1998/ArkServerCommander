@@ -17,10 +17,11 @@ const FILE_LOG_TAIL = 2000;
 const FILE_LOG_INTERVAL = 5000;
 
 type StreamState = 'connecting' | 'live' | 'ended' | 'error';
-// container：容器输出（入口脚本、steamcmd），SSE 实时推送；
-// game：存档目录里的 ShooterGame.log；plugin：ArkApi 和插件写在 Win64/logs 下的 .log 文件。后两种定时读取
-type LogSource = 'container' | 'game' | 'plugin';
-const SOURCES: LogSource[] = ['container', 'game', 'plugin'];
+// container：容器输出，SSE 实时推送。入口脚本把 ShooterGame.log 和 ArkApi 的日志也接到了容器输出里，
+// 相当于 Windows 上的控制台窗口，所以不再单独显示游戏日志（后端接口 /logs/game 和 MCP 的 get_game_log 保留）。
+// plugin：ArkApi 和插件写在 Win64/logs 下的 .log 文件，定时读取，用来看以前几次运行的日志和插件自己的日志文件
+type LogSource = 'container' | 'plugin';
+const SOURCES: LogSource[] = ['container', 'plugin'];
 
 interface PluginLogFile {
   name: string;
@@ -60,7 +61,6 @@ export function LogViewer({ serverId, active, api = 'ArkApi' }: { serverId: numb
   const [session, setSession] = useState(0);
   const [source, setSource] = useState<LogSource>('container');
   const [hideProgress, setHideProgress] = useState(false);
-  const [gameLogMissing, setGameLogMissing] = useState(false);
   // 插件日志：文件列表（从新到旧）和所选文件，空字符串表示跟随最新的文件（重启后会换成新的日志文件）
   const [pluginFiles, setPluginFiles] = useState<PluginLogFile[] | null>(null);
   const [pluginTotal, setPluginTotal] = useState(0);
@@ -83,31 +83,6 @@ export function LogViewer({ serverId, active, api = 'ArkApi' }: { serverId: numb
       return next.length > MAX_LINES ? next.slice(next.length - MAX_LINES) : next;
     });
   }, []);
-
-  // 游戏日志：定时读取文件末尾，整体替换；暂停时不刷新
-  useEffect(() => {
-    if (!active || source !== 'game') return;
-    let cancelled = false;
-    const load = async () => {
-      if (pausedRef.current) return;
-      try {
-        const res = await axios.get(`/api/servers/${serverId}/logs/game`, { params: { tail: FILE_LOG_TAIL } });
-        if (cancelled) return;
-        setLines(res.data.data?.lines ?? []);
-        setGameLogMissing(!res.data.data?.exists);
-        setState('live');
-      } catch {
-        if (!cancelled) setState('error');
-      }
-    };
-    const first = setTimeout(load, 0);
-    const timer = setInterval(load, FILE_LOG_INTERVAL);
-    return () => {
-      cancelled = true;
-      clearTimeout(first);
-      clearInterval(timer);
-    };
-  }, [serverId, active, source, session]);
 
   // 插件日志：每次先读文件列表，再读所选文件（或最新的文件）的末尾，整体替换；暂停时不刷新
   useEffect(() => {
@@ -204,7 +179,6 @@ export function LogViewer({ serverId, active, api = 'ArkApi' }: { serverId: numb
     bufferRef.current = [];
     setLines([]);
     setPaused(false);
-    setGameLogMissing(false);
     setState('connecting');
     setSource(next);
   };
@@ -236,9 +210,6 @@ export function LogViewer({ serverId, active, api = 'ArkApi' }: { serverId: numb
         if (!currentFile) return;
         data = (await axios.get(pluginLogUrl(serverId, currentFile), { params: { tail: MAX_LINES } })).data.data?.lines ?? [];
         fileName = currentFile;
-      } else if (source === 'game') {
-        data = (await axios.get(`/api/servers/${serverId}/logs/game`, { params: { tail: MAX_LINES } })).data.data?.lines ?? [];
-        fileName = `ShooterGame-${serverId}-${stamp}.log`;
       } else {
         data = (await axios.get(`/api/servers/${serverId}/logs`, { params: { tail: MAX_LINES } })).data.data;
         fileName = `server-${serverId}-${stamp}.log`;
@@ -269,22 +240,21 @@ export function LogViewer({ serverId, active, api = 'ArkApi' }: { serverId: numb
     error: t('error'),
   }[state];
 
-  const sourceLabel = { container: t('sourceContainer'), game: t('sourceGame'), plugin: t('sourcePlugin') };
+  const sourceLabel = { container: t('sourceContainer'), plugin: t('sourcePlugin') };
 
   const emptyText = () => {
     if (state === 'connecting') return t('connecting');
-    if (source === 'game' && gameLogMissing) return t('gameEmpty');
     if (source === 'plugin') return files.length === 0 ? t('pluginEmpty', { api }) : keyword ? t('empty') : t('pluginFileEmpty');
     return t('empty');
   };
 
   const hint = () => {
-    if (source === 'game') return t('gameHint');
     if (source === 'plugin') {
-      const base = t('pluginHint', { api });
+      const base = api === 'ArkApi' ? t('pluginHintArkApi') : t('pluginHint', { api });
       return pluginTotal > files.length ? `${base} ${t('pluginTruncated', { shown: files.length, total: pluginTotal })}` : base;
     }
-    return t('hint');
+    // ASA 的入口脚本只接了游戏日志，AsaApi 的日志要在"插件日志"里看
+    return api === 'ArkApi' ? t('hintArkApi') : t('hint');
   };
 
   return (
