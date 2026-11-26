@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { getIniValue, setIniValue, type IniIndex } from '@/lib/ini';
 import type { Server } from '@/stores/servers';
+import type { Game } from '@/lib/games';
 
 // field：服务器记录的字段（名称、端口、Mod 等），由表单单独渲染
 // gus：GameUserSettings.ini；game：Game.ini；query：?Key=Value；arg：-Key / -Key=Value
@@ -45,6 +46,9 @@ export interface SettingDef {
   section?: string;
   // 占满一行
   wide?: boolean;
+  // 只对这些游戏有效，缺省两个游戏都有。ASA 的启动参数少得多（ASE 的存档、建筑优化、反作弊类参数在 ASA 里不存在），
+  // 只在 ASE 有效的项在 ASA 服务器上不显示
+  games?: Game[];
 }
 
 export type PanelId = 'customArgs' | 'rawConfig';
@@ -96,6 +100,9 @@ const mult = (source: Src, key: string, def = 1): SettingDef => ({ key, source, 
 const secs = (source: Src, key: string, def?: number): SettingDef => ({ key, source, type: 'number', default: def, unit: 's' });
 const text = (source: Src, key: string, def = '', extra?: Extra): SettingDef => ({ key, source, type: 'text', default: def, ...extra });
 
+// 只在 ASE 有效
+const ase = (def: SettingDef): SettingDef => ({ ...def, games: ['ase'] });
+
 const G = 'gus' as const;
 const I = 'game' as const;
 const Q = 'query' as const;
@@ -108,7 +115,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
     id: 'general',
     icon: Settings2,
     sections: [
-      { id: 'server', settings: [field('session_name'), field('map'), field('max_players'), field('game_branch')] },
+      { id: 'server', settings: [field('session_name'), field('map'), field('max_players'), ase(field('game_branch'))] },
       {
         id: 'access',
         settings: [
@@ -130,14 +137,14 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
     id: 'network',
     icon: Network,
     sections: [
-      { id: 'ports', settings: [field('port'), field('query_port'), field('rcon_port')] },
+      { id: 'ports', settings: [field('port'), ase(field('query_port')), field('rcon_port')] },
       {
         id: 'platform',
-        settings: [bool(A, 'crossplay'), bool(A, 'epiconly'), text(A, 'PublicIPForEpic'), text(A, 'MULTIHOME')],
+        settings: [ase(bool(A, 'crossplay')), ase(bool(A, 'epiconly')), ase(text(A, 'PublicIPForEpic')), text(A, 'MULTIHOME')],
       },
       {
         id: 'connections',
-        settings: [bool(A, 'exclusivejoin'), num(A, 'MaxConnectionsPerIP'), bool(G, 'AllowSharedConnections')],
+        settings: [bool(A, 'exclusivejoin'), ase(num(A, 'MaxConnectionsPerIP')), bool(G, 'AllowSharedConnections')],
       },
     ],
   },
@@ -145,15 +152,15 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
     id: 'mods',
     icon: Package,
     sections: [
-      { id: 'mods', settings: [field('game_mod_ids', { wide: true }), text(A, 'MapModID'), bool(A, 'automanagedmods')] },
+      { id: 'mods', settings: [field('game_mod_ids', { wide: true }), ase(text(A, 'MapModID')), ase(bool(A, 'automanagedmods'))] },
       {
         id: 'cluster',
         settings: [
           field('cluster_id', { wide: true }),
           bool(A, 'NoTransferFromFiltering'),
-          bool(A, 'usestore'),
-          bool(A, 'BackupTransferPlayerDatas'),
-          bool(A, 'converttostore'),
+          ase(bool(A, 'usestore')),
+          ase(bool(A, 'BackupTransferPlayerDatas')),
+          ase(bool(A, 'converttostore')),
         ],
       },
       {
@@ -173,7 +180,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           secs(G, 'TributeItemExpirationSeconds', 86400),
           secs(G, 'TributeDinoExpirationSeconds', 86400),
           secs(G, 'MinimumDinoReuploadInterval', 0),
-          secs(A, 'MinimumTimeBetweenInventoryRetrieval'),
+          ase(secs(A, 'MinimumTimeBetweenInventoryRetrieval')),
           bool(A, 'DisableCustomFoldersInTributeInventories'),
         ],
       },
@@ -243,7 +250,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(G, 'bFilterChat'),
           bool(G, 'bFilterCharacterNames'),
           bool(G, 'bFilterTribeNames'),
-          bool(A, 'UseVivox'),
+          ase(bool(A, 'UseVivox')),
           bool(A, 'AllowChatSpam'),
         ],
       },
@@ -251,10 +258,10 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
         id: 'events',
         settings: [
           text(A, 'ActiveEvent'),
-          bool(A, 'NewYearEvent'),
-          num(Q, 'NewYear1UTC'),
-          num(Q, 'NewYear2UTC'),
-          num(Q, 'EventColorsChanceOverride', 0, { step: 0.01 }),
+          ase(bool(A, 'NewYearEvent')),
+          ase(num(Q, 'NewYear1UTC')),
+          ase(num(Q, 'NewYear2UTC')),
+          ase(num(Q, 'EventColorsChanceOverride', 0, { step: 0.01 })),
         ],
       },
     ],
@@ -358,7 +365,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(I, 'bDisableDinoRiding'),
           bool(G, 'AllowRaidDinoFeeding'),
           mult(G, 'RaidDinoCharacterFoodDrainMultiplier'),
-          bool(A, 'UseTameEffectivenessClamp'),
+          ase(bool(A, 'UseTameEffectivenessClamp')),
         ],
       },
       {
@@ -507,7 +514,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(I, 'bPvEDisableFriendlyFire'),
           bool(I, 'bPassiveDefensesDamageRiderlessDinos'),
           bool(G, 'AllowMultipleAttachedC4'),
-          bool(A, 'DisableRailgunPVP'),
+          ase(bool(A, 'DisableRailgunPVP')),
         ],
       },
       {
@@ -532,8 +539,8 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
         id: 'saves',
         settings: [
           num(G, 'AutoSavePeriodMinutes', 15, { unit: 'min' }),
-          num(A, 'MaxNumOfSaveBackups', 20),
-          bool(A, 'newsaveformat'),
+          ase(num(A, 'MaxNumOfSaveBackups', 20)),
+          ase(bool(A, 'newsaveformat')),
           text(Q, 'AltSaveDirectoryName'),
         ],
       },
@@ -559,7 +566,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
             default: '',
             options: ['ca', 'cs', 'da', 'de', 'en', 'es', 'eu', 'fi', 'fr', 'hu', 'it', 'ja', 'ka', 'ko', 'nl', 'pl', 'pt_BR', 'ru', 'sv', 'th', 'tr', 'zh', 'zh-Hans-CN', 'zh-TW'],
           },
-          bool(A, 'NoHangDetection'),
+          ase(bool(A, 'NoHangDetection')),
           text(G, 'BanListURL', 'http://arkdedicated.com/banlist.txt', { wide: true }),
           text(G, 'CustomDynamicConfigUrl', '', { wide: true }),
         ],
@@ -574,36 +581,36 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
         id: 'antiCheat',
         settings: [
           bool(A, 'NoBattlEye'),
-          bool(A, 'BattlEyeServerRecheck'),
-          bool(A, 'insecure'),
-          bool(A, 'noantispeedhack'),
-          num(A, 'speedhackbias', 1, { step: 0.1 }),
-          bool(A, 'noundermeshchecking'),
-          bool(A, 'noundermeshkilling'),
-          bool(A, 'forcedisablemeshchecking'),
-          bool(A, 'SecureSendArKPayload'),
-          bool(A, 'UseItemDupeCheck'),
-          bool(A, 'UseSecureSpawnRules'),
-          bool(A, 'EnableVictoryCoreDupeCheck'),
-          bool(A, 'ignoredupeditems'),
-          bool(A, 'ForceDupeLog'),
-          bool(A, 'DisableDupeLogDeletes'),
-          bool(A, 'UseServerNetSpeedCheck'),
-          bool(A, 'pauseonddos'),
+          ase(bool(A, 'BattlEyeServerRecheck')),
+          ase(bool(A, 'insecure')),
+          ase(bool(A, 'noantispeedhack')),
+          ase(num(A, 'speedhackbias', 1, { step: 0.1 })),
+          ase(bool(A, 'noundermeshchecking')),
+          ase(bool(A, 'noundermeshkilling')),
+          ase(bool(A, 'forcedisablemeshchecking')),
+          ase(bool(A, 'SecureSendArKPayload')),
+          ase(bool(A, 'UseItemDupeCheck')),
+          ase(bool(A, 'UseSecureSpawnRules')),
+          ase(bool(A, 'EnableVictoryCoreDupeCheck')),
+          ase(bool(A, 'ignoredupeditems')),
+          ase(bool(A, 'ForceDupeLog')),
+          ase(bool(A, 'DisableDupeLogDeletes')),
+          ase(bool(A, 'UseServerNetSpeedCheck')),
+          ase(bool(A, 'pauseonddos')),
         ],
       },
       {
         id: 'performance',
         settings: [
-          bool(A, 'structurememopts'),
-          bool(A, 'UseStructureStasisGrid'),
-          bool(A, 'StasisKeepControllers'),
-          bool(A, 'nocombineclientmoves'),
-          num(A, 'DormancyNetMultiplier', 1, { step: 0.1 }),
-          bool(A, 'nodormancythrottling'),
-          bool(A, 'dedihibernation'),
-          bool(A, 'nitradotest2'),
-          bool(A, 'ServerAllowAnsel'),
+          ase(bool(A, 'structurememopts')),
+          ase(bool(A, 'UseStructureStasisGrid')),
+          ase(bool(A, 'StasisKeepControllers')),
+          ase(bool(A, 'nocombineclientmoves')),
+          ase(num(A, 'DormancyNetMultiplier', 1, { step: 0.1 })),
+          ase(bool(A, 'nodormancythrottling')),
+          ase(bool(A, 'dedihibernation')),
+          ase(bool(A, 'nitradotest2')),
+          ase(bool(A, 'ServerAllowAnsel')),
           mult(G, 'ListenServerTetherDistanceMultiplier'),
           num(G, 'NPCNetworkStasisRangeScalePlayerCountStart', 0),
           num(G, 'NPCNetworkStasisRangeScalePlayerCountEnd', 0),
@@ -613,17 +620,17 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
       {
         id: 'otherArgs',
         settings: [
-          bool(A, 'webalarm'),
-          bool(A, 'EnableOfficialOnlyVersioningCode'),
-          bool(A, 'parseservertojson'),
-          bool(A, 'PreventTotalConversionSaveDir'),
-          bool(A, 'ReloadedForBackup'),
-          bool(A, 'UnstasisDinoObstructionCheck'),
-          bool(A, 'pveallowtribewar'),
-          bool(A, 'pvedisallowtribewar'),
-          text(A, 'CustomAdminCommandTrackingURL', '', { wide: true }),
-          text(A, 'CustomMerticsURL', '', { wide: true }),
-          text(A, 'CustomNotificationURL', '', { wide: true }),
+          ase(bool(A, 'webalarm')),
+          ase(bool(A, 'EnableOfficialOnlyVersioningCode')),
+          ase(bool(A, 'parseservertojson')),
+          ase(bool(A, 'PreventTotalConversionSaveDir')),
+          ase(bool(A, 'ReloadedForBackup')),
+          ase(bool(A, 'UnstasisDinoObstructionCheck')),
+          ase(bool(A, 'pveallowtribewar')),
+          ase(bool(A, 'pvedisallowtribewar')),
+          ase(text(A, 'CustomAdminCommandTrackingURL', '', { wide: true })),
+          ase(text(A, 'CustomMerticsURL', '', { wide: true })),
+          ase(text(A, 'CustomNotificationURL', '', { wide: true })),
         ],
       },
       { id: 'customArgs', settings: [], panel: 'customArgs' },
@@ -710,4 +717,26 @@ export function writeSetting(def: SettingDef, value: SettingValue | undefined, f
 
 export function allSettings(group: SettingGroupDef): SettingDef[] {
   return group.sections.flatMap((s) => s.settings);
+}
+
+/** 设置项对这个游戏是否有效 */
+export function settingAppliesTo(def: SettingDef, game: Game): boolean {
+  return !def.games || def.games.includes(game);
+}
+
+// 按游戏过滤后的分组：去掉不适用的设置项，以及因此变空的分区（特殊面板保留）
+function filterGroups(game: Game): SettingGroupDef[] {
+  return SETTING_GROUPS.map((group) => ({
+    ...group,
+    sections: group.sections
+      .map((section) => ({ ...section, settings: section.settings.filter((def) => settingAppliesTo(def, game)) }))
+      .filter((section) => section.panel || section.settings.length > 0),
+  }));
+}
+
+const GROUPS_BY_GAME: Record<Game, SettingGroupDef[]> = { ase: filterGroups('ase'), asa: filterGroups('asa') };
+
+/** 这个游戏的服务器在设置界面上显示的分组 */
+export function settingGroupsFor(game: Game): SettingGroupDef[] {
+  return GROUPS_BY_GAME[game];
 }

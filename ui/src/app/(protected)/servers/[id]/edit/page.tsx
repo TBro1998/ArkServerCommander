@@ -13,6 +13,7 @@ import { ServerForm } from '@/components/servers/ServerForm';
 import { serversActions, type Server } from '@/stores/servers';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
+import { GAME_NAMES, gameOf } from '@/lib/games';
 
 export default function ServerEditPage() {
   const tServers = useTranslations('servers');
@@ -100,7 +101,8 @@ export default function ServerEditPage() {
         <ArrowLeft className="mr-1 h-4 w-4" />
         {server.session_name}
       </Link>
-      <PageHeader title={tEdit('editTitle')} />
+      {/* 游戏创建后不能修改，只显示 */}
+      <PageHeader title={tEdit('editTitle')} description={tForm('gameReadonly', { game: GAME_NAMES[gameOf(server)] })} />
 
       {(server.status !== 'stopped' || server.config_pending) && (
         <Alert className="mb-4 border-amber-300 bg-amber-50 text-amber-900">

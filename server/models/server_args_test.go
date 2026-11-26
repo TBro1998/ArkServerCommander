@@ -94,3 +94,32 @@ func TestGenerateArgsOmitsAdminPassword(t *testing.T) {
 		t.Fatal("启动参数字符串不应包含管理员密码")
 	}
 }
+
+// ASA 没有查询端口：人数上限用 -WinLiveMaxPlayers，Mod 用 -mods=，集群目录要用 -ClusterDirOverride 指到集群卷
+func TestGenerateArgsASA(t *testing.T) {
+	server := testServer()
+	server.Game = "asa"
+	server.Map = "TheIsland_WP"
+	server.QueryPort = 0
+	args := FromServer(server)
+	// 启动参数里手动写的同名项不能重复出现
+	args.CommandLineArgs["WinLiveMaxPlayers"] = float64(10)
+	args.CommandLineArgs["mods"] = "999"
+	got := args.GenerateArgs(server)
+
+	wantURL := "TheIsland_WP?listen?Port=7777?RCONEnabled=True?RCONPort=32330?SessionName=My Ark Server"
+	if got[0] != wantURL {
+		t.Fatalf("地图 URL 不符合预期:\n want: %s\n  got: %s", wantURL, got[0])
+	}
+	for _, want := range []string{"-WinLiveMaxPlayers=70", "-mods=123,456", "-clusterid=cluster-a", "-ClusterDirOverride=" + AsaClusterDir, "-NoBattlEye"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("缺少 %s，实际: %v", want, got)
+		}
+	}
+	joined := strings.Join(got, " ")
+	for _, unwanted := range []string{"QueryPort", "GameModIds", "-mods=999", "-WinLiveMaxPlayers=10", "newsaveformat", "structurememopts"} {
+		if strings.Contains(joined, unwanted) {
+			t.Errorf("ASA 参数不应包含 %s，实际: %s", unwanted, joined)
+		}
+	}
+}

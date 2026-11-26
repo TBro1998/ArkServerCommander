@@ -142,7 +142,7 @@ func (p *Publisher) tick() {
 	keep := map[uint]bool{}
 
 	var servers []models.Server
-	if err := database.DB.Select("id", "session_name", "map", "max_players", "port", "query_port", "rcon_port", "admin_password",
+	if err := database.DB.Select("id", "game", "session_name", "map", "max_players", "port", "query_port", "rcon_port", "admin_password",
 		"cluster_id", "game_mod_ids", "arkapi", "server_args_json", "status", "publish", "published", "publish_token",
 		"listing_description", "listing_tags", "listing_qq", "listing_discord").
 		Where("publish = ?", true).Find(&servers).Error; err != nil {
@@ -232,10 +232,12 @@ func (p *Publisher) state(id uint) *publishState {
 	return st
 }
 
-// publishProfile 发布内容。名称、地图、人数和是否有密码收录站会以 A2S 查询结果为准，这里的值只作补充
+// publishProfile 发布内容。名称、地图、人数和是否有密码以收录站核实的结果为准，这里的值只作补充
 type publishProfile struct {
+	// 游戏：ase 或 asa。ASA 没有查询端口（query_port 为 0），Mod 是 CurseForge 项目 ID，arkapi 表示 AsaApi
+	Game             string   `json:"game"`
 	Port             int      `json:"port"`
-	QueryPort        int      `json:"query_port"`
+	QueryPort        int      `json:"query_port,omitempty"`
 	Name             string   `json:"name"`
 	Map              string   `json:"map"`
 	MaxPlayers       int      `json:"max_players"`
@@ -482,6 +484,8 @@ func publishErrorMessage(code string, server models.Server) string {
 		return "收录站要求先绑定 arkfgf.com 账号"
 	case "invalid_input":
 		return "发布内容不符合收录站要求"
+	case "asa_not_listed":
+		return fmt.Sprintf("收录站暂时还不能确认这台 ASA 服务器（刚启动的服务器通常要等几分钟），会自动重试；一直不成功时请确认游戏端口 %d（UDP）能从公网访问", server.Port)
 	}
 	return ""
 }
@@ -529,6 +533,7 @@ func (p *Publisher) statusFor(server models.Server) *models.PublishStatus {
 func buildPublishProfile(server models.Server) publishProfile {
 	sp := buildServerProfile(server)
 	return publishProfile{
+		Game:             utils.NormalizeGame(server.Game),
 		Port:             server.Port,
 		QueryPort:        server.QueryPort,
 		Name:             sp.Name,

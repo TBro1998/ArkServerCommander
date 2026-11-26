@@ -15,6 +15,8 @@ import { useApiError } from '@/lib/api-error';
 import { formatDateTime } from '@/lib/format';
 import { toast } from '@/lib/toast';
 import type { LinkRoomInfo, Server } from '@/stores/servers';
+import { gameOf } from '@/lib/games';
+import { GameBadge } from './GameBadge';
 
 // 网站返回的时间可能是 Unix 秒数或时间字符串
 type SiteTime = number | string | null | undefined;
@@ -148,7 +150,11 @@ export function LinkCard({ server }: { server: Server }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">{t('howTo')}</p>
+        <div className="space-y-1.5 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+          <p>{t('howTo')}</p>
+          {/* 房间里有 ASA 服务器时：ASA 不在 Steam 上，玩家要用控制台命令进服 */}
+          {(gameOf(server) === 'asa' || room?.servers.some((s) => gameOf(s) === 'asa')) && <p>{t('howToAsa')}</p>}
+        </div>
 
         {/* 房间资料和房间里的服务器 */}
         {roomError && <p className="text-sm text-red-700">{roomError}</p>}
@@ -195,12 +201,13 @@ export function LinkCard({ server }: { server: Server }) {
                   <li key={s.id} className="flex items-center gap-2.5 px-3 py-2 text-sm">
                     <span className={`size-2 flex-shrink-0 rounded-full ${s.online ? 'bg-green-500' : 'bg-stone-500'}`} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">
-                        {s.session_name}
+                      <div className="flex min-w-0 items-center gap-1.5 truncate font-medium">
+                        <GameBadge game={gameOf(s)} className="px-1.5 py-0 text-[10px]" />
+                        <span className="truncate">{s.session_name}</span>
                         {s.id === server.id && <span className="ml-1.5 text-xs text-muted-foreground">({t('thisServer')})</span>}
                       </div>
                       <div className="num truncate text-xs text-muted-foreground">
-                        {s.port} / {s.query_port}
+                        {gameOf(s) === 'asa' ? s.port : `${s.port} / ${s.query_port}`}
                       </div>
                     </div>
                     <span className="text-xs text-muted-foreground">{s.online ? t('serverOnline') : t('serverOffline')}</span>

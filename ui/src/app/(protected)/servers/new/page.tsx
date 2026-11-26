@@ -14,8 +14,13 @@ import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import { indexIni, getIniValue, replaceIniValues, setIniValue } from '@/lib/ini';
 import { MOTD_SECTION } from '@/lib/server-settings';
+import { GAMES, GAME_NAMES, type Game } from '@/lib/games';
+import { defaultMap } from '@/lib/maps';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 const DEFAULTS: Partial<Server> = {
+  game: 'ase',
   session_name: 'ARK Server',
   cluster_id: '',
   port: 7777,
@@ -55,11 +60,32 @@ export default function ServerNewPage() {
   // 默认配置文件和启动参数：设置页以它为基础编辑，显示的值就是创建后实际写入的值
   const [defaults, setDefaults] = useState<Partial<Server> | null>(null);
   const [saving, setSaving] = useState(false);
+  // 游戏：创建后不能修改。切换时按这个游戏的默认配置重新开始填写
+  const [game, setGame] = useState<Game>('ase');
+  const [dirty, setDirty] = useState(false);
+
+  const switchGame = (next: Game) => {
+    if (next === game) return;
+    if (dirty && !window.confirm(t('switchGameConfirm'))) return;
+    setGame(next);
+    setDirty(false);
+    // 另一个游戏的配置文件和启动参数不通用，等新的默认值加载完再显示表单
+    setDefaults(null);
+    setInitial((prev) => ({
+      ...prev,
+      game: next,
+      map: defaultMap(next),
+      game_mod_ids: '',
+      game_user_settings: undefined,
+      game_ini: undefined,
+      server_args: undefined,
+    }));
+  };
 
   useEffect(() => {
     let cancelled = false;
     axios
-      .get('/api/system/server-defaults')
+      .get('/api/system/server-defaults', { params: { game } })
       .then((res) => {
         if (cancelled) return;
         const d = res.data.data ?? {};
@@ -74,7 +100,7 @@ export default function ServerNewPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [game]);
 
   // 默认端口已被其他服务器占用时，换成第一组空闲端口
   useEffect(() => {
@@ -113,10 +139,48 @@ export default function ServerNewPage() {
         {tList('backToList')}
       </Link>
       <PageHeader title={t('createTitle')} description={t('createServerDesc')} />
+      <Card className="mb-4 py-0">
+        <CardContent className="space-y-2 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="text-sm font-medium">{tForm('game')}</span>
+            <span className="text-xs text-muted-foreground">{tForm('gameFixed')}</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={tForm('game')}>
+            {GAMES.map((g) => (
+              <button
+                key={g}
+                type="button"
+                role="radio"
+                aria-checked={game === g}
+                onClick={() => switchGame(g)}
+                disabled={saving}
+                className={cn(
+                  'rounded-md border px-3 py-2.5 text-left transition-colors',
+                  game === g ? 'border-primary bg-primary/15' : 'hover:bg-gray-100',
+                )}
+              >
+                <span className={cn('block text-sm font-semibold', game === g ? 'text-primary' : 'text-gray-800')}>
+                  {GAME_NAMES[g]} <span className="num text-xs font-normal text-muted-foreground">{g.toUpperCase()}</span>
+                </span>
+                <span className="mt-0.5 block text-xs text-gray-500">{tForm(`gameDesc.${g}`)}</span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
       {defaults === null ? (
         <PageLoader text={tCommon('loading')} />
       ) : (
-        <ServerForm mode="create" initial={initial} saving={saving} onSubmit={handleSubmit} onCancel={() => router.push('/servers')} />
+        // 切换游戏时重新挂载，表单从这个游戏的默认值开始
+        <ServerForm
+          key={game}
+          mode="create"
+          initial={initial}
+          saving={saving}
+          onSubmit={handleSubmit}
+          onCancel={() => router.push('/servers')}
+          onDirtyChange={setDirty}
+        />
       )}
     </div>
   );

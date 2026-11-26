@@ -6,14 +6,18 @@ import { Button } from '@/components/ui/button';
 import { copyText } from '@/lib/format';
 import { toast } from '@/lib/toast';
 import type { Server } from '@/stores/servers';
+import { gameOf } from '@/lib/games';
 
-// 连接地址：游戏内"加入"用 IP:游戏端口，Steam 服务器浏览器 / steam://connect 用 IP:查询端口
+// 连接地址：游戏内"加入"用 IP:游戏端口，Steam 服务器浏览器 / steam://connect 用 IP:查询端口。
+// ASA 不在 Steam 上（没有查询端口）：玩家在游戏内的服务器列表里搜索名称，或在控制台输入 open IP:游戏端口
 export function ConnectionInfo({ server, host, compact = false }: { server: Server; host: string; compact?: boolean }) {
   const t = useTranslations('connection');
   if (!host) return null;
 
   const gameAddress = `${host}:${server.port}`;
   const steamUrl = `steam://connect/${host}:${server.query_port}`;
+  const asa = gameOf(server) === 'asa';
+  const openCommand = `open ${gameAddress}`;
 
   const copy = async (text: string) => {
     if (await copyText(text)) toast.success(t('copied', { text }));
@@ -49,19 +53,31 @@ export function ConnectionInfo({ server, host, compact = false }: { server: Serv
           </Button>
         </span>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-muted-foreground">{t('steamConnect')}</span>
-        <span className="flex items-center gap-1">
-          <a href={steamUrl} className="inline-flex items-center gap-1 font-mono text-primary hover:underline">
-            {host}:{server.query_port}
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copy(steamUrl)} title={t('copyLink')}>
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-        </span>
-      </div>
-      <p className="text-xs text-muted-foreground">{t('hint')}</p>
+      {asa ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-muted-foreground">{t('consoleCommand')}</span>
+          <span className="flex items-center gap-1">
+            <span className="font-mono font-medium">{openCommand}</span>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copy(openCommand)} title={t('copyCommand')}>
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-muted-foreground">{t('steamConnect')}</span>
+          <span className="flex items-center gap-1">
+            <a href={steamUrl} className="inline-flex items-center gap-1 font-mono text-primary hover:underline">
+              {host}:{server.query_port}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copy(steamUrl)} title={t('copyLink')}>
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </span>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">{asa ? t('hintAsa') : t('hint')}</p>
     </div>
   );
 }

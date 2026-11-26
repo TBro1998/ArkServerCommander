@@ -4,3 +4,6 @@
 [submodule "ArkServerLink"]
 	path = ArkServerLink
 	url = https://github.com/TBro1998/ArkServerLink
+[submodule "ASA-Server-Docker"]
+	path = ASA-Server-Docker
+	url = https://github.com/TBro1998/ASA-Server-Docker

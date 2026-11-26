@@ -48,7 +48,8 @@ function formatTime(value: string, locale: string): string {
 
 const pluginLogUrl = (serverId: number, name: string) => `/api/servers/${serverId}/arkapi/logs/${encodeURIComponent(name)}`;
 
-export function LogViewer({ serverId, active }: { serverId: number; active: boolean }) {
+// api：插件框架的名称（ASE 是 ArkApi，ASA 是 AsaApi），用在插件日志的说明里
+export function LogViewer({ serverId, active, api = 'ArkApi' }: { serverId: number; active: boolean; api?: string }) {
   const t = useTranslations('logs');
   const locale = useLocale();
   const [lines, setLines] = useState<string[]>([]);
@@ -273,14 +274,14 @@ export function LogViewer({ serverId, active }: { serverId: number; active: bool
   const emptyText = () => {
     if (state === 'connecting') return t('connecting');
     if (source === 'game' && gameLogMissing) return t('gameEmpty');
-    if (source === 'plugin') return files.length === 0 ? t('pluginEmpty') : keyword ? t('empty') : t('pluginFileEmpty');
+    if (source === 'plugin') return files.length === 0 ? t('pluginEmpty', { api }) : keyword ? t('empty') : t('pluginFileEmpty');
     return t('empty');
   };
 
   const hint = () => {
     if (source === 'game') return t('gameHint');
     if (source === 'plugin') {
-      const base = t('pluginHint');
+      const base = t('pluginHint', { api });
       return pluginTotal > files.length ? `${base} ${t('pluginTruncated', { shown: files.length, total: pluginTotal })}` : base;
     }
     return t('hint');

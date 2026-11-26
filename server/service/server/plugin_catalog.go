@@ -177,6 +177,10 @@ func (s *ServerService) InstallCatalogPlugin(userID uint, serverID string, resou
 	if err != nil {
 		return nil, err
 	}
+	// 插件目录里是 ASE 的 ArkApi 插件，ASA 的 AsaApi 插件不通用
+	if utils.NormalizeGame(server.Game) == utils.GameASA {
+		return nil, ErrGameNotSupported
+	}
 	catalog, err := pluginCatalog.get(false)
 	if err != nil {
 		return nil, err

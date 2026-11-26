@@ -7,6 +7,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, CloudOff, ExternalLink, GripVert
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatBytes } from '@/lib/format';
+import type { Game } from '@/lib/games';
 
 export interface ModInfo {
   id: string;
@@ -23,20 +24,49 @@ const MOD_ID = /^\d+$/;
 const MOD_ID_LIST = /^\d+(,\d+)*$/;
 // 创意工坊链接里的 Mod ID，例如 https://steamcommunity.com/sharedfiles/filedetails/?id=731604991
 const WORKSHOP_URL_ID = /[?&]id=(\d+)/;
+// CurseForge 链接里的项目 ID（ASA 的 Mod 用 CurseForge 项目 ID），例如 https://www.curseforge.com/projects/928988、
+// https://api.curseforge.com/v1/mods/928988。Mod 页面的地址（/ark-survival-ascended/mods/<名称>）里没有 ID
+const CURSEFORGE_URL_ID = [/curseforge\.com\/(?:[^?#]*\/)?(?:projects|mods)\/(\d+)(?:[/?#]|$)/i, /[?&]project_?id=(\d+)/i];
+const CURSEFORGE_URL = /curseforge\.com/i;
 
 export const WORKSHOP_BROWSE_URL = 'https://steamcommunity.com/app/346110/workshop/';
+export const CURSEFORGE_BROWSE_URL = 'https://www.curseforge.com/ark-survival-ascended/search';
 
-// 规范化 Mod ID：去掉空格和多余逗号，支持中文逗号；创意工坊链接换成其中的 ID；重复的只保留第一个
-export function normalizeModIds(value: string): string {
+/** 浏览 Mod 的网站：ASE 是 Steam 创意工坊，ASA 是 CurseForge */
+export function modBrowseUrl(game: Game): string {
+  return game === 'asa' ? CURSEFORGE_BROWSE_URL : WORKSHOP_BROWSE_URL;
+}
+
+/** 一个 Mod 的页面。CurseForge 的 Mod 页面地址用的是名称，只能按 ID 搜索 */
+export function modUrl(id: string, game: Game): string {
+  return game === 'asa'
+    ? `${CURSEFORGE_BROWSE_URL}?search=${encodeURIComponent(id)}`
+    : `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
+}
+
+// 输入的一项换成 Mod ID：创意工坊 / CurseForge 链接取出里面的 ID，其他原样返回
+function idFromPart(part: string, game: Game): string {
+  if (game === 'asa') {
+    for (const re of CURSEFORGE_URL_ID) {
+      const m = part.match(re);
+      if (m) return m[1];
+    }
+    return part;
+  }
+  return part.match(WORKSHOP_URL_ID)?.[1] ?? part;
+}
+
+// 规范化 Mod ID：去掉空格和多余逗号，支持中文逗号；链接换成其中的 ID；重复的只保留第一个
+export function normalizeModIds(value: string, game: Game = 'ase'): string {
   const ids = value
     .split(/[,，\s]+/)
     .filter(Boolean)
-    .map((part) => part.match(WORKSHOP_URL_ID)?.[1] ?? part);
+    .map((part) => idFromPart(part, game));
   return Array.from(new Set(ids)).join(',');
 }
 
-export function isValidModIds(value: string): boolean {
-  const v = normalizeModIds(value);
+export function isValidModIds(value: string, game: Game = 'ase'): boolean {
+  const v = normalizeModIds(value, game);
   return v === '' || MOD_ID_LIST.test(v);
 }
 
@@ -53,16 +83,21 @@ export function mergeModIds(current: string, added: string): string {
   return ids.join(',');
 }
 
-// 解析用户输入的一批 ID（可以是创意工坊链接、逗号或空格分隔），分开格式错误的部分
-export function parseModIdInput(value: string): { ids: string[]; invalid: string[] } {
+// 解析用户输入的一批 ID（可以是链接、逗号或空格分隔），分开格式错误的部分。
+// curseforgeNoId：粘贴了 CurseForge 的 Mod 页面地址，里面没有项目 ID
+export function parseModIdInput(value: string, game: Game = 'ase'): { ids: string[]; invalid: string[]; curseforgeNoId: boolean } {
   const ids: string[] = [];
   const invalid: string[] = [];
+  let curseforgeNoId = false;
   for (const part of value.split(/[,，\s]+/).filter(Boolean)) {
-    const id = part.match(WORKSHOP_URL_ID)?.[1] ?? part;
+    const id = idFromPart(part, game);
     if (MOD_ID.test(id)) ids.push(id);
-    else invalid.push(part);
+    else {
+      invalid.push(part);
+      if (game === 'asa' && CURSEFORGE_URL.test(part)) curseforgeNoId = true;
+    }
   }
-  return { ids, invalid };
+  return { ids, invalid, curseforgeNoId };
 }
 
 // Unix 秒转为本地日期
@@ -94,20 +129,23 @@ export function ModIdInput({
   onAdd,
   disabled,
   id,
+  game = 'ase',
 }: {
   existing: string;
   onAdd: (ids: string[]) => void;
   disabled?: boolean;
   id?: string;
+  game?: Game;
 }) {
   const t = useTranslations('mods');
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
+  const placeholder = game === 'asa' ? t('addModPlaceholderAsa') : t('addModPlaceholder');
 
   const submit = () => {
-    const { ids, invalid } = parseModIdInput(value);
+    const { ids, invalid, curseforgeNoId } = parseModIdInput(value, game);
     if (invalid.length > 0) {
-      setError(t('invalid'));
+      setError(curseforgeNoId ? t('curseforgeNoId') : game === 'asa' ? t('invalidAsa') : t('invalid'));
       return;
     }
     const present = new Set(normalizeModIds(existing).split(',').filter(Boolean));
@@ -137,8 +175,8 @@ export function ModIdInput({
               submit();
             }
           }}
-          placeholder={t('addModPlaceholder')}
-          aria-label={t('addModPlaceholder')}
+          placeholder={placeholder}
+          aria-label={placeholder}
           aria-invalid={error ? true : undefined}
           className="min-w-0 flex-1"
           disabled={disabled}
@@ -154,22 +192,36 @@ export function ModIdInput({
           {error}
         </p>
       )}
+      {/* CurseForge 的 Mod 页面地址里没有 ID，说明去哪里找 */}
+      {game === 'asa' && <p className="text-xs text-muted-foreground">{t('curseforgeIdHint')}</p>}
     </div>
   );
 }
 
-// 查询创意工坊名称并列出 Mod；ids 变化后防抖 600ms 再请求。
+// 查询创意工坊名称并列出 Mod；ids 变化后防抖 600ms 再请求。ASA 的 Mod 在 CurseForge 上（查询名称要 API Key），
+// 不查名称，只列出 ID 和 CurseForge 链接。
 // 传入 onChange 时可以拖动或用上下按钮调整加载顺序、移除 Mod
-export function ModList({ ids, compact = false, onChange }: { ids: string; compact?: boolean; onChange?: (ids: string) => void }) {
+export function ModList({
+  ids,
+  compact = false,
+  onChange,
+  game = 'ase',
+}: {
+  ids: string;
+  compact?: boolean;
+  onChange?: (ids: string) => void;
+  game?: Game;
+}) {
   const t = useTranslations('mods');
   const locale = useLocale();
-  const normalized = normalizeModIds(ids);
+  const asa = game === 'asa';
+  const normalized = normalizeModIds(ids, game);
   const valid = MOD_ID_LIST.test(normalized);
   const [result, setResult] = useState<{ key: string; mods: ModInfo[] } | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!normalized || !valid) return;
+    if (!normalized || !valid || asa) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -183,14 +235,14 @@ export function ModList({ ids, compact = false, onChange }: { ids: string; compa
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [normalized, valid]);
+  }, [normalized, valid, asa]);
 
   if (!normalized) return null;
   if (!valid) {
     return (
       <p className="flex items-center gap-1 text-xs text-red-600">
         <AlertTriangle className="h-3.5 w-3.5" />
-        {t('invalid')}
+        {asa ? t('invalidAsa') : t('invalid')}
       </p>
     );
   }
@@ -199,7 +251,7 @@ export function ModList({ ids, compact = false, onChange }: { ids: string; compa
   // 调整顺序时 ID 集合不变，已查到的信息按 ID 取，不用等重新查询
   const known = new Map((result?.mods ?? []).map((m) => [m.id, m]));
   const mods: ModInfo[] = order.map((id) => known.get(id) ?? { id, title: '', checked: false, found: false });
-  const isLoading = (id: string) => !known.has(id);
+  const isLoading = (id: string) => !asa && !known.has(id);
 
   // 只统计创意工坊查到的 Mod，查不到大小的一律不算，避免总数看着偏小
   const knownSize = mods.reduce((sum, m) => (m.checked && m.found && m.file_size ? sum + m.file_size : sum), 0);
@@ -218,9 +270,11 @@ export function ModList({ ids, compact = false, onChange }: { ids: string; compa
       {onChange && order.length > 1 && <p className="text-xs text-muted-foreground">{t('orderHint')}</p>}
       <ul className={compact ? 'space-y-1' : 'space-y-1.5'}>
         {mods.map((m, i) => {
-          const state = modStateOf(m, isLoading(m.id));
-          const label =
-            state === 'loading'
+          const state: ModState = asa ? 'ok' : modStateOf(m, isLoading(m.id));
+          // ASA：不查名称，只显示是 CurseForge 上的 Mod
+          const label = asa
+            ? t('curseforgeMod')
+            : state === 'loading'
               ? t('loading')
               : state === 'unavailable'
                 ? t('unavailable')
@@ -249,7 +303,7 @@ export function ModList({ ids, compact = false, onChange }: { ids: string; compa
               <span className="flex min-w-0 items-center gap-2">
                 {onChange && <GripVertical className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />}
                 <span className="num text-gray-400">{i + 1}.</span>
-                {!compact && <ModThumb url={m.preview_url} />}
+                {!compact && !asa && <ModThumb url={m.preview_url} />}
                 <span className="min-w-0">
                   <span
                     className={`flex items-center gap-1 truncate ${
@@ -271,10 +325,11 @@ export function ModList({ ids, compact = false, onChange }: { ids: string; compa
               <span className="flex flex-shrink-0 items-center gap-2 text-gray-500">
                 {!compact && m.file_size ? <span>{formatBytes(m.file_size)}</span> : null}
                 <a
-                  href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.id}`}
+                  href={modUrl(m.id, game)}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-0.5 font-mono hover:text-blue-600"
+                  title={asa ? t('curseforgeSearch') : undefined}
                 >
                   {m.id}
                   <ExternalLink className="h-3 w-3" />

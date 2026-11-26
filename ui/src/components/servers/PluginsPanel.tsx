@@ -38,6 +38,7 @@ import {
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { serversActions, type Server } from '@/stores/servers';
+import { gameOf, pluginApiName } from '@/lib/games';
 import { PluginCatalogDialog } from './PluginCatalogDialog';
 import { PluginConfigDialog, configUrl, type ConfigTarget } from './PluginConfigDialog';
 
@@ -74,6 +75,9 @@ interface ArkApiVersion {
 }
 
 interface ArkApiVersions {
+  // ase（ArkApi）或 asa（AsaApi）
+  game?: string;
+  name?: string;
   versions: ArkApiVersion[];
   latest?: string;
   github_error?: string;
@@ -87,7 +91,8 @@ function formatDate(value: string | undefined, locale: string): string {
   return d.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US');
 }
 
-// 详情页"插件"标签：ArkApi 插件的安装、启停、删除和 config.json 编辑
+// 详情页"插件"标签：插件框架（ASE 是 ArkApi，ASA 是 AsaApi）和插件的安装、启停、删除和 config.json 编辑。
+// 插件目录（ark-server-api.com 的 ASE 插件）只对 ASE 服务器显示
 export function PluginsPanel({ server, active }: { server: Server; active: boolean }) {
   const t = useTranslations('plugins');
   const tCommon = useTranslations('common');
@@ -128,6 +133,10 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
 
   const stopped = server.status === 'stopped';
   const arkApiEnabled = server.arkapi ?? false;
+  const game = gameOf(server);
+  const asa = game === 'asa';
+  // 插件框架的名称，用在这台服务器的文案里
+  const api = pluginApiName(game);
 
   const load = useCallback(async () => {
     try {
@@ -146,15 +155,15 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     async (refresh = false) => {
       setLoadingVersions(true);
       try {
-        const res = await axios.get('/api/arkapi/versions', { params: refresh ? { refresh: true } : undefined });
+        const res = await axios.get('/api/arkapi/versions', { params: { ...(asa ? { game: 'asa' } : {}), ...(refresh ? { refresh: true } : {}) } });
         setVersions(res.data.data);
       } catch (err) {
-        toast.error(apiError(err, t('versionsLoadFailed')));
+        toast.error(apiError(err, t('versionsLoadFailed', { api })));
       } finally {
         setLoadingVersions(false);
       }
     },
-    [apiError, t],
+    [apiError, t, asa, api],
   );
 
   useEffect(() => {
@@ -182,16 +191,16 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     [apiError, t],
   );
 
-  // 目录用来提示更新和缺失的依赖，标签第一次打开时读取一次
+  // 目录用来提示更新和缺失的依赖，标签第一次打开时读取一次。目录只有 ASE 插件，ASA 服务器不读取
   const catalogRequested = useRef(false);
   useEffect(() => {
-    if (!active || catalogRequested.current) return;
+    if (!active || asa || catalogRequested.current) return;
     catalogRequested.current = true;
     const timer = setTimeout(() => {
       loadCatalog();
     }, 0);
     return () => clearTimeout(timer);
-  }, [active, loadCatalog]);
+  }, [active, asa, loadCatalog]);
 
   // 版本库变化不频繁，标签第一次打开时读取一次
   const versionsRequested = useRef(false);
@@ -215,7 +224,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     setTogglingApi(true);
     try {
       await serversActions.updateServer(server.id, { arkapi: enabled });
-      toast.success(enabled ? t('arkapiEnabledToast') : t('arkapiDisabledToast'));
+      toast.success(enabled ? t('arkapiEnabledToast', { api }) : t('arkapiDisabledToast', { api }));
     } catch (err) {
       toast.error(apiError(err, t('arkapiToggleFailed')));
     } finally {
@@ -228,12 +237,12 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     setInstallingApi(true);
     try {
       const res = await axios.post(`/api/servers/${server.id}/arkapi/install`, { version: chosen });
-      toast.success(t('arkapiInstalledToast', { version: res.data.data ?? chosen }));
+      toast.success(t('arkapiInstalledToast', { api, version: res.data.data ?? chosen }));
       load();
       // 只在 GitHub 上的版本安装时会下载进版本库
       if (chosenInfo && !chosenInfo.local) loadVersions();
     } catch (err) {
-      toast.error(apiError(err, t('arkapiInstallFailed')));
+      toast.error(apiError(err, t('arkapiInstallFailed', { api })));
     } finally {
       setInstallingApi(false);
     }
@@ -244,15 +253,16 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     const form = new FormData();
     form.append('file', file);
     if (apiVersionInput.trim()) form.append('version', apiVersionInput.trim());
+    if (asa) form.append('game', game);
     try {
       const res = await axios.post('/api/arkapi/versions', form);
       const version = res.data.data as string;
-      toast.success(t('arkapiUploaded', { version }));
+      toast.success(t('arkapiUploaded', { api, version }));
       setApiVersionInput('');
       setSelected(version);
       loadVersions();
     } catch (err) {
-      toast.error(apiError(err, t('arkapiUploadFailed')));
+      toast.error(apiError(err, t('arkapiUploadFailed', { api })));
     } finally {
       setUploadingApi(false);
       if (apiFileRef.current) apiFileRef.current.value = '';
@@ -262,7 +272,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
   const removeVersion = async () => {
     if (!deleteVersion) return;
     try {
-      await axios.delete(`/api/arkapi/versions/${encodeURIComponent(deleteVersion)}`);
+      await axios.delete(`/api/arkapi/versions/${encodeURIComponent(deleteVersion)}`, { params: asa ? { game } : undefined });
       toast.success(t('versionDeleted', { version: deleteVersion }));
       if (selected === deleteVersion) setSelected('');
       loadVersions();
@@ -452,7 +462,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-2">
           <CardTitle className="font-display flex flex-wrap items-center gap-2 text-base">
             <Puzzle className="h-4 w-4 text-primary" />
-            ArkApi
+            {api}
             <span className="text-sm font-normal text-muted-foreground">
               {data?.arkapi_installed ? (installedVersion ? `v${installedVersion}` : t('versionUnknown')) : data ? t('notInstalled') : ''}
             </span>
@@ -464,12 +474,12 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
           </CardTitle>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm">
-              {t('arkapiEnable')}
-              <Switch checked={arkApiEnabled} onCheckedChange={toggleArkApi} disabled={togglingApi} aria-label={t('arkapiEnable')} />
+              {t('arkapiEnable', { api })}
+              <Switch checked={arkApiEnabled} onCheckedChange={toggleArkApi} disabled={togglingApi} aria-label={t('arkapiEnable', { api })} />
             </label>
             <Button variant="outline" size="sm" onClick={() => openConfig(null)} disabled={!data?.arkapi_installed}>
               <FileCog className="mr-1.5" />
-              {t('arkapiConfig')}
+              {t('arkapiConfig', { api })}
             </Button>
           </div>
         </CardHeader>
@@ -477,10 +487,10 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
           {!arkApiEnabled && (
             <p className="flex items-start gap-1.5 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               <AlertTriangle className="mt-0.5 size-3.5 flex-shrink-0" />
-              {t('arkapiDisabled')}
+              {asa ? t('asaapiDisabled') : t('arkapiDisabled')}
             </p>
           )}
-          <p className="text-muted-foreground">{data && !data.arkapi_installed ? t('arkapiNotInstalled') : t('arkapiHint')}</p>
+          <p className="text-muted-foreground">{data && !data.arkapi_installed ? t('arkapiNotInstalled', { api }) : t('arkapiHint', { api })}</p>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Select value={chosen} onValueChange={setSelected} disabled={!versions?.versions.length}>
@@ -531,7 +541,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
             />
             <Button variant="outline" onClick={() => apiFileRef.current?.click()} disabled={uploadingApi}>
               {uploadingApi ? <Loader2 className="mr-1.5 animate-spin" /> : <Upload className="mr-1.5" />}
-              {t('uploadArkApi')}
+              {t('uploadArkApi', { api })}
             </Button>
             <input
               ref={apiFileRef}
@@ -544,7 +554,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
               }}
             />
           </div>
-          <p className="text-xs text-muted-foreground">{t('uploadArkApiHint')}</p>
+          <p className="text-xs text-muted-foreground">{asa ? t('uploadAsaApiHint') : t('uploadArkApiHint')}</p>
         </CardContent>
       </Card>
 
@@ -554,17 +564,19 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
             {t('title')}
             {plugins && plugins.length > 0 && <span className="num text-sm font-normal text-muted-foreground">{plugins.length}</span>}
           </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setCatalogOpen(true);
-              if (!catalog && !catalogLoading) loadCatalog();
-            }}
-          >
-            <Store className="mr-1.5" />
-            {t('browseCatalog')}
-          </Button>
+          {!asa && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCatalogOpen(true);
+                if (!catalog && !catalogLoading) loadCatalog();
+              }}
+            >
+              <Store className="mr-1.5" />
+              {t('browseCatalog')}
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -637,7 +649,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
               </Button>
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">{t('urlHint')}</p>
+          <p className="text-xs text-muted-foreground">{asa ? t('urlHintAsa') : t('urlHint')}</p>
 
           {!stopped && (
             <p className="flex items-start gap-1.5 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -741,7 +753,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
                                 </span>
                               )}
                               {!p.has_dll && (
-                                <span className="rounded-full border border-red-200 bg-red-50 px-1.5 text-xs text-red-800" title={t('missingDllTip', { name: p.name })}>
+                                <span className="rounded-full border border-red-200 bg-red-50 px-1.5 text-xs text-red-800" title={t('missingDllTip', { api, name: p.name })}>
                                   {t('missingDll')}
                                 </span>
                               )}
@@ -749,7 +761,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
                             {p.description && <p className="mt-0.5 text-xs text-muted-foreground">{p.description}</p>}
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               {formatBytes(p.size)}
-                              {p.min_api_version && ` · ${t('minApi', { version: p.min_api_version })}`}
+                              {p.min_api_version && ` · ${t('minApi', { api, version: p.min_api_version })}`}
                             </p>
                             {!!p.dependencies?.length && (
                               <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
@@ -840,7 +852,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
       <ConfirmDialog
         open={!!deleteVersion}
         onOpenChange={(open) => !open && setDeleteVersion(null)}
-        title={t('deleteVersionTitle')}
+        title={t('deleteVersionTitle', { api })}
         description={t('deleteVersionDesc', { version: deleteVersion ?? '' })}
         confirmText={t('delete')}
         destructive

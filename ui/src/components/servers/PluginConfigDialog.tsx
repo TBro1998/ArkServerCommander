@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { gameOf, pluginApiName } from '@/lib/games';
 import { useApiError } from '@/lib/api-error';
 import {
   detectJsonFormat,
@@ -21,7 +22,7 @@ import { toast } from '@/lib/toast';
 import type { Server } from '@/stores/servers';
 import { JsonTreeEditor, type TreeUpdate } from './JsonTreeEditor';
 
-// 正在编辑的配置：name 为 null 表示 ArkApi 本体
+// 正在编辑的配置：name 为 null 表示插件框架本体（ArkApi / AsaApi）
 export interface ConfigTarget {
   name: string | null;
   content: string;
@@ -141,7 +142,7 @@ export function PluginConfigDialog({ server, target, onClose, onSaved }: { serve
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>{target.name === null ? t('arkapiConfig') : t('configTitle', { name: target.name })}</DialogTitle>
+          <DialogTitle>{target.name === null ? t('arkapiConfig', { api: pluginApiName(gameOf(server)) }) : t('configTitle', { name: target.name })}</DialogTitle>
           <DialogDescription>{server.status === 'stopped' ? t('configDesc') : t('configDescRunning')}</DialogDescription>
         </DialogHeader>
 

@@ -4,13 +4,14 @@
 
 [English](README.md) | [中文](README-zh.md)
 
-- ARK Survival Evolved server management tool for Linux.
+- ARK server management tool for Linux: ARK: Survival Evolved (ASE) and ARK: Survival Ascended (ASA), chosen per server.
 - Runs the native Linux server by default; ArkApi can be enabled per server when you need plugins (the Windows server runs under GE-Proton).
 
 ## 🎮 Features
 
 ### ✅ Implemented Features
 - 🐳 Each ARK server runs in an independent Docker container
+- 🦖 ASA support: ASA servers run the Windows server under Wine (or GE-Proton with AsaApi), mods are CurseForge project IDs that the server downloads and updates itself; ASA has no query port and is not listed on Steam, players join from the in-game browser or with the console command `open IP:port`
 - 🔌 ArkApi can be enabled per server: enabled servers run the Windows build on the Proton image, others run the native Linux build; switching takes effect on the next start
 - 🔄 Server containers support automatic restart on crash
 - ⬆️ Server files and mods are downloaded on first start and kept on their own volume, so recreating a container does not download them again; new servers copy server files from an already installed server
@@ -156,7 +157,8 @@ A: Yes, without changing `docker-compose.yml`. Docker Desktop reaches the host d
 - Servers without ArkApi use `tbro98/ase-server:linux` (native Linux server); servers with ArkApi use `tbro98/ase-server:proton` (Windows server under GE-Proton)
 - A missing image is downloaded automatically when a server that needs it starts; the images no longer ship ArkApi, the manager installs it into the server files
 - `tbro98/ase-server:latest` is no longer updated. It stays at the last version that bundled ArkApi, for older manager versions
-- Image source: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
+- ASA servers use `tbro98/asa-server:wine` (Windows server under Wine), or `tbro98/asa-server:proton` with AsaApi (GE-Proton)
+- Image source: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker), [ASA-Server-Docker](https://github.com/TBro1998/ASA-Server-Docker)
 
 ### 🔗 P2P Rooms (no public IP)
 - Turn on "P2P room" in a server's settings and players join through [arkfgf.com/rooms](https://arkfgf.com/rooms) with the open-source client [ArkServerLink](https://github.com/TBro1998/ArkServerLink) (submodule `ArkServerLink/`, download at [arkfgf.com/download](https://arkfgf.com/download))

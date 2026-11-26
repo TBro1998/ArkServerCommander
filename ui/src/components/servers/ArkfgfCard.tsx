@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import { serversActions, type ArkfgfAccountStatus, type Server } from '@/stores/servers';
+import { gameOf } from '@/lib/games';
 
 // 状态文字和出错原因（中文界面用后端的详情，其他语言按错误码翻译）
 function StateText({ color, text, url, linkText, detail }: { color: string; text: string; url?: string; linkText: string; detail: string }) {
@@ -38,7 +39,8 @@ function PublishState({ server }: { server: Server }) {
   if (status.state === 'error') {
     const key = `publishErrors.${status.error_code}`;
     if (locale === 'zh' && status.error) detail = status.error;
-    else if (status.error_code && t.has(key)) detail = t(key, { port: server.query_port });
+    // ASA 没有查询端口，提示里用游戏端口
+    else if (status.error_code && t.has(key)) detail = t(key, { port: status.error_code === 'asa_not_listed' || gameOf(server) === 'asa' ? server.port : server.query_port });
     else detail = status.error ?? '';
   }
   return (
@@ -114,7 +116,7 @@ export function ArkfgfCard({ server }: { server: Server }) {
   };
 
   const items = [
-    { key: 'publish' as const, label: t('publishSwitch'), hint: t('publishHint'), state: <PublishState server={server} /> },
+    { key: 'publish' as const, label: t('publishSwitch'), hint: gameOf(server) === 'asa' ? t('publishHintAsa') : t('publishHint'), state: <PublishState server={server} /> },
     { key: 'link' as const, label: t('linkSwitch'), hint: t('linkHint'), state: <LinkState server={server} /> },
   ];
 

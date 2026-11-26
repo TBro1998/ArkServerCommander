@@ -268,13 +268,13 @@ func TestPrepareGameBranch(t *testing.T) {
 	var dm *DockerManager
 	dir := ServerFilesDir(1)
 	marker := filepath.Join(dir, installMarkerFile)
-	manifest := filepath.Join(dir, appManifestFile)
+	manifest := filepath.Join(dir, appManifestFile(utils.GameASE))
 	writeFile(t, marker, "linux")
 	writeFile(t, filepath.Join(dir, filepath.FromSlash(linuxServerExecutable)), "bin")
 	writeFile(t, manifest, "\"AppState\"\n{\n\t\"appid\"\t\t\"376030\"\n\t\"UserConfig\"\n\t{\n\t\t\"BetaKey\"\t\t\"preaquatica\"\n\t}\n}\n")
 
 	// 旧文件卷没有记录，视为正式版：只补写记录，不清除安装标记
-	if err := dm.PrepareGameBranch(1, utils.GameBranchPublic); err != nil {
+	if err := dm.PrepareGameBranch(1, utils.GameASE, utils.GameBranchPublic); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(marker); err != nil {
@@ -285,7 +285,7 @@ func TestPrepareGameBranch(t *testing.T) {
 	}
 
 	// 切到 preaquatica：清除安装标记，appmanifest 不动（APP_UPDATE 带 -beta）
-	if err := dm.PrepareGameBranch(1, utils.GameBranchPreAquatica); err != nil {
+	if err := dm.PrepareGameBranch(1, utils.GameASE, utils.GameBranchPreAquatica); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
@@ -301,7 +301,7 @@ func TestPrepareGameBranch(t *testing.T) {
 
 	// 同一版本再次启动：不清除标记
 	writeFile(t, marker, "linux")
-	if err := dm.PrepareGameBranch(1, utils.GameBranchPreAquatica); err != nil {
+	if err := dm.PrepareGameBranch(1, utils.GameASE, utils.GameBranchPreAquatica); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(marker); err != nil {
@@ -309,7 +309,7 @@ func TestPrepareGameBranch(t *testing.T) {
 	}
 
 	// 切回正式版：清除标记，去掉 appmanifest 里的 BetaKey，其他内容保留
-	if err := dm.PrepareGameBranch(1, utils.GameBranchPublic); err != nil {
+	if err := dm.PrepareGameBranch(1, utils.GameASE, utils.GameBranchPublic); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
@@ -324,7 +324,7 @@ func TestPrepareGameBranch(t *testing.T) {
 	}
 
 	// 文件卷目录不存在时不处理
-	if err := dm.PrepareGameBranch(9, utils.GameBranchPreAquatica); err != nil {
+	if err := dm.PrepareGameBranch(9, utils.GameASE, utils.GameBranchPreAquatica); err != nil {
 		t.Fatal(err)
 	}
 }

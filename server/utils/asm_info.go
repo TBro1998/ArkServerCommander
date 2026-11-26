@@ -35,24 +35,51 @@ func GetServerFilesVolumeName(serverID uint) string {
 	return fmt.Sprintf("ase-server-files-%d", serverID)
 }
 
-// ARK 服务器镜像（源码见子模块 ASE-Server-Docker，同一个 dockerfile 的两个构建目标）。
-// 不再使用 latest：它停在最后一个自带 ArkApi 的版本，留给旧版管理端
+// ARK 服务器镜像。ASE 的源码见子模块 ASE-Server-Docker，ASA 的见子模块 ASA-Server-Docker，
+// 各自同一个 dockerfile 的两个构建目标。ASE 不再使用 latest：它停在最后一个自带 ArkApi 的版本，留给旧版管理端
 const (
-	// ArkServerLinuxImage 原生 Linux 版服务端，不使用 ArkApi 的服务器用它
+	// ArkServerLinuxImage ASE 原生 Linux 版服务端，不使用 ArkApi 的 ASE 服务器用它
 	ArkServerLinuxImage = "tbro98/ase-server:linux"
-	// ArkServerProtonImage 用 GE-Proton 运行 Windows 版服务端，启用 ArkApi 的服务器用它
+	// ArkServerProtonImage ASE 用 GE-Proton 运行 Windows 版服务端，启用 ArkApi 的 ASE 服务器用它
 	ArkServerProtonImage = "tbro98/ase-server:proton"
+	// AsaServerWineImage ASA 用 Wine 运行 Windows 版服务端（ASA 没有 Linux 版），不使用 AsaApi 的 ASA 服务器用它
+	AsaServerWineImage = "tbro98/asa-server:wine"
+	// AsaServerProtonImage ASA 用 GE-Proton 运行，启用 AsaApi 的 ASA 服务器用它
+	AsaServerProtonImage = "tbro98/asa-server:proton"
 )
 
 // ArkServerImages 所有 ARK 服务器镜像
-var ArkServerImages = []string{ArkServerLinuxImage, ArkServerProtonImage}
+var ArkServerImages = []string{ArkServerLinuxImage, ArkServerProtonImage, AsaServerWineImage, AsaServerProtonImage}
 
-// ArkServerImageFor 服务器应使用的镜像：启用 ArkApi 时用 Proton 版（ArkApi 只能注入 Windows 版服务端）
-func ArkServerImageFor(arkApi bool) string {
+// ArkServerImageFor 服务器应使用的镜像：启用 ArkApi（ASA 是 AsaApi）时用 Proton 版（插件只能注入 Windows 版服务端，
+// ASA 的 AsaApi 还需要 Proton 镜像里装好的 VC++ 运行库）
+func ArkServerImageFor(game string, arkApi bool) string {
+	if NormalizeGame(game) == GameASA {
+		if arkApi {
+			return AsaServerProtonImage
+		}
+		return AsaServerWineImage
+	}
 	if arkApi {
 		return ArkServerProtonImage
 	}
 	return ArkServerLinuxImage
+}
+
+// ImageGame 镜像属于哪个游戏，不是 ARK 服务器镜像时为空
+func ImageGame(image string) string {
+	switch image {
+	case ArkServerLinuxImage, ArkServerProtonImage:
+		return GameASE
+	case AsaServerWineImage, AsaServerProtonImage:
+		return GameASA
+	}
+	return ""
+}
+
+// ImageUsesArkApi 镜像是不是启用 ArkApi / AsaApi 的服务器用的 Proton 版
+func ImageUsesArkApi(image string) bool {
+	return image == ArkServerProtonImage || image == AsaServerProtonImage
 }
 
 // GetClusterVolumeName 集群共享卷名称：cluster_id 相同的服务器挂载同一个卷，跨服传送的数据存放在这里
@@ -80,22 +107,36 @@ const LinkContainerName = "ase-link-room"
 // EasyTierImage P2P 联机房节点使用的 EasyTier 镜像（入口是 easytier-core）
 const EasyTierImage = "easytier/easytier:v2.6.4"
 
-// ASE 服务端在 Steam 上的 AppID
-const ArkServerAppID = "376030"
+// 服务端在 Steam 上的 AppID
+const (
+	ArkServerAppID = "376030"  // ASE
+	AsaServerAppID = "2430930" // ASA
+)
 
-// 游戏版本（Steam 分支）：主流的两个版本是蜗牛海洋正式版（public，发行商 Snail 的海洋 DLC 更新后的版本）
-// 和通配符原版（preaquatica 测试分支，开发商 Wildcard 在海洋 DLC 更新前的版本）。
+// GameAppID 游戏的服务端 AppID
+func GameAppID(game string) string {
+	if NormalizeGame(game) == GameASA {
+		return AsaServerAppID
+	}
+	return ArkServerAppID
+}
+
+// 游戏版本（Steam 分支）：ASE 主流的两个版本是蜗牛海洋正式版（public，发行商 Snail 的海洋 DLC 更新后的版本）
+// 和通配符原版（preaquatica 测试分支，开发商 Wildcard 在海洋 DLC 更新前的版本）。ASA 只有正式版。
 // 两个版本的服务端文件不同，复制服务端文件时只能在同一版本的服务器之间复制
 const (
 	GameBranchPublic      = ""            // 蜗牛海洋正式版（Steam 默认分支）
 	GameBranchPreAquatica = "preaquatica" // 通配符原版（-beta preaquatica）
 )
 
-// GameBranches 可选的游戏版本
+// GameBranches 可选的游戏版本（ASE）
 var GameBranches = []string{GameBranchPublic, GameBranchPreAquatica}
 
-// ValidGameBranch 是否是可选的游戏版本
-func ValidGameBranch(branch string) bool {
+// ValidGameBranch 是否是这个游戏可选的游戏版本
+func ValidGameBranch(game, branch string) bool {
+	if NormalizeGame(game) == GameASA {
+		return branch == GameBranchPublic
+	}
 	for _, b := range GameBranches {
 		if b == branch {
 			return true
@@ -106,9 +147,10 @@ func ValidGameBranch(branch string) bool {
 
 // ArkAppUpdateFor 容器环境变量 APP_UPDATE 的值，入口脚本按空格拆开传给 steamcmd 的 app_update。
 // 正式版和镜像里的默认值相同（只有 AppID）
-func ArkAppUpdateFor(branch string) string {
+func ArkAppUpdateFor(game, branch string) string {
+	appID := GameAppID(game)
 	if branch == GameBranchPublic {
-		return ArkServerAppID
+		return appID
 	}
-	return ArkServerAppID + " -beta " + branch
+	return appID + " -beta " + branch
 }

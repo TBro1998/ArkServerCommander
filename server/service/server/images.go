@@ -66,10 +66,10 @@ func ensureServerImage(serverID uint, imageName string, dm *docker_manager.Docke
 }
 
 // requiredImages 当前需要的镜像：ARK 镜像只算有服务器在用的，
-// 没有服务器时算 Linux 版（新建服务器默认不启用 ArkApi）；EasyTier 镜像只在有服务器开启联机房时算
+// 没有服务器时算 ASE 的 Linux 版（新建服务器默认是 ASE、不启用 ArkApi）；EasyTier 镜像只在有服务器开启联机房时算
 func requiredImages() (map[string]bool, error) {
 	var servers []models.Server
-	if err := database.DB.Select("id", "arkapi", "link").Find(&servers).Error; err != nil {
+	if err := database.DB.Select("id", "game", "arkapi", "link").Find(&servers).Error; err != nil {
 		return nil, fmt.Errorf("获取服务器列表失败: %w", err)
 	}
 	required := map[string]bool{}
@@ -77,7 +77,7 @@ func requiredImages() (map[string]bool, error) {
 		required[utils.ArkServerLinuxImage] = true
 	}
 	for _, s := range servers {
-		required[utils.ArkServerImageFor(s.ArkApi)] = true
+		required[utils.ArkServerImageFor(s.Game, s.ArkApi)] = true
 		if s.Link {
 			required[utils.EasyTierImage] = true
 		}

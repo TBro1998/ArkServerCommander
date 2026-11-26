@@ -33,6 +33,8 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrInvalidClusterID),
 		errors.Is(err, server.ErrInvalidModIDs),
 		errors.Is(err, server.ErrInvalidGameBranch),
+		errors.Is(err, server.ErrInvalidGame),
+		errors.Is(err, server.ErrGameNotSupported),
 		errors.Is(err, server.ErrServerNotRunning),
 		errors.Is(err, server.ErrServerNotStopped),
 		errors.Is(err, server.ErrInvalidCommand),

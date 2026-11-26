@@ -95,12 +95,12 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 	containerName := utils.GetServerContainerName(serverID)
 	volumeName := utils.GetServerVolumeName(serverID)
 
-	// 查数据库获取Server对象：镜像由是否启用 ArkApi 决定
+	// 查数据库获取Server对象：镜像由游戏和是否启用 ArkApi / AsaApi 决定
 	var server models.Server
 	if err := database.DB.Where("id = ?", serverID).First(&server).Error; err != nil {
 		return "", fmt.Errorf("获取服务器信息失败: %v", err)
 	}
-	imageName := utils.ArkServerImageFor(server.ArkApi)
+	imageName := utils.ArkServerImageFor(server.Game, server.ArkApi)
 
 	// 检查容器是否已存在
 	if exists, err := dm.ContainerExists(containerName); err != nil {
@@ -135,7 +135,7 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 		"TZ=" + config.ContainerTZ,
 		fmt.Sprintf("SERVER_ARGS=%s", argsString),
 		// 游戏版本（Steam 分支），入口脚本传给 steamcmd 的 app_update；也用于判断是否需要重建容器
-		"APP_UPDATE=" + utils.ArkAppUpdateFor(server.GameBranch),
+		"APP_UPDATE=" + utils.ArkAppUpdateFor(server.Game, server.GameBranch),
 	}
 	if server.GameModIds != "" {
 		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", server.GameModIds))
@@ -145,23 +145,28 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 		envVars = append(envVars, "CLUSTER_VOLUME="+cv)
 	}
 
+	// 映射的端口：游戏端口、+1、查询端口、RCON 端口，各 UDP 和 TCP。ASA 没有查询端口（queryPort 为 0）
+	exposed := nat.PortSet{}
+	bindings := nat.PortMap{}
+	for _, p := range []int{port, port + 1, queryPort, rconPort} {
+		if p <= 0 {
+			continue
+		}
+		for _, proto := range []string{"udp", "tcp"} {
+			key := nat.Port(fmt.Sprintf("%d/%s", p, proto))
+			exposed[key] = struct{}{}
+			bindings[key] = []nat.PortBinding{{HostPort: fmt.Sprintf("%d", p)}}
+		}
+	}
+
 	// 构建容器配置
 	containerConfig := &container.Config{
 		Image: imageName,
 		Env:   envVars,
 		// 每个参数作为独立的一项传给入口脚本（"$@"），名称、密码里的空格不会被拆开；
 		// SERVER_ARGS 保留用于重建判断，也兼容还不认识 Cmd 的旧镜像
-		Cmd: serverArgs.GenerateArgs(server),
-		ExposedPorts: nat.PortSet{
-			nat.Port(fmt.Sprintf("%d/udp", port)):      struct{}{},
-			nat.Port(fmt.Sprintf("%d/tcp", port)):      struct{}{},
-			nat.Port(fmt.Sprintf("%d/udp", port+1)):    struct{}{},
-			nat.Port(fmt.Sprintf("%d/tcp", port+1)):    struct{}{},
-			nat.Port(fmt.Sprintf("%d/udp", queryPort)): struct{}{},
-			nat.Port(fmt.Sprintf("%d/tcp", queryPort)): struct{}{},
-			nat.Port(fmt.Sprintf("%d/udp", rconPort)):  struct{}{},
-			nat.Port(fmt.Sprintf("%d/tcp", rconPort)):  struct{}{},
-		},
+		Cmd:          serverArgs.GenerateArgs(server),
+		ExposedPorts: exposed,
 	}
 
 	// 根据autoRestart设置重启策略
@@ -175,34 +180,10 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 		RestartPolicy: container.RestartPolicy{
 			Name: restartPolicyName,
 		},
-		PortBindings: nat.PortMap{
-			nat.Port(fmt.Sprintf("%d/udp", port)): {
-				{HostPort: fmt.Sprintf("%d", port)},
-			},
-			nat.Port(fmt.Sprintf("%d/tcp", port)): {
-				{HostPort: fmt.Sprintf("%d", port)},
-			},
-			nat.Port(fmt.Sprintf("%d/udp", port+1)): {
-				{HostPort: fmt.Sprintf("%d", port+1)},
-			},
-			nat.Port(fmt.Sprintf("%d/tcp", port+1)): {
-				{HostPort: fmt.Sprintf("%d", port+1)},
-			},
-			nat.Port(fmt.Sprintf("%d/udp", queryPort)): {
-				{HostPort: fmt.Sprintf("%d", queryPort)},
-			},
-			nat.Port(fmt.Sprintf("%d/tcp", queryPort)): {
-				{HostPort: fmt.Sprintf("%d", queryPort)},
-			},
-			nat.Port(fmt.Sprintf("%d/udp", rconPort)): {
-				{HostPort: fmt.Sprintf("%d", rconPort)},
-			},
-			nat.Port(fmt.Sprintf("%d/tcp", rconPort)): {
-				{HostPort: fmt.Sprintf("%d", rconPort)},
-			},
-		},
+		PortBindings: bindings,
 		// 服务端文件卷挂到安装目录，数据卷和插件卷嵌套挂载在其中。
-		// 插件卷只对 Proton 版有用，Linux 版也照样挂载（只是多出 Win64/ArkApi/Plugins 目录），切换时挂载不变
+		// 插件卷只对 Proton 版有用，其他镜像也照样挂载（只是多出 Win64/ArkApi/Plugins 目录），切换时挂载不变。
+		// ASE 的 ArkApi 和 ASA 的 AsaApi 都从 Win64/ArkApi/Plugins 加载插件
 		Binds: []string{
 			fmt.Sprintf("%s:/home/steam/arkserver", utils.GetServerFilesVolumeName(serverID)),
 			fmt.Sprintf("%s:/home/steam/arkserver/ShooterGame/Saved", volumeName),

@@ -16,6 +16,8 @@ import { useMapName } from '@/hooks/use-map-name';
 import { toast } from '@/lib/toast';
 import { useApiError } from '@/lib/api-error';
 import { cn } from '@/lib/utils';
+import { gameOf, pluginApiName } from '@/lib/games';
+import { GameBadge } from './GameBadge';
 
 interface ServerCardProps {
   server: Server;
@@ -44,23 +46,26 @@ export function MapBand({ server, className, children }: { server: Server; class
   );
 }
 
-// 服务器的附加标记：游戏版本（通配符原版时）、ArkApi、旧镜像、配置待生效、Mod 有更新、集群
+// 服务器的附加标记：游戏、游戏版本（通配符原版时）、ArkApi / AsaApi、旧镜像、配置待生效、Mod 有更新、集群
 export function ServerTags({ server }: { server: Server }) {
   const t = useTranslations('serverCard');
+  const game = gameOf(server);
+  const api = pluginApiName(game);
   return (
     <>
-      {server.game_branch === 'preaquatica' && (
+      <GameBadge game={game} />
+      {game === 'ase' && server.game_branch === 'preaquatica' && (
         <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-800" title={t('preaquaticaTip')}>
           {t('preaquatica')}
         </span>
       )}
       {server.arkapi && (
-        <span className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-800" title={t('arkapiTip')}>
-          {t('arkapi')}
+        <span className="rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-800" title={t('arkapiTip', { api })}>
+          {api}
         </span>
       )}
       {server.image_outdated && (
-        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800" title={t('imageOutdatedTip')}>
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800" title={t('imageOutdatedTip', { api })}>
           {t('imageOutdated')}
         </span>
       )}
@@ -195,9 +200,10 @@ export function ServerCard({ server, publicHost }: ServerCardProps) {
               </dd>
             </>
           )}
-          <dt className="text-muted-foreground">{t('ports')}</dt>
+          {/* ASA 没有查询端口 */}
+          <dt className="text-muted-foreground">{gameOf(server) === 'asa' ? t('portsAsa') : t('ports')}</dt>
           <dd className="num text-right font-medium">
-            {server.port} / {server.query_port} / {server.rcon_port}
+            {gameOf(server) === 'asa' ? `${server.port} / ${server.rcon_port}` : `${server.port} / ${server.query_port} / ${server.rcon_port}`}
           </dd>
           <dt className="text-muted-foreground">{t('adminPassword')}</dt>
           <dd className="flex min-w-0 items-center justify-end gap-0.5">

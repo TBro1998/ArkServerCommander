@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"ark-server-commander/utils"
 )
 
 // ServerArgs ARK服务器启动参数结构
@@ -36,9 +38,17 @@ func NewServerArgs() *ServerArgs {
 	}
 }
 
-// FromServer 从Server模型创建ServerArgs
+// FromServer 从Server模型创建ServerArgs（新建服务器时推荐的启动参数）
 func FromServer(server Server) *ServerArgs {
 	args := NewServerArgs()
+
+	if server.Game == utils.GameASA {
+		// ASA 的默认参数少得多：ASE 的存档、建筑优化类参数在 ASA 里不存在
+		args.QueryParams["listen"] = ""
+		args.CommandLineArgs["NoBattlEye"] = true
+		args.CommandLineArgs["servergamelog"] = true
+		return args
+	}
 
 	// 设置默认的查询参数（不包含基础参数，因为基础参数从Server模型获取）
 	args.QueryParams["listen"] = ""
@@ -75,11 +85,16 @@ func (sa *ServerArgs) GenerateArgs(server Server) []string {
 	// 添加地图名称（从服务器基础参数获取）
 	url.WriteString(server.Map)
 
-	// 添加基础查询参数（从服务器基础参数获取，不在启动参数中重复设置）
+	asa := server.Game == utils.GameASA
+
+	// 添加基础查询参数（从服务器基础参数获取，不在启动参数中重复设置）。
+	// ASA 没有查询端口，人数上限用命令行参数 -WinLiveMaxPlayers
 	url.WriteString("?listen")
 	fmt.Fprintf(&url, "?Port=%d", server.Port)
-	fmt.Fprintf(&url, "?QueryPort=%d", server.QueryPort)
-	fmt.Fprintf(&url, "?MaxPlayers=%d", server.MaxPlayers)
+	if !asa {
+		fmt.Fprintf(&url, "?QueryPort=%d", server.QueryPort)
+		fmt.Fprintf(&url, "?MaxPlayers=%d", server.MaxPlayers)
+	}
 	url.WriteString("?RCONEnabled=True")
 	fmt.Fprintf(&url, "?RCONPort=%d", server.RCONPort)
 
@@ -88,7 +103,8 @@ func (sa *ServerArgs) GenerateArgs(server Server) []string {
 		fmt.Fprintf(&url, "?SessionName=%s", server.SessionName)
 	}
 
-	if server.GameModIds != "" {
+	// ASE 的 Mod 放在 ?GameModIds=，ASA 的是命令行参数 -mods=（服务端自己从 CurseForge 下载）
+	if server.GameModIds != "" && !asa {
 		fmt.Fprintf(&url, "?GameModIds=%s", server.GameModIds)
 	}
 
@@ -112,8 +128,11 @@ func (sa *ServerArgs) GenerateArgs(server Server) []string {
 
 	args := []string{url.String()}
 
-	// 添加命令行参数
+	// 添加命令行参数（ASA 由服务器字段生成的几项跳过，免得重复）
 	for _, key := range slices.Sorted(maps.Keys(sa.CommandLineArgs)) {
+		if asa && asaReservedArgs[strings.ToLower(key)] {
+			continue
+		}
 		switch v := sa.CommandLineArgs[key].(type) {
 		case bool:
 			if v {
@@ -139,9 +158,20 @@ func (sa *ServerArgs) GenerateArgs(server Server) []string {
 		}
 	}
 
-	// 添加集群ID（ClusterID）
+	if asa {
+		args = append(args, fmt.Sprintf("-WinLiveMaxPlayers=%d", server.MaxPlayers))
+		if server.GameModIds != "" {
+			args = append(args, "-mods="+server.GameModIds)
+		}
+	}
+
+	// 添加集群ID（ClusterID）。ASA 的集群目录要用 -ClusterDirOverride 指定，否则不同服务器的集群数据不在同一个目录；
+	// 指到集群卷挂载的位置（ASE 默认就用这里），Wine 能直接识别 Linux 路径
 	if server.ClusterID != "" {
 		args = append(args, "-clusterid="+server.ClusterID)
+		if asa {
+			args = append(args, "-ClusterDirOverride="+AsaClusterDir)
+		}
 	}
 
 	// 添加自定义参数（一项里可能写了多个参数，按空白拆开）
@@ -151,6 +181,12 @@ func (sa *ServerArgs) GenerateArgs(server Server) []string {
 
 	return args
 }
+
+// AsaClusterDir ASA 容器里集群卷挂载的位置（和 ASE 的默认集群目录相同）
+const AsaClusterDir = "/home/steam/arkserver/ShooterGame/Saved/clusters"
+
+// asaReservedArgs ASA 由服务器字段生成的命令行参数（小写），启动参数里的同名项不重复添加
+var asaReservedArgs = map[string]bool{"winlivemaxplayers": true, "mods": true, "clusterid": true, "clusterdiroverride": true}
 
 // GenerateArgsString 生成完整的启动参数字符串（地图 URL 和命令行参数之间用空格分隔）
 func (sa *ServerArgs) GenerateArgsString(server Server) string {

@@ -82,7 +82,7 @@ func (s *ServerService) ListPlugins(userID uint, serverID string) (*PluginsOverv
 		return nil, err
 	}
 	overview := &PluginsOverview{Plugins: []PluginInfo{}}
-	overview.ArkApiVersion, overview.ArkApiInstalled = installedArkApiVersion(server.ID)
+	overview.ArkApiVersion, overview.ArkApiInstalled = installedArkApiVersion(server)
 
 	for _, dir := range []struct {
 		path    string
@@ -587,7 +587,7 @@ func (s *ServerService) SavePluginConfig(userID uint, serverID, name, content st
 		return err
 	}
 	if name == arkApiConfigName {
-		if _, installed := installedArkApiVersion(server.ID); !installed {
+		if _, installed := installedArkApiVersion(server); !installed {
 			return ErrArkApiNotInstalled
 		}
 	}

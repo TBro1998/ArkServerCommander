@@ -22,7 +22,9 @@ var (
 	ErrImageNotAllowed             = errors.New("不允许操作该镜像")
 	ErrInvalidClusterID            = errors.New("集群ID只能包含字母、数字、下划线、点和连字符，且以字母或数字开头，最长64个字符")
 	ErrInvalidModIDs               = errors.New("Mod ID 只能是逗号分隔的数字")
-	ErrInvalidGameBranch           = errors.New("游戏版本无效，只能是蜗牛海洋正式版（空）或通配符原版（preaquatica）")
+	ErrInvalidGameBranch           = errors.New("游戏版本无效：ASE 只能是蜗牛海洋正式版（空）或通配符原版（preaquatica），ASA 只有正式版")
+	ErrInvalidGame                 = errors.New("游戏只能是 ase（ARK: Survival Evolved）或 asa（ARK: Survival Ascended）")
+	ErrGameNotSupported            = errors.New("ASA 服务器不支持这个功能")
 	ErrServerNotRunning            = errors.New("服务器未运行")
 	ErrServerNotReady              = errors.New("服务器还不能连接，请等它加载完成后再检测")
 	ErrServerNotStopped            = errors.New("请先停止服务器")
@@ -93,6 +95,8 @@ var errorCodes = []struct {
 	{ErrInvalidClusterID, "invalid_cluster_id"},
 	{ErrInvalidModIDs, "invalid_mod_ids"},
 	{ErrInvalidGameBranch, "invalid_game_branch"},
+	{ErrInvalidGame, "invalid_game"},
+	{ErrGameNotSupported, "game_not_supported"},
 	{ErrServerNotRunning, "server_not_running"},
 	{ErrServerNotReady, "server_not_ready"},
 	{ErrServerNotStopped, "server_not_stopped"},

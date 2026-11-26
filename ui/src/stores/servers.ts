@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import type { Game } from '@/lib/games';
 
 export type ServerStatus = 'running' | 'stopped' | 'starting' | 'stopping';
 export type ServerPhase = 'pulling_image' | 'copying' | 'downloading' | 'installing_mods' | 'launching' | 'ready' | '';
@@ -99,18 +100,22 @@ export interface LinkRoomInfo {
     listing: ListingProfile;
     /** 没有服务器开启联机房时为 null */
     status: LinkStatus | null;
-    servers: { id: number; session_name: string; port: number; query_port: number; status: string; online: boolean }[];
+    /** game：ase 或 asa（ASA 没有查询端口，query_port 为 0） */
+    servers: { id: number; game?: Game; session_name: string; port: number; query_port: number; status: string; online: boolean }[];
 }
 
 // 定义服务器对象类型
 export interface Server {
     id: number;
+    // 游戏：ase（ARK: Survival Evolved）或 asa（ARK: Survival Ascended），创建后不能修改；用 gameOf() 读取
+    game?: Game;
     cluster_id?: string;
     session_name: string;
     // 后端可能返回 restarting、unknown 等临时状态，只用于展示
     status: ServerStatus | string;
     last_error?: string;
     port: number;
+    // ASA 没有查询端口，为 0
     query_port: number;
     rcon_port: number;
     admin_password?: string;
@@ -119,11 +124,11 @@ export interface Server {
     game_mod_ids?: string;
     auto_restart?: boolean;
     auto_update?: boolean;
-    // 启用 ArkApi：用 Proton 镜像运行 Windows 版服务端；关闭时用原生 Linux 版
+    // 启用 ArkApi（ASA 是 AsaApi）：用 Proton 镜像运行 Windows 版服务端；关闭时 ASE 用原生 Linux 版，ASA 用 Wine 版
     arkapi?: boolean;
-    // 服务器使用的镜像，由 arkapi 决定
+    // 服务器使用的镜像，由 game 和 arkapi 决定
     image?: string;
-    // 游戏版本（Steam 分支）：空为蜗牛海洋正式版，preaquatica 为通配符原版（海洋 DLC 更新前）
+    // 游戏版本（Steam 分支，只有 ASE）：空为蜗牛海洋正式版，preaquatica 为通配符原版（海洋 DLC 更新前）
     game_branch?: string;
     // 发布到服务器收录站（arkfgf.com）
     publish?: boolean;
@@ -131,7 +136,7 @@ export interface Server {
     // P2P 联机房（玩家用 ARKFGF 联机助手加入）
     link?: boolean;
     link_status?: LinkStatus;
-    // 公网可达性，未运行时没有
+    // 公网可达性，未运行时和 ASA 服务器没有
     reachability?: Reachability;
     listing?: ListingProfile;
     game_user_settings?: string;
@@ -142,7 +147,7 @@ export interface Server {
         custom_args: string[];
     };
     image_outdated?: boolean;
-    // 创意工坊上有更新的 Mod ID
+    // 创意工坊上有更新的 Mod ID（ASA 的 Mod 由服务端自己更新，总是为空）
     mods_outdated?: string[];
     config_pending?: boolean;
     runtime?: RuntimeInfo;

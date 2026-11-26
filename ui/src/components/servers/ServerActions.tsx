@@ -14,6 +14,7 @@ import { serversActions, isTransitioning, type Server } from '@/stores/servers';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+import { gameOf } from '@/lib/games';
 
 export type ServerDialog = 'stop' | 'restart' | 'update' | 'recreate' | 'delete';
 
@@ -36,6 +37,9 @@ export function useServerControls(server: Server, options: { onDeleted?: () => v
   const stopped = server.status === 'stopped';
   const players = server.runtime?.players ?? 0;
   const hasMods = !!server.game_mod_ids;
+  // ASA 的 Mod 由服务端每次启动时自己从 CurseForge 下载和更新，"更新"只需要更新游戏本体
+  const asa = gameOf(server) === 'asa';
+  const canUpdateMods = hasMods && !asa;
 
   // 执行操作：失败时弹出错误并抛出，让确认框保持打开
   const run = async (action: () => Promise<void>, success: string, failure: string) => {
@@ -56,7 +60,7 @@ export function useServerControls(server: Server, options: { onDeleted?: () => v
   const restart = () => run(() => serversActions.restartServer(server.id), t('restartSent'), t('restartFailed'));
   const recreate = () => run(() => serversActions.recreateServer(server.id), t('recreateSent'), t('recreateFailed'));
   const update = () =>
-    run(() => serversActions.updateGame(server.id, updateGame, updateMods && hasMods), t('updateSent'), t('updateFailed'));
+    run(() => serversActions.updateGame(server.id, updateGame, updateMods && canUpdateMods), t('updateSent'), t('updateFailed'));
   const remove = () =>
     run(
       async () => {
@@ -115,7 +119,7 @@ export function useServerControls(server: Server, options: { onDeleted?: () => v
         title={t('updateTitle', { name: server.session_name })}
         description={running ? t('updateDescRunning') : t('updateDesc')}
         confirmText={t('updateConfirm')}
-        confirmDisabled={!updateGame && !(updateMods && hasMods)}
+        confirmDisabled={!updateGame && !(updateMods && canUpdateMods)}
         onConfirm={update}
       >
         <div className="space-y-3 text-sm">
@@ -126,13 +130,17 @@ export function useServerControls(server: Server, options: { onDeleted?: () => v
             </span>
             <Switch checked={updateGame} onCheckedChange={setUpdateGame} />
           </label>
-          <label className="flex items-start justify-between gap-4">
-            <span>
-              <span className="font-medium">{t('updateModsOption')}</span>
-              <span className="block text-xs text-gray-500">{hasMods ? t('updateModsOptionDesc') : t('noMods')}</span>
-            </span>
-            <Switch checked={updateMods && hasMods} onCheckedChange={setUpdateMods} disabled={!hasMods} />
-          </label>
+          {asa ? (
+            <p className="text-xs text-gray-500">{t('updateModsAsa')}</p>
+          ) : (
+            <label className="flex items-start justify-between gap-4">
+              <span>
+                <span className="font-medium">{t('updateModsOption')}</span>
+                <span className="block text-xs text-gray-500">{hasMods ? t('updateModsOptionDesc') : t('noMods')}</span>
+              </span>
+              <Switch checked={updateMods && hasMods} onCheckedChange={setUpdateMods} disabled={!hasMods} />
+            </label>
+          )}
           {players > 0 && <p className="font-medium text-amber-700">{t('playersOnline', { count: players })}</p>}
         </div>
       </ConfirmDialog>

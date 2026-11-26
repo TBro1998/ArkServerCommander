@@ -42,6 +42,7 @@ type LinkRoomInfo struct {
 // LinkRoomMember 房间里的一台服务器
 type LinkRoomMember struct {
 	ID          uint   `json:"id"`
+	Game        string `json:"game"` // ase 或 asa
 	SessionName string `json:"session_name"`
 	Port        int    `json:"port"`
 	QueryPort   int    `json:"query_port"`

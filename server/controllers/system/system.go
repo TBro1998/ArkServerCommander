@@ -121,10 +121,17 @@ func SuggestPorts(c *gin.Context) {
 // @Tags 系统
 // @Produce json
 // @Security Bearer
+// @Param game query string false "游戏：ase（默认）或 asa"
 // @Success 200 {object} map[string]server.ServerDefaults "默认配置"
+// @Failure 400 {object} map[string]string "游戏无效"
 // @Router /system/server-defaults [get]
 func GetServerDefaults(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": serverService.ServerDefaults()})
+	defaults, err := serverService.ServerDefaults(c.Query("game"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_game"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": defaults})
 }
 
 // GetMods 查询创意工坊 Mod 信息

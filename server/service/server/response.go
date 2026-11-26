@@ -13,6 +13,7 @@ import (
 func toResponse(server models.Server) models.ServerResponse {
 	response := models.ServerResponse{
 		ID:            server.ID,
+		Game:          utils.NormalizeGame(server.Game),
 		SessionName:   server.SessionName,
 		ClusterID:     server.ClusterID,
 		Port:          server.Port,
@@ -26,7 +27,7 @@ func toResponse(server models.Server) models.ServerResponse {
 		AutoRestart:   server.AutoRestart,
 		AutoUpdate:    server.AutoUpdate,
 		ArkApi:        server.ArkApi,
-		Image:         utils.ArkServerImageFor(server.ArkApi),
+		Image:         utils.ArkServerImageFor(server.Game, server.ArkApi),
 		GameBranch:    server.GameBranch,
 		Publish:       server.Publish,
 		Link:          server.Link,

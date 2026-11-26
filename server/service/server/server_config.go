@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -69,6 +70,7 @@ func buildServerConfig(server models.Server) (*models.ServerConfig, error) {
 		Format:           models.ServerConfigFormat,
 		Version:          models.ServerConfigVersion,
 		ExportedAt:       time.Now().In(appLocation()).Format(time.RFC3339),
+		Game:             utils.NormalizeGame(server.Game),
 		SessionName:      server.SessionName,
 		Map:              server.Map,
 		MaxPlayers:       server.MaxPlayers,
@@ -115,6 +117,9 @@ func validateServerConfig(cfg *models.ServerConfig) error {
 	if cfg.Version < 1 || cfg.Version > models.ServerConfigVersion {
 		return fmt.Errorf("%w：不支持的版本 %d", ErrInvalidServerConfig, cfg.Version)
 	}
+	if !utils.ValidGame(cfg.Game) {
+		return fmt.Errorf("%w：未知的游戏 %q", ErrInvalidServerConfig, cfg.Game)
+	}
 	if cfg.MaxPlayers != 0 && (cfg.MaxPlayers < 1 || cfg.MaxPlayers > 200) {
 		return fmt.Errorf("%w：最大玩家数需在 1-200 之间", ErrInvalidServerConfig)
 	}
@@ -127,6 +132,14 @@ func validateServerConfig(cfg *models.ServerConfig) error {
 // applyConfig 把配置里选中的部分写入目标服务器，规则和 UpdateServer 相同（未停止时配置文件先暂存）
 func (s *ServerService) applyConfig(userID uint, target models.Server, cfg *models.ServerConfig, parts map[string]bool) (*models.ServerResponse, error) {
 	req := models.ServerUpdateRequest{}
+
+	// ASE 和 ASA 的地图名、Mod（创意工坊 / CurseForge）和启动参数不通用，跨游戏时只导入配置文件、集群和选项
+	if utils.NormalizeGame(cfg.Game) != utils.NormalizeGame(target.Game) {
+		parts = maps.Clone(parts)
+		delete(parts, models.ConfigPartMap)
+		delete(parts, models.ConfigPartMods)
+		delete(parts, models.ConfigPartServerArgs)
+	}
 
 	if parts[models.ConfigPartOptions] {
 		req.MaxPlayers = cfg.MaxPlayers

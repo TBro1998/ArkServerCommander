@@ -33,7 +33,8 @@ type installArkApiInput struct {
 }
 
 type arkApiVersionsInput struct {
-	Refresh bool `json:"refresh,omitempty" jsonschema:"Query GitHub again instead of using the cache"`
+	Game    string `json:"game,omitempty" jsonschema:"ase (default, ArkApi for ARK: Survival Evolved) or asa (AsaApi for ARK: Survival Ascended)"`
+	Refresh bool   `json:"refresh,omitempty" jsonschema:"Query GitHub again instead of using the cache"`
 }
 
 type pluginCatalogInput struct {
@@ -55,7 +56,8 @@ type pluginLogInput struct {
 }
 
 type arkApiVersionInput struct {
-	Version string `json:"version" jsonschema:"Downloaded ArkApi version to delete"`
+	Game    string `json:"game,omitempty" jsonschema:"ase (default, ArkApi) or asa (AsaApi)"`
+	Version string `json:"version" jsonschema:"Downloaded ArkApi / AsaApi version to delete"`
 }
 
 func registerPluginTools(r *registry) {
@@ -151,8 +153,8 @@ func registerPluginTools(r *registry) {
 			return message("Config saved."), nil
 		})
 
-	action(r, idempotent, "install_arkapi", "Install ArkApi",
-		"Install or switch the ArkApi version in the server files (keeps the existing ArkApi config.json). The server must be stopped. May download from GitHub.",
+	action(r, idempotent, "install_arkapi", "Install ArkApi / AsaApi",
+		"Install or switch the plugin framework version in the server files (ArkApi for ASE servers, AsaApi for ASA servers; keeps the existing config.json). The server must be stopped. May download from GitHub.",
 		func(_ context.Context, userID uint, in installArkApiInput) (any, error) {
 			version, err := service.InstallArkApi(userID, sid(in.ServerID), in.Version)
 			if err != nil {
@@ -161,16 +163,16 @@ func registerPluginTools(r *registry) {
 			return map[string]any{"ok": true, "version": version}, nil
 		})
 
-	query(r, "list_arkapi_versions", "List ArkApi versions",
-		"List ArkApi versions available to install: built-in, already downloaded, releases on GitHub, and the version in the arkfgf.com plugin catalog (on_catalog, downloaded from ark-server-api.com on install).",
+	query(r, "list_arkapi_versions", "List ArkApi / AsaApi versions",
+		"List plugin framework versions available to install. game=ase (default): ArkApi built-in, already downloaded, releases on GitHub, and the version in the arkfgf.com plugin catalog (on_catalog, downloaded from ark-server-api.com on install). game=asa: AsaApi downloaded versions and GitHub releases.",
 		func(_ context.Context, _ uint, in arkApiVersionsInput) (any, error) {
-			return service.ListArkApiVersions(in.Refresh), nil
+			return service.ListArkApiVersions(in.Game, in.Refresh)
 		})
 
-	action(r, destructive, "delete_arkapi_version", "Delete ArkApi version",
-		"Delete a downloaded or uploaded ArkApi version from the local library (the built-in version cannot be deleted). Servers that already installed it are unaffected.",
+	action(r, destructive, "delete_arkapi_version", "Delete ArkApi / AsaApi version",
+		"Delete a downloaded or uploaded ArkApi (game=ase, default) or AsaApi (game=asa) version from the local library (the built-in ArkApi version cannot be deleted). Servers that already installed it are unaffected.",
 		func(_ context.Context, _ uint, in arkApiVersionInput) (any, error) {
-			if err := service.DeleteArkApiVersion(in.Version); err != nil {
+			if err := service.DeleteArkApiVersion(in.Game, in.Version); err != nil {
 				return nil, err
 			}
 			return message("Version deleted."), nil

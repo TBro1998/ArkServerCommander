@@ -202,18 +202,18 @@ func TestArkApiFromCatalog(t *testing.T) {
 	t.Cleanup(func() { config.DataDir = old })
 	newFakeCatalogSite(t)
 	// 不查询 GitHub
-	arkApiReleases.Lock()
-	oldList, oldErr, oldChecked := arkApiReleases.list, arkApiReleases.err, arkApiReleases.checked
-	arkApiReleases.list, arkApiReleases.err, arkApiReleases.checked = nil, "", time.Now()
-	arkApiReleases.Unlock()
+	aseApi.releases.Lock()
+	oldList, oldErr, oldChecked := aseApi.releases.list, aseApi.releases.err, aseApi.releases.checked
+	aseApi.releases.list, aseApi.releases.err, aseApi.releases.checked = nil, "", time.Now()
+	aseApi.releases.Unlock()
 	t.Cleanup(func() {
-		arkApiReleases.Lock()
-		arkApiReleases.list, arkApiReleases.err, arkApiReleases.checked = oldList, oldErr, oldChecked
-		arkApiReleases.Unlock()
+		aseApi.releases.Lock()
+		aseApi.releases.list, aseApi.releases.err, aseApi.releases.checked = oldList, oldErr, oldChecked
+		aseApi.releases.Unlock()
 	})
 
 	s := NewServerService()
-	versions := s.ListArkApiVersions(false)
+	versions, _ := s.ListArkApiVersions("", false)
 	if versions.Latest != "9.99" {
 		t.Fatalf("expected catalog version to be latest, got %+v", versions)
 	}
@@ -232,11 +232,11 @@ func TestArkApiFromCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v, installed := installedArkApiVersion(srv.ID); got != "9.99" || v != "9.99" || !installed {
+	if v, installed := installedArkApiVersion(srv); got != "9.99" || v != "9.99" || !installed {
 		t.Fatalf("unexpected installed version %q %q %v", got, v, installed)
 	}
 	// 下载后进了版本库
-	if _, err := os.Stat(arkApiLibraryPath("9.99")); err != nil {
+	if _, err := os.Stat(aseApi.libraryPath("9.99")); err != nil {
 		t.Fatalf("catalog version not saved to library: %v", err)
 	}
 }

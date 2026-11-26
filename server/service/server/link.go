@@ -78,7 +78,8 @@ type linkCredential struct {
 
 // linkServerProfile 房间里一台服务器的资料（POST /link/rooms 的 servers[]）
 type linkServerProfile struct {
-	Key          string   `json:"key"` // 服务器 ID
+	Key          string   `json:"key"`  // 服务器 ID
+	Game         string   `json:"game"` // ase 或 asa；ASA 没有查询端口（query_port 为 0），玩家用控制台命令 open 进服
 	Name         string   `json:"name"`
 	Map          string   `json:"map"`
 	MaxPlayers   int      `json:"max_players"`
@@ -245,7 +246,7 @@ func (m *LinkManager) reset() {
 }
 
 // linkServerColumns 联机房用到的服务器字段
-var linkServerColumns = []string{"id", "session_name", "map", "max_players", "port", "query_port", "rcon_port", "cluster_id",
+var linkServerColumns = []string{"id", "game", "session_name", "map", "max_players", "port", "query_port", "rcon_port", "cluster_id",
 	"game_mod_ids", "arkapi", "server_args_json", "status", "link", "listing_description", "listing_tags", "listing_qq", "listing_discord"}
 
 // loadLinkRoom 读取联机房记录，不存在时创建
@@ -998,12 +999,16 @@ func linkRoomName(room models.LinkRoom, servers []models.Server) string {
 	return "ARK Server"
 }
 
-// linkNodePorts 节点放行的 UDP 端口：每台服务器的游戏端口、+1 和查询端口，去重，按服务器顺序
+// linkNodePorts 节点放行的 UDP 端口：每台服务器的游戏端口、+1 和查询端口（ASA 只有游戏端口），去重，按服务器顺序
 func linkNodePorts(servers []models.Server) []string {
 	seen := map[int]bool{}
 	var ports []string
 	for _, s := range servers {
-		for _, p := range []int{s.Port, s.Port + 1, s.QueryPort} {
+		forward := []int{s.Port, s.Port + 1, s.QueryPort}
+		if utils.NormalizeGame(s.Game) == utils.GameASA {
+			forward = []int{s.Port}
+		}
+		for _, p := range forward {
 			if p > 0 && !seen[p] {
 				seen[p] = true
 				ports = append(ports, strconv.Itoa(p))
@@ -1133,6 +1138,7 @@ func buildLinkServerProfile(server models.Server) linkServerProfile {
 	sp := buildServerProfile(server)
 	return linkServerProfile{
 		Key:          linkServerKey(server.ID),
+		Game:         utils.NormalizeGame(server.Game),
 		Name:         sp.Name,
 		Map:          sp.Map,
 		MaxPlayers:   sp.MaxPlayers,
@@ -1234,7 +1240,7 @@ func (s *ServerService) GetLinkRoom() (*models.LinkRoomInfo, error) {
 		return nil, err
 	}
 	var servers []models.Server
-	if err := database.DB.Select("id", "session_name", "port", "query_port", "status").
+	if err := database.DB.Select("id", "game", "session_name", "port", "query_port", "status").
 		Where("link = ?", true).Order("id").Find(&servers).Error; err != nil {
 		return nil, err
 	}
@@ -1253,7 +1259,7 @@ func (s *ServerService) GetLinkRoom() (*models.LinkRoomInfo, error) {
 	}
 	for _, sv := range servers {
 		info.Servers = append(info.Servers, models.LinkRoomMember{
-			ID: sv.ID, SessionName: sv.SessionName, Port: sv.Port, QueryPort: sv.QueryPort, Status: sv.Status,
+			ID: sv.ID, Game: utils.NormalizeGame(sv.Game), SessionName: sv.SessionName, Port: sv.Port, QueryPort: sv.QueryPort, Status: sv.Status,
 			Online: linkManager.serverReported(sv.ID),
 		})
 	}

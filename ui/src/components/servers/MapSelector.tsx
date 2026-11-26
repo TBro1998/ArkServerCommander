@@ -8,34 +8,25 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ChevronDown, X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mapColor } from '@/lib/maps';
+import { mapColor, officialMaps, prettyMapName } from '@/lib/maps';
+import type { Game } from '@/lib/games';
 
 interface MapSelectorProps {
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  game?: Game;
 }
 
-export function MapSelector({ value, onChange, label }: MapSelectorProps) {
+export function MapSelector({ value, onChange, label, game = 'ase' }: MapSelectorProps) {
   const t = useTranslations('servers.edit');
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
 
-  // 预定义的地图选项
-  const predefinedMaps = {
-    'TheIsland': t('maps.TheIsland'),
-    'TheCenter': t('maps.TheCenter'),
-    'ScorchedEarth_P': t('maps.ScorchedEarth_P'),
-    'Aberration_P': t('maps.Aberration_P'),
-    'Extinction': t('maps.Extinction'),
-    'Ragnarok': t('maps.Ragnarok'),
-    'Valguero_P': t('maps.Valguero_P'),
-    'Genesis': t('maps.Genesis'),
-    'Genesis2': t('maps.Genesis2'),
-    'CrystalIsles': t('maps.CrystalIsles'),
-    'LostIsland': t('maps.LostIsland'),
-    'Fjordur': t('maps.Fjordur')
-  };
+  // 这个游戏的官方地图（ASA 的地图名带 _WP 后缀），自定义地图可以直接输入
+  const predefinedMaps: Record<string, string> = Object.fromEntries(
+    officialMaps(game).map((key) => [key, t.has(`maps.${key}`) ? t(`maps.${key}`) : prettyMapName(key)]),
+  );
 
   // 弹窗关闭时清空搜索值（在事件里处理，而不是在 effect 中同步 setState）
   const handleOpenChange = (next: boolean) => {
@@ -66,7 +57,7 @@ export function MapSelector({ value, onChange, label }: MapSelectorProps) {
 
   // 获取当前选中地图的显示名称
   const getDisplayName = (mapKey: string) => {
-    return predefinedMaps[mapKey as keyof typeof predefinedMaps] || mapKey;
+    return predefinedMaps[mapKey] || mapKey;
   };
 
   return (

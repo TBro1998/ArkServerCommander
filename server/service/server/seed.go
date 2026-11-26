@@ -28,11 +28,12 @@ func seedSourceName(serverID uint) (string, bool) {
 	return v.(string), true
 }
 
-// pickSeedSource 选出复制来源：必须已安装完成（有标记和任一平台的主程序），并且游戏版本和目标相同
+// pickSeedSource 选出复制来源：必须是同一个游戏（ASE / ASA）、已安装完成（有标记和这个游戏的主程序），并且游戏版本和目标相同
 // （正式版和 preaquatica 的服务端文件不同，不能互相复制）。不区分平台：服务端的游戏文件是 Linux 版和 Windows 版
 // 共用的同一个 depot，两个平台的主程序会一起下载。优先已停止的服务器（文件不会在复制时变动），其次按 ID 顺序。
 // 目标已有服务端主程序（例如"更新游戏"刚清除了标记，或切换了平台）时不复制
-func pickSeedSource(target docker_manager.ServerFilesState, branch string, candidates []models.Server, states map[uint]docker_manager.ServerFilesState) (models.Server, bool) {
+func pickSeedSource(target docker_manager.ServerFilesState, game, branch string, candidates []models.Server, states map[uint]docker_manager.ServerFilesState) (models.Server, bool) {
+	game = utils.NormalizeGame(game)
 	if target.HasExecutable() {
 		return models.Server{}, false
 	}
@@ -45,7 +46,10 @@ func pickSeedSource(target docker_manager.ServerFilesState, branch string, candi
 		return sorted[i].ID < sorted[j].ID
 	})
 	for _, c := range sorted {
-		if st := states[c.ID]; st.Installed && st.HasExecutable() && st.Branch == branch {
+		if utils.NormalizeGame(c.Game) != game {
+			continue
+		}
+		if st := states[c.ID]; st.Installed && st.HasGameExecutable(game) && st.Branch == branch {
 			return c, true
 		}
 	}
@@ -57,7 +61,7 @@ func pickSeedSource(target docker_manager.ServerFilesState, branch string, candi
 // 任何一步失败都只记录日志，照常启动（入口脚本会自行从 Steam 下载）
 func seedServerFiles(server models.Server, dm *docker_manager.DockerManager) {
 	var others []models.Server
-	if err := database.DB.Select("id", "session_name", "status").Where("id <> ?", server.ID).Find(&others).Error; err != nil {
+	if err := database.DB.Select("id", "game", "session_name", "status").Where("id <> ? AND game = ?", server.ID, utils.NormalizeGame(server.Game)).Find(&others).Error; err != nil {
 		utils.Warn("读取服务器列表失败，跳过复制服务端文件", zap.Error(err))
 		return
 	}
@@ -80,7 +84,7 @@ func seedServerFiles(server models.Server, dm *docker_manager.DockerManager) {
 		return
 	}
 
-	source, ok := pickSeedSource(states[server.ID], server.GameBranch, others, states)
+	source, ok := pickSeedSource(states[server.ID], server.Game, server.GameBranch, others, states)
 	if !ok {
 		return
 	}

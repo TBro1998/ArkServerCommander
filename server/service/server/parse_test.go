@@ -150,38 +150,65 @@ func TestPickSeedSource(t *testing.T) {
 	}
 
 	// 已停止的优先，其次按 ID
-	if got, ok := pickSeedSource(none, "", candidates, states); !ok || got.ID != 4 {
+	if got, ok := pickSeedSource(none, "", "", candidates, states); !ok || got.ID != 4 {
 		t.Fatalf("expected server 4, got %+v %v", got, ok)
 	}
 	// 只有运行中的服务器已安装时也可以作为来源
-	if got, ok := pickSeedSource(none, "", candidates[:2], states); !ok || got.ID != 2 {
+	if got, ok := pickSeedSource(none, "", "", candidates[:2], states); !ok || got.ID != 2 {
 		t.Fatalf("expected server 2, got %+v %v", got, ok)
 	}
 	// 目标已有服务端文件（例如更新游戏刚清除了标记、切换了平台）时不复制
-	if _, ok := pickSeedSource(installed, "", candidates, states); ok {
+	if _, ok := pickSeedSource(installed, "", "", candidates, states); ok {
 		t.Fatal("should not copy when the target already has server files")
 	}
-	if _, ok := pickSeedSource(linux, "", candidates, states); ok {
+	if _, ok := pickSeedSource(linux, "", "", candidates, states); ok {
 		t.Fatal("should not copy when the target has files of the other platform")
 	}
 	// 没有已安装完成的服务器
-	if _, ok := pickSeedSource(none, "", candidates[1:2], states); ok {
+	if _, ok := pickSeedSource(none, "", "", candidates[1:2], states); ok {
 		t.Fatal("should not copy from an incomplete install")
 	}
 	// 不区分平台：只有 Linux 版主程序的来源同样可以用，仍按已停止、ID 顺序选
 	states[4] = linux
-	if got, ok := pickSeedSource(none, "", candidates, states); !ok || got.ID != 4 {
+	if got, ok := pickSeedSource(none, "", "", candidates, states); !ok || got.ID != 4 {
 		t.Fatalf("expected linux server 4, got %+v %v", got, ok)
 	}
 	// 只从同一游戏版本复制：preaquatica 的目标只能用 preaquatica 的 3，正式版的目标不能用 3
 	states[3] = docker_manager.ServerFilesState{Installed: true, Windows: true, Branch: utils.GameBranchPreAquatica}
-	if got, ok := pickSeedSource(none, utils.GameBranchPreAquatica, candidates, states); !ok || got.ID != 3 {
+	if got, ok := pickSeedSource(none, "", utils.GameBranchPreAquatica, candidates, states); !ok || got.ID != 3 {
 		t.Fatalf("expected preaquatica server 3, got %+v %v", got, ok)
 	}
-	if _, ok := pickSeedSource(none, utils.GameBranchPreAquatica, candidates[:1], states); ok {
+	if _, ok := pickSeedSource(none, "", utils.GameBranchPreAquatica, candidates[:1], states); ok {
 		t.Fatal("should not copy server files of another game branch")
 	}
-	if got, ok := pickSeedSource(none, "", candidates[1:3], states); !ok || got.ID != 4 {
+	if got, ok := pickSeedSource(none, "", "", candidates[1:3], states); !ok || got.ID != 4 {
 		t.Fatalf("expected public server 4, got %+v %v", got, ok)
+	}
+}
+
+func TestPickSeedSourceSameGame(t *testing.T) {
+	ase := docker_manager.ServerFilesState{Installed: true, Windows: true}
+	asa := docker_manager.ServerFilesState{Installed: true, ASA: true}
+	none := docker_manager.ServerFilesState{}
+	candidates := []models.Server{
+		{ID: 2, Status: "stopped"},
+		{ID: 3, Game: utils.GameASA, Status: "stopped"},
+	}
+	states := map[uint]docker_manager.ServerFilesState{2: ase, 3: asa}
+
+	// ASA 服务器只从 ASA 服务器复制，ASE（含没有 game 的旧记录）只从 ASE 复制
+	if got, ok := pickSeedSource(none, utils.GameASA, "", candidates, states); !ok || got.ID != 3 {
+		t.Fatalf("expected asa server 3, got %+v %v", got, ok)
+	}
+	if got, ok := pickSeedSource(none, "", "", candidates, states); !ok || got.ID != 2 {
+		t.Fatalf("expected ase server 2, got %+v %v", got, ok)
+	}
+	if _, ok := pickSeedSource(none, utils.GameASA, "", candidates[:1], states); ok {
+		t.Fatal("asa server must not copy ase files")
+	}
+	// 游戏记录对得上、文件却是另一个游戏的也不行
+	states[3] = ase
+	if _, ok := pickSeedSource(none, utils.GameASA, "", candidates, states); ok {
+		t.Fatal("asa server must not copy a volume without ArkAscendedServer.exe")
 	}
 }

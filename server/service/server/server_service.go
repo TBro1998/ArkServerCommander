@@ -50,7 +50,7 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 	if listErr != nil {
 		utils.Warn("列出服务器容器失败，状态沿用数据库记录", zap.Error(listErr))
 	}
-	// 两个 ARK 镜像当前的 ID；镜像还没下载时没有记录，对应服务器不显示"旧镜像"
+	// 各个 ARK 镜像当前的 ID；镜像还没下载时没有记录，对应服务器不显示"旧镜像"
 	currentImageIDs := map[string]string{}
 	for _, name := range utils.ArkServerImages {
 		if id, err := dockerManager.GetImageID(name); err == nil {
@@ -68,7 +68,7 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 			if c, ok := containers[utils.GetServerContainerName(server.ID)]; ok {
 				dockerStatus = c.Status
 				// 容器用的不是服务器当前应使用的镜像（镜像更新过，或切换了 ArkApi）时，下次启动会重建
-				if want, ok := currentImageIDs[utils.ArkServerImageFor(server.ArkApi)]; ok {
+				if want, ok := currentImageIDs[utils.ArkServerImageFor(server.Game, server.ArkApi)]; ok {
 					imageOutdated = c.ImageID != want
 				}
 			}
@@ -87,6 +87,16 @@ func (s *ServerService) GetServers(userID uint) ([]models.ServerResponse, error)
 
 // CreateServer 创建新服务器
 func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*models.ServerResponse, error) {
+	if !utils.ValidGame(req.Game) {
+		return nil, ErrInvalidGame
+	}
+	req.Game = utils.NormalizeGame(req.Game)
+	// ASA 没有查询端口，传了也不用；ASE 必须有
+	if req.Game == utils.GameASA {
+		req.QueryPort = 0
+	} else if req.QueryPort == 0 {
+		return nil, fmt.Errorf("%w: 缺少查询端口", ErrInvalidPort)
+	}
 	if err := checkPorts(0, req.Port, req.QueryPort, req.RCONPort); err != nil {
 		return nil, err
 	}
@@ -102,7 +112,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		req.SessionName = DefaultSessionName
 	}
 	if req.Map == "" {
-		req.Map = "TheIsland"
+		req.Map = DefaultMapFor(req.Game)
 	}
 	if req.MaxPlayers == 0 {
 		req.MaxPlayers = DefaultMaxPlayers
@@ -111,7 +121,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		defaultVal := true
 		req.AutoRestart = &defaultVal
 	}
-	if !utils.ValidGameBranch(req.GameBranch) {
+	if !utils.ValidGameBranch(req.Game, req.GameBranch) {
 		return nil, ErrInvalidGameBranch
 	}
 
@@ -123,6 +133,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 
 	// 创建服务器
 	server := models.Server{
+		Game:          req.Game,
 		SessionName:   req.SessionName,
 		ClusterID:     req.ClusterID,
 		Port:          req.Port,
@@ -172,6 +183,14 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 			return nil, fmt.Errorf("服务器创建失败: %w", err)
 		}
 		server.AutoRestart = false
+	}
+	// 同样，ASA 没有查询端口（0）时 GORM 会写成默认值 27015
+	if req.QueryPort == 0 {
+		if err := tx.Model(&server).Update("query_port", 0).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("服务器创建失败: %w", err)
+		}
+		server.QueryPort = 0
 	}
 
 	// 创建Docker卷
@@ -260,13 +279,16 @@ type portUse struct {
 
 // serverPorts 返回服务器会占用的所有宿主机端口。
 // ARK 除了游戏端口，还会使用游戏端口+1（原始 UDP 套接字），创建容器时这两个都会绑定
+// ASA 没有查询端口（queryPort 为 0），不占用
 func serverPorts(port, queryPort, rconPort int) []portUse {
-	return []portUse{
+	ports := []portUse{
 		{port, "游戏端口"},
 		{port + 1, "游戏端口+1"},
-		{queryPort, "查询端口"},
-		{rconPort, "RCON端口"},
 	}
+	if queryPort != 0 {
+		ports = append(ports, portUse{queryPort, "查询端口"})
+	}
+	return append(ports, portUse{rconPort, "RCON端口"})
 }
 
 // checkPorts 检查端口是否合法：本服务器内部不能重复，也不能和其他服务器占用的端口冲突。
@@ -489,7 +511,8 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	if req.Port > 0 {
 		server.Port = req.Port
 	}
-	if req.QueryPort > 0 {
+	// ASA 没有查询端口，保持为 0
+	if req.QueryPort > 0 && server.Game != utils.GameASA {
 		server.QueryPort = req.QueryPort
 	}
 	if req.RCONPort > 0 {
@@ -519,7 +542,7 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	}
 	// 切换游戏版本：下次启动时重建容器（APP_UPDATE 不同），并让入口脚本重新校验服务端文件
 	if req.GameBranch != nil {
-		if !utils.ValidGameBranch(*req.GameBranch) {
+		if !utils.ValidGameBranch(server.Game, *req.GameBranch) {
 			return nil, false, ErrInvalidGameBranch
 		}
 		server.GameBranch = *req.GameBranch
@@ -845,8 +868,8 @@ func (s *ServerService) StartServer(userID uint, serverID string) error {
 
 // startServerAsync 异步启动服务器
 func (s *ServerService) startServerAsync(server models.Server, dockerManager *docker_manager.DockerManager, containerName string) error {
-	// ARK 镜像按是否启用 ArkApi 选择，没有时自动下载
-	imageName := utils.ArkServerImageFor(server.ArkApi)
+	// ARK 镜像按游戏和是否启用 ArkApi 选择，没有时自动下载
+	imageName := utils.ArkServerImageFor(server.Game, server.ArkApi)
 	if err := ensureServerImage(server.ID, imageName, dockerManager); err != nil {
 		return err
 	}
@@ -863,14 +886,14 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 	seedServerFiles(server, dockerManager)
 
 	// 记录文件卷对应的游戏版本；已有的服务端文件是另一个版本时清除安装标记，入口脚本会重新校验、只下载差异
-	if err := dockerManager.PrepareGameBranch(server.ID, server.GameBranch); err != nil {
+	if err := dockerManager.PrepareGameBranch(server.ID, server.Game, server.GameBranch); err != nil {
 		return err
 	}
 
 	// 启用了 ArkApi 但文件卷里还没有（新服务器，或刚打开开关）：安装版本库里最新的版本。
 	// 放在复制服务端文件之后，复制来源带有 ArkApi 时沿用它的版本
 	if server.ArkApi {
-		if err := ensureArkApiInstalled(server.ID); err != nil {
+		if err := ensureArkApiInstalled(server); err != nil {
 			return err
 		}
 	}
@@ -921,7 +944,7 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 			}
 
 			// 游戏版本改过（旧容器的 APP_UPDATE 是镜像默认值，即正式版）
-			if !needRecreateContainer && envVars["APP_UPDATE"] != utils.ArkAppUpdateFor(server.GameBranch) {
+			if !needRecreateContainer && envVars["APP_UPDATE"] != utils.ArkAppUpdateFor(server.Game, server.GameBranch) {
 				needRecreateContainer = true
 			}
 
@@ -1204,7 +1227,7 @@ func (s *ServerService) UpdateImage(imageName string, userID uint, restartRunnin
 
 		// 只重启使用这个镜像的服务器
 		var running []models.Server
-		if err := database.DB.Where("user_id = ? AND status = ? AND arkapi = ?", userID, "running", imageName == utils.ArkServerProtonImage).Find(&running).Error; err != nil {
+		if err := database.DB.Where("user_id = ? AND status = ? AND arkapi = ? AND game = ?", userID, "running", utils.ImageUsesArkApi(imageName), utils.ImageGame(imageName)).Find(&running).Error; err != nil {
 			utils.Error("获取运行中的服务器失败", zap.Error(err))
 			return
 		}

@@ -4,13 +4,14 @@
 
 [English](README.md) | [中文](README-zh.md)
 
-- Linux上的 ARK 生存进化服务器管理工具。
-- 默认运行原生 Linux 版服务端；需要插件时可以按服务器启用 ArkApi（用 GE-Proton 运行 Windows 版服务端）。
+- Linux 上的 ARK 服务器管理工具：方舟：生存进化（ASE）和方舟：生存飞升（ASA），每台服务器单独选择。
+- ASE 默认运行原生 Linux 版服务端；需要插件时可以按服务器启用 ArkApi（用 GE-Proton 运行 Windows 版服务端）。
 
 ## 🎮 功能特性
 
 ### ✅ 已实现功能
 - 🐳 每个ARK服务器运行在独立的Docker容器中
+- 🦖 支持 ASA：用 Wine 运行 Windows 版服务端（启用 AsaApi 时用 GE-Proton），Mod 填 CurseForge 项目 ID，由服务端自己下载和更新；ASA 没有查询端口，也不在 Steam 服务器列表里，玩家在游戏内的服务器列表里搜索名称，或在控制台输入 `open IP:端口` 进服
 - 🔌 每台服务器可单独启用 ArkApi：启用后用 Proton 镜像运行 Windows 版服务端，关闭时用原生 Linux 版，切换后下次启动自动换镜像
 - 🔄 服务器容器支持崩溃自动重启
 - ⬆️ 首次启动时自动下载服务端文件和Mod，文件保存在独立的卷里，重建容器不会重新下载；新服务器从已安装的服务器复制服务端文件
@@ -156,7 +157,8 @@ A: 可以，`docker-compose.yml` 不用改。Docker Desktop 访问宿主机磁�
 - 未启用 ArkApi 的服务器使用 `tbro98/ase-server:linux`（原生 Linux 版服务端），启用 ArkApi 的使用 `tbro98/ase-server:proton`（GE-Proton 运行 Windows 版）
 - 服务器用到的镜像还没下载时，启动会自动下载；镜像不再包含 ArkApi，由管理器安装到服务端文件里
 - `tbro98/ase-server:latest` 不再更新，停留在最后一个自带 ArkApi 的版本，只供旧版管理器使用
-- 镜像源地址: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)
+- ASA 服务器使用 `tbro98/asa-server:wine`（Wine 运行 Windows 版服务端），启用 AsaApi 的使用 `tbro98/asa-server:proton`（GE-Proton）
+- 镜像源地址: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)、[ASA-Server-Docker](https://github.com/TBro1998/ASA-Server-Docker)
 
 ### 🔗 P2P 联机房（无公网 IP）
 - 在服务器设置里打开「P2P 联机房」，玩家在 [arkfgf.com/rooms](https://arkfgf.com/rooms) 用开源的联机助手 [ArkServerLink](https://github.com/TBro1998/ArkServerLink)（子模块 `ArkServerLink/`，下载：[arkfgf.com/download](https://arkfgf.com/download)）加入

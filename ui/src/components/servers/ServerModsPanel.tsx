@@ -12,13 +12,16 @@ import {
   ModThumb,
   formatUnixDate,
   mergeModIds,
+  modBrowseUrl,
   modStateOf,
+  modUrl,
   normalizeModIds,
   type ModInfo,
 } from '@/components/servers/ModList';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import { serversActions, isTransitioning, type Server } from '@/stores/servers';
+import { gameOf } from '@/lib/games';
 
 interface ServerMod extends ModInfo {
   installed: boolean;
@@ -26,8 +29,101 @@ interface ServerMod extends ModInfo {
   has_update: boolean;
 }
 
-// 详情页的 Mod 卡片：安装状态、创意工坊是否有更新，可以添加 / 移除 Mod，只重新下载选中的 Mod
+// 详情页的 Mod 卡片。ASE：安装状态、创意工坊是否有更新，可以添加 / 移除 Mod，只重新下载选中的 Mod；
+// ASA：Mod 是 CurseForge 项目 ID，由服务端每次启动时自己下载和更新，只能添加 / 移除
 export function ServerModsPanel({ server }: { server: Server }) {
+  return gameOf(server) === 'asa' ? <AsaModsPanel server={server} /> : <AseModsPanel server={server} />;
+}
+
+// 添加和移除只改服务器记录里的 Mod 列表，下次启动才下载或停止加载
+function useSaveModIds(server: Server) {
+  const t = useTranslations('mods');
+  const apiError = useApiError();
+  const [saving, setSaving] = useState(false);
+  const save = async (next: string, message: string) => {
+    setSaving(true);
+    try {
+      await serversActions.updateServer(server.id, { game_mod_ids: next });
+      toast.success(message);
+    } catch (err) {
+      toast.error(apiError(err, t('modChangeFailed')));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return { saving, save };
+}
+
+function AsaModsPanel({ server }: { server: Server }) {
+  const t = useTranslations('mods');
+  const { saving, save } = useSaveModIds(server);
+  const ids = normalizeModIds(server.game_mod_ids ?? '', 'asa');
+  const list = ids ? ids.split(',') : [];
+  const busy = isTransitioning(server.status);
+
+  const addMods = (added: string[]) => save(mergeModIds(ids, added.join(',')), t('modAdded'));
+  const removeMod = (id: string) => save(list.filter((x) => x !== id).join(','), t('modRemoved'));
+
+  return (
+    <Card className={list.length > 0 ? 'lg:col-span-2' : undefined}>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pb-2">
+        <CardTitle className="font-display text-base">{t('title')}</CardTitle>
+        <a
+          href={modBrowseUrl('asa')}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          {t('browseCurseforge')}
+          <ExternalLink className="size-3" />
+        </a>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <ModIdInput existing={ids} onAdd={addMods} disabled={saving} game="asa" />
+        {list.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('none')}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {list.map((id, i) => (
+              <li key={id} className="flex items-center justify-between gap-3 rounded-sm border bg-muted/50 px-2 py-1.5 text-xs">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="num w-5 flex-shrink-0 text-right text-gray-400">{i + 1}.</span>
+                  <span className="truncate text-gray-800">{t('curseforgeMod')}</span>
+                </span>
+                <span className="flex flex-shrink-0 items-center gap-1">
+                  <a
+                    href={modUrl(id, 'asa')}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={t('curseforgeSearch')}
+                    className="inline-flex items-center gap-0.5 font-mono text-gray-500 hover:text-blue-600"
+                  >
+                    {id}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => removeMod(id)}
+                    disabled={saving || busy}
+                    aria-label={t('removeMod')}
+                    title={t('removeMod')}
+                    className="rounded-sm p-0.5 text-gray-500 hover:text-red-600 disabled:opacity-30"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-muted-foreground">{t('hintAsa')}</p>
+        {server.status === 'running' && <p className="text-xs text-amber-800">{t('changesApplyOnRestart')}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AseModsPanel({ server }: { server: Server }) {
   const t = useTranslations('mods');
   const locale = useLocale();
   const apiError = useApiError();

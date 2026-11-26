@@ -239,14 +239,27 @@ type ServerDefaults struct {
 	ServerArgs       *models.ServerArgs `json:"server_args"`
 }
 
-// ServerDefaults 返回新建服务器时使用的默认配置。前端新建页以它为基础编辑，
-// 显示的值和创建后实际写入的一致；不传配置文件或启动参数时后端也用同样的内容
-func (s *ServerService) ServerDefaults() ServerDefaults {
-	return ServerDefaults{
-		GameUserSettings: utils.GetDefaultGameUserSettings(DefaultSessionName, "TheIsland", DefaultMaxPlayers),
-		GameIni:          utils.GetDefaultGameIni(),
-		ServerArgs:       models.FromServer(models.Server{}),
+// DefaultMapFor 新建服务器时的默认地图：ASA 的地图名带 _WP 后缀
+func DefaultMapFor(game string) string {
+	if utils.NormalizeGame(game) == utils.GameASA {
+		return "TheIsland_WP"
 	}
+	return "TheIsland"
+}
+
+// ServerDefaults 返回新建服务器时使用的默认配置。前端新建页以它为基础编辑，
+// 显示的值和创建后实际写入的一致；不传配置文件或启动参数时后端也用同样的内容。
+// 两个游戏的配置文件格式相同，共用模板，启动参数不同
+func (s *ServerService) ServerDefaults(game string) (ServerDefaults, error) {
+	if !utils.ValidGame(game) {
+		return ServerDefaults{}, ErrInvalidGame
+	}
+	game = utils.NormalizeGame(game)
+	return ServerDefaults{
+		GameUserSettings: utils.GetDefaultGameUserSettings(DefaultSessionName, DefaultMapFor(game), DefaultMaxPlayers),
+		GameIni:          utils.GetDefaultGameIni(),
+		ServerArgs:       models.FromServer(models.Server{Game: game}),
+	}, nil
 }
 
 // ---------- 创意工坊 Mod 信息 ----------

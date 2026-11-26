@@ -9,28 +9,35 @@ import (
 // maxArkApiUpload ArkApi 压缩包上传大小上限
 const maxArkApiUpload = 100 << 20
 
-// ListArkApiVersions ArkApi 版本库
-// @Summary ArkApi 版本列表
-// @Description 内置版本、已下载或上传到数据目录 arkapi/ 的版本，以及 GitHub（Michidu/ARK-Server-API）上发布的版本，从新到旧。GitHub 结果缓存 6 小时，refresh=true 时重新查询
+// ListArkApiVersions ArkApi / AsaApi 版本库
+// @Summary ArkApi / AsaApi 版本列表
+// @Description game=ase（默认）是 ASE 的 ArkApi：内置版本、已下载或上传到数据目录 arkapi/ 的版本，以及 GitHub（Michidu/ARK-Server-API）上发布的版本；game=asa 是 ASA 的 AsaApi：数据目录 asaapi/ 和 GitHub（ArkServerApi/AsaApi）。从新到旧，GitHub 结果缓存 6 小时，refresh=true 时重新查询
 // @Tags 插件管理
 // @Produce json
 // @Security Bearer
+// @Param game query string false "游戏：ase（默认）或 asa"
 // @Param refresh query bool false "重新查询 GitHub"
 // @Success 200 {object} map[string]server.ArkApiVersions "版本列表"
 // @Router /arkapi/versions [get]
 func ListArkApiVersions(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": serverService.ListArkApiVersions(c.Query("refresh") == "true")})
+	versions, err := serverService.ListArkApiVersions(c.Query("game"), c.Query("refresh") == "true")
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": versions})
 }
 
 // UploadArkApi 上传 ArkApi 压缩包
 // @Summary 上传 ArkApi
-// @Description 上传 ArkApi zip（multipart 字段 file）到版本库，压缩包里要有 version.dll。版本号从文件名（如 ArkApi_3.56.zip）识别，识别不出时用 version 指定；同版本会被覆盖
+// @Description 上传 ArkApi zip（multipart 字段 file）到版本库，压缩包里要有 version.dll；game=asa 时上传 AsaApi，压缩包里要有 AsaApiLoader.exe。版本号从文件名（如 ArkApi_3.56.zip、AsaApi_2.11.zip）识别，识别不出时用 version 指定；同版本会被覆盖
 // @Tags 插件管理
 // @Accept multipart/form-data
 // @Produce json
 // @Security Bearer
 // @Param file formData file true "ArkApi zip"
 // @Param version formData string false "版本号"
+// @Param game formData string false "游戏：ase（默认）或 asa"
 // @Success 200 {object} map[string]string "版本号"
 // @Failure 400 {object} map[string]string "压缩包无效"
 // @Router /arkapi/versions [post]
@@ -47,7 +54,7 @@ func UploadArkApi(c *gin.Context) {
 		return
 	}
 	defer f.Close()
-	version, err := serverService.UploadArkApi(f, file.Size, file.Filename, c.PostForm("version"))
+	version, err := serverService.UploadArkApi(c.PostForm("game"), f, file.Size, file.Filename, c.PostForm("version"))
 	if err != nil {
 		respondServiceError(c, err)
 		return
@@ -62,10 +69,11 @@ func UploadArkApi(c *gin.Context) {
 // @Produce json
 // @Security Bearer
 // @Param version path string true "版本号"
+// @Param game query string false "游戏：ase（默认）或 asa"
 // @Success 200 {object} map[string]string "已删除"
 // @Router /arkapi/versions/{version} [delete]
 func DeleteArkApiVersion(c *gin.Context) {
-	if err := serverService.DeleteArkApiVersion(c.Param("version")); err != nil {
+	if err := serverService.DeleteArkApiVersion(c.Query("game"), c.Param("version")); err != nil {
 		respondServiceError(c, err)
 		return
 	}

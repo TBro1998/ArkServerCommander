@@ -22,9 +22,12 @@ var ConfigParts = []string{ConfigPartConfigFiles, ConfigPartServerArgs, ConfigPa
 // ServerConfig 导出的服务器配置：不含端口和管理员密码（配置文件里的 ServerAdminPassword 也已去掉），
 // 可以导入到新建或已有的服务器，或复制到其他服务器
 type ServerConfig struct {
-	Format      string `json:"format"`
-	Version     int    `json:"version"`
-	ExportedAt  string `json:"exported_at,omitempty"`
+	Format     string `json:"format"`
+	Version    int    `json:"version"`
+	ExportedAt string `json:"exported_at,omitempty"`
+	// 来源服务器的游戏（ase / asa），旧版导出的没有，视为 ase。导入到另一个游戏的服务器时，
+	// 地图、Mod 和启动参数不通用，不会导入
+	Game        string `json:"game,omitempty"`
 	SessionName string `json:"session_name,omitempty"` // 来源服务器的名称，只用于显示，不会导入
 	Map         string `json:"map,omitempty"`
 	MaxPlayers  int    `json:"max_players,omitempty"`

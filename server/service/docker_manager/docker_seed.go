@@ -17,6 +17,8 @@ import (
 const (
 	windowsServerExecutable = "ShooterGame/Binaries/Win64/ShooterGameServer.exe"
 	linuxServerExecutable   = "ShooterGame/Binaries/Linux/ShooterGameServer"
+	// ASA 只有 Windows 版服务端
+	asaServerExecutable = "ShooterGame/Binaries/Win64/ArkAscendedServer.exe"
 )
 
 // installMarkerFile 入口脚本下载完成后写入的安装标记，位于服务端文件卷根目录
@@ -27,7 +29,9 @@ const installMarkerFile = ".install_complete"
 const gameBranchFile = ".game_branch"
 
 // appManifestFile steamcmd 在安装目录里记录的安装信息，切换的 beta 分支（BetaKey）也记在里面
-var appManifestFile = filepath.Join("steamapps", "appmanifest_"+utils.ArkServerAppID+".acf")
+func appManifestFile(game string) string {
+	return filepath.Join("steamapps", "appmanifest_"+utils.GameAppID(game)+".acf")
+}
 
 // betaKeyLine appmanifest 里记录 beta 分支的行
 var betaKeyLine = regexp.MustCompile(`(?m)^[ \t]*"BetaKey"[ \t]+"[^"\n]*"[ \t]*\r?\n`)
@@ -35,13 +39,22 @@ var betaKeyLine = regexp.MustCompile(`(?m)^[ \t]*"BetaKey"[ \t]+"[^"\n]*"[ \t]*\
 // ServerFilesState 服务端文件卷的安装状态
 type ServerFilesState struct {
 	Installed bool   // 有 .install_complete 标记（入口脚本下载完成后写入）
-	Windows   bool   // Windows 版服务端主程序存在
+	Windows   bool   // Windows 版服务端主程序存在（ASE 的 ShooterGameServer.exe）
 	Linux     bool   // Linux 版服务端主程序存在
+	ASA       bool   // ASA 服务端主程序（ArkAscendedServer.exe）存在
 	Branch    string // 服务端文件的游戏版本（.game_branch），空为正式版
 }
 
 // HasExecutable 任一平台的服务端主程序存在，说明游戏本体已经下载过
 func (s ServerFilesState) HasExecutable() bool {
+	return s.Windows || s.Linux || s.ASA
+}
+
+// HasGameExecutable 这个游戏的服务端主程序存在。复制服务端文件时来源和目标必须是同一个游戏
+func (s ServerFilesState) HasGameExecutable(game string) bool {
+	if utils.NormalizeGame(game) == utils.GameASA {
+		return s.ASA
+	}
 	return s.Windows || s.Linux
 }
 
@@ -71,6 +84,7 @@ func (dm *DockerManager) CheckServerFiles(serverIDs []uint) (map[uint]ServerFile
 			Installed: isRegularFile(filepath.Join(dir, installMarkerFile)),
 			Windows:   isRegularFile(filepath.Join(dir, filepath.FromSlash(windowsServerExecutable))),
 			Linux:     isRegularFile(filepath.Join(dir, filepath.FromSlash(linuxServerExecutable))),
+			ASA:       isRegularFile(filepath.Join(dir, filepath.FromSlash(asaServerExecutable))),
 			Branch:    readGameBranch(dir),
 		}
 	}
@@ -112,7 +126,7 @@ func readGameBranch(dir string) string {
 // 删除 .install_complete（入口脚本会用新的 APP_UPDATE 重新 validate，只下载两个版本的差异），
 // 切回正式版时还要去掉 appmanifest 里记录的 BetaKey，否则 steamcmd 会继续留在 beta 分支；
 // 最后写入 .game_branch。文件卷目录不存在时不处理
-func (dm *DockerManager) PrepareGameBranch(serverID uint, branch string) error {
+func (dm *DockerManager) PrepareGameBranch(serverID uint, game, branch string) error {
 	dir := ServerFilesDir(serverID)
 	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 		return nil
@@ -135,7 +149,7 @@ func (dm *DockerManager) PrepareGameBranch(serverID uint, branch string) error {
 		return fmt.Errorf("切换游戏版本失败: %w", err)
 	}
 	if branch == utils.GameBranchPublic {
-		if err := clearManifestBetaKey(root); err != nil {
+		if err := clearManifestBetaKey(root, game); err != nil {
 			return fmt.Errorf("切换游戏版本失败: %w", err)
 		}
 	}
@@ -144,8 +158,9 @@ func (dm *DockerManager) PrepareGameBranch(serverID uint, branch string) error {
 
 // clearManifestBetaKey 去掉 appmanifest 里的 BetaKey，steamcmd 下次 app_update 时回到默认分支。
 // 没有 appmanifest（还没下载过）时不处理
-func clearManifestBetaKey(root *os.Root) error {
-	data, err := root.ReadFile(appManifestFile)
+func clearManifestBetaKey(root *os.Root, game string) error {
+	manifest := appManifestFile(game)
+	data, err := root.ReadFile(manifest)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -156,7 +171,7 @@ func clearManifestBetaKey(root *os.Root) error {
 	if len(cleaned) == len(data) {
 		return nil
 	}
-	return root.WriteFile(appManifestFile, cleaned, 0o644)
+	return root.WriteFile(manifest, cleaned, 0o644)
 }
 
 func writeGameBranch(root *os.Root, branch string) error {

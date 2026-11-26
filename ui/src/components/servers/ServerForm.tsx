@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapSelector } from '@/components/servers/MapSelector';
-import { ModIdInput, ModList, WORKSHOP_BROWSE_URL, isValidModIds, mergeModIds, normalizeModIds } from '@/components/servers/ModList';
+import { ModIdInput, ModList, isValidModIds, mergeModIds, modBrowseUrl, normalizeModIds } from '@/components/servers/ModList';
 import { SettingTile, SettingControl, PasswordInput } from '@/components/servers/settings/SettingTile';
 import { CustomArgsPanel, RawConfigPanel } from '@/components/servers/settings/Panels';
 import { ImportConfigDialog } from '@/components/servers/ServerConfigDialogs';
@@ -22,6 +22,7 @@ import {
   allSettings,
   isModified,
   readSetting,
+  settingGroupsFor,
   writeSetting,
   type GroupId,
   type SettingDef,
@@ -32,6 +33,7 @@ import {
 } from '@/lib/server-settings';
 import { cn } from '@/lib/utils';
 import type { Server } from '@/stores/servers';
+import { gameOf } from '@/lib/games';
 
 const CLUSTER_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 
@@ -71,6 +73,9 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
   // 生成的随机密码直接显示出来，方便复制
   const [generatedPassword, setGeneratedPassword] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
+  // 游戏创建后不能修改；新建页切换游戏时会重新挂载表单。不适用于这个游戏的设置项不显示
+  const game = gameOf(form);
+  const groups = settingGroupsFor(game);
   // 父组件异步加载到建议端口、默认配置后会更新 initial；用户还没改过时跟着更新
   const [prevInitial, setPrevInitial] = useState(initial);
   if (initial !== prevInitial) {
@@ -122,16 +127,20 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
     const next: Record<string, string> = {};
     if (mode === 'create' && !form.admin_password) next.admin_password = t('passwordRequired');
     if (form.admin_password && /[\r\n]/.test(form.admin_password)) next.admin_password = t('passwordNoNewline');
-    for (const key of ['port', 'query_port', 'rcon_port'] as const) {
+    // ASA 没有查询端口
+    const portKeys = game === 'asa' ? (['port', 'rcon_port'] as const) : (['port', 'query_port', 'rcon_port'] as const);
+    for (const key of portKeys) {
       const v = Number(form[key]);
       if (!Number.isInteger(v) || v < 1 || v > 65535) next[key] = t('portRange');
     }
-    const ports = [Number(form.port), Number(form.port) + 1, Number(form.query_port), Number(form.rcon_port)];
-    if (!next.port && !next.query_port && !next.rcon_port && new Set(ports).size !== ports.length) next.port = t('portDuplicate');
+    const ports = [Number(form.port), Number(form.port) + 1, ...(game === 'asa' ? [] : [Number(form.query_port)]), Number(form.rcon_port)];
+    if (!next.port && !next.query_port && !next.rcon_port && new Set(ports).size !== ports.length) {
+      next.port = game === 'asa' ? t('portDuplicateAsa') : t('portDuplicate');
+    }
     const mp = Number(form.max_players);
     if (!Number.isInteger(mp) || mp < 1 || mp > 200) next.max_players = t('maxPlayersRange');
     if (form.cluster_id && !CLUSTER_ID.test(form.cluster_id.trim())) next.cluster_id = t('clusterInvalid');
-    if (form.game_mod_ids && !isValidModIds(form.game_mod_ids)) next.game_mod_ids = t('modsInvalid');
+    if (form.game_mod_ids && !isValidModIds(form.game_mod_ids, game)) next.game_mod_ids = t('modsInvalid');
     return next;
   };
 
@@ -163,12 +172,14 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
     const data: Partial<Server> = {
       ...rest,
       cluster_id: form.cluster_id?.trim() ?? '',
-      game_mod_ids: normalizeModIds(form.game_mod_ids ?? ''),
+      game_mod_ids: normalizeModIds(form.game_mod_ids ?? '', game),
       server_args: form.server_args && {
         ...form.server_args,
         custom_args: form.server_args.custom_args.map((a) => a.trim()).filter(Boolean),
       },
     };
+    // ASA 没有查询端口，后端也会忽略
+    if (game === 'asa') delete data.query_port;
     const ok = await onSubmit(data, { restart });
     if (ok) {
       setDirty(false);
@@ -204,6 +215,8 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
   const fieldLabel = (key: string): string => tS(`fields.${key}`);
   const fieldHint = (key: string): string | undefined => {
     if (key === 'admin_password') return mode === 'edit' ? t('passwordKeepHint') : t('passwordHint');
+    // ASA 有不同说明的字段（如 Mod 是 CurseForge 项目 ID）
+    if (game === 'asa' && tS.has(`fieldHintsAsa.${key}`)) return tS(`fieldHintsAsa.${key}`);
     return tS.has(`fieldHints.${key}`) ? tS(`fieldHints.${key}`) : undefined;
   };
   const labelOf = (def: SettingDef): string =>
@@ -212,7 +225,11 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
     def.source === 'field' ? fieldHint(def.key) : tS.has(`hints.${def.key}`) ? tS(`hints.${def.key}`) : undefined;
   const sectionTitle = (group: GroupId, section: string) => tS(`sections.${group}.${section}`);
   const sectionDesc = (group: GroupId, section: string) =>
-    tS.has(`sectionHints.${group}.${section}`) ? tS(`sectionHints.${group}.${section}`) : undefined;
+    game === 'asa' && tS.has(`sectionHintsAsa.${group}.${section}`)
+      ? tS(`sectionHintsAsa.${group}.${section}`)
+      : tS.has(`sectionHints.${group}.${section}`)
+        ? tS(`sectionHints.${group}.${section}`)
+        : undefined;
 
   // ---------- 服务器字段 ----------
 
@@ -236,7 +253,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
       case 'map':
         return (
           <SettingTile {...common}>
-            <MapSelector value={form.map || ''} onChange={(value) => setField('map', value)} />
+            <MapSelector value={form.map || ''} onChange={(value) => setField('map', value)} game={game} />
           </SettingTile>
         );
       case 'game_branch': {
@@ -314,10 +331,11 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
               <ModIdInput
                 id={common.htmlFor}
                 existing={ids}
+                game={game}
                 onAdd={(added) => update({ game_mod_ids: mergeModIds(ids, added.join(',')) })}
               />
               {ids ? (
-                <ModList ids={ids} onChange={(value) => update({ game_mod_ids: value })} />
+                <ModList ids={ids} game={game} onChange={(value) => update({ game_mod_ids: value })} />
               ) : (
                 <p className="text-xs text-gray-500">{tMods('none')}</p>
               )}
@@ -330,19 +348,19 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
                   value={ids}
                   onChange={(e) => setField('game_mod_ids', e.target.value)}
                   onBlur={() => {
-                    // 粘贴的创意工坊链接换成 ID
-                    if (isValidModIds(ids) && normalizeModIds(ids) !== ids) update({ game_mod_ids: normalizeModIds(ids) });
+                    // 粘贴的创意工坊 / CurseForge 链接换成 ID
+                    if (isValidModIds(ids, game) && normalizeModIds(ids, game) !== ids) update({ game_mod_ids: normalizeModIds(ids, game) });
                   }}
                   placeholder={tEdit('modIdsPlaceholder')}
                 />
               </details>
               <a
-                href={WORKSHOP_BROWSE_URL}
+                href={modBrowseUrl(game)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
               >
-                {t('browseWorkshop')}
+                {game === 'asa' ? t('browseCurseforge') : t('browseWorkshop')}
                 <ExternalLink className="size-3" />
               </a>
             </div>
@@ -415,7 +433,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
 
   const q = query.trim().toLowerCase();
   const searchResults = q
-    ? SETTING_GROUPS.map((group) => ({
+    ? groups.map((group) => ({
         group,
         sections: group.sections
           .map((section) => {
@@ -429,7 +447,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
       })).filter((r) => r.sections.length > 0)
     : [];
 
-  const current = SETTING_GROUPS.find((g) => g.id === activeGroup) ?? SETTING_GROUPS[0];
+  const current = groups.find((g) => g.id === activeGroup) ?? groups[0];
 
   return (
     <Card className="py-0">
@@ -459,7 +477,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
                 )}
               </div>
               <nav className="-mx-3 flex gap-1 overflow-x-auto px-3 md:mx-0 md:flex-col md:overflow-visible md:px-0">
-                {SETTING_GROUPS.map((group) => {
+                {groups.map((group) => {
                   const Icon = group.icon;
                   const active = !q && group.id === activeGroup;
                   const count = modifiedCount(group);
@@ -566,6 +584,7 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
         open={importOpen}
         onOpenChange={setImportOpen}
         excludeServerId={initial.id}
+        targetGame={game}
         onImport={(config, parts) => {
           update((prev) => applyConfigToForm(prev, config, parts));
           setErrors({});

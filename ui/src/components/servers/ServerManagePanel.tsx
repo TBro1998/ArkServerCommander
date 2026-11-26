@@ -14,6 +14,7 @@ import { downloadServerConfig, type ConfigPart, type ServerConfig } from '@/lib/
 import { CopyConfigDialog, ImportConfigDialog } from '@/components/servers/ServerConfigDialogs';
 import type { ServerControls } from '@/components/servers/ServerActions';
 import { cn } from '@/lib/utils';
+import { gameOf } from '@/lib/games';
 
 // 一项操作：左边说明，右边按钮；按钮禁用时把原因放在 title 上
 function ActionRow({
@@ -84,6 +85,7 @@ export function ServerManagePanel({ controls }: { controls: ServerControls }) {
   };
 
   const outdated = server.mods_outdated?.length ?? 0;
+  const game = gameOf(server);
   const busyTitle = busy ? t('busy') : undefined;
 
   return (
@@ -104,8 +106,8 @@ export function ServerManagePanel({ controls }: { controls: ServerControls }) {
             </ActionRow>
           ))}
           <ActionRow
-            title={tActions('updateGame')}
-            desc={t('updateDesc')}
+            title={game === 'asa' ? tActions('updateGameAsa') : tActions('updateGame')}
+            desc={game === 'asa' ? t('updateDescAsa') : t('updateDesc')}
             note={outdated > 0 && <p className="mt-1 text-xs text-amber-800">{t('modsOutdated', { count: outdated })}</p>}
           >
             <span title={busyTitle}>
@@ -174,7 +176,14 @@ export function ServerManagePanel({ controls }: { controls: ServerControls }) {
         </CardContent>
       </Card>
 
-      <ImportConfigDialog open={importOpen} onOpenChange={setImportOpen} excludeServerId={server.id} mode="apply" onImport={importConfig} />
+      <ImportConfigDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        excludeServerId={server.id}
+        targetGame={game}
+        mode="apply"
+        onImport={importConfig}
+      />
       <CopyConfigDialog open={copyOpen} onOpenChange={setCopyOpen} server={server} />
     </div>
   );

@@ -7,7 +7,10 @@ import (
 )
 
 type Server struct {
-	ID            uint   `json:"id" gorm:"primarykey"`
+	ID uint `json:"id" gorm:"primarykey"`
+	// 游戏：ase（ARK: Survival Evolved）或 asa（ARK: Survival Ascended），见 utils.Games。创建后不能修改；
+	// 加这个字段之前创建的服务器迁移时填默认值 ase
+	Game          string `json:"game" gorm:"size:8;not null;default:ase"`
 	SessionName   string `json:"session_name" gorm:"default:'ARK Server'"` // 服务器名称
 	ClusterID     string `json:"cluster_id" gorm:"default:''"`             // 集群ID
 	Port          int    `json:"port" gorm:"not null;default:7777"`
@@ -21,8 +24,8 @@ type Server struct {
 	LastError     string `json:"last_error" gorm:"default:''"` // 最近一次启停失败的原因，下次启停时清空
 	AutoRestart   bool   `json:"auto_restart" gorm:"default:true"`
 	AutoUpdate    bool   `json:"auto_update" gorm:"default:false"` // 每次启动前检查游戏本体和 Mod 更新
-	// 启用 ArkApi：用 Proton 镜像运行 Windows 版服务端并加载 ArkApi 插件；关闭时用原生 Linux 版服务端。
-	// 加这个字段之前创建的服务器在迁移时设为 true（原来都是 Proton 版并带 ArkApi）
+	// 启用 ArkApi（ASA 是 AsaApi）：用 Proton 镜像运行 Windows 版服务端并加载插件；关闭时 ASE 用原生 Linux 版服务端，
+	// ASA 用 Wine 镜像。加这个字段之前创建的服务器在迁移时设为 true（原来都是 Proton 版并带 ArkApi）
 	ArkApi bool `json:"arkapi" gorm:"column:arkapi;default:false"`
 	// 游戏版本（Steam 分支）：空为蜗牛海洋正式版，preaquatica 为通配符原版（海洋 DLC 更新前），见 utils.GameBranches。
 	// 切换后下次启动时重建容器并重新校验服务端文件
@@ -61,10 +64,11 @@ type Server struct {
 }
 
 type ServerRequest struct {
+	Game          string          `json:"game"`         // 游戏：ase（默认）或 asa，创建后不能修改
 	SessionName   string          `json:"session_name"` // 服务器名称
 	ClusterID     string          `json:"cluster_id"`   // 集群ID
 	Port          int             `json:"port" binding:"required,min=1,max=65535"`
-	QueryPort     int             `json:"query_port" binding:"required,min=1,max=65535"`
+	QueryPort     int             `json:"query_port" binding:"omitempty,min=1,max=65535"` // ASE 必填（服务层校验），ASA 没有查询端口
 	RCONPort      int             `json:"rcon_port" binding:"required,min=1,max=65535"`
 	AdminPassword string          `json:"admin_password" binding:"required"`
 	Map           string          `json:"map"`
@@ -86,20 +90,21 @@ type ServerRequest struct {
 
 type ServerResponse struct {
 	ID          uint   `json:"id"`
+	Game        string `json:"game"`         // 游戏：ase 或 asa
 	SessionName string `json:"session_name"` // 服务器名称
 	ClusterID   string `json:"cluster_id"`   // 集群ID
 	Port        int    `json:"port"`
-	QueryPort   int    `json:"query_port"`
+	QueryPort   int    `json:"query_port"` // ASA 没有查询端口，为 0
 	RCONPort    int    `json:"rcon_port"`
 	Map         string `json:"map"`
-	MaxPlayers  int    `json:"max_players"` // 最大玩家数
-	GameModIds  string `json:"game_mod_ids"`
+	MaxPlayers  int    `json:"max_players"`  // 最大玩家数
+	GameModIds  string `json:"game_mod_ids"` // ASE 是创意工坊 ID，ASA 是 CurseForge 项目 ID
 	Status      string `json:"status"`
 	LastError   string `json:"last_error,omitempty"` // 最近一次启停失败的原因
 	AutoRestart bool   `json:"auto_restart"`
 	AutoUpdate  bool   `json:"auto_update"`
-	ArkApi      bool   `json:"arkapi"`      // 启用 ArkApi（Proton 镜像运行 Windows 版服务端）
-	Image       string `json:"image"`       // 服务器使用的镜像，由 arkapi 决定
+	ArkApi      bool   `json:"arkapi"`      // 启用 ArkApi / AsaApi（Proton 镜像运行 Windows 版服务端）
+	Image       string `json:"image"`       // 服务器使用的镜像，由 game 和 arkapi 决定
 	GameBranch  string `json:"game_branch"` // 游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版
 	Publish     bool   `json:"publish"`     // 发布到服务器收录站
 	// 收录资料：简介、标签、QQ 群、Discord

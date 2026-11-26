@@ -20,6 +20,7 @@ import { useApiError, useErrorText } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import {
   CONFIG_PARTS,
+  CROSS_GAME_PARTS,
   DEFAULT_CONFIG_PARTS,
   InvalidConfigFileError,
   fetchServerConfig,
@@ -29,26 +30,41 @@ import {
   type ServerConfig,
 } from '@/lib/server-config';
 import { cn } from '@/lib/utils';
+import { GAME_NAMES, gameOf, type Game } from '@/lib/games';
+import { GameBadge } from './GameBadge';
 
 // ---------- 选择要导入 / 复制的部分 ----------
 
-function ConfigPartsPicker({ value, onChange }: { value: ConfigPart[]; onChange: (parts: ConfigPart[]) => void }) {
+// disabled：不能导入的部分（跨游戏时的地图、Mod 和启动参数），显示为关闭
+function ConfigPartsPicker({
+  value,
+  onChange,
+  disabled = [],
+}: {
+  value: ConfigPart[];
+  onChange: (parts: ConfigPart[]) => void;
+  disabled?: ConfigPart[];
+}) {
   const t = useTranslations('serverConfig');
   return (
     <div className="space-y-2.5 text-sm">
       <div className="font-medium">{t('parts')}</div>
-      {CONFIG_PARTS.map((part) => (
-        <label key={part} className="flex items-start justify-between gap-4">
-          <span>
-            <span className="font-medium">{t(`part.${part}`)}</span>
-            <span className="block text-xs text-gray-500">{t(`partDesc.${part}`)}</span>
-          </span>
-          <Switch
-            checked={value.includes(part)}
-            onCheckedChange={(on) => onChange(on ? CONFIG_PARTS.filter((p) => p === part || value.includes(p)) : value.filter((p) => p !== part))}
-          />
-        </label>
-      ))}
+      {CONFIG_PARTS.map((part) => {
+        const off = disabled.includes(part);
+        return (
+          <label key={part} className={cn('flex items-start justify-between gap-4', off && 'opacity-50')}>
+            <span>
+              <span className="font-medium">{t(`part.${part}`)}</span>
+              <span className="block text-xs text-gray-500">{t(`partDesc.${part}`)}</span>
+            </span>
+            <Switch
+              checked={!off && value.includes(part)}
+              disabled={off}
+              onCheckedChange={(on) => onChange(on ? CONFIG_PARTS.filter((p) => p === part || value.includes(p)) : value.filter((p) => p !== part))}
+            />
+          </label>
+        );
+      })}
     </div>
   );
 }
@@ -68,6 +84,8 @@ interface ImportConfigDialogProps {
   onOpenChange: (open: boolean) => void;
   // 编辑页的服务器自己，不出现在来源列表里
   excludeServerId?: number;
+  // 导入到哪个游戏的服务器：来源是另一个游戏时不导入地图、Mod 和启动参数
+  targetGame?: Game;
   // form：填进表单，保存后才生效（新建、编辑页）；apply：直接保存到服务器（详情页的管理标签）
   mode?: 'form' | 'apply';
   // 返回 Promise 时等待完成，抛错时保持弹窗打开（由调用方提示错误）
@@ -75,7 +93,7 @@ interface ImportConfigDialogProps {
 }
 
 /** 从文件或另一台服务器读取配置，把选中的部分填进表单或直接保存 */
-export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode = 'form', onImport }: ImportConfigDialogProps) {
+export function ImportConfigDialog({ open, onOpenChange, excludeServerId, targetGame = 'ase', mode = 'form', onImport }: ImportConfigDialogProps) {
   const t = useTranslations('serverConfig');
   const tCommon = useTranslations('common');
   const apiError = useApiError();
@@ -124,7 +142,16 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
   // 导入 ini 文件时只有「游戏设置」部分，不显示部分选择；ini 里有 ActiveMods 时可以同时导入 Mod 列表
   const iniImport = source === 'file' && imported?.kind === 'ini';
   const iniModCount = iniImport ? (imported.config.game_mod_ids?.split(',').length ?? 0) : 0;
-  const effectiveParts: ConfigPart[] = iniImport ? (iniModCount > 0 && iniMods ? ['config_files', 'mods'] : ['config_files']) : parts;
+  // 来源的游戏：导出的文件里记着（旧版没有，视为 ASE），ini 文件两个游戏通用
+  const sourceServer = source === 'server' ? servers.find((s) => String(s.id) === sourceId) : undefined;
+  const sourceGame: Game | null =
+    source === 'server' ? (sourceServer ? gameOf(sourceServer) : null) : imported?.kind === 'json' ? gameOf(imported.config) : null;
+  const crossGame = sourceGame !== null && sourceGame !== targetGame;
+  const effectiveParts: ConfigPart[] = iniImport
+    ? iniModCount > 0 && iniMods
+      ? ['config_files', 'mods']
+      : ['config_files']
+    : parts.filter((p) => !(crossGame && CROSS_GAME_PARTS.includes(p)));
   const ready = effectiveParts.length > 0 && (source === 'file' ? imported !== null : sourceId !== '');
 
   const confirm = async () => {
@@ -140,6 +167,8 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
         }
       }
       if (!cfg) return;
+      // ini 文件不属于哪个游戏，按导入到的服务器处理（ActiveMods 里的 Mod 也按这个游戏导入）
+      if (iniImport) cfg = { ...cfg, game: targetGame };
       await onImport(cfg, effectiveParts);
       onOpenChange(false);
     } catch {
@@ -233,6 +262,7 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
               <SelectContent>
                 {servers.map((s) => (
                   <SelectItem key={s.id} value={String(s.id)}>
+                    <GameBadge game={gameOf(s)} className="px-1.5 py-0 text-[10px]" />
                     {s.session_name}
                   </SelectItem>
                 ))}
@@ -240,7 +270,10 @@ export function ImportConfigDialog({ open, onOpenChange, excludeServerId, mode =
             </Select>
           )}
 
-          {!iniImport && <ConfigPartsPicker value={parts} onChange={setParts} />}
+          {!iniImport && <ConfigPartsPicker value={parts} onChange={setParts} disabled={crossGame ? CROSS_GAME_PARTS : []} />}
+          {crossGame && sourceGame && (
+            <p className="text-xs text-amber-800">{t('crossGameNote', { source: GAME_NAMES[sourceGame], target: GAME_NAMES[targetGame] })}</p>
+          )}
           <p className="text-xs text-gray-500">{t('keepIdentity')}</p>
         </div>
 
@@ -299,6 +332,9 @@ export function CopyConfigDialog({ open, onOpenChange, server }: CopyConfigDialo
   const toggle = (id: number, on: boolean) => setSelected((prev) => (on ? [...prev, id] : prev.filter((x) => x !== id)));
   const allSelected = targets.length > 0 && targets.every((s) => selected.includes(s.id));
   const anyNotStopped = targets.some((s) => selected.includes(s.id) && s.status !== 'stopped');
+  // 另一个游戏的目标服务器不复制地图、Mod 和启动参数（后端跳过）
+  const sourceGame = gameOf(server);
+  const anyCrossGame = targets.some((s) => selected.includes(s.id) && gameOf(s) !== sourceGame);
 
   const confirm = async () => {
     setSubmitting(true);
@@ -356,6 +392,7 @@ export function CopyConfigDialog({ open, onOpenChange, server }: CopyConfigDialo
                         checked={selected.includes(s.id)}
                         onChange={(e) => toggle(s.id, e.target.checked)}
                       />
+                      <GameBadge game={gameOf(s)} className="px-1.5 py-0 text-[10px]" />
                       <span className="flex-1 truncate">{s.session_name}</span>
                       {s.status !== 'stopped' && <span className="text-xs text-amber-800">{t('notStopped')}</span>}
                     </label>
@@ -366,6 +403,7 @@ export function CopyConfigDialog({ open, onOpenChange, server }: CopyConfigDialo
           </div>
 
           <ConfigPartsPicker value={parts} onChange={setParts} />
+          {anyCrossGame && <p className="text-xs text-amber-800">{t('crossGameCopyNote', { game: GAME_NAMES[sourceGame] })}</p>}
           <p className="text-xs text-gray-500">{t('keepIdentity')}</p>
           {anyNotStopped && <p className="text-xs text-amber-800">{t('appliesOnRestart')}</p>}
         </div>

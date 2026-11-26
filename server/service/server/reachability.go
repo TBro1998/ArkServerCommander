@@ -155,7 +155,8 @@ func StartReachabilityChecker() {
 
 func (r *ReachabilityChecker) tick() {
 	var servers []models.Server
-	if err := database.DB.Select("id", "status", "query_port").Where("status = ?", "running").Find(&servers).Error; err != nil {
+	// ASA 没有查询端口、不响应 A2S，从外面查不出来，不检测
+	if err := database.DB.Select("id", "status", "query_port").Where("status = ? AND game <> ?", "running", utils.GameASA).Find(&servers).Error; err != nil {
 		utils.Warn("公网可达性检测：读取服务器列表失败", zap.Error(err))
 		return
 	}
@@ -270,6 +271,9 @@ func (r *ReachabilityChecker) probe(server models.Server) (models.Reachability, 
 
 // Recheck 手动重新检测（服主修改了端口转发或防火墙之后），同步等待结果
 func (r *ReachabilityChecker) Recheck(server models.Server) (*models.Reachability, error) {
+	if utils.NormalizeGame(server.Game) == utils.GameASA {
+		return nil, ErrGameNotSupported
+	}
 	if !r.ready(server) {
 		return nil, ErrServerNotReady
 	}
@@ -288,7 +292,7 @@ func (r *ReachabilityChecker) Recheck(server models.Server) (*models.Reachabilit
 
 // statusFor 返回服务器的公网可达性，没有可显示的结果时为 nil
 func (r *ReachabilityChecker) statusFor(server models.Server) *models.Reachability {
-	if server.Status != "running" {
+	if server.Status != "running" || utils.NormalizeGame(server.Game) == utils.GameASA {
 		return nil
 	}
 	r.mu.Lock()

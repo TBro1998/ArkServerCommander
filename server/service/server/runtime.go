@@ -21,6 +21,9 @@ const monitorInterval = 10 * time.Second
 // phaseLogTail 判断运行阶段时读取的日志行数
 const phaseLogTail = 400
 
+// asaProbeTimeout ASA 用 RCON 探测是否可以连接时等待命令返回的时间（比监控间隔短）
+const asaProbeTimeout = 5 * time.Second
+
 // RuntimeMonitor 定期采集运行中服务器的阶段、在线人数和资源占用，结果缓存在内存里
 type RuntimeMonitor struct {
 	mu        sync.RWMutex
@@ -69,7 +72,7 @@ func StartRuntimeMonitor() {
 
 func (m *RuntimeMonitor) tick() {
 	var servers []models.Server
-	if err := database.DB.Select("id", "status", "query_port").Where("status = ?", "running").Find(&servers).Error; err != nil {
+	if err := database.DB.Select("id", "game", "status", "query_port", "rcon_port", "admin_password", "max_players").Where("status = ?", "running").Find(&servers).Error; err != nil {
 		utils.Warn("采集运行信息失败：读取服务器列表出错", zap.Error(err))
 		return
 	}
@@ -121,9 +124,17 @@ func (m *RuntimeMonitor) collect(dm *docker_manager.DockerManager, server models
 		applyPhase(info, lines)
 	}
 
-	// 游戏进程启动后才去探测查询端口：下载阶段探测没有意义，还会多一次 docker exec
+	// 游戏进程启动后才去探测：下载阶段探测没有意义，还会多一次 docker exec。
+	// ASE 向查询端口发 A2S_INFO；ASA 没有查询端口、不响应 A2S，改用 RCON 的 ListPlayers（地图加载完才有响应），
+	// 人数是列出的玩家数，人数上限取服务器设置
 	if info.Phase == models.PhaseLaunching || info.Phase == "" {
-		if a2s, err := dm.QueryServerInfo(containerName, server.QueryPort); err == nil {
+		if utils.NormalizeGame(server.Game) == utils.GameASA {
+			if out, err := dm.RconCommand(containerName, server.RCONPort, server.AdminPassword, "ListPlayers", asaProbeTimeout); err == nil {
+				info.Phase = models.PhaseReady
+				info.Players = len(parsePlayers(out))
+				info.MaxPlayers = server.MaxPlayers
+			}
+		} else if a2s, err := dm.QueryServerInfo(containerName, server.QueryPort); err == nil {
 			info.Phase = models.PhaseReady
 			info.Players = a2s.Players
 			info.MaxPlayers = a2s.MaxPlayers
@@ -153,7 +164,8 @@ var (
 )
 
 // applyPhase 从入口脚本的日志判断当前阶段：从最后一行往前找，最近出现的标志决定阶段。
-// 标志行见 ASE-Server-Docker/scripts/start_server.sh
+// 标志行见 ASE-Server-Docker/scripts/start_server.sh 和 ASA-Server-Docker/scripts/start_server.sh（两个脚本的标志行相同；
+// ASA 不在入口脚本里装 Mod，由服务端自己下载，没有 installing_mods 阶段）
 func applyPhase(info *models.RuntimeInfo, lines []string) {
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := lines[i]

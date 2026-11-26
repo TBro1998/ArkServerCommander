@@ -3,6 +3,7 @@
 import axios from 'axios';
 import { getIniValue, indexIni, keepIniValues, replaceIniValues, setIniValue } from '@/lib/ini';
 import type { Server } from '@/stores/servers';
+import { gameOf, type Game } from '@/lib/games';
 
 export const SERVER_CONFIG_FORMAT = 'ark-server-commander/server-config';
 export const SERVER_CONFIG_VERSION = 1;
@@ -11,6 +12,8 @@ export interface ServerConfig {
   format: string;
   version: number;
   exported_at?: string;
+  // 来源服务器的游戏，旧版导出的没有，视为 ASE
+  game?: Game;
   // 来源服务器名称，只用于显示
   session_name?: string;
   map?: string;
@@ -28,6 +31,10 @@ export interface ServerConfig {
 // 可以选择导入或复制的部分，顺序即界面上的顺序
 export const CONFIG_PARTS = ['config_files', 'server_args', 'mods', 'map', 'cluster', 'options'] as const;
 export type ConfigPart = (typeof CONFIG_PARTS)[number];
+
+// 跨游戏（ASE 和 ASA 之间）导入或复制时不通用、不会导入的部分（与后端 applyConfig 一致）：
+// 地图名、Mod（创意工坊 / CurseForge）和启动参数都不一样
+export const CROSS_GAME_PARTS: ConfigPart[] = ['map', 'mods', 'server_args'];
 
 // 默认选中的部分：游戏规则相关的内容；地图、集群和选项通常每台服务器不同
 export const DEFAULT_CONFIG_PARTS: ConfigPart[] = ['config_files', 'server_args', 'mods'];
@@ -171,9 +178,10 @@ export async function downloadServerConfig(server: Pick<Server, 'id' | 'session_
   URL.revokeObjectURL(url);
 }
 
-/** 把配置里选中的部分写进表单（导入到新建或编辑页），规则与后端 applyConfig 相同 */
+/** 把配置里选中的部分写进表单（导入到新建或编辑页），规则与后端 applyConfig 相同：跨游戏时跳过地图、Mod 和启动参数 */
 export function applyConfigToForm(form: Partial<Server>, cfg: ServerConfig, parts: ConfigPart[]): Partial<Server> {
-  const has = (p: ConfigPart) => parts.includes(p);
+  const crossGame = gameOf(cfg) !== gameOf(form);
+  const has = (p: ConfigPart) => parts.includes(p) && !(crossGame && CROSS_GAME_PARTS.includes(p));
   const next: Partial<Server> = { ...form };
 
   if (has('options')) {

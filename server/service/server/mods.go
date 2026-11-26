@@ -27,13 +27,31 @@ type ServerMod struct {
 // outdatedMods 每台服务器有更新的 Mod ID，由后台检查和详情页查询写入，随服务器列表返回
 var outdatedMods sync.Map // uint -> []string
 
-// GetServerMods 返回服务器配置的 Mod（按加载顺序）及安装、更新状态。refresh 为 true 时忽略缓存重新查询 Steam
+// GetServerMods 返回服务器配置的 Mod（按加载顺序）及安装、更新状态。refresh 为 true 时忽略缓存重新查询 Steam。
+// ASA 的 Mod 来自 CurseForge，由服务端启动时自己下载和更新，管理端查不到安装状态（CurseForge 接口要 API Key），
+// 只按顺序返回 ID
 func (s *ServerService) GetServerMods(userID uint, serverID string, refresh bool) ([]ServerMod, error) {
 	server, err := getUserServer(userID, serverID)
 	if err != nil {
 		return nil, err
 	}
+	if utils.NormalizeGame(server.Game) == utils.GameASA {
+		return asaServerMods(server.GameModIds), nil
+	}
 	return checkServerMods(server.ID, server.GameModIds, refresh)
+}
+
+// asaServerMods ASA 服务器的 Mod 列表：只有 ID，视为已安装（服务端每次启动都会下载缺少的和有更新的）
+func asaServerMods(modIDs string) []ServerMod {
+	result := []ServerMod{}
+	ids := utils.NormalizeModIDs(modIDs)
+	if ids == "" {
+		return result
+	}
+	for _, id := range strings.Split(ids, ",") {
+		result = append(result, ServerMod{ModInfo: ModInfo{ID: id}, Installed: true})
+	}
+	return result
 }
 
 // checkServerMods 对比创意工坊更新时间和安装时间，结果同时记入 outdatedMods
@@ -133,7 +151,8 @@ func StartModUpdateChecker() {
 
 func checkAllMods() {
 	var servers []models.Server
-	if err := database.DB.Select("id", "game_mod_ids").Where("game_mod_ids <> ''").Find(&servers).Error; err != nil {
+	// ASA 的 Mod 不在创意工坊上，由服务端自己更新
+	if err := database.DB.Select("id", "game_mod_ids").Where("game_mod_ids <> '' AND game <> ?", utils.GameASA).Find(&servers).Error; err != nil {
 		utils.Warn("检查 Mod 更新失败：读取服务器列表出错", zap.Error(err))
 		return
 	}

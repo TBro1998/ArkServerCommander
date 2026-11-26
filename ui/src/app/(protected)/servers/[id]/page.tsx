@@ -36,6 +36,8 @@ import { MapBand } from '@/components/servers/ServerCard';
 import { useMapName } from '@/hooks/use-map-name';
 import { usePolling } from '@/hooks/use-polling';
 import { formatBytes, formatPercent } from '@/lib/format';
+import { GAME_NAMES, gameOf, pluginApiName } from '@/lib/games';
+import { GameBadge } from '@/components/servers/GameBadge';
 
 const TABS = ['overview', 'console', 'logs', 'backups', 'schedules', 'plugins', 'manage'] as const;
 type Tab = (typeof TABS)[number];
@@ -56,6 +58,9 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
   const tForm = useTranslations('serverForm');
   // 启动前的准备阶段（下载镜像、复制服务端文件）：还没有资源占用和人数
   const copying = server.status === 'starting' && (server.runtime?.phase === 'copying' || server.runtime?.phase === 'pulling_image');
+  const game = gameOf(server);
+  // 服务端：ASE 是 Linux 版或 Proton 版（ArkApi），ASA 没有 Linux 版，是 Wine 版或 Proton 版（AsaApi）
+  const build = game === 'asa' ? (server.arkapi ? t('buildProtonApi', { api: pluginApiName(game) }) : t('buildWine')) : server.arkapi ? t('buildProton') : t('buildLinux');
   const runtime = server.status === 'running' || copying ? server.runtime : undefined;
 
   return (
@@ -103,14 +108,15 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
         </CardHeader>
         <CardContent>
           {publicHost ? <ConnectionInfo server={server} host={publicHost} /> : <p className="text-sm text-muted-foreground">{t('noPublicHost')}</p>}
-          {server.status === 'running' && server.reachability && (
+          {/* ASA 没有查询端口，不做公网可达性检测 */}
+          {game === 'ase' && server.status === 'running' && server.reachability && (
             <div className="mt-3">
               <ReachabilityInfo server={server} />
             </div>
           )}
           <div className="mt-3 border-t pt-2">
             <Row label={t('gamePort')}>{`${server.port} (+${server.port + 1})`}</Row>
-            <Row label={t('queryPort')}>{server.query_port}</Row>
+            {game === 'ase' && <Row label={t('queryPort')}>{server.query_port}</Row>}
             <Row label={t('rconPort')}>{server.rcon_port}</Row>
           </div>
         </CardContent>
@@ -121,13 +127,16 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
           <CardTitle className="font-display text-base">{t('config')}</CardTitle>
         </CardHeader>
         <CardContent>
+          <Row label={t('game')}>{GAME_NAMES[game]}</Row>
           <Row label={t('map')}>{mapName(server.map)}</Row>
           <Row label={t('maxPlayers')}>{server.max_players}</Row>
           <Row label={t('cluster')}>{server.cluster_id || t('none')}</Row>
           <Row label={t('autoRestart')}>{server.auto_restart ? t('on') : t('off')}</Row>
           <Row label={t('autoUpdate')}>{server.auto_update ? t('on') : t('off')}</Row>
-          <Row label={t('gameBranch')}>{tForm(server.game_branch === 'preaquatica' ? 'gameBranches.preaquatica' : 'gameBranches.public')}</Row>
-          <Row label={t('serverBuild')}>{server.arkapi ? t('buildProton') : t('buildLinux')}</Row>
+          {game === 'ase' && (
+            <Row label={t('gameBranch')}>{tForm(server.game_branch === 'preaquatica' ? 'gameBranches.preaquatica' : 'gameBranches.public')}</Row>
+          )}
+          <Row label={t('serverBuild')}>{build}</Row>
           <Row label={t('createdAt')}>{server.created_at}</Row>
         </CardContent>
       </Card>
@@ -245,13 +254,14 @@ function ServerDetail({
             <h1 className="font-display truncate text-2xl font-semibold lg:text-[1.75rem]">{server.session_name}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <StatusBadge server={server} />
+              <GameBadge game={gameOf(server)} />
               {server.image_outdated && (
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-800">{t('imageOutdated')}</span>
               )}
               {server.config_pending && (
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-800">{t('configPending')}</span>
               )}
-              {server.status === 'running' && ['unreachable', 'mismatch', 'not_public'].includes(server.reachability?.state ?? '') && (
+              {gameOf(server) === 'ase' && server.status === 'running' && ['unreachable', 'mismatch', 'not_public'].includes(server.reachability?.state ?? '') && (
                 <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-800">{t('notPublic')}</span>
               )}
               {!!server.mods_outdated?.length && (
@@ -303,7 +313,7 @@ function ServerDetail({
           <ConsolePanel server={server} active={tab === 'console'} />
         </TabsContent>
         <TabsContent value="logs" className="mt-4">
-          <LogViewer serverId={server.id} active={tab === 'logs'} />
+          <LogViewer serverId={server.id} active={tab === 'logs'} api={pluginApiName(gameOf(server))} />
         </TabsContent>
         <TabsContent value="backups" className="mt-4">
           <BackupsPanel server={server} active={tab === 'backups'} onRestored={onRestored} />
