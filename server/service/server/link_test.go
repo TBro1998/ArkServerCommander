@@ -1201,3 +1201,68 @@ func TestLinkNodeArgsAndRPCPort(t *testing.T) {
 		t.Fatalf("version = %v", rt)
 	}
 }
+
+// 管理端重启后，节点容器还在运行、服务器还在运行：不删除节点，也不重建（参数不变），宽限期内仍报告在线；
+// 之后一直查询不到时报告离线，但节点保留到服务器停止
+func TestLinkKeepsNodeAcrossRestart(t *testing.T) {
+	e := setupLinkTest(t)
+	s, site, dock := e.s, e.site, e.dock
+	name := utils.LinkContainerName
+	database.DB.Model(&s).Update("status", "running")
+	s.Status = "running"
+	e.rt.set(s.ID, linkRuntime{Ready: true, Players: 3})
+	e.m.tick()
+	if dock.container(name) == nil || dock.createCount() != 1 {
+		t.Fatalf("node not created: %d", dock.createCount())
+	}
+
+	// 重启：内存里的状态都没了，运行监控还没查到结果
+	e.rt.set(s.ID, linkRuntime{})
+	m := newTestLinkManager(t, site, dock, e.rt, e.now)
+	e.advance(15 * time.Second)
+	m.tick()
+	if dock.container(name) == nil || dock.createCount() != 1 || len(dock.removed) != 0 {
+		t.Fatalf("node should be kept across a restart: creates %d removed %v", dock.createCount(), dock.removed)
+	}
+	if sb, _ := site.lastBeat().server(fmt.Sprint(s.ID)); !sb.Online {
+		t.Fatalf("server should still be reported online within the grace period: %+v", site.lastBeat())
+	}
+
+	// 一直查询不到：超过宽限期报告离线，节点保留
+	e.advance(notReadyGrace + time.Second)
+	m.tick()
+	if dock.container(name) == nil {
+		t.Fatal("node removed while the server is still running")
+	}
+	if sb, _ := site.lastBeat().server(fmt.Sprint(s.ID)); sb.Online {
+		t.Fatalf("server should be reported offline after the grace period: %+v", site.lastBeat())
+	}
+
+	// 停服：照常删除节点
+	database.DB.Model(&s).Update("status", "stopped")
+	e.advance(15 * time.Second)
+	m.tick()
+	if dock.container(name) != nil {
+		t.Fatal("node should be removed when the server stops")
+	}
+}
+
+// 重启时服务器已经停了：残留的节点删除；重启前没有节点：照常等服务器可以连接后再创建
+func TestLinkRestartWithoutRunningServer(t *testing.T) {
+	e := setupLinkTest(t)
+	s, dock := e.s, e.dock
+	name := utils.LinkContainerName
+	dock.addContainer(name)
+	e.m.tick()
+	if dock.container(name) != nil {
+		t.Fatal("leftover node should be removed when no server is running")
+	}
+
+	m := newTestLinkManager(t, e.site, dock, e.rt, e.now)
+	database.DB.Model(&s).Update("status", "running")
+	e.advance(15 * time.Second)
+	m.tick()
+	if dock.createCount() != 0 {
+		t.Fatal("node should wait until the server is ready")
+	}
+}

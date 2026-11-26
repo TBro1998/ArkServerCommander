@@ -192,6 +192,9 @@ type LinkManager struct {
 	profile func(models.Server) linkServerProfile
 	newID   func() string
 	wakeCh  chan struct{} // 绑定账号后马上处理一轮
+
+	// 已经检查过管理端启动前留下的节点容器（只在第一次处理房间时看一次，见 process）
+	adoptChecked bool
 }
 
 var linkManager = &LinkManager{
@@ -344,6 +347,16 @@ func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server, to
 	}
 	st := m.room
 	wantNode := false
+	// 管理端重启后第一次处理：节点容器还在运行，说明重启前房间里有服务器可以连接。"可以连接过"只记在内存里，
+	// 运行监控还没查到结果时会被当成不需要节点而删掉，房间里的玩家全部断开。所以这一次让运行中的服务器接上
+	// 重启前的状态：节点保留（参数不变就不重建）；之后和平常一样，查询不到超过 notReadyGrace 时报告这台离线
+	adopt := false
+	if !m.adoptChecked {
+		m.adoptChecked = true
+		if info, err := m.docker.Inspect(utils.LinkContainerName); err == nil && info.Exists && info.Running {
+			adopt = true
+		}
+	}
 	beats := make([]linkServerBeat, len(servers))
 	profiles := make([]linkServerProfile, len(servers))
 	for i, server := range servers {
@@ -356,6 +369,9 @@ func (m *LinkManager) process(room *models.LinkRoom, servers []models.Server, to
 
 		m.mu.Lock()
 		now := m.now()
+		if adopt && running {
+			ss.wasReady = true
+		}
 		switch {
 		case !running:
 			ss.wasReady, ss.notReadySince = false, time.Time{}
