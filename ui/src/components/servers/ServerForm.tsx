@@ -221,8 +221,12 @@ export function ServerForm({ mode, initial, running, saving, onSubmit, onCancel,
   };
   const labelOf = (def: SettingDef): string =>
     def.source === 'field' ? fieldLabel(def.key) : tS.has(`params.${def.key}`) ? tS(`params.${def.key}`) : def.key;
-  const hintOf = (def: SettingDef): string | undefined =>
-    def.source === 'field' ? fieldHint(def.key) : tS.has(`hints.${def.key}`) ? tS(`hints.${def.key}`) : undefined;
+  const hintOf = (def: SettingDef): string | undefined => {
+    if (def.source === 'field') return fieldHint(def.key);
+    // ASA 有不同说明的设置项（如飞行生物速度加点还要打开速度加点）
+    if (game === 'asa' && tS.has(`hintsAsa.${def.key}`)) return tS(`hintsAsa.${def.key}`);
+    return tS.has(`hints.${def.key}`) ? tS(`hints.${def.key}`) : undefined;
+  };
   const sectionTitle = (group: GroupId, section: string) => tS(`sections.${group}.${section}`);
   const sectionDesc = (group: GroupId, section: string) =>
     game === 'asa' && tS.has(`sectionHintsAsa.${group}.${section}`)

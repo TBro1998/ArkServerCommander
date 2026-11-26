@@ -249,14 +249,14 @@ func DefaultMapFor(game string) string {
 
 // ServerDefaults 返回新建服务器时使用的默认配置。前端新建页以它为基础编辑，
 // 显示的值和创建后实际写入的一致；不传配置文件或启动参数时后端也用同样的内容。
-// 两个游戏的配置文件格式相同，共用模板，启动参数不同
+// 两个游戏的配置文件格式相同，共用模板（ASA 不写 GameSession 的 MaxPlayers），启动参数不同
 func (s *ServerService) ServerDefaults(game string) (ServerDefaults, error) {
 	if !utils.ValidGame(game) {
 		return ServerDefaults{}, ErrInvalidGame
 	}
 	game = utils.NormalizeGame(game)
 	return ServerDefaults{
-		GameUserSettings: utils.GetDefaultGameUserSettings(DefaultSessionName, DefaultMapFor(game), DefaultMaxPlayers),
+		GameUserSettings: utils.GetDefaultGameUserSettings(game, DefaultSessionName, DefaultMapFor(game), DefaultMaxPlayers),
 		GameIni:          utils.GetDefaultGameIni(),
 		ServerArgs:       models.FromServer(models.Server{Game: game}),
 	}, nil

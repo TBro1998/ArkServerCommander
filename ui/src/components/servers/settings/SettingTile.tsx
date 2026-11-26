@@ -149,6 +149,62 @@ export function PasswordInput({ id, value, onChange, placeholder, className }: {
 
 const DEFAULT_OPTION = '__default__';
 
+// 多选（如 -ServerPlatform=PC+XSX）：按钮亮着表示选中。没有设置或值为 ALL 时全部选中；
+// 全部选中等于默认，删掉参数；至少保留一项。值里不认识的项原样保留在末尾
+function FlagsControl({
+  def,
+  id,
+  value,
+  onChange,
+}: {
+  def: SettingDef;
+  id: string;
+  value: SettingValue | undefined;
+  onChange: (value: SettingValue | undefined) => void;
+}) {
+  const t = useTranslations('serverSettings');
+  const options = def.options ?? [];
+  const sep = def.separator ?? '+';
+  const raw = typeof value === 'string' ? value.trim() : '';
+  const parts = !raw || raw.toUpperCase() === 'ALL' ? options : raw.split(sep).map((p) => p.trim()).filter(Boolean);
+  const isOn = (opt: string) => parts.some((p) => p.toUpperCase() === opt.toUpperCase());
+  const unknown = parts.filter((p) => !options.some((opt) => opt.toUpperCase() === p.toUpperCase()));
+
+  const toggle = (opt: string) => {
+    const on = options.filter((o) => (o === opt ? !isOn(o) : isOn(o)));
+    if (on.length === 0 && unknown.length === 0) return;
+    if (on.length === options.length && unknown.length === 0) onChange(undefined);
+    else onChange([...on, ...unknown].join(sep));
+  };
+
+  return (
+    <div id={id} role="group" className="flex flex-wrap gap-1.5">
+      {options.map((opt) => {
+        const on = isOn(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            aria-pressed={on}
+            onClick={() => toggle(opt)}
+            className={cn(
+              'rounded-md border px-2.5 py-1 text-xs transition-colors',
+              on ? 'border-primary/60 bg-primary/15 text-primary' : 'text-gray-500 hover:text-gray-800'
+            )}
+          >
+            {t.has(`options.${def.key}.${opt}`) ? t(`options.${def.key}.${opt}`) : opt}
+          </button>
+        );
+      })}
+      {unknown.map((p) => (
+        <span key={p} className="rounded-md border border-dashed px-2.5 py-1 font-mono text-xs text-gray-600">
+          {p}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /** 按设置类型渲染控件。value 为 undefined 时显示默认值 */
 export function SettingControl({
   def,
@@ -178,6 +234,8 @@ export function SettingControl({
       );
     case 'password':
       return <PasswordInput id={id} value={String(value ?? '')} onChange={onChange} />;
+    case 'flags':
+      return <FlagsControl def={def} id={id} value={value} onChange={onChange} />;
     case 'select':
       return (
         <Select value={value ? String(value) : DEFAULT_OPTION} onValueChange={(v) => onChange(v === DEFAULT_OPTION ? undefined : v)}>

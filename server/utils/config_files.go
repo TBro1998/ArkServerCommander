@@ -16,9 +16,10 @@ const (
 
 // GetDefaultGameUserSettings 获取默认的GameUserSettings.ini配置。
 // 倍率、难度和昼夜速度等服务器选项属于 GameUserSettings.ini 的 [ServerSettings]，写在 Game.ini 里不会生效
-// （见 docs/ASE_GameUserSetting.md）；ARK 停服时会重写这个文件，所以这里不写注释
-func GetDefaultGameUserSettings(serverName, mapName string, maxPlayers int) string {
-	return fmt.Sprintf(`[ServerSettings]
+// （见 docs/ASE_GameUserSetting.md）；ARK 停服时会重写这个文件，所以这里不写注释。
+// ASA 的人数上限只看启动参数 -WinLiveMaxPlayers，不读 [/Script/Engine.GameSession] 的 MaxPlayers，不写这一节
+func GetDefaultGameUserSettings(game, serverName, mapName string, maxPlayers int) string {
+	content := fmt.Sprintf(`[ServerSettings]
 SessionName=%s
 ServerPassword=
 MaxPlayers=%d
@@ -51,10 +52,14 @@ SessionName=%s
 
 [MessageOfTheDay]
 Message=欢迎来到 %s ARK 服务器！
-
+`, serverName, maxPlayers, serverName, serverName)
+	if NormalizeGame(game) == GameASA {
+		return content
+	}
+	return content + fmt.Sprintf(`
 [/Script/Engine.GameSession]
 MaxPlayers=%d
-`, serverName, maxPlayers, serverName, serverName, maxPlayers)
+`, maxPlayers)
 }
 
 // GetDefaultGameIni 获取默认的Game.ini配置。

@@ -29,9 +29,10 @@ import type { Game } from '@/lib/games';
 // field：服务器记录的字段（名称、端口、Mod 等），由表单单独渲染
 // gus：GameUserSettings.ini；game：Game.ini；query：?Key=Value；arg：-Key / -Key=Value
 export type SettingSource = 'field' | 'gus' | 'game' | 'query' | 'arg';
-export type SettingType = 'boolean' | 'number' | 'text' | 'password' | 'select';
-// x：倍率；s：秒；min：分钟
-export type SettingUnit = 'x' | 's' | 'min';
+// flags：从 options 里多选，用 separator 连成一个值（如 -ServerPlatform=PC+XSX），全选等于默认
+export type SettingType = 'boolean' | 'number' | 'text' | 'password' | 'select' | 'flags';
+// x：倍率；s：秒；min：分钟；h：小时
+export type SettingUnit = 'x' | 's' | 'min' | 'h';
 export type SettingValue = boolean | number | string;
 
 export interface SettingDef {
@@ -42,13 +43,18 @@ export interface SettingDef {
   unit?: SettingUnit;
   step?: number;
   options?: string[];
+  // flags 的分隔符，缺省为 +
+  separator?: string;
   // ini 的 section，缺省按 source 决定
   section?: string;
   // 占满一行
   wide?: boolean;
-  // 只对这些游戏有效，缺省两个游戏都有。ASA 的启动参数少得多（ASE 的存档、建筑优化、反作弊类参数在 ASA 里不存在），
-  // 只在 ASE 有效的项在 ASA 服务器上不显示
+  // 只对这些游戏有效，缺省两个游戏都有。ASE 的存档、建筑优化、反作弊类参数在 ASA 里不存在，
+  // ASA 也有自己的设置（跨平台、地堡、无线制作等），不适用的项不显示。依据是 ark.wiki.gg 的 Server configuration，
+  // 那里对 ASA 标"未知"的项照常显示
   games?: Game[];
+  // 两个游戏的默认值不同时（如封禁列表地址），按游戏覆盖 default，settingGroupsFor 里换好
+  gameDefaults?: Partial<Record<Game, SettingValue>>;
 }
 
 export type PanelId = 'customArgs' | 'rawConfig';
@@ -100,8 +106,10 @@ const mult = (source: Src, key: string, def = 1): SettingDef => ({ key, source, 
 const secs = (source: Src, key: string, def?: number): SettingDef => ({ key, source, type: 'number', default: def, unit: 's' });
 const text = (source: Src, key: string, def = '', extra?: Extra): SettingDef => ({ key, source, type: 'text', default: def, ...extra });
 
-// 只在 ASE 有效
+// 只在 ASE / ASA 有效
 const ase = (def: SettingDef): SettingDef => ({ ...def, games: ['ase'] });
+const asa = (def: SettingDef): SettingDef => ({ ...def, games: ['asa'] });
+const hours = (source: Src, key: string, def?: number): SettingDef => ({ key, source, type: 'number', default: def, unit: 'h', step: 0.1 });
 
 const G = 'gus' as const;
 const I = 'game' as const;
@@ -140,7 +148,14 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
       { id: 'ports', settings: [field('port'), ase(field('query_port')), field('rcon_port')] },
       {
         id: 'platform',
-        settings: [ase(bool(A, 'crossplay')), ase(bool(A, 'epiconly')), ase(text(A, 'PublicIPForEpic')), text(A, 'MULTIHOME')],
+        settings: [
+          ase(bool(A, 'crossplay')),
+          ase(bool(A, 'epiconly')),
+          ase(text(A, 'PublicIPForEpic')),
+          // ASA：不设置时允许所有平台（跨平台）
+          asa({ key: 'ServerPlatform', source: A, type: 'flags', options: ['PC', 'XSX', 'PS5', 'WINGDK'], wide: true }),
+          text(A, 'MULTIHOME'),
+        ],
       },
       {
         id: 'connections',
@@ -152,7 +167,23 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
     id: 'mods',
     icon: Package,
     sections: [
-      { id: 'mods', settings: [field('game_mod_ids', { wide: true }), ase(text(A, 'MapModID')), ase(bool(A, 'automanagedmods'))] },
+      {
+        id: 'mods',
+        settings: [
+          field('game_mod_ids', { wide: true }),
+          ase(text(A, 'MapModID')),
+          ase(bool(A, 'automanagedmods')),
+          asa(text(A, 'passivemods', '', { wide: true })),
+        ],
+      },
+      {
+        id: 'cosmetics',
+        settings: [
+          asa(bool(A, 'DisableCustomCosmetics')),
+          asa(bool(A, 'DoCustomCosmeticValidation')),
+          asa(text(G, 'CosmeticWhitelistOverride', '', { wide: true })),
+        ],
+      },
       {
         id: 'cluster',
         settings: [
@@ -222,6 +253,8 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(G, 'DisablePvEGamma'),
           bool(G, 'DisableWeatherFog'),
           bool(I, 'bShowCreativeMode'),
+          asa(bool(I, 'bDisablePhotoMode')),
+          asa(num(I, 'PhotoModeRangeLimit', 3000)),
         ],
       },
       {
@@ -237,6 +270,8 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(G, 'PreventSpawnAnimations'),
           bool(G, 'AllowTekSuitPowersInGenesis'),
           num(G, 'MaxHexagonsPerCharacter', 2000000000),
+          asa(bool(G, 'UseAstraeosTraversalBuff', true)),
+          asa(text(G, 'WorldBossKingKaijuSpawnTime', '19:00:00')),
         ],
       },
       {
@@ -257,11 +292,27 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
       {
         id: 'events',
         settings: [
-          text(A, 'ActiveEvent'),
+          // ASA 的活动由 Mod 提供，-ActiveEvent 已经不起作用
+          ase(text(A, 'ActiveEvent')),
           ase(bool(A, 'NewYearEvent')),
           ase(num(Q, 'NewYear1UTC')),
           ase(num(Q, 'NewYear2UTC')),
           ase(num(Q, 'EventColorsChanceOverride', 0, { step: 0.01 })),
+          asa(bool(A, 'ServerUseEventColors')),
+          asa(bool(A, 'EasterColors')),
+        ],
+      },
+      {
+        // 失落殖民地（Lost Colony）加入的玩法
+        id: 'lostColony',
+        settings: [
+          asa(num(G, 'MaxActiveOutposts')),
+          asa(num(G, 'MaxActiveCityOutposts')),
+          asa(num(G, 'MaxActiveResourceCaches')),
+          asa(mult(G, 'OutpostSigilRewardMultiplier')),
+          asa(num(G, 'BloodforgeReinforceExtraDurability', 0.3, { step: 0.05 })),
+          asa(mult(G, 'BloodforgeReinforceResourceCostMultiplier', 3)),
+          asa(mult(G, 'BloodforgeReinforceSpeedMultiplier', 0.1)),
         ],
       },
     ],
@@ -317,6 +368,8 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(I, 'bAutoUnlockAllEngrams'),
           bool(I, 'bOnlyAllowSpecifiedEngrams'),
           bool(I, 'bAllowCustomRecipes', true),
+          asa(bool(I, 'bAllowSpeedLeveling')),
+          bool(I, 'bAllowFlyerSpeedLeveling'),
         ],
       },
       {
@@ -324,7 +377,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
         settings: [
           bool(A, 'EnableIdlePlayerKick'),
           secs(G, 'KickIdlePlayersPeriod', 3600),
-          secs(G, 'ImplantSuicideCD', 28800),
+          asa(secs(G, 'ImplantSuicideCD', 28800)),
           bool(I, 'bUseCorpseLocator', true),
         ],
       },
@@ -343,6 +396,11 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           mult(I, 'WildDinoCharacterFoodDrainMultiplier'),
           mult(I, 'WildDinoTorporDrainMultiplier'),
           bool(A, 'NoDinos'),
+          asa(bool(A, 'NoDinosExceptForcedSpawn')),
+          asa(bool(A, 'NoDinosExceptStreamingSpawn')),
+          asa(bool(A, 'NoDinosExceptManualSpawn')),
+          asa(bool(A, 'NoDinosExceptWaterSpawn')),
+          asa(bool(A, 'NoWildBabies')),
           bool(A, 'ForceRespawnDinos'),
         ],
       },
@@ -361,6 +419,9 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           mult(G, 'TamedDinoResistanceMultiplier'),
           num(G, 'MaxTamedDinos', 4000),
           num(G, 'MaxPersonalTamedDinos', 0),
+          asa(num(G, 'MaxTamedDinos_SoftTameLimit', 5000)),
+          asa(bool(G, 'DestroyTamesOverTheSoftTameLimit')),
+          asa(secs(G, 'MaxTamedDinos_SoftTameLimit_CountdownForDeletionDuration', 604800)),
           bool(I, 'bDisableDinoTaming'),
           bool(I, 'bDisableDinoRiding'),
           bool(G, 'AllowRaidDinoFeeding'),
@@ -376,6 +437,17 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(G, 'AllowFlyingStaminaRecovery'),
           bool(G, 'ForceFlyerExplosives'),
           bool(A, 'ForceAllowCaveFlyers'),
+        ],
+      },
+      {
+        id: 'species',
+        settings: [
+          asa(secs(G, 'ArmadoggoDeathCooldown', 3600)),
+          asa(secs(G, 'YoungIceFoxDeathCooldown', 3600)),
+          asa(num(G, 'MaxCosmoWeaponAmmo', -1)),
+          asa(num(G, 'CosmoWeaponAmmoReloadAmount', 1, { step: 0.1 })),
+          asa(bool(G, 'ForceGachaUnhappyInCaves', true)),
+          asa(bool(G, 'DisableBurrowDecayTimers')),
         ],
       },
       {
@@ -395,9 +467,13 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           secs(G, 'CryopodNerfDuration', 10),
           num(G, 'CryopodNerfDamageMult', 0.01, { step: 0.01 }),
           num(G, 'CryopodNerfIncomingDamageMultPercent', 0.25, { step: 0.01 }),
-          bool(G, 'DisableCryopodEnemyCheck'),
-          bool(G, 'DisableCryopodFridgeRequirement'),
-          bool(G, 'AllowCryoFridgeOnSaddle'),
+          asa(bool(G, 'DisableCryopodEnemyCheck')),
+          asa(bool(G, 'DisableCryopodFridgeRequirement')),
+          asa(bool(G, 'AllowCryoFridgeOnSaddle')),
+          asa(hours(G, 'CryoHospitalHoursToRegenHP', 1)),
+          asa(hours(G, 'CryoHospitalHoursToRegenFood', 24)),
+          asa(hours(G, 'CryoHospitalHoursToDrainTorpor', 1)),
+          asa(mult(G, 'CryoHospitalMatingCooldownReduction', 2)),
         ],
       },
     ],
@@ -442,7 +518,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           mult(G, 'StructurePreventResourceRadiusMultiplier'),
           bool(I, 'bDisableStructurePlacementCollision'),
           bool(G, 'AllowIntegratedSPlusStructures', true),
-          bool(G, 'DestroyUnconnectedWaterPipes'),
+          ase(bool(G, 'DestroyUnconnectedWaterPipes')),
         ],
       },
       {
@@ -457,6 +533,8 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(G, 'AllowCaveBuildingPvP'),
           bool(G, 'PvEAllowStructuresAtSupplyDrops'),
           bool(G, 'AllowCrateSpawnsOnTopOfStructures'),
+          asa(num(I, 'LimitGeneratorsNum', 3)),
+          asa(num(I, 'LimitGeneratorsRange', 15000)),
         ],
       },
       {
@@ -481,12 +559,39 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
       {
         id: 'platforms',
         settings: [
-          num(G, 'MaxPlatformSaddleStructureLimit', 25),
+          num(G, 'MaxPlatformSaddleStructureLimit', 75),
           mult(G, 'PerPlatformMaxStructuresMultiplier'),
           mult(G, 'PlatformSaddleBuildAreaBoundsMultiplier'),
           bool(I, 'bAllowPlatformSaddleMultiFloors'),
           num(G, 'MaxGateFrameOnSaddles', 0),
-          num(G, 'MaxTrainCars', 8),
+          asa(num(G, 'MaxTrainCars', 8)),
+        ],
+      },
+      {
+        // 地堡（ASA 70.0 加入）
+        id: 'bunkers',
+        settings: [
+          asa(bool(G, 'LimitBunkersPerTribe', true)),
+          asa(num(G, 'LimitBunkersPerTribeNum', 3)),
+          asa(num(G, 'MinDistanceBetweenBunkers', 3000)),
+          asa(bool(G, 'AllowBunkersInPreventionZones')),
+          asa(bool(G, 'AllowBunkerModulesAboveGround')),
+          asa(bool(G, 'AllowBunkerModulesInPreventionZones')),
+          asa(bool(G, 'AllowRidingDinosInsideBunkers', true)),
+          asa(bool(G, 'AllowDinoAIInsideBunkers', true)),
+          asa(num(G, 'EnemyAccessBunkerHPThreshold', 0.25, { step: 0.05 })),
+          asa(mult(G, 'BunkerUnderHPThresholdDmgMultiplier', 0.05)),
+        ],
+      },
+      {
+        // TEK 专用存储的无线制作
+        id: 'crafting',
+        settings: [
+          asa(bool(I, 'bDisableWirelessCrafting')),
+          asa(bool(I, 'bDisableWirelessCraftingForPlayers')),
+          asa(bool(I, 'bDisableWirelessCraftingForDinos')),
+          asa(bool(I, 'bDisableWirelessCraftingForStructures')),
+          asa(num(I, 'WirelessCraftingRangeOverride', 3000)),
         ],
       },
     ],
@@ -505,6 +610,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           num(I, 'MaxTribesPerAlliance', 10),
           bool(I, 'bPvEAllowTribeWar'),
           bool(I, 'bPvEAllowTribeWarCancel'),
+          asa(mult(I, 'TribeTowerBonusMultiplier', 2)),
         ],
       },
       {
@@ -515,6 +621,7 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           bool(I, 'bPassiveDefensesDamageRiderlessDinos'),
           bool(G, 'AllowMultipleAttachedC4'),
           ase(bool(A, 'DisableRailgunPVP')),
+          asa(bool(G, 'IgnorePVPMountedWeaponryRestrictions')),
         ],
       },
       {
@@ -567,7 +674,14 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
             options: ['ca', 'cs', 'da', 'de', 'en', 'es', 'eu', 'fi', 'fr', 'hu', 'it', 'ja', 'ka', 'ko', 'nl', 'pl', 'pt_BR', 'ru', 'sv', 'th', 'tr', 'zh', 'zh-Hans-CN', 'zh-TW'],
           },
           ase(bool(A, 'NoHangDetection')),
-          text(G, 'BanListURL', 'http://arkdedicated.com/banlist.txt', { wide: true }),
+          // 内存保护：占用超过这个值（GB）时游戏自己存档并重启，0 关闭。用文本框：数字参数为 0 时不会传给服务器
+          asa(text(A, 'GBUsageToForceRestart', '35')),
+          asa(bool(G, 'UseCharacterTracker')),
+          text(G, 'BanListURL', 'http://arkdedicated.com/banlist.txt', {
+            wide: true,
+            gameDefaults: { asa: 'https://cdn2.arkdedicated.com/asa/BanList.txt' },
+          }),
+          asa(text(G, 'AdminListURL', '', { wide: true })),
           text(G, 'CustomDynamicConfigUrl', '', { wide: true }),
         ],
       },
@@ -611,6 +725,8 @@ export const SETTING_GROUPS: SettingGroupDef[] = [
           ase(bool(A, 'dedihibernation')),
           ase(bool(A, 'nitradotest2')),
           ase(bool(A, 'ServerAllowAnsel')),
+          asa(bool(A, 'disabledinonetrangescaling')),
+          asa(bool(A, 'AlwaysTickDedicatedSkeletalMeshes')),
           mult(G, 'ListenServerTetherDistanceMultiplier'),
           num(G, 'NPCNetworkStasisRangeScalePlayerCountStart', 0),
           num(G, 'NPCNetworkStasisRangeScalePlayerCountEnd', 0),
@@ -724,12 +840,20 @@ export function settingAppliesTo(def: SettingDef, game: Game): boolean {
   return !def.games || def.games.includes(game);
 }
 
-// 按游戏过滤后的分组：去掉不适用的设置项，以及因此变空的分区（特殊面板保留）
+function withGameDefault(def: SettingDef, game: Game): SettingDef {
+  const value = def.gameDefaults?.[game];
+  return value === undefined ? def : { ...def, default: value };
+}
+
+// 按游戏过滤后的分组：去掉不适用的设置项，以及因此变空的分区（特殊面板保留），换上这个游戏的默认值
 function filterGroups(game: Game): SettingGroupDef[] {
   return SETTING_GROUPS.map((group) => ({
     ...group,
     sections: group.sections
-      .map((section) => ({ ...section, settings: section.settings.filter((def) => settingAppliesTo(def, game)) }))
+      .map((section) => ({
+        ...section,
+        settings: section.settings.filter((def) => settingAppliesTo(def, game)).map((def) => withGameDefault(def, game)),
+      }))
       .filter((section) => section.panel || section.settings.length > 0),
   }));
 }

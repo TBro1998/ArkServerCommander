@@ -231,7 +231,7 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 		}
 		gameUserSettings = req.GameUserSettings
 	} else {
-		gameUserSettings = utils.GetDefaultGameUserSettings(server.SessionName, server.Map, 70)
+		gameUserSettings = utils.GetDefaultGameUserSettings(server.Game, server.SessionName, server.Map, 70)
 	}
 
 	if req.GameIni != "" {

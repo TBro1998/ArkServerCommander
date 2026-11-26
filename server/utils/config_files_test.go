@@ -34,7 +34,7 @@ func TestDefaultConfigSections(t *testing.T) {
 	if len(sections) != 1 || sections[0] != "[/script/shootergame.shootergamemode]" {
 		t.Fatalf("Game.ini should only have the shootergamemode section, got %v", sections)
 	}
-	gusKeys, _ := iniKeys(GetDefaultGameUserSettings("test", "TheIsland", 70))
+	gusKeys, _ := iniKeys(GetDefaultGameUserSettings(GameASE, "test", "TheIsland", 70))
 	for _, k := range serverSettingsOnly {
 		for gk := range gameKeys {
 			if strings.EqualFold(strings.TrimPrefix(gk, "b"), k) {
@@ -44,5 +44,25 @@ func TestDefaultConfigSections(t *testing.T) {
 		if gusKeys[k] != "[ServerSettings]" {
 			t.Errorf("%s should be under [ServerSettings], got %q", k, gusKeys[k])
 		}
+	}
+}
+
+// ASA 的人数上限只看 -WinLiveMaxPlayers，默认模板不写 GameSession；ASE 照常写
+func TestDefaultGameUserSettingsGameSession(t *testing.T) {
+	_, aseSections := iniKeys(GetDefaultGameUserSettings(GameASE, "test", "TheIsland", 70))
+	_, asaSections := iniKeys(GetDefaultGameUserSettings(GameASA, "test", "TheIsland_WP", 70))
+	has := func(sections []string) bool {
+		for _, s := range sections {
+			if s == "[/Script/Engine.GameSession]" {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(aseSections) {
+		t.Error("ASE template should have [/Script/Engine.GameSession]")
+	}
+	if has(asaSections) {
+		t.Error("ASA template should not have [/Script/Engine.GameSession]")
 	}
 }

@@ -26,6 +26,9 @@ export const ASA_MAPS = [
   'Valguero_WP',
   'LostColony_WP',
   'Astraeos_WP',
+  'Genesis_WP',
+  // Club ARK：需要 CurseForge Mod 1005639
+  'BobsMissions_WP',
 ];
 
 export function officialMaps(game: Game): string[] {
@@ -61,6 +64,8 @@ const MAP_COLORS: Record<string, string> = {
   Valguero_WP: '#4c7658',
   LostColony_WP: '#7a6a3d', // 殖民地遗迹
   Astraeos_WP: '#4a5f9a', // 神话群岛
+  Genesis_WP: '#23758a',
+  BobsMissions_WP: '#b0703a', // 俱乐部
 };
 
 const FALLBACK = '#56645b';
