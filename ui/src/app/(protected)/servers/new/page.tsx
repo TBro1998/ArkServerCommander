@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -49,19 +49,32 @@ function applyIdentity(data: Partial<Server>, defaults: Partial<Server>): Partia
   return { ...data, game_user_settings: gus };
 }
 
+// useSearchParams 要放在 Suspense 里，否则构建时整个页面不能预渲染
 export default function ServerNewPage() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <ServerNew />
+    </Suspense>
+  );
+}
+
+function ServerNew() {
   const t = useTranslations('servers.edit');
   const tForm = useTranslations('serverForm');
   const tList = useTranslations('detail');
   const tCommon = useTranslations('common');
   const router = useRouter();
   const apiError = useApiError();
-  const [initial, setInitial] = useState<Partial<Server>>(DEFAULTS);
+  // 服务器列表的分区里"新建 ASA 服务器"带 ?game=asa
+  const initialGame: Game = useSearchParams().get('game') === 'asa' ? 'asa' : 'ase';
+  const [initial, setInitial] = useState<Partial<Server>>(() =>
+    initialGame === 'ase' ? DEFAULTS : { ...DEFAULTS, game: initialGame, map: defaultMap(initialGame) },
+  );
   // 默认配置文件和启动参数：设置页以它为基础编辑，显示的值就是创建后实际写入的值
   const [defaults, setDefaults] = useState<Partial<Server> | null>(null);
   const [saving, setSaving] = useState(false);
   // 游戏：创建后不能修改。切换时按这个游戏的默认配置重新开始填写
-  const [game, setGame] = useState<Game>('ase');
+  const [game, setGame] = useState<Game>(initialGame);
   const [dirty, setDirty] = useState(false);
 
   const switchGame = (next: Game) => {

@@ -18,8 +18,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// ArkApi 插件目录：ASE 的插件发布在 ArkApi 官方站 ark-server-api.com 上，arkfgf.com 整理成目录
-// （GET {ARKFGF_API}/plugins/catalog，公开接口，不需要绑定账号），Commander 在插件页浏览和一键安装。
+// 插件目录：ASE 的 ArkApi 插件和 ASA 的 AsaApi 插件都发布在 ArkApi 官方站 ark-server-api.com 上，arkfgf.com 整理成目录
+// （GET {ARKFGF_API}/plugins/catalog，ASA 带 ?game=asa，公开接口，不需要绑定账号），Commander 在插件页浏览和一键安装。
+// 两个游戏的插件不通用，目录各缓存一份，服务器只用自己游戏的目录。
 // 插件文件从 ark-server-api.com 的下载地址直接下载，安装流程和"从地址安装"相同。
 // 从目录安装的插件在目录里写一个 .commander-source.json，记下资源 ID 和版本，用来判断有没有更新
 
@@ -73,7 +74,7 @@ type CatalogPlugin struct {
 	Plugins     []CatalogPluginInfo `json:"plugins,omitempty"`
 }
 
-// CatalogArkApi 目录里的 ArkApi 本体
+// CatalogArkApi 目录里的框架本体：ASE 目录里是 ArkApi，ASA 目录里是 AsaApi
 type CatalogArkApi struct {
 	Version     string     `json:"version"`
 	DownloadURL string     `json:"download_url"`
@@ -84,6 +85,7 @@ type CatalogArkApi struct {
 
 // PluginCatalog 插件目录
 type PluginCatalog struct {
+	Game        string          `json:"game"` // ase / asa
 	Source      string          `json:"source"`
 	SourceURL   string          `json:"source_url"`
 	GeneratedAt time.Time       `json:"generated_at"`
@@ -100,6 +102,7 @@ type PluginSource struct {
 }
 
 type pluginCatalogCache struct {
+	game   string
 	api    func() string
 	client *http.Client
 
@@ -110,9 +113,18 @@ type pluginCatalogCache struct {
 	lastErr error
 }
 
-var pluginCatalog = &pluginCatalogCache{
-	api:    func() string { return config.AccountAPI },
-	client: &http.Client{Timeout: 15 * time.Second},
+var (
+	pluginCatalogClient = &http.Client{Timeout: 15 * time.Second}
+	asePluginCatalog    = &pluginCatalogCache{game: utils.GameASE, api: func() string { return config.AccountAPI }, client: pluginCatalogClient}
+	asaPluginCatalog    = &pluginCatalogCache{game: utils.GameASA, api: func() string { return config.AccountAPI }, client: pluginCatalogClient}
+)
+
+// pluginCatalogFor 游戏的插件目录（空值视为 ASE）
+func pluginCatalogFor(game string) *pluginCatalogCache {
+	if utils.NormalizeGame(game) == utils.GameASA {
+		return asaPluginCatalog
+	}
+	return asePluginCatalog
 }
 
 // get 返回目录：缓存 1 小时；获取失败时有旧数据就返回旧数据，5 分钟内不重试
@@ -134,10 +146,18 @@ func (c *pluginCatalogCache) get(refresh bool) (*PluginCatalog, error) {
 		return nil, c.lastErr
 	}
 	var out PluginCatalog
-	_, _, _, err := arkfgfRequest(c.client, http.MethodGet, api+"/plugins/catalog", "", nil, &out, "arkfgf.com")
+	endpoint := api + "/plugins/catalog"
+	if c.game != utils.GameASE {
+		endpoint += "?game=" + c.game
+	}
+	_, _, _, err := arkfgfRequest(c.client, http.MethodGet, endpoint, "", nil, &out, "arkfgf.com")
+	// 不认识 game 参数的网站会返回 ASE 的目录（没有 game 字段），不能拿来给 ASA 服务器用
+	if err == nil && utils.NormalizeGame(out.Game) != c.game {
+		err = fmt.Errorf("网站返回的是 %s 的插件目录", utils.NormalizeGame(out.Game))
+	}
 	c.tried = now
 	if err != nil {
-		utils.Warn("获取插件目录失败", zap.Error(err))
+		utils.Warn("获取插件目录失败", zap.String("game", c.game), zap.Error(err))
 		c.lastErr = fmt.Errorf("%w: %v", ErrPluginCatalogUnavailable, err)
 		if c.data != nil {
 			return c.data, nil
@@ -147,6 +167,7 @@ func (c *pluginCatalogCache) get(refresh bool) (*PluginCatalog, error) {
 	if out.Plugins == nil {
 		out.Plugins = []CatalogPlugin{}
 	}
+	out.Game = c.game
 	c.data, c.fetched, c.lastErr = &out, now, nil
 	return c.data, nil
 }
@@ -165,9 +186,12 @@ func (c *pluginCatalogCache) forget() {
 	c.data, c.fetched, c.tried, c.lastErr = nil, time.Time{}, time.Time{}, nil
 }
 
-// GetPluginCatalog 返回插件目录，refresh 时重新向 arkfgf.com 获取
-func (s *ServerService) GetPluginCatalog(refresh bool) (*PluginCatalog, error) {
-	return pluginCatalog.get(refresh)
+// GetPluginCatalog 返回游戏（ase / asa，空为 ase）的插件目录，refresh 时重新向 arkfgf.com 获取
+func (s *ServerService) GetPluginCatalog(game string, refresh bool) (*PluginCatalog, error) {
+	if !utils.ValidGame(game) {
+		return nil, ErrInvalidGame
+	}
+	return pluginCatalogFor(game).get(refresh)
 }
 
 // InstallCatalogPlugin 从目录安装（或更新）一个资源，返回安装的插件名称。只能在服务器停止时进行，
@@ -177,11 +201,8 @@ func (s *ServerService) InstallCatalogPlugin(userID uint, serverID string, resou
 	if err != nil {
 		return nil, err
 	}
-	// 插件目录里是 ASE 的 ArkApi 插件，ASA 的 AsaApi 插件不通用
-	if utils.NormalizeGame(server.Game) == utils.GameASA {
-		return nil, ErrGameNotSupported
-	}
-	catalog, err := pluginCatalog.get(false)
+	// 两个游戏的插件不通用，只在服务器自己游戏的目录里找
+	catalog, err := pluginCatalogFor(server.Game).get(false)
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +270,9 @@ func readPluginSource(dir string) *PluginSource {
 	return &src
 }
 
-// catalogArkApi 目录里的 ArkApi 本体（版本号合法、下载地址在允许的站点上时），只看已缓存的目录
-func catalogArkApi() *CatalogArkApi {
-	c := pluginCatalog.peek()
+// catalogArkApi 游戏的目录里的框架本体（版本号合法、下载地址在允许的站点上时），只看已缓存的目录
+func catalogArkApi(game string) *CatalogArkApi {
+	c := pluginCatalogFor(game).peek()
 	if c == nil || c.ArkApi == nil || !arkApiVersionPattern.MatchString(c.ArkApi.Version) {
 		return nil
 	}

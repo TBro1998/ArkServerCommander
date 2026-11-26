@@ -1,4 +1,4 @@
-// ArkApi 插件目录（arkfgf.com 整理的 ark-server-api.com 上的 ASE 插件）和已安装插件的对应关系
+// 插件目录（arkfgf.com 整理的 ark-server-api.com 上的插件，ASE 的 ArkApi 插件和 ASA 的 AsaApi 插件各一份）和已安装插件的对应关系
 
 export interface CatalogPluginInfo {
   name: string;
@@ -26,6 +26,7 @@ export interface CatalogPlugin {
 }
 
 export interface PluginCatalog {
+  game: 'ase' | 'asa';
   source: string;
   source_url: string;
   generated_at: string;

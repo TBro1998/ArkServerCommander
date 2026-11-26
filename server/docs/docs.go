@@ -31,15 +31,21 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "内置版本、已下载或上传到数据目录 arkapi/ 的版本，以及 GitHub（Michidu/ARK-Server-API）上发布的版本，从新到旧。GitHub 结果缓存 6 小时，refresh=true 时重新查询",
+                "description": "game=ase（默认）是 ASE 的 ArkApi：内置版本、已下载或上传到数据目录 arkapi/ 的版本，以及 GitHub（Michidu/ARK-Server-API）上发布的版本；game=asa 是 ASA 的 AsaApi：数据目录 asaapi/ 和 GitHub（ArkServerApi/AsaApi）。从新到旧，GitHub 结果缓存 6 小时，refresh=true 时重新查询",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "插件管理"
                 ],
-                "summary": "ArkApi 版本列表",
+                "summary": "ArkApi / AsaApi 版本列表",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "游戏：ase（默认）或 asa",
+                        "name": "game",
+                        "in": "query"
+                    },
                     {
                         "type": "boolean",
                         "description": "重新查询 GitHub",
@@ -65,7 +71,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "上传 ArkApi zip（multipart 字段 file）到版本库，压缩包里要有 version.dll。版本号从文件名（如 ArkApi_3.56.zip）识别，识别不出时用 version 指定；同版本会被覆盖",
+                "description": "上传 ArkApi zip（multipart 字段 file）到版本库，压缩包里要有 version.dll；game=asa 时上传 AsaApi，压缩包里要有 AsaApiLoader.exe。版本号从文件名（如 ArkApi_3.56.zip、AsaApi_2.11.zip）识别，识别不出时用 version 指定；同版本会被覆盖",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -88,6 +94,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "版本号",
                         "name": "version",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "游戏：ase（默认）或 asa",
+                        "name": "game",
                         "in": "formData"
                     }
                 ],
@@ -135,6 +147,12 @@ const docTemplate = `{
                         "name": "version",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "游戏：ase（默认）或 asa",
+                        "name": "game",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1120,15 +1138,21 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "arkfgf.com 整理的 ark-server-api.com 上的 ASE 插件（官方、免费、付费），带 download_url 的可以一键安装。缓存 1 小时，refresh=true 时重新获取。ARKFGF_API 关闭时返回 409 arkfgf_disabled",
+                "description": "arkfgf.com 整理的 ark-server-api.com 上的插件（官方、免费、付费）：game=ase（默认）是 ASE 的 ArkApi 插件，game=asa 是 ASA 的 AsaApi 插件，带 download_url 的可以一键安装。arkapi 是这个游戏的框架本体。缓存 1 小时，refresh=true 时重新获取。ARKFGF_API 关闭时返回 409 arkfgf_disabled",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "插件管理"
                 ],
-                "summary": "ArkApi 插件目录",
+                "summary": "插件目录",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ase（默认）或 asa",
+                        "name": "game",
+                        "in": "query"
+                    },
                     {
                         "type": "boolean",
                         "description": "重新获取",
@@ -3834,6 +3858,14 @@ const docTemplate = `{
                     "系统"
                 ],
                 "summary": "新建服务器的默认配置",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "游戏：ase（默认）或 asa",
+                        "name": "game",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "默认配置",
@@ -3841,6 +3873,15 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": {
                                 "$ref": "#/definitions/server.ServerDefaults"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "游戏无效",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -4504,6 +4545,10 @@ const docTemplate = `{
         "models.LinkRoomMember": {
             "type": "object",
             "properties": {
+                "game": {
+                    "description": "ase 或 asa",
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -4921,6 +4966,10 @@ const docTemplate = `{
                 "format": {
                     "type": "string"
                 },
+                "game": {
+                    "description": "来源服务器的游戏（ase / asa），旧版导出的没有，视为 ase。导入到另一个游戏的服务器时，\n地图、Mod 和启动参数不通用，不会导入",
+                    "type": "string"
+                },
                 "game_ini": {
                     "type": "string"
                 },
@@ -4959,7 +5008,6 @@ const docTemplate = `{
             "required": [
                 "admin_password",
                 "port",
-                "query_port",
                 "rcon_port"
             ],
             "properties": {
@@ -4980,6 +5028,10 @@ const docTemplate = `{
                 },
                 "cluster_id": {
                     "description": "集群ID",
+                    "type": "string"
+                },
+                "game": {
+                    "description": "游戏：ase（默认）或 asa，创建后不能修改",
                     "type": "string"
                 },
                 "game_branch": {
@@ -5029,6 +5081,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "query_port": {
+                    "description": "ASE 必填（服务层校验），ASA 没有查询端口",
                     "type": "integer",
                     "maximum": 65535,
                     "minimum": 1
@@ -5056,7 +5109,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "arkapi": {
-                    "description": "启用 ArkApi（Proton 镜像运行 Windows 版服务端）",
+                    "description": "启用 ArkApi / AsaApi（Proton 镜像运行 Windows 版服务端）",
                     "type": "boolean"
                 },
                 "auto_restart": {
@@ -5076,6 +5129,10 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "game": {
+                    "description": "游戏：ase 或 asa",
+                    "type": "string"
+                },
                 "game_branch": {
                     "description": "游戏版本：空为蜗牛海洋正式版，preaquatica 为通配符原版",
                     "type": "string"
@@ -5085,6 +5142,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "game_mod_ids": {
+                    "description": "ASE 是创意工坊 ID，ASA 是 CurseForge 项目 ID",
                     "type": "string"
                 },
                 "game_user_settings": {
@@ -5099,7 +5157,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "image": {
-                    "description": "服务器使用的镜像，由 arkapi 决定",
+                    "description": "服务器使用的镜像，由 game 和 arkapi 决定",
                     "type": "string"
                 },
                 "image_outdated": {
@@ -5160,6 +5218,7 @@ const docTemplate = `{
                     ]
                 },
                 "query_port": {
+                    "description": "ASA 没有查询端口，为 0",
                     "type": "integer"
                 },
                 "rcon_port": {
@@ -5366,11 +5425,19 @@ const docTemplate = `{
                 "checked_at": {
                     "type": "string"
                 },
+                "game": {
+                    "description": "ase（ArkApi）或 asa（AsaApi）",
+                    "type": "string"
+                },
                 "github_error": {
                     "description": "查询 GitHub 失败的原因，此时只列出本地版本",
                     "type": "string"
                 },
                 "latest": {
+                    "type": "string"
+                },
+                "name": {
+                    "description": "ArkApi / AsaApi",
                     "type": "string"
                 },
                 "versions": {
@@ -5621,6 +5688,10 @@ const docTemplate = `{
             "properties": {
                 "arkapi": {
                     "$ref": "#/definitions/server.CatalogArkApi"
+                },
+                "game": {
+                    "description": "ase / asa",
+                    "type": "string"
                 },
                 "generated_at": {
                     "type": "string"

@@ -643,6 +643,8 @@ const messages = {
       stopped: '已停止'
     },
     summary: '共 {total} 台，{running} 台运行中，{players} 名玩家在线',
+    gameSummary: '{total} 台，{running} 台运行中，{players} 名玩家在线',
+    addGameServer: '新建 {game} 服务器',
     refresh: '刷新',
     view: '显示方式',
     views: {
@@ -1146,7 +1148,6 @@ const messages = {
     urlInvalid: '请填写 http:// 或 https:// 开头的下载地址',
     fetchFailed: '从地址安装插件失败',
     urlHint: '填 zip 的直接下载地址，例如 ark-server-api.com 插件页上"Download"按钮的链接。由管理端下载后安装，服务器上不需要联网。',
-    urlHintAsa: '填插件 zip 的直接下载地址。由管理端下载后安装，服务器上不需要联网。',
 
     // 依赖
     dependsOn: '依赖',
@@ -1184,7 +1185,7 @@ const messages = {
     // 插件目录（arkfgf.com 提供的 ark-server-api.com 插件）
     browseCatalog: '浏览插件',
     catalogTitle: '插件目录',
-    catalogDesc: '来自 ArkApi 官方站 ark-server-api.com 的 ASE 插件，由 arkfgf.com 整理。',
+    catalogDesc: '来自 ArkApi 官方站 ark-server-api.com 的 {game} 插件（{api}），由 arkfgf.com 整理。',
     catalogUpdatedAt: '目录更新于 {time}。',
     catalogSearch: '搜索插件名称、简介或作者...',
     category_all: '全部',

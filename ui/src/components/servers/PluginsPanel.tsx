@@ -178,7 +178,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
     async (refresh = false) => {
       setCatalogLoading(true);
       try {
-        const res = await axios.get('/api/plugins/catalog', { params: refresh ? { refresh: true } : undefined });
+        const res = await axios.get('/api/plugins/catalog', { params: { game, ...(refresh ? { refresh: true } : {}) } });
         setCatalog(res.data.data);
         setCatalogError('');
       } catch (err) {
@@ -188,19 +188,19 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
         setCatalogLoading(false);
       }
     },
-    [apiError, t],
+    [apiError, t, game],
   );
 
-  // 目录用来提示更新和缺失的依赖，标签第一次打开时读取一次。目录只有 ASE 插件，ASA 服务器不读取
+  // 目录用来提示更新和缺失的依赖，标签第一次打开时读取一次。按服务器的游戏读取（ASE 是 ArkApi 插件，ASA 是 AsaApi 插件）
   const catalogRequested = useRef(false);
   useEffect(() => {
-    if (!active || asa || catalogRequested.current) return;
+    if (!active || catalogRequested.current) return;
     catalogRequested.current = true;
     const timer = setTimeout(() => {
       loadCatalog();
     }, 0);
     return () => clearTimeout(timer);
-  }, [active, asa, loadCatalog]);
+  }, [active, loadCatalog]);
 
   // 版本库变化不频繁，标签第一次打开时读取一次
   const versionsRequested = useRef(false);
@@ -564,19 +564,17 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
             {t('title')}
             {plugins && plugins.length > 0 && <span className="num text-sm font-normal text-muted-foreground">{plugins.length}</span>}
           </CardTitle>
-          {!asa && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCatalogOpen(true);
-                if (!catalog && !catalogLoading) loadCatalog();
-              }}
-            >
-              <Store className="mr-1.5" />
-              {t('browseCatalog')}
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setCatalogOpen(true);
+              if (!catalog && !catalogLoading) loadCatalog();
+            }}
+          >
+            <Store className="mr-1.5" />
+            {t('browseCatalog')}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -649,7 +647,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
               </Button>
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">{asa ? t('urlHintAsa') : t('urlHint')}</p>
+          <p className="text-xs text-muted-foreground">{t('urlHint')}</p>
 
           {!stopped && (
             <p className="flex items-start gap-1.5 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -838,6 +836,7 @@ export function PluginsPanel({ server, active }: { server: Server; active: boole
       <PluginCatalogDialog
         open={catalogOpen}
         onOpenChange={setCatalogOpen}
+        game={game}
         catalog={catalog}
         index={catalogIndex}
         loading={catalogLoading}

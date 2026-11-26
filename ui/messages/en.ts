@@ -643,6 +643,8 @@ const messages = {
       stopped: 'Stopped'
     },
     summary: '{total} servers, {running} running, {players} players online',
+    gameSummary: '{total, plural, one {# server} other {# servers}}, {running} running, {players, plural, one {# player} other {# players}} online',
+    addGameServer: 'New {game} server',
     refresh: 'Refresh',
     view: 'View',
     views: {
@@ -1146,7 +1148,6 @@ const messages = {
     urlInvalid: 'Enter a download URL starting with http:// or https://',
     fetchFailed: 'Failed to install plugin from URL',
     urlHint: 'Use a direct zip link, e.g. the "Download" button link on an ark-server-api.com plugin page. The manager downloads the archive, so the server itself does not need internet access.',
-    urlHintAsa: 'Use a direct link to the plugin zip. The manager downloads the archive, so the server itself does not need internet access.',
 
     // Dependencies
     dependsOn: 'Depends on',
@@ -1184,7 +1185,7 @@ const messages = {
     // Plugin catalog (ark-server-api.com plugins, indexed by arkfgf.com)
     browseCatalog: 'Browse plugins',
     catalogTitle: 'Plugin catalog',
-    catalogDesc: 'ASE plugins from ark-server-api.com, the official ArkApi site, indexed by arkfgf.com.',
+    catalogDesc: '{game} plugins ({api}) from ark-server-api.com, the official ArkApi site, indexed by arkfgf.com.',
     catalogUpdatedAt: 'Catalog updated {time}.',
     catalogSearch: 'Search by name, description or author...',
     category_all: 'All',

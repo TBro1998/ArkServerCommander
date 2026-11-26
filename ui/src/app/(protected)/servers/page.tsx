@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Plus, Server as ServerIcon, RefreshCw, LayoutGrid, List } from 'lucide-react';
@@ -23,6 +24,7 @@ import { usePolling } from '@/hooks/use-polling';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+import { GAMES, GAME_NAMES, gameOf, type Game } from '@/lib/games';
 
 // 有服务器在启停时快速刷新，平时也定期刷新，以便发现崩溃、阶段变化和在线人数
 const TRANSITION_POLL_INTERVAL = 3000;
@@ -32,6 +34,11 @@ type Filter = 'all' | 'active' | 'stopped';
 // 显示方式：卡片信息更全，列表一屏能看到更多服务器
 const VIEWS = ['cards', 'list'] as const;
 type View = (typeof VIEWS)[number];
+// 每个游戏一个分区的强调色：ASA 橙色（和 GameBadge 一致），ASE 青色
+const GAME_ACCENT: Record<Game, string> = {
+  ase: 'bg-primary',
+  asa: 'bg-orange-500',
+};
 const FILTERS: { key: Filter; match: (s: Server) => boolean }[] = [
   { key: 'all', match: () => true },
   // "运行中"包括启动中、停止中，这些服务器都占着资源
@@ -69,6 +76,12 @@ export default function ServersPage() {
   const runningCount = servers.filter((s) => s.status === 'running').length;
   const playerCount = servers.reduce((sum, s) => sum + (s.status === 'running' ? s.runtime?.players ?? 0 : 0), 0);
   const visible = servers.filter(FILTERS.find((f) => f.key === filter)!.match);
+  // ASE 和 ASA 的服务器分区显示：地图、Mod、插件都不通用，混在一起不好找。没有服务器的游戏不显示分区
+  const sections = GAMES.map((game) => ({
+    game,
+    all: servers.filter((s) => gameOf(s) === game),
+    shown: visible.filter((s) => gameOf(s) === game),
+  })).filter((g) => g.all.length > 0);
 
   const addButton = (
     <Button onClick={handleAddServer}>
@@ -160,22 +173,50 @@ export default function ServersPage() {
             </div>
           </div>
 
-          {visible.length === 0 ? (
-            <p className="rounded-lg border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">{tList('filterEmpty')}</p>
-          ) : view === 'list' ? (
-            <div className="space-y-2">
-              <ServerRowHeader />
-              {visible.map((server) => (
-                <ServerRow key={server.id} server={server} publicHost={publicHost} />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-              {visible.map((server) => (
-                <ServerCard key={server.id} server={server} publicHost={publicHost} />
-              ))}
-            </div>
-          )}
+          <div className="space-y-8">
+            {sections.map(({ game, all, shown }) => {
+              const running = all.filter((s) => s.status === 'running').length;
+              const players = all.reduce((sum, s) => sum + (s.status === 'running' ? s.runtime?.players ?? 0 : 0), 0);
+              return (
+                <section key={game} aria-labelledby={`game-${game}`}>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span aria-hidden className={cn('h-7 w-1 flex-shrink-0 rounded-full', GAME_ACCENT[game])} />
+                      <div className="min-w-0">
+                        <h2 id={`game-${game}`} className="font-display flex items-baseline gap-2 text-lg font-semibold">
+                          <span className="hud-caps">{game.toUpperCase()}</span>
+                          <span className="truncate text-sm font-normal text-muted-foreground">{GAME_NAMES[game]}</span>
+                        </h2>
+                        <p className="text-xs text-muted-foreground">{tList('gameSummary', { total: all.length, running, players })}</p>
+                      </div>
+                    </div>
+                    <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+                      <Link href={`/servers/new?game=${game}`}>
+                        <Plus className="h-4 w-4" />
+                        {tList('addGameServer', { game: game.toUpperCase() })}
+                      </Link>
+                    </Button>
+                  </div>
+                  {shown.length === 0 ? (
+                    <p className="rounded-lg border border-dashed px-6 py-6 text-center text-sm text-muted-foreground">{tList('filterEmpty')}</p>
+                  ) : view === 'list' ? (
+                    <div className="space-y-2">
+                      <ServerRowHeader />
+                      {shown.map((server) => (
+                        <ServerRow key={server.id} server={server} publicHost={publicHost} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                      {shown.map((server) => (
+                        <ServerCard key={server.id} server={server} publicHost={publicHost} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
         </>
       )}
     </div>

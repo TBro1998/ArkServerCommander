@@ -11,7 +11,7 @@ Want a feature, or think something should come sooner? Please open an [issue](ht
 - 🤖 MCP endpoint: agents such as Claude Code and Cursor can manage servers directly, with full-control or read-only tokens
 - 🌍 One-click publishing to the [arkfgf.com](https://arkfgf.com) server list, with real online player counts reported automatically
 - 🔗 P2P rooms: players can join through [ArkServerLink](ArkServerLink/) even without a public IP
-- 🧩 ArkApi plugin catalog: install and update plugins from ark-server-api.com in one click, with a tree editor for config.json
+- 🧩 Plugin catalog: install and update ASE (ArkApi) and ASA (AsaApi) plugins from ark-server-api.com in one click, with a tree editor for config.json
 - 🕹️ Choice of game version (official release / preaquatica)
 - ⬆️ One-click update of the commander itself from the settings page
 

@@ -31,6 +31,7 @@ import { mapColor } from '@/lib/maps';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { imageLabelKey } from '@/lib/images';
+import { GAMES, GAME_NAMES, gameOf } from '@/lib/games';
 
 interface DiskUsage {
   server_id: number;
@@ -340,11 +341,27 @@ export default function HomePage() {
               </Button>
             </div>
           ) : (
-            <ul className="divide-y">
-              {servers.map((s) => (
-                <RosterRow key={s.id} server={s} />
-              ))}
-            </ul>
+            // 按游戏分组：ASE 和 ASA 的服务器分开列出，只有一个游戏的服务器时也显示组名
+            <div className="divide-y">
+              {GAMES.map((game) => {
+                const list = servers.filter((s) => gameOf(s) === game);
+                if (list.length === 0) return null;
+                return (
+                  <div key={game}>
+                    <div className="flex items-baseline gap-2 bg-gray-50/60 px-4 py-1.5 text-xs">
+                      <span className="hud-caps font-semibold">{game.toUpperCase()}</span>
+                      <span className="truncate text-muted-foreground">{GAME_NAMES[game]}</span>
+                      <span className="num ml-auto text-muted-foreground">{list.length}</span>
+                    </div>
+                    <ul className="divide-y">
+                      {list.map((s) => (
+                        <RosterRow key={s.id} server={s} />
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </Card>
 

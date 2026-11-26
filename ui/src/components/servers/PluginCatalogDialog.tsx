@@ -16,6 +16,7 @@ import {
   type InstalledPluginRef,
   type PluginCatalog,
 } from '@/lib/plugin-catalog';
+import { pluginApiName, type Game } from '@/lib/games';
 
 type CategoryFilter = 'all' | 'official' | 'free' | 'paid';
 
@@ -26,6 +27,7 @@ const categoryStyle: Record<string, string> = {
 };
 
 interface Props {
+  game: Game;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   catalog: PluginCatalog | null;
@@ -39,8 +41,8 @@ interface Props {
   onInstall: (entry: CatalogPlugin) => void;
 }
 
-// 插件页的"浏览插件"：arkfgf.com 提供的 ark-server-api.com ASE 插件目录，能直接下载的一键安装
-export function PluginCatalogDialog({ open, onOpenChange, catalog, index, loading, error, onRefresh, installed, stopped, installingId, onInstall }: Props) {
+// 插件页的"浏览插件"：arkfgf.com 提供的 ark-server-api.com 插件目录（服务器所属游戏的那一份），能直接下载的一键安装
+export function PluginCatalogDialog({ game, open, onOpenChange, catalog, index, loading, error, onRefresh, installed, stopped, installingId, onInstall }: Props) {
   const t = useTranslations('plugins');
   const locale = useLocale();
   const [query, setQuery] = useState('');
@@ -116,7 +118,7 @@ export function PluginCatalogDialog({ open, onOpenChange, catalog, index, loadin
         <DialogHeader>
           <DialogTitle>{t('catalogTitle')}</DialogTitle>
           <DialogDescription>
-            {t('catalogDesc')}
+            {t('catalogDesc', { game: game.toUpperCase(), api: pluginApiName(game) })}
             {catalog?.generated_at && ` ${t('catalogUpdatedAt', { time: formatDateTime(catalog.generated_at, locale) })}`}
           </DialogDescription>
         </DialogHeader>

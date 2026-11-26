@@ -38,6 +38,7 @@ type arkApiVersionsInput struct {
 }
 
 type pluginCatalogInput struct {
+	Game            string `json:"game,omitempty" jsonschema:"ase (default, ArkApi plugins for ARK: Survival Evolved) or asa (AsaApi plugins for ARK: Survival Ascended). Use the server's game: plugins of one game do not work on the other"`
 	Search          string `json:"search,omitempty" jsonschema:"Only entries whose title, tagline, author or plugin names contain this text (case-insensitive)"`
 	Category        string `json:"category,omitempty" jsonschema:"official, free or paid. Omit for all"`
 	InstallableOnly bool   `json:"installable_only,omitempty" jsonschema:"Only entries that can be installed with install_catalog_plugin"`
@@ -77,9 +78,9 @@ func registerPluginTools(r *registry) {
 		})
 
 	query(r, "list_plugin_catalog", "List plugin catalog",
-		"List ARK: Survival Evolved ArkApi plugins published on ark-server-api.com, as indexed by arkfgf.com (no account binding needed). Entries with download_url can be installed with install_catalog_plugin; paid ones and those that must be downloaded on the site cannot. plugins lists the plugin folder names inside the archive with their version and dependencies; compare with list_plugins to find updates. Fails when the manager has ARKFGF_API disabled.",
+		"List plugins published on ark-server-api.com, as indexed by arkfgf.com (no account binding needed): ArkApi plugins for ARK: Survival Evolved (game=ase, default) or AsaApi plugins for ARK: Survival Ascended (game=asa). Entries with download_url can be installed with install_catalog_plugin; paid ones and those that must be downloaded on the site cannot. plugins lists the plugin folder names inside the archive with their version and dependencies; compare with list_plugins to find updates. Fails when the manager has ARKFGF_API disabled.",
 		func(_ context.Context, _ uint, in pluginCatalogInput) (any, error) {
-			catalog, err := service.GetPluginCatalog(in.Refresh)
+			catalog, err := service.GetPluginCatalog(in.Game, in.Refresh)
 			if err != nil {
 				return nil, err
 			}
@@ -103,11 +104,11 @@ func registerPluginTools(r *registry) {
 				}
 				entries = append(entries, p)
 			}
-			return map[string]any{"source": catalog.Source, "generated_at": catalog.GeneratedAt, "plugins": entries}, nil
+			return map[string]any{"game": catalog.Game, "source": catalog.Source, "generated_at": catalog.GeneratedAt, "plugins": entries}, nil
 		})
 
 	action(r, idempotent, "install_catalog_plugin", "Install plugin from catalog",
-		"Download a catalog entry (from list_plugin_catalog) from ark-server-api.com and install it; if already installed it is updated, keeping its config.json and enabled state. The server must be stopped. Dependencies are not installed automatically: check the entry's plugins[].dependencies.",
+		"Download a catalog entry (from list_plugin_catalog with the server's game) from ark-server-api.com and install it; if already installed it is updated, keeping its config.json and enabled state. The server must be stopped. Dependencies are not installed automatically: check the entry's plugins[].dependencies.",
 		func(_ context.Context, userID uint, in installCatalogPluginInput) (any, error) {
 			names, err := service.InstallCatalogPlugin(userID, sid(in.ServerID), in.ResourceID)
 			if err != nil {
@@ -164,7 +165,7 @@ func registerPluginTools(r *registry) {
 		})
 
 	query(r, "list_arkapi_versions", "List ArkApi / AsaApi versions",
-		"List plugin framework versions available to install. game=ase (default): ArkApi built-in, already downloaded, releases on GitHub, and the version in the arkfgf.com plugin catalog (on_catalog, downloaded from ark-server-api.com on install). game=asa: AsaApi downloaded versions and GitHub releases.",
+		"List plugin framework versions available to install. game=ase (default): ArkApi built-in, already downloaded, releases on GitHub, and the version in the arkfgf.com plugin catalog (on_catalog, downloaded from ark-server-api.com on install). game=asa: AsaApi downloaded versions, GitHub releases and the version in the arkfgf.com ASA plugin catalog (on_catalog).",
 		func(_ context.Context, _ uint, in arkApiVersionsInput) (any, error) {
 			return service.ListArkApiVersions(in.Game, in.Refresh)
 		})

@@ -271,17 +271,18 @@ func saveConfig(c *gin.Context, name string) {
 }
 
 // GetPluginCatalog 插件目录
-// @Summary ArkApi 插件目录
-// @Description arkfgf.com 整理的 ark-server-api.com 上的 ASE 插件（官方、免费、付费），带 download_url 的可以一键安装。缓存 1 小时，refresh=true 时重新获取。ARKFGF_API 关闭时返回 409 arkfgf_disabled
+// @Summary 插件目录
+// @Description arkfgf.com 整理的 ark-server-api.com 上的插件（官方、免费、付费）：game=ase（默认）是 ASE 的 ArkApi 插件，game=asa 是 ASA 的 AsaApi 插件，带 download_url 的可以一键安装。arkapi 是这个游戏的框架本体。缓存 1 小时，refresh=true 时重新获取。ARKFGF_API 关闭时返回 409 arkfgf_disabled
 // @Tags 插件管理
 // @Produce json
 // @Security Bearer
+// @Param game query string false "ase（默认）或 asa"
 // @Param refresh query bool false "重新获取"
 // @Success 200 {object} map[string]server.PluginCatalog "插件目录"
 // @Failure 502 {object} map[string]string "暂时无法获取插件目录"
 // @Router /plugins/catalog [get]
 func GetPluginCatalog(c *gin.Context) {
-	catalog, err := serverService.GetPluginCatalog(c.Query("refresh") == "true")
+	catalog, err := serverService.GetPluginCatalog(c.Query("game"), c.Query("refresh") == "true")
 	if err != nil {
 		respondServiceError(c, err)
 		return

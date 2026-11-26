@@ -11,7 +11,7 @@
 - 🤖 MCP 接口：Claude Code、Cursor 等 Agent 可以直接管理服务器，令牌分完全控制和只读
 - 🌍 一键发布到 [arkfgf.com](https://arkfgf.com) 收录站，自动上报真实在线人数
 - 🔗 P2P 联机房：没有公网 IP 也能让玩家通过 [ArkServerLink](ArkServerLink/) 进服
-- 🧩 ArkApi 插件目录：从 ark-server-api.com 一键安装和更新插件，config.json 树形编辑
+- 🧩 插件目录：从 ark-server-api.com 一键安装和更新 ASE（ArkApi）和 ASA（AsaApi）插件，config.json 树形编辑
 - 🕹️ 可以选择游戏版本（蜗牛海洋正式版 / 通配符原版）
 - ⬆️ 设置页一键更新管理端
 

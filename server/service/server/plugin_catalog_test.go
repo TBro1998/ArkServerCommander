@@ -18,6 +18,7 @@ import (
 	"ark-server-commander/database"
 	"ark-server-commander/models"
 	"ark-server-commander/service/docker_manager"
+	"ark-server-commander/utils"
 )
 
 // fakeCatalogSite 同时扮演 arkfgf.com（目录接口）和 ark-server-api.com（下载地址）
@@ -26,7 +27,9 @@ type fakeCatalogSite struct {
 	requests int
 	fail     bool
 	version  string
-	ts       *httptest.Server
+	// oldSite 模拟还不认识 game 参数的网站：总是返回 ASE 的目录，也没有 game 字段
+	oldSite bool
+	ts      *httptest.Server
 }
 
 func newFakeCatalogSite(t *testing.T) *fakeCatalogSite {
@@ -34,6 +37,8 @@ func newFakeCatalogSite(t *testing.T) *fakeCatalogSite {
 	f := &fakeCatalogSite{version: "3.05"}
 	shop := zipBytes(t, map[string]string{"ArkShop/ArkShop.dll": "dll", "ArkShop/config.json": `{"default":true}`})
 	api := zipBytes(t, map[string]string{"ArkApi/version.dll": "x", "ArkApi/config.json": "{}"})
+	asaShop := zipBytes(t, map[string]string{"ArkShop/ArkShop.dll": "asa dll", "ArkShop/config.json": `{"asa":true}`})
+	asaAPI := zipBytes(t, map[string]string{"AsaApiLoader.exe": "x", "ArkApi/AsaApi.dll": "x", "config.json": "{}"})
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/plugins/catalog", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
@@ -45,7 +50,25 @@ func newFakeCatalogSite(t *testing.T) *fakeCatalogSite {
 			return
 		}
 		base := f.ts.URL
+		if r.URL.Query().Get("game") == "asa" && !f.oldSite {
+			json.NewEncoder(w).Encode(PluginCatalog{
+				Game:        "asa",
+				Source:      "ark-server-api.com",
+				GeneratedAt: time.Now().UTC(),
+				Plugins: []CatalogPlugin{
+					{ID: 34, Title: "ASA Arkshop", Category: "official", Version: "1.81", PageURL: base + "/resources/asa-arkshop.34/",
+						DownloadURL: base + "/resources/asa-arkshop.34/download", Plugins: []CatalogPluginInfo{{Name: "ArkShop"}}},
+				},
+				ArkApi: &CatalogArkApi{Version: "2.99", DownloadURL: base + "/resources/asa-server-api.31/download", PageURL: base + "/resources/asa-server-api.31/"},
+			})
+			return
+		}
+		game := "ase"
+		if f.oldSite {
+			game = ""
+		}
 		json.NewEncoder(w).Encode(PluginCatalog{
+			Game:        game,
 			Source:      "ark-server-api.com",
 			GeneratedAt: time.Now().UTC(),
 			Plugins: []CatalogPlugin{
@@ -59,18 +82,24 @@ func newFakeCatalogSite(t *testing.T) *fakeCatalogSite {
 	})
 	mux.HandleFunc("/resources/ase-arkshop.36/download", func(w http.ResponseWriter, r *http.Request) { w.Write(shop) })
 	mux.HandleFunc("/resources/ase-server-api.32/download", func(w http.ResponseWriter, r *http.Request) { w.Write(api) })
+	mux.HandleFunc("/resources/asa-arkshop.34/download", func(w http.ResponseWriter, r *http.Request) { w.Write(asaShop) })
+	mux.HandleFunc("/resources/asa-server-api.31/download", func(w http.ResponseWriter, r *http.Request) { w.Write(asaAPI) })
 	f.ts = httptest.NewServer(mux)
 	t.Cleanup(f.ts.Close)
 
-	oldAPI, oldAllow := pluginCatalog.api, allowCatalogDownload
-	pluginCatalog.api = func() string { return f.ts.URL + "/api/v1" }
+	oldAllow := allowCatalogDownload
 	host := strings.TrimPrefix(f.ts.URL, "http://")
 	allowCatalogDownload = func(u *url.URL) bool { return u.Host == host }
-	pluginCatalog.forget()
-	t.Cleanup(func() {
-		pluginCatalog.api, allowCatalogDownload = oldAPI, oldAllow
-		pluginCatalog.forget()
-	})
+	t.Cleanup(func() { allowCatalogDownload = oldAllow })
+	for _, c := range []*pluginCatalogCache{asePluginCatalog, asaPluginCatalog} {
+		oldAPI := c.api
+		c.api = func() string { return f.ts.URL + "/api/v1" }
+		c.forget()
+		t.Cleanup(func() {
+			c.api = oldAPI
+			c.forget()
+		})
+	}
 	return f
 }
 
@@ -78,19 +107,19 @@ func TestPluginCatalogCache(t *testing.T) {
 	f := newFakeCatalogSite(t)
 	s := NewServerService()
 
-	c, err := s.GetPluginCatalog(false)
+	c, err := s.GetPluginCatalog("", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Plugins) != 3 || c.Source != "ark-server-api.com" {
+	if len(c.Plugins) != 3 || c.Source != "ark-server-api.com" || c.Game != "ase" {
 		t.Fatalf("unexpected catalog %+v", c)
 	}
 	// 缓存内不再请求，refresh 时重新获取
-	s.GetPluginCatalog(false)
+	s.GetPluginCatalog("", false)
 	if f.requests != 1 {
 		t.Fatalf("expected 1 request, got %d", f.requests)
 	}
-	s.GetPluginCatalog(true)
+	s.GetPluginCatalog("", true)
 	if f.requests != 2 {
 		t.Fatalf("expected refresh to fetch again, got %d", f.requests)
 	}
@@ -98,17 +127,20 @@ func TestPluginCatalogCache(t *testing.T) {
 	f.mu.Lock()
 	f.fail = true
 	f.mu.Unlock()
-	if c, err := s.GetPluginCatalog(true); err != nil || len(c.Plugins) != 3 {
+	if c, err := s.GetPluginCatalog("", true); err != nil || len(c.Plugins) != 3 {
 		t.Fatalf("expected stale catalog, got %v %v", c, err)
 	}
 	// 没有旧数据时报错
-	pluginCatalog.forget()
-	if _, err := s.GetPluginCatalog(false); !errors.Is(err, ErrPluginCatalogUnavailable) {
+	asePluginCatalog.forget()
+	if _, err := s.GetPluginCatalog("", false); !errors.Is(err, ErrPluginCatalogUnavailable) {
 		t.Fatalf("expected ErrPluginCatalogUnavailable, got %v", err)
 	}
+	if _, err := s.GetPluginCatalog("atlas", false); !errors.Is(err, ErrInvalidGame) {
+		t.Fatalf("expected ErrInvalidGame, got %v", err)
+	}
 	// ARKFGF_API 关闭
-	pluginCatalog.api = func() string { return "" }
-	if _, err := s.GetPluginCatalog(false); !errors.Is(err, ErrArkfgfDisabled) {
+	asePluginCatalog.api = func() string { return "" }
+	if _, err := s.GetPluginCatalog("", false); !errors.Is(err, ErrArkfgfDisabled) {
 		t.Fatalf("expected ErrArkfgfDisabled, got %v", err)
 	}
 }
@@ -166,7 +198,7 @@ func TestInstallCatalogPlugin(t *testing.T) {
 	f.mu.Lock()
 	f.version = "3.06"
 	f.mu.Unlock()
-	if _, err := s.GetPluginCatalog(true); err != nil {
+	if _, err := s.GetPluginCatalog("", true); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.InstallCatalogPlugin(1, id, 36); err != nil {
@@ -237,6 +269,115 @@ func TestArkApiFromCatalog(t *testing.T) {
 	}
 	// 下载后进了版本库
 	if _, err := os.Stat(aseApi.libraryPath("9.99")); err != nil {
+		t.Fatalf("catalog version not saved to library: %v", err)
+	}
+}
+
+// ASA 的目录单独请求（?game=asa）、单独缓存；不认识 game 参数的旧网站返回的 ASE 目录不能用
+func TestAsaPluginCatalog(t *testing.T) {
+	f := newFakeCatalogSite(t)
+	s := NewServerService()
+
+	c, err := s.GetPluginCatalog("asa", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Game != "asa" || len(c.Plugins) != 1 || c.Plugins[0].ID != 34 {
+		t.Fatalf("unexpected asa catalog %+v", c)
+	}
+	ase, err := s.GetPluginCatalog("ase", false)
+	if err != nil || ase.Game != "ase" || len(ase.Plugins) != 3 {
+		t.Fatalf("unexpected ase catalog %+v %v", ase, err)
+	}
+	if f.requests != 2 {
+		t.Fatalf("expected one request per game, got %d", f.requests)
+	}
+
+	asaPluginCatalog.forget()
+	f.mu.Lock()
+	f.oldSite = true
+	f.mu.Unlock()
+	if _, err := s.GetPluginCatalog("asa", false); !errors.Is(err, ErrPluginCatalogUnavailable) {
+		t.Fatalf("old site: expected ErrPluginCatalogUnavailable, got %v", err)
+	}
+	// ASE 不受影响（旧网站没有 game 字段）
+	if c, err := s.GetPluginCatalog("", true); err != nil || len(c.Plugins) != 3 || c.Game != "ase" {
+		t.Fatalf("old site ase catalog: %+v %v", c, err)
+	}
+}
+
+// ASA 服务器从 ASA 目录安装；ASE 目录里的资源 ID 在 ASA 服务器上找不到
+func TestInstallAsaCatalogPlugin(t *testing.T) {
+	setupTestDB(t)
+	old := config.DataDir
+	config.DataDir = t.TempDir()
+	t.Cleanup(func() { config.DataDir = old })
+	newFakeCatalogSite(t)
+
+	srv := createTestServer(t, 7777, 27015, 32330)
+	database.DB.Model(&models.Server{}).Where("id = ?", srv.ID).Updates(map[string]any{"game": utils.GameASA, "query_port": 0})
+	id := fmt.Sprint(srv.ID)
+	s := NewServerService()
+
+	if _, err := s.InstallCatalogPlugin(1, id, 36); !errors.Is(err, ErrCatalogPluginNotFound) {
+		t.Fatalf("ase resource on asa server: expected ErrCatalogPluginNotFound, got %v", err)
+	}
+	names, err := s.InstallCatalogPlugin(1, id, 34)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(names) != "[ArkShop]" {
+		t.Fatalf("unexpected names %v", names)
+	}
+	overview, _ := s.ListPlugins(1, id)
+	if len(overview.Plugins) != 1 || overview.Plugins[0].Source == nil || overview.Plugins[0].Source.ResourceID != 34 ||
+		overview.Plugins[0].Source.Version != "1.81" {
+		t.Fatalf("unexpected plugins %+v", overview.Plugins)
+	}
+}
+
+// ASA 目录里的 AsaApi 本体出现在 AsaApi 版本库里，安装时下载；ArkApi 版本库里没有它
+func TestAsaApiFromCatalog(t *testing.T) {
+	setupTestDB(t)
+	old := config.DataDir
+	config.DataDir = t.TempDir()
+	t.Cleanup(func() { config.DataDir = old })
+	newFakeCatalogSite(t)
+	// 不查询 GitHub
+	for _, a := range []*apiFlavor{aseApi, asaApi} {
+		a.releases.Lock()
+		oldList, oldErr, oldChecked := a.releases.list, a.releases.err, a.releases.checked
+		a.releases.list, a.releases.err, a.releases.checked = nil, "", time.Now()
+		a.releases.Unlock()
+		t.Cleanup(func() {
+			a.releases.Lock()
+			a.releases.list, a.releases.err, a.releases.checked = oldList, oldErr, oldChecked
+			a.releases.Unlock()
+		})
+	}
+
+	s := NewServerService()
+	versions, _ := s.ListArkApiVersions(utils.GameASA, false)
+	if versions.Latest != "2.99" || len(versions.Versions) != 1 || !versions.Versions[0].OnCatalog {
+		t.Fatalf("expected asa catalog version, got %+v", versions)
+	}
+	aseVersions, _ := s.ListArkApiVersions(utils.GameASE, false)
+	for _, v := range aseVersions.Versions {
+		if v.Version == "2.99" {
+			t.Fatal("AsaApi listed in ArkApi library")
+		}
+	}
+
+	srv := createTestServer(t, 7777, 27015, 32330)
+	database.DB.Model(&models.Server{}).Where("id = ?", srv.ID).Updates(map[string]any{"game": utils.GameASA, "query_port": 0})
+	got, err := s.InstallArkApi(1, fmt.Sprint(srv.ID), "2.99")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "2.99" {
+		t.Fatalf("unexpected version %q", got)
+	}
+	if _, err := os.Stat(asaApi.libraryPath("2.99")); err != nil {
 		t.Fatalf("catalog version not saved to library: %v", err)
 	}
 }

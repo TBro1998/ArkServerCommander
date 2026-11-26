@@ -62,7 +62,7 @@ type apiFlavor struct {
 	// nameVersion 从文件名或目录名里取版本号，例如 ArkApi_3.56.zip、ArkApi v3.54、AsaApi_2.11.zip
 	nameVersion *regexp.Regexp
 	builtin     bool // 有随管理端发布的内置版本（assets）
-	catalog     bool // arkfgf.com 插件目录里有这个框架的本体
+	catalog     bool // arkfgf.com 插件目录（这个游戏的那一份）里有这个框架的本体
 
 	releases struct {
 		sync.Mutex
@@ -79,7 +79,7 @@ var (
 	}
 	asaApi = &apiFlavor{
 		game: utils.GameASA, name: "AsaApi", repo: "ArkServerApi/AsaApi", libDir: "asaapi", marker: "AsaApiLoader.exe",
-		nameVersion: regexp.MustCompile(`(?i)asaapi[ _-]*v?([0-9]+(?:\.[0-9]+)+)`),
+		nameVersion: regexp.MustCompile(`(?i)asaapi[ _-]*v?([0-9]+(?:\.[0-9]+)+)`), catalog: true,
 	}
 )
 
@@ -314,14 +314,16 @@ func (a *apiFlavor) list(refresh bool) ArkApiVersions {
 		v.ReleaseURL = r.url
 		versions[r.version] = v
 	}
-	// arkfgf.com 插件目录里的 ArkApi 本体（GitHub 只到 3.54，更新的版本发布在 ark-server-api.com）
+	// arkfgf.com 插件目录里的框架本体（ArkApi 在 GitHub 上只到 3.54，更新的版本发布在 ark-server-api.com；
+	// AsaApi 两边都有）
 	if a.catalog {
+		catalog := pluginCatalogFor(a.game)
 		if refresh {
-			_, _ = pluginCatalog.get(true)
-		} else if pluginCatalog.peek() == nil && pluginCatalog.api() != "" {
-			_, _ = pluginCatalog.get(false)
+			_, _ = catalog.get(true)
+		} else if catalog.peek() == nil && catalog.api() != "" {
+			_, _ = catalog.get(false)
 		}
-		if c := catalogArkApi(); c != nil {
+		if c := catalogArkApi(a.game); c != nil {
 			v := versions[c.Version]
 			v.Version = c.Version
 			v.OnCatalog = true
@@ -369,7 +371,7 @@ func (a *apiFlavor) openZip(version string) ([]byte, error) {
 		}
 	}
 	if a.catalog {
-		if c := catalogArkApi(); c != nil && c.Version == version {
+		if c := catalogArkApi(a.game); c != nil && c.Version == version {
 			return a.download(arkApiRelease{version: c.Version, url: c.PageURL, download: c.DownloadURL})
 		}
 	}
