@@ -22,6 +22,8 @@ import (
 var managedImages = []string{
 	utils.ArkServerLinuxImage,
 	utils.ArkServerProtonImage,
+	utils.AsaServerWineImage,
+	utils.AsaServerProtonImage,
 	utils.EasyTierImage,
 }
 

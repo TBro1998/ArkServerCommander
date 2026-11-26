@@ -31,6 +31,12 @@ func TestImageForGame(t *testing.T) {
 			t.Errorf("image %s: game %q arkapi %v", image, utils.ImageGame(image), utils.ImageUsesArkApi(image))
 		}
 	}
+	// 服务器用到的每个镜像都要能在首页镜像管理里拉取和更新
+	for _, image := range utils.ArkServerImages {
+		if !slices.Contains(managedImages, image) {
+			t.Errorf("managedImages 缺少 %s", image)
+		}
+	}
 	if utils.ArkAppUpdateFor(utils.GameASA, "") != utils.AsaServerAppID {
 		t.Errorf("ASA APP_UPDATE = %q", utils.ArkAppUpdateFor(utils.GameASA, ""))
 	}
