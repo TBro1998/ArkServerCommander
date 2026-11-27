@@ -277,10 +277,11 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 - 设置：`models.PortalSettings`（表 `portal_settings`，只有 ID 为 1 的一行）：开关、端口（1024–65535，开启时不能和服务器的端口、联机房节点的 RPC 端口冲突；开着时 `checkPorts` 也不让新服务器占用它）、访问地址（服主自己的域名或反向代理，为空时 `http://<PublicHost>:<端口>`）、站点资料（名称、简介、QQ 群、Discord、最多 10 个链接，只接受 http(s)）、隐藏的服务器。公告 `models.PortalAnnouncement`（最多 200 条，标题 100 字、内容 10000 字，纯文本）
 - `PortalManager`（`portal.go`）每 15 秒（设置、公告变化时马上）：没开启时删除容器和 `portal/`；开启时写快照、确保容器在运行（镜像还在下载时状态 `starting`）。快照：`portal.json`（站点资料、公告、没隐藏的服务器：状态取运行监控，`online` / `starting` / `offline`；集群只给编号 `cluster_group`，ClusterID 不写；发布到收录站的服务器带 `address` 和 ASE 的查询端口；在联机房里的带房间号；下次定时重启 / 更新 / 停服的时间；游戏版本停服后沿用上次的值）和 `shops/<服务器 ID>.json`。内容（不含 `updated_at`）没变时不重写，否则玩家站会给所有打开的页面推送一次更新；先写临时文件再改名
 - 商店（`portal_shop.go`）：只看启用了 ArkApi 的服务器、启用的插件目录里的 `ArkShop/config.json`（目录名不区分大小写，`os.Root`），只读取给玩家看的字段：`Mysql` 和 `General` 整段不读，`command` 类商品和礼包里的命令只取 `DisplayAs`（命令本身可能以管理员身份执行），没有 `DisplayAs` 的不显示；`Messages` 里的命令名（服主可能改成别的）没有或含空白时用默认值；`ShopItems`、`Kits`、`SellItems` 按原文的键顺序；文本去掉控制字符并截断，每类最多 2000 项
-- 联机房：开启了玩家站时联机房节点 `--tcp-whitelist` 放行玩家站的端口（`portalLinkTCPPort`，开关玩家站会重建节点），加入房间的玩家经联机助手访问
+- 联机助手怎么找到玩家站：发布到收录站时带 `portal_url`（开启了玩家站、这台服务器没有隐藏时是访问地址，否则为空，`portalURLFor`），收录站的服务器详情页有「用联机助手打开」（`arkfgf-link://portal?url=…`）；登记联机房时带 `portal_port`（`portalPortForLink`，没开启为 0），网站在加入响应里返回，联机助手把本机一个 TCP 端口转发过来。改玩家站设置时已发布的服务器重新发布一次（`portalChanged`），联机房的资料摘要里有端口，下一轮自动重新登记。商品等内容由联机助手直接向玩家站请求，不经过网站
+- 联机房：开启了玩家站时联机房节点 `--tcp-whitelist` 放行玩家站的端口（`portalLinkTCPPort`，开关玩家站会重建节点）
 - 状态只在内存里（`disabled` / `starting` / `running` / `error`），`GET /api/portal` 返回，还有每台服务器是否显示、有没有商店（读取 ArkShop 配置失败时带原因）
 - 前端：顶部导航「玩家站」（`app/(protected)/portal`）：开关和访问地址、站点资料、端口和访问地址、显示哪些服务器、公告的发布 / 编辑 / 置顶 / 删除
-- 联机助手怎么发现玩家站、怎么显示还没有做
+- MCP：`get_portal`、`list_announcements`（只读），`update_portal`（整体替换）、`create_announcement`、`update_announcement`、`delete_announcement`（`mcpserver/tools_portal.go`）
 
 ### 公网可达性检测
 

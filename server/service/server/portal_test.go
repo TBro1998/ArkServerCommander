@@ -352,6 +352,27 @@ func TestPortalSettingsValidation(t *testing.T) {
 	if got := portalLinkTCPPort(); got != "8090" {
 		t.Errorf("联机房节点应当放行玩家站端口：%s", got)
 	}
+	// 登记联机房带端口；发布到收录站带地址，隐藏的服务器不带
+	if p := buildLinkRoomProfile(models.LinkRoom{}, nil, nil); p.PortalPort != 8090 {
+		t.Errorf("登记联机房应当带玩家站端口：%d", p.PortalPort)
+	}
+	var srv models.Server
+	database.DB.First(&srv, 1)
+	if got := buildPublishProfile(srv).PortalURL; got != "" {
+		t.Errorf("隐藏的服务器不应当带玩家站地址：%q", got)
+	}
+	if _, err := s.UpdatePortal(models.PortalSettingsRequest{Enabled: true, Port: 8090, PublicURL: "https://ark.example.com"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := buildPublishProfile(srv).PortalURL; got != "https://ark.example.com" {
+		t.Errorf("发布应当带玩家站地址：%q", got)
+	}
+	if _, err := s.UpdatePortal(models.PortalSettingsRequest{Port: 8090}); err != nil {
+		t.Fatal(err)
+	}
+	if buildPublishProfile(srv).PortalURL != "" || portalPortForLink() != 0 || portalLinkTCPPort() != "0" {
+		t.Error("关闭玩家站后不应当带地址和端口")
+	}
 }
 
 func TestAnnouncements(t *testing.T) {

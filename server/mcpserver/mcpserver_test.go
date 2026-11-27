@@ -26,7 +26,7 @@ func setupTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}, &models.LinkRoom{}, &models.ArkfgfAccount{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}, &models.LinkRoom{}, &models.ArkfgfAccount{}, &models.PortalSettings{}, &models.PortalAnnouncement{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Create(&models.User{Username: "admin", Password: "x"}).Error; err != nil {
@@ -130,17 +130,17 @@ func TestMCPReadOnlyTokenOnlySeesQueryTools(t *testing.T) {
 	roSession := connect(t, srv.URL, ro.Token)
 	roTools := toolNames(t, roSession)
 
-	for _, name := range []string{"list_servers", "start_server", "delete_server", "get_admin_password", "set_config_values", "rcon_command"} {
+	for _, name := range []string{"list_servers", "start_server", "delete_server", "get_admin_password", "set_config_values", "rcon_command", "update_portal", "create_announcement"} {
 		if !slices.Contains(fullTools, name) {
 			t.Errorf("完整权限令牌缺少工具 %s", name)
 		}
 	}
-	for _, name := range []string{"list_servers", "get_server", "get_logs", "list_backups", "suggest_ports", "get_arkfgf_account"} {
+	for _, name := range []string{"list_servers", "get_server", "get_logs", "list_backups", "suggest_ports", "get_arkfgf_account", "get_portal", "list_announcements"} {
 		if !slices.Contains(roTools, name) {
 			t.Errorf("只读令牌缺少查询工具 %s", name)
 		}
 	}
-	for _, name := range []string{"start_server", "delete_server", "get_admin_password", "rcon_command", "update_image"} {
+	for _, name := range []string{"start_server", "delete_server", "get_admin_password", "rcon_command", "update_image", "update_portal", "create_announcement", "delete_announcement"} {
 		if slices.Contains(roTools, name) {
 			t.Errorf("只读令牌不应看到 %s", name)
 		}
@@ -208,5 +208,53 @@ func TestMCPToolCalls(t *testing.T) {
 	res, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "list_schedules", Arguments: map[string]any{}})
 	if err == nil && (res == nil || !res.IsError) {
 		t.Fatal("缺少 server_id 应该失败")
+	}
+}
+
+func TestMCPPortalTools(t *testing.T) {
+	setupTestDB(t)
+	srv := httptest.NewServer(Handler())
+	defer srv.Close()
+	full, err := apitoken.Create(1, "full", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := connect(t, srv.URL, full.Token)
+	ctx := context.Background()
+	call := func(name string, args map[string]any) string {
+		t.Helper()
+		res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.IsError {
+			t.Fatalf("%s 失败: %s", name, resultText(res))
+		}
+		return resultText(res)
+	}
+
+	var a struct {
+		ID     uint   `json:"id"`
+		Title  string `json:"title"`
+		Pinned bool   `json:"pinned"`
+	}
+	if err := json.Unmarshal([]byte(call("create_announcement", map[string]any{"title": "维护", "body": "周三", "pinned": true})), &a); err != nil || a.ID == 0 || !a.Pinned {
+		t.Fatalf("create_announcement: %+v %v", a, err)
+	}
+	call("update_announcement", map[string]any{"id": a.ID, "title": "停服维护"})
+	if out := call("list_announcements", map[string]any{}); !strings.Contains(out, "停服维护") || strings.Contains(out, `"pinned":true`) {
+		t.Fatalf("list_announcements: %s", out)
+	}
+	call("delete_announcement", map[string]any{"id": a.ID})
+
+	if out := call("update_portal", map[string]any{"enabled": false, "port": 8095, "name": "示例"}); !strings.Contains(out, `"port":8095`) {
+		t.Fatalf("update_portal: %s", out)
+	}
+	if out := call("get_portal", map[string]any{}); !strings.Contains(out, `"name":"示例"`) {
+		t.Fatalf("get_portal: %s", out)
+	}
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "create_announcement", Arguments: map[string]any{"title": ""}})
+	if err != nil || !res.IsError || !strings.Contains(resultText(res), "[invalid_announcement]") {
+		t.Fatalf("空标题应返回 invalid_announcement: %v %s", err, resultText(res))
 	}
 }

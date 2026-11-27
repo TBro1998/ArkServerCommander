@@ -572,6 +572,7 @@ func (s *ServerService) UpdatePortal(req models.PortalSettingsRequest) (*models.
 		return nil, fmt.Errorf("保存玩家站设置失败: %w", err)
 	}
 	portalManager.wake()
+	portalChanged()
 	return s.GetPortal()
 }
 
@@ -775,9 +776,46 @@ func (dockerPortalOps) Remove() error {
 // portalLinkTCPPort 联机房节点放行的 TCP 端口：开启了玩家站时是玩家站的端口（加入房间的玩家经联机助手访问玩家站），
 // 否则为 0（拒绝所有 TCP 入站）
 func portalLinkTCPPort() string {
-	var settings models.PortalSettings
-	if err := database.DB.Limit(1).Find(&settings, 1).Error; err != nil || !settings.Enabled {
-		return "0"
+	return strconv.Itoa(portalPortForLink())
+}
+
+// portalURLFor 发布到收录站时带上的玩家站地址：开启了玩家站、这台服务器没有隐藏、知道访问地址时才有
+func portalURLFor(serverID uint) string {
+	settings, ok := enabledPortalSettings()
+	if !ok || portalHidden(settings)[serverID] {
+		return ""
 	}
-	return strconv.Itoa(settings.Port)
+	return portalURL(settings)
+}
+
+// enabledPortalSettings 开启了玩家站时返回设置（没有数据库时当作没开启，部分测试不建库）
+func enabledPortalSettings() (models.PortalSettings, bool) {
+	var settings models.PortalSettings
+	if database.DB == nil {
+		return settings, false
+	}
+	if err := database.DB.Limit(1).Find(&settings, 1).Error; err != nil || !settings.Enabled {
+		return settings, false
+	}
+	return settings, true
+}
+
+// portalPortForLink 登记联机房时带上的玩家站端口，没有开启时为 0
+func portalPortForLink() int {
+	if settings, ok := enabledPortalSettings(); ok {
+		return settings.Port
+	}
+	return 0
+}
+
+// portalChanged 玩家站的开关、端口、访问地址、隐藏的服务器可能变了：已经发布的服务器重新发布一次，带上新的地址
+// （联机房的资料摘要里有端口，下一轮自动重新登记）
+func portalChanged() {
+	var ids []uint
+	if err := database.DB.Model(&models.Server{}).Where("publish = ? AND published = ?", true, true).Pluck("id", &ids).Error; err != nil {
+		return
+	}
+	for _, id := range ids {
+		publisher.listingChanged(id)
+	}
 }

@@ -42,4 +42,4 @@ Plus a leftover security item:
 ## Long-term
 
 - [ ] ☸️ Multi-host management: one commander managing servers on several machines
-- [ ] 👥 Player-facing interface: the player portal ([ArkPlayerPortal](ArkPlayerPortal/)) now has announcements, server status and the ArkShop store; next, let ArkServerLink open it directly
+- [x] 👥 Player-facing interface: the player portal ([ArkPlayerPortal](ArkPlayerPortal/)) has announcements, server status and the ArkShop store, and ArkServerLink can open it directly

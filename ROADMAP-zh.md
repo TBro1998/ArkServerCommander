@@ -42,4 +42,4 @@
 ## 远期
 
 - [ ] ☸️ 多主机管理：一个管理端管理多台机器上的服务器
-- [ ] 👥 玩家使用界面：玩家站（[ArkPlayerPortal](ArkPlayerPortal/)）已经有公告、服务器状态和 ArkShop 商店，接下来让联机助手直接查看玩家站
+- [x] 👥 玩家使用界面：玩家站（[ArkPlayerPortal](ArkPlayerPortal/)）有公告、服务器状态和 ArkShop 商店，联机助手可以直接查看

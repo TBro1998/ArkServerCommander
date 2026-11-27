@@ -36,6 +36,7 @@ const instructions = `ARK Server Commander manages ARK: Survival Evolved dedicat
 - Config edits (update_server, set_config_values) made while a server is not stopped are stored as pending (config_pending=true) and written to disk on the next start, because ARK overwrites GameUserSettings.ini when it shuts down. Restart the server to apply them.
 - Players connect at <public_host>:<port>; get_system_info returns public_host.
 - Publishing to the arkfgf.com server list (publish) and the P2P room (link) require this Commander to be bound to an arkfgf.com account; get_arkfgf_account shows whether it is. Binding is only possible in the web UI (Settings), so ask the owner to do it when publish_status or link_status is login_required.
+- The player portal (get_portal, update_portal, *_announcement) is a read-only page for players with announcements, server status and the ArkShop store (players still buy in game with chat commands). Announcements appear on open portal pages within seconds.
 - Errors are returned as "[error_code] message"; messages are in Chinese.`
 
 var service = server.NewServerService()
@@ -99,6 +100,7 @@ func newServer(readOnly bool) *mcp.Server {
 	registerOperationTools(r)
 	registerPluginTools(r)
 	registerSystemTools(r)
+	registerPortalTools(r)
 	return s
 }
 

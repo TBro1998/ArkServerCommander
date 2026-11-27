@@ -259,6 +259,8 @@ type publishProfile struct {
 	Tags        []string `json:"tags"`
 	QQGroup     string   `json:"qq_group"`
 	Discord     string   `json:"discord"`
+	// 玩家站的地址（开启了玩家站、这台服务器没有隐藏时），总是发送，空值表示没有
+	PortalURL string `json:"portal_url"`
 }
 
 // publishRequest 发布请求：发布内容加上服务器在这个 Commander 里的 key，以及旧版的发布令牌
@@ -558,5 +560,6 @@ func buildPublishProfile(server models.Server) publishProfile {
 		Tags:             sp.Listing.Tags,
 		QQGroup:          sp.Listing.QQGroup,
 		Discord:          sp.Listing.Discord,
+		PortalURL:        portalURLFor(server.ID),
 	}
 }

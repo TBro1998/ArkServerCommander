@@ -105,7 +105,9 @@ type linkRoomProfile struct {
 	QQGroup     string              `json:"qq_group"`
 	Discord     string              `json:"discord"`
 	ServerIP    string              `json:"server_ip"`
-	Servers     []linkServerProfile `json:"servers"`
+	// 玩家站的 TCP 端口（开启了玩家站时），加入的玩家经联机助手把本机端口转发过来；0 表示没有
+	PortalPort int                 `json:"portal_port"`
+	Servers    []linkServerProfile `json:"servers"`
 }
 
 // linkServerBeat 心跳里一台服务器的状态
@@ -1166,6 +1168,7 @@ func buildLinkRoomProfile(room models.LinkRoom, servers []models.Server, profile
 		QQGroup:     listing.QQGroup,
 		Discord:     listing.Discord,
 		ServerIP:    linkVirtualIP,
+		PortalPort:  portalPortForLink(),
 		Servers:     profiles,
 	}
 }
