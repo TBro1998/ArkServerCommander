@@ -21,7 +21,8 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrPluginLogNotFound),
 		errors.Is(err, server.ErrCatalogPluginNotFound),
 		errors.Is(err, server.ErrArkApiNotInstalled),
-		errors.Is(err, server.ErrArkApiNotFound):
+		errors.Is(err, server.ErrArkApiNotFound),
+		errors.Is(err, server.ErrAnnouncementNotFound):
 		status = http.StatusNotFound
 	case errors.Is(err, server.ErrInvalidServerID),
 		errors.Is(err, server.ErrServerRunning),
@@ -57,7 +58,10 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrInvalidReturnTo),
 		errors.Is(err, server.ErrLoginExpired),
 		errors.Is(err, server.ErrLoginCancelled),
-		errors.Is(err, server.ErrSteamVerifyFailed):
+		errors.Is(err, server.ErrSteamVerifyFailed),
+		errors.Is(err, server.ErrInvalidPortalSettings),
+		errors.Is(err, server.ErrInvalidAnnouncement),
+		errors.Is(err, server.ErrTooManyAnnouncements):
 		status = http.StatusBadRequest
 	case errors.Is(err, server.ErrPortConflict),
 		errors.Is(err, server.ErrServerBusy),

@@ -1182,6 +1182,280 @@ const docTemplate = `{
                 }
             }
         },
+        "/portal": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "设置、玩家站容器的状态和访问地址、每台服务器是否显示、有没有商店",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "玩家站"
+                ],
+                "summary": "玩家站设置和状态",
+                "responses": {
+                    "200": {
+                        "description": "玩家站",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.PortalInfo"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "开关、端口、访问地址、站点资料、隐藏的服务器，整体替换，马上生效",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "玩家站"
+                ],
+                "summary": "修改玩家站设置",
+                "parameters": [
+                    {
+                        "description": "设置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PortalSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "玩家站",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.PortalInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "设置无效",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "端口冲突",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/portal/announcements": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "从新到旧",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "玩家站"
+                ],
+                "summary": "玩家站公告",
+                "responses": {
+                    "200": {
+                        "description": "公告",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/models.PortalAnnouncement"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "玩家站"
+                ],
+                "summary": "发布公告",
+                "parameters": [
+                    {
+                        "description": "公告",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PortalAnnouncementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "公告",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.PortalAnnouncement"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "公告无效",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/portal/announcements/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "玩家站"
+                ],
+                "summary": "修改公告",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "公告 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "公告",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PortalAnnouncementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "公告",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/models.PortalAnnouncement"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "公告无效",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "公告不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "玩家站"
+                ],
+                "summary": "删除公告",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "公告 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "已删除",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "公告不存在",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/profile": {
             "get": {
                 "security": [
@@ -4633,6 +4907,196 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "models.PortalAnnouncement": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PortalAnnouncementRequest": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PortalInfo": {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "type": "string"
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PortalLink"
+                    }
+                },
+                "servers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PortalServer"
+                    }
+                },
+                "settings": {
+                    "$ref": "#/definitions/models.PortalSettings"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.PortalStatus"
+                }
+            }
+        },
+        "models.PortalLink": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PortalServer": {
+            "type": "object",
+            "properties": {
+                "game": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "shop": {
+                    "description": "这台服务器有 ArkShop（启用了 ArkApi，装了 ArkShop 并且没有停用），玩家站显示它的商店",
+                    "type": "boolean"
+                },
+                "shop_error": {
+                    "description": "读取 ArkShop 的 config.json 失败的原因",
+                    "type": "string"
+                }
+            }
+        },
+        "models.PortalSettings": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "discord": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "站点名称，为空时玩家站显示第一台服务器的名称",
+                    "type": "string"
+                },
+                "port": {
+                    "description": "玩家站在宿主机上的 TCP 端口，映射到容器的 8080",
+                    "type": "integer"
+                },
+                "public_url": {
+                    "description": "玩家访问的地址（服主自己的域名或反向代理），为空时用 http://\u003c公网地址\u003e:\u003c端口\u003e",
+                    "type": "string"
+                },
+                "qq_group": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PortalSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "discord": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "hidden_servers": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PortalLink"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "public_url": {
+                    "type": "string"
+                },
+                "qq_group": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PortalStatus": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "error_code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "玩家访问的地址",
+                    "type": "string"
                 }
             }
         },

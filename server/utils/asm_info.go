@@ -161,3 +161,10 @@ func ArkAppUpdateFor(game, branch string) string {
 	}
 	return appID + " -beta " + branch
 }
+
+// PortalContainerName 玩家站容器名称（每个管理端一个）
+const PortalContainerName = "ark-player-portal"
+
+// PortalImage 玩家站镜像（子模块 ArkPlayerPortal）。固定版本号：快照格式和玩家站一起改，不做新旧版本兼容，
+// 玩家站发了新版就在这里改版本号，随 Commander 一起发布。本地开发时可以把自己构建的镜像打上这个标签
+const PortalImage = "tbro98/ark-player-portal:0.1.0"

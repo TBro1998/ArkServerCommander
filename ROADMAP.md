@@ -24,6 +24,7 @@ These features are implemented but have only been tested against mocks or on loc
 - [ ] Whether preaquatica works with the Linux server and with ArkApi
 - [ ] The full one-click commander update flow on Linux (compose-created containers, registry mirrors, rollback)
 - [ ] Whether the game finishes saving within the 30 seconds `docker stop` allows
+- [ ] The player portal end to end on Linux (image pull, port mapping, ArkShop config from a real server)
 
 Plus a leftover security item:
 
@@ -41,4 +42,4 @@ Plus a leftover security item:
 ## Long-term
 
 - [ ] ☸️ Multi-host management: one commander managing servers on several machines
-- [ ] 👥 Player-facing interface
+- [ ] 👥 Player-facing interface: the player portal ([ArkPlayerPortal](ArkPlayerPortal/)) now has announcements, server status and the ArkShop store; next, let ArkServerLink open it directly

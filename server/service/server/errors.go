@@ -147,6 +147,10 @@ var errorCodes = []struct {
 	{ErrSelfUpdateUnsupported, "self_update_unsupported"},
 	{ErrSelfUpdateRunning, "self_update_running"},
 	{ErrSelfUpdateBusy, "self_update_busy"},
+	{ErrInvalidPortalSettings, "invalid_portal_settings"},
+	{ErrAnnouncementNotFound, "announcement_not_found"},
+	{ErrInvalidAnnouncement, "invalid_announcement"},
+	{ErrTooManyAnnouncements, "too_many_announcements"},
 }
 
 // ErrorCode 返回错误对应的错误码，未知错误返回空字符串

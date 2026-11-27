@@ -82,6 +82,13 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.GET("/link/members", servers.GetLinkMembers)
 			protected.POST("/link/kick", servers.KickLinkMember)
 			protected.DELETE("/link/bans/:steam_id", servers.UnbanLinkMember)
+			// 玩家站（每个管理端一个）：设置、公告
+			protected.GET("/portal", servers.GetPortal)
+			protected.PUT("/portal", servers.UpdatePortal)
+			protected.GET("/portal/announcements", servers.ListAnnouncements)
+			protected.POST("/portal/announcements", servers.CreateAnnouncement)
+			protected.PUT("/portal/announcements/:id", servers.UpdateAnnouncement)
+			protected.DELETE("/portal/announcements/:id", servers.DeleteAnnouncement)
 
 			// 服务器管理路由
 			serverRoutes := protected.Group("/servers")

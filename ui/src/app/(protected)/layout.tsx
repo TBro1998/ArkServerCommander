@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { href: '/home', key: 'home', match: (p: string) => p === '/home' },
   { href: '/servers', key: 'servers', match: (p: string) => p.startsWith('/servers') },
+  { href: '/portal', key: 'portal', match: (p: string) => p.startsWith('/portal') },
   { href: '/settings', key: 'settings', match: (p: string) => p.startsWith('/settings') },
 ] as const;
 

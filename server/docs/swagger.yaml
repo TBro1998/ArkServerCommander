@@ -337,6 +337,132 @@ definitions:
           type: string
         type: array
     type: object
+  models.PortalAnnouncement:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      pinned:
+        type: boolean
+      published_at:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.PortalAnnouncementRequest:
+    properties:
+      body:
+        type: string
+      pinned:
+        type: boolean
+      title:
+        type: string
+    type: object
+  models.PortalInfo:
+    properties:
+      image:
+        type: string
+      links:
+        items:
+          $ref: '#/definitions/models.PortalLink'
+        type: array
+      servers:
+        items:
+          $ref: '#/definitions/models.PortalServer'
+        type: array
+      settings:
+        $ref: '#/definitions/models.PortalSettings'
+      status:
+        $ref: '#/definitions/models.PortalStatus'
+    type: object
+  models.PortalLink:
+    properties:
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  models.PortalServer:
+    properties:
+      game:
+        type: string
+      hidden:
+        type: boolean
+      id:
+        type: integer
+      name:
+        type: string
+      shop:
+        description: 这台服务器有 ArkShop（启用了 ArkApi，装了 ArkShop 并且没有停用），玩家站显示它的商店
+        type: boolean
+      shop_error:
+        description: 读取 ArkShop 的 config.json 失败的原因
+        type: string
+    type: object
+  models.PortalSettings:
+    properties:
+      description:
+        type: string
+      discord:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        description: 站点名称，为空时玩家站显示第一台服务器的名称
+        type: string
+      port:
+        description: 玩家站在宿主机上的 TCP 端口，映射到容器的 8080
+        type: integer
+      public_url:
+        description: 玩家访问的地址（服主自己的域名或反向代理），为空时用 http://<公网地址>:<端口>
+        type: string
+      qq_group:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.PortalSettingsRequest:
+    properties:
+      description:
+        type: string
+      discord:
+        type: string
+      enabled:
+        type: boolean
+      hidden_servers:
+        items:
+          type: integer
+        type: array
+      links:
+        items:
+          $ref: '#/definitions/models.PortalLink'
+        type: array
+      name:
+        type: string
+      port:
+        type: integer
+      public_url:
+        type: string
+      qq_group:
+        type: string
+    type: object
+  models.PortalStatus:
+    properties:
+      error:
+        type: string
+      error_code:
+        type: string
+      state:
+        type: string
+      url:
+        description: 玩家访问的地址
+        type: string
+    type: object
   models.PublishStatDay:
     properties:
       connects:
@@ -2106,6 +2232,178 @@ paths:
       summary: 插件目录
       tags:
       - 插件管理
+  /portal:
+    get:
+      description: 设置、玩家站容器的状态和访问地址、每台服务器是否显示、有没有商店
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 玩家站
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.PortalInfo'
+            type: object
+      security:
+      - Bearer: []
+      summary: 玩家站设置和状态
+      tags:
+      - 玩家站
+    put:
+      consumes:
+      - application/json
+      description: 开关、端口、访问地址、站点资料、隐藏的服务器，整体替换，马上生效
+      parameters:
+      - description: 设置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PortalSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 玩家站
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.PortalInfo'
+            type: object
+        "400":
+          description: 设置无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 端口冲突
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改玩家站设置
+      tags:
+      - 玩家站
+  /portal/announcements:
+    get:
+      description: 从新到旧
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 公告
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.PortalAnnouncement'
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 玩家站公告
+      tags:
+      - 玩家站
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 公告
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PortalAnnouncementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 公告
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.PortalAnnouncement'
+            type: object
+        "400":
+          description: 公告无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 发布公告
+      tags:
+      - 玩家站
+  /portal/announcements/{id}:
+    delete:
+      parameters:
+      - description: 公告 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已删除
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 公告不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除公告
+      tags:
+      - 玩家站
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 公告 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 公告
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PortalAnnouncementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 公告
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.PortalAnnouncement'
+            type: object
+        "400":
+          description: 公告无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 公告不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改公告
+      tags:
+      - 玩家站
   /profile:
     get:
       consumes:

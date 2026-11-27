@@ -24,6 +24,7 @@ var managedImages = []string{
 	utils.ArkServerProtonImage,
 	utils.AsaServerProtonImage,
 	utils.EasyTierImage,
+	utils.PortalImage,
 }
 
 // ServerService 服务器管理业务逻辑服务
@@ -330,7 +331,7 @@ func checkPorts(excludeID uint, port, queryPort, rconPort int) error {
 			}
 		}
 	}
-	return nil
+	return portalPortInUse(mine)
 }
 
 // serverArgsFromJSON 把数据库里的启动参数解析出来；没有保存过时返回默认值

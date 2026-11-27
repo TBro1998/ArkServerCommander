@@ -1067,7 +1067,7 @@ func linkNodeArgs(room models.LinkRoom, servers []models.Server, peers []string)
 	args = append(args, peers...)
 	args = append(args,
 		"--ipv4", linkVirtualIP, "--no-tun", "--p2p-only",
-		"--tcp-whitelist", "0",
+		"--tcp-whitelist", portalLinkTCPPort(),
 		"--udp-whitelist",
 	)
 	args = append(args, linkNodePorts(servers)...)
