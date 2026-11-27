@@ -35,30 +35,30 @@ func GetServerFilesVolumeName(serverID uint) string {
 	return fmt.Sprintf("ase-server-files-%d", serverID)
 }
 
-// ARK 服务器镜像。ASE 的源码见子模块 ASE-Server-Docker，ASA 的见子模块 ASA-Server-Docker，
-// 各自同一个 dockerfile 的两个构建目标。ASE 不再使用 latest：它停在最后一个自带 ArkApi 的版本，留给旧版管理端
+// ARK 服务器镜像。ASE 的源码见子模块 ASE-Server-Docker（同一个 dockerfile 的两个构建目标），
+// ASA 的见子模块 ASA-Server-Docker。ASE 不再使用 latest：它停在最后一个自带 ArkApi 的版本，留给旧版管理端
 const (
 	// ArkServerLinuxImage ASE 原生 Linux 版服务端，不使用 ArkApi 的 ASE 服务器用它
 	ArkServerLinuxImage = "tbro98/ase-server:linux"
 	// ArkServerProtonImage ASE 用 GE-Proton 运行 Windows 版服务端，启用 ArkApi 的 ASE 服务器用它
 	ArkServerProtonImage = "tbro98/ase-server:proton"
-	// AsaServerWineImage ASA 用 Wine 运行 Windows 版服务端（ASA 没有 Linux 版），不使用 AsaApi 的 ASA 服务器用它
-	AsaServerWineImage = "tbro98/asa-server:wine"
-	// AsaServerProtonImage ASA 用 GE-Proton 运行，启用 AsaApi 的 ASA 服务器用它
+	// AsaServerProtonImage ASA 只有 Windows 版服务端，所有 ASA 服务器都用 GE-Proton 运行；
+	// 是否加载 AsaApi 由容器环境变量 ASAAPI 决定（AsaApiEnv）
 	AsaServerProtonImage = "tbro98/asa-server:proton"
 )
 
 // ArkServerImages 所有 ARK 服务器镜像
-var ArkServerImages = []string{ArkServerLinuxImage, ArkServerProtonImage, AsaServerWineImage, AsaServerProtonImage}
+var ArkServerImages = []string{ArkServerLinuxImage, ArkServerProtonImage, AsaServerProtonImage}
 
-// ArkServerImageFor 服务器应使用的镜像：启用 ArkApi（ASA 是 AsaApi）时用 Proton 版（插件只能注入 Windows 版服务端，
-// ASA 的 AsaApi 还需要 Proton 镜像里装好的 VC++ 运行库）
+// RetiredArkServerImages 不再使用的旧镜像：没有容器在用时删掉，免得一直占着磁盘。
+// tbro98/asa-server:wine 是以前不启用 AsaApi 的 ASA 服务器用的 Wine 版，和 Proton 版只差几十 MB，已经去掉
+var RetiredArkServerImages = []string{"tbro98/asa-server:wine"}
+
+// ArkServerImageFor 服务器应使用的镜像：ASE 启用 ArkApi 时用 Proton 版（插件只能注入 Windows 版服务端），
+// 否则用原生 Linux 版；ASA 只有一个镜像
 func ArkServerImageFor(game string, arkApi bool) string {
 	if NormalizeGame(game) == GameASA {
-		if arkApi {
-			return AsaServerProtonImage
-		}
-		return AsaServerWineImage
+		return AsaServerProtonImage
 	}
 	if arkApi {
 		return ArkServerProtonImage
@@ -66,20 +66,27 @@ func ArkServerImageFor(game string, arkApi bool) string {
 	return ArkServerLinuxImage
 }
 
+// AsaApiEnv ASA 容器的环境变量 ASAAPI：启用 AsaApi 时为 "1"，否则为 "0"（入口脚本不加载文件卷里留着的 AsaApi）。
+// ASE 不用这个变量，返回空。值不同时重建容器
+func AsaApiEnv(game string, arkApi bool) string {
+	if NormalizeGame(game) != GameASA {
+		return ""
+	}
+	if arkApi {
+		return "1"
+	}
+	return "0"
+}
+
 // ImageGame 镜像属于哪个游戏，不是 ARK 服务器镜像时为空
 func ImageGame(image string) string {
 	switch image {
 	case ArkServerLinuxImage, ArkServerProtonImage:
 		return GameASE
-	case AsaServerWineImage, AsaServerProtonImage:
+	case AsaServerProtonImage:
 		return GameASA
 	}
 	return ""
-}
-
-// ImageUsesArkApi 镜像是不是启用 ArkApi / AsaApi 的服务器用的 Proton 版
-func ImageUsesArkApi(image string) bool {
-	return image == ArkServerProtonImage || image == AsaServerProtonImage
 }
 
 // GetClusterVolumeName 集群共享卷名称：cluster_id 相同的服务器挂载同一个卷，跨服传送的数据存放在这里

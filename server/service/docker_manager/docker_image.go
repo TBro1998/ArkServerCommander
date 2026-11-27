@@ -122,6 +122,22 @@ func (dm *DockerManager) removeReplacedImage(oldID, imageName string) {
 	utils.Info("已清理被替换的旧镜像", zap.String("image", imageName), zap.String("old_id", oldID))
 }
 
+// RemoveRetiredImages 删除不再使用的旧镜像（utils.RetiredArkServerImages）。不使用 Force：
+// 还有容器（包括已停止的）在用时 Docker 拒绝删除，等这些服务器下次启动、按新镜像重建容器后再删。
+// 管理端启动时和每次创建 ARK 容器后调用
+func (dm *DockerManager) RemoveRetiredImages() {
+	for _, name := range utils.RetiredArkServerImages {
+		if exists, err := dm.ImageExists(name); err != nil || !exists {
+			continue
+		}
+		if _, err := dm.client.ImageRemove(dm.ctx, name, image.RemoveOptions{}); err != nil {
+			utils.Info("旧镜像仍被容器使用，暂不删除", zap.String("image", name), zap.Error(err))
+			continue
+		}
+		utils.Info("已删除不再使用的旧镜像", zap.String("image", name))
+	}
+}
+
 // pullImage 拉取镜像并更新进度信息，不负责占用和释放
 func (dm *DockerManager) pullImage(imageName string) error {
 	utils.Info("开始拉取Docker镜像", zap.String("image", imageName))

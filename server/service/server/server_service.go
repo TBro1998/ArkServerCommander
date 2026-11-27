@@ -22,7 +22,6 @@ import (
 var managedImages = []string{
 	utils.ArkServerLinuxImage,
 	utils.ArkServerProtonImage,
-	utils.AsaServerWineImage,
 	utils.AsaServerProtonImage,
 	utils.EasyTierImage,
 }
@@ -538,7 +537,7 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	if req.AutoUpdate != nil {
 		server.AutoUpdate = *req.AutoUpdate
 	}
-	// 切换 ArkApi 即切换镜像，下次启动时发现容器的镜像不对会重建
+	// 切换 ArkApi：ASE 换镜像，ASA 换 ASAAPI，下次启动时都会重建容器
 	if req.ArkApi != nil {
 		server.ArkApi = *req.ArkApi
 	}
@@ -950,6 +949,11 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 				needRecreateContainer = true
 			}
 
+			// ASA 切换了 AsaApi：镜像不变，靠 ASAAPI 告诉入口脚本是否加载
+			if !needRecreateContainer && envVars["ASAAPI"] != utils.AsaApiEnv(server.Game, server.ArkApi) {
+				needRecreateContainer = true
+			}
+
 			// 自动重启开关改过，重启策略需要重建容器才能生效
 			if !needRecreateContainer {
 				wantPolicy := "unless-stopped"
@@ -966,7 +970,8 @@ func (s *ServerService) startServerAsync(server models.Server, dockerManager *do
 				needRecreateContainer = true
 			}
 
-			// 镜像更新后，旧容器仍指向旧镜像，需要重建才能使用新镜像；切换了 ArkApi（换了镜像）时同样重建
+			// 镜像更新后，旧容器仍指向旧镜像，需要重建才能使用新镜像；ASE 切换了 ArkApi（换了镜像）、
+			// 以前用 Wine 版镜像的 ASA 服务器同样重建
 			if !needRecreateContainer {
 				outdated, err := dockerManager.IsContainerImageOutdated(containerName, imageName)
 				if err != nil || outdated {
@@ -1227,14 +1232,17 @@ func (s *ServerService) UpdateImage(imageName string, userID uint, restartRunnin
 			return
 		}
 
-		// 只重启使用这个镜像的服务器
+		// 只重启使用这个镜像的服务器（ASE 按是否启用 ArkApi 分两个镜像，ASA 只有一个）
 		var running []models.Server
-		if err := database.DB.Where("user_id = ? AND status = ? AND arkapi = ? AND game = ?", userID, "running", utils.ImageUsesArkApi(imageName), utils.ImageGame(imageName)).Find(&running).Error; err != nil {
+		if err := database.DB.Where("user_id = ? AND status = ? AND game = ?", userID, "running", utils.ImageGame(imageName)).Find(&running).Error; err != nil {
 			utils.Error("获取运行中的服务器失败", zap.Error(err))
 			return
 		}
 
 		for _, server := range running {
+			if utils.ArkServerImageFor(server.Game, server.ArkApi) != imageName {
+				continue
+			}
 			containerName := utils.GetServerContainerName(server.ID)
 			outdated, err := dockerManager.IsContainerImageOutdated(containerName, imageName)
 			if err != nil {

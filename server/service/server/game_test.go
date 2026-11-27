@@ -12,29 +12,39 @@ import (
 )
 
 func TestImageForGame(t *testing.T) {
+	// ASA 只有一个镜像，是否加载 AsaApi 看容器环境变量 ASAAPI；ASE 没有这个变量
 	cases := []struct {
-		game   string
-		arkApi bool
-		want   string
+		game    string
+		arkApi  bool
+		want    string
+		asaApis string
 	}{
-		{"", false, utils.ArkServerLinuxImage},
-		{utils.GameASE, true, utils.ArkServerProtonImage},
-		{utils.GameASA, false, utils.AsaServerWineImage},
-		{utils.GameASA, true, utils.AsaServerProtonImage},
+		{"", false, utils.ArkServerLinuxImage, ""},
+		{utils.GameASE, true, utils.ArkServerProtonImage, ""},
+		{utils.GameASA, false, utils.AsaServerProtonImage, "0"},
+		{utils.GameASA, true, utils.AsaServerProtonImage, "1"},
 	}
 	for _, c := range cases {
 		image := utils.ArkServerImageFor(c.game, c.arkApi)
 		if image != c.want {
 			t.Errorf("ArkServerImageFor(%q, %v) = %s, want %s", c.game, c.arkApi, image, c.want)
 		}
-		if utils.ImageGame(image) != utils.NormalizeGame(c.game) || utils.ImageUsesArkApi(image) != c.arkApi {
-			t.Errorf("image %s: game %q arkapi %v", image, utils.ImageGame(image), utils.ImageUsesArkApi(image))
+		if utils.ImageGame(image) != utils.NormalizeGame(c.game) {
+			t.Errorf("image %s: game %q", image, utils.ImageGame(image))
+		}
+		if got := utils.AsaApiEnv(c.game, c.arkApi); got != c.asaApis {
+			t.Errorf("AsaApiEnv(%q, %v) = %q, want %q", c.game, c.arkApi, got, c.asaApis)
 		}
 	}
-	// 服务器用到的每个镜像都要能在首页镜像管理里拉取和更新
+	// 服务器用到的每个镜像都要能在首页镜像管理里拉取和更新；退役的镜像不再管理
 	for _, image := range utils.ArkServerImages {
 		if !slices.Contains(managedImages, image) {
 			t.Errorf("managedImages 缺少 %s", image)
+		}
+	}
+	for _, image := range utils.RetiredArkServerImages {
+		if slices.Contains(managedImages, image) || slices.Contains(utils.ArkServerImages, image) {
+			t.Errorf("退役的镜像 %s 仍在使用", image)
 		}
 	}
 	if utils.ArkAppUpdateFor(utils.GameASA, "") != utils.AsaServerAppID {

@@ -85,6 +85,10 @@ func main() {
 
 	// 上一次在界面上更新成功后，删除旧版本的镜像
 	server.StartSelfUpdateCleanup()
+	// 不再使用的旧 ARK 镜像（以前 ASA 的 Wine 版）没有容器在用时删掉
+	if dm, err := docker_manager.GetDockerManager(); err == nil {
+		go dm.RemoveRetiredImages()
+	}
 
 	// 后台采集运行阶段、在线人数和资源占用；定时任务调度；检查 Mod 更新
 	server.StartRuntimeMonitor()

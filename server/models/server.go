@@ -24,8 +24,9 @@ type Server struct {
 	LastError     string `json:"last_error" gorm:"default:''"` // 最近一次启停失败的原因，下次启停时清空
 	AutoRestart   bool   `json:"auto_restart" gorm:"default:true"`
 	AutoUpdate    bool   `json:"auto_update" gorm:"default:false"` // 每次启动前检查游戏本体和 Mod 更新
-	// 启用 ArkApi（ASA 是 AsaApi）：用 Proton 镜像运行 Windows 版服务端并加载插件；关闭时 ASE 用原生 Linux 版服务端，
-	// ASA 用 Wine 镜像。加这个字段之前创建的服务器在迁移时设为 true（原来都是 Proton 版并带 ArkApi）
+	// 启用 ArkApi（ASA 是 AsaApi）：ASE 用 Proton 镜像运行 Windows 版服务端并加载插件，关闭时用原生 Linux 版服务端；
+	// ASA 只有 Proton 镜像，只决定是否加载 AsaApi（容器环境变量 ASAAPI）。
+	// 加这个字段之前创建的服务器在迁移时设为 true（原来都是 Proton 版并带 ArkApi）
 	ArkApi bool `json:"arkapi" gorm:"column:arkapi;default:false"`
 	// 游戏版本（Steam 分支）：空为蜗牛海洋正式版，preaquatica 为通配符原版（海洋 DLC 更新前），见 utils.GameBranches。
 	// 切换后下次启动时重建容器并重新校验服务端文件

@@ -59,8 +59,8 @@ function Overview({ server, publicHost }: { server: Server; publicHost: string }
   // 启动前的准备阶段（下载镜像、复制服务端文件）：还没有资源占用和人数
   const copying = server.status === 'starting' && (server.runtime?.phase === 'copying' || server.runtime?.phase === 'pulling_image');
   const game = gameOf(server);
-  // 服务端：ASE 是 Linux 版或 Proton 版（ArkApi），ASA 没有 Linux 版，是 Wine 版或 Proton 版（AsaApi）
-  const build = game === 'asa' ? (server.arkapi ? t('buildProtonApi', { api: pluginApiName(game) }) : t('buildWine')) : server.arkapi ? t('buildProton') : t('buildLinux');
+  // 服务端：ASE 是 Linux 版或 Proton 版（ArkApi），ASA 没有 Linux 版，都是 Proton 版，启用 AsaApi 时标出来
+  const build = game === 'asa' ? (server.arkapi ? t('buildProtonApi', { api: pluginApiName(game) }) : t('buildProtonPlain')) : server.arkapi ? t('buildProton') : t('buildLinux');
   const runtime = server.status === 'running' || copying ? server.runtime : undefined;
 
   return (

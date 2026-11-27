@@ -11,7 +11,7 @@
 
 ### ✅ Implemented Features
 - 🐳 Each ARK server runs in an independent Docker container
-- 🦖 ASA support: ASA servers run the Windows server under Wine (or GE-Proton with AsaApi), mods are CurseForge project IDs that the server downloads and updates itself; ASA has no query port and is not listed on Steam, players join from the in-game browser or with the console command `open IP:port`
+- 🦖 ASA support: ASA servers run the Windows server under GE-Proton (AsaApi plugins optional), mods are CurseForge project IDs that the server downloads and updates itself; ASA has no query port and is not listed on Steam, players join from the in-game browser or with the console command `open IP:port`
 - 🔌 ArkApi can be enabled per server: enabled servers run the Windows build on the Proton image, others run the native Linux build; switching takes effect on the next start
 - 🔄 Server containers support automatic restart on crash
 - ⬆️ Server files and mods are downloaded on first start and kept on their own volume, so recreating a container does not download them again; new servers copy server files from an already installed server
@@ -157,7 +157,7 @@ A: Yes, without changing `docker-compose.yml`. Docker Desktop reaches the host d
 - Servers without ArkApi use `tbro98/ase-server:linux` (native Linux server); servers with ArkApi use `tbro98/ase-server:proton` (Windows server under GE-Proton)
 - A missing image is downloaded automatically when a server that needs it starts; the images no longer ship ArkApi, the manager installs it into the server files
 - `tbro98/ase-server:latest` is no longer updated. It stays at the last version that bundled ArkApi, for older manager versions
-- ASA servers use `tbro98/asa-server:wine` (Windows server under Wine), or `tbro98/asa-server:proton` with AsaApi (GE-Proton)
+- ASA servers use `tbro98/asa-server:proton` (Windows server under GE-Proton; whether AsaApi is loaded is a per-server setting). The `tbro98/asa-server:wine` image that servers without AsaApi used to run has been dropped: those servers switch to the proton image on their next start without downloading the server files again, and the old image is removed once no container uses it
 - Image source: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker), [ASA-Server-Docker](https://github.com/TBro1998/ASA-Server-Docker)
 
 ### 🔗 P2P Rooms (no public IP)

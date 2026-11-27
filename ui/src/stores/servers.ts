@@ -124,7 +124,7 @@ export interface Server {
     game_mod_ids?: string;
     auto_restart?: boolean;
     auto_update?: boolean;
-    // 启用 ArkApi（ASA 是 AsaApi）：用 Proton 镜像运行 Windows 版服务端；关闭时 ASE 用原生 Linux 版，ASA 用 Wine 版
+    // 启用 ArkApi（ASA 是 AsaApi）：ASE 用 Proton 镜像运行 Windows 版服务端，关闭时用原生 Linux 版；ASA 只有 Proton 镜像，只决定是否加载 AsaApi
     arkapi?: boolean;
     // 服务器使用的镜像，由 game 和 arkapi 决定
     image?: string;

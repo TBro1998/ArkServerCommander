@@ -95,7 +95,7 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 	containerName := utils.GetServerContainerName(serverID)
 	volumeName := utils.GetServerVolumeName(serverID)
 
-	// 查数据库获取Server对象：镜像由游戏和是否启用 ArkApi / AsaApi 决定
+	// 查数据库获取Server对象：镜像由游戏和是否启用 ArkApi 决定（ASA 只有一个镜像）
 	var server models.Server
 	if err := database.DB.Where("id = ?", serverID).First(&server).Error; err != nil {
 		return "", fmt.Errorf("获取服务器信息失败: %v", err)
@@ -139,6 +139,10 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 	}
 	if server.GameModIds != "" {
 		envVars = append(envVars, fmt.Sprintf("GameModIds=%s", server.GameModIds))
+	}
+	// ASA 是否加载 AsaApi：只有一个镜像，关闭 AsaApi 后文件卷里还留着它，入口脚本按这个变量决定
+	if v := utils.AsaApiEnv(server.Game, server.ArkApi); v != "" {
+		envVars = append(envVars, "ASAAPI="+v)
 	}
 	// 记录挂载的集群卷，启动时据此判断是否需要重建容器（旧容器没有这个变量）
 	if cv := ExpectedClusterVolume(server.ClusterID); cv != "" {
@@ -219,6 +223,10 @@ func (dm *DockerManager) CreateContainer(serverID uint, port, queryPort, rconPor
 		zap.String("container_name", containerName),
 		zap.String("container_id", resp.ID),
 	)
+	// 旧容器已经删掉，它用的旧镜像（以前 ASA 的 Wine 版）可能没人用了
+	if utils.NormalizeGame(server.Game) == utils.GameASA {
+		go dm.RemoveRetiredImages()
+	}
 	return resp.ID, nil
 }
 

@@ -11,7 +11,7 @@
 
 ### ✅ 已实现功能
 - 🐳 每个ARK服务器运行在独立的Docker容器中
-- 🦖 支持 ASA：用 Wine 运行 Windows 版服务端（启用 AsaApi 时用 GE-Proton），Mod 填 CurseForge 项目 ID，由服务端自己下载和更新；ASA 没有查询端口，也不在 Steam 服务器列表里，玩家在游戏内的服务器列表里搜索名称，或在控制台输入 `open IP:端口` 进服
+- 🦖 支持 ASA：用 GE-Proton 运行 Windows 版服务端（可选 AsaApi 插件），Mod 填 CurseForge 项目 ID，由服务端自己下载和更新；ASA 没有查询端口，也不在 Steam 服务器列表里，玩家在游戏内的服务器列表里搜索名称，或在控制台输入 `open IP:端口` 进服
 - 🔌 每台服务器可单独启用 ArkApi：启用后用 Proton 镜像运行 Windows 版服务端，关闭时用原生 Linux 版，切换后下次启动自动换镜像
 - 🔄 服务器容器支持崩溃自动重启
 - ⬆️ 首次启动时自动下载服务端文件和Mod，文件保存在独立的卷里，重建容器不会重新下载；新服务器从已安装的服务器复制服务端文件
@@ -157,7 +157,7 @@ A: 可以，`docker-compose.yml` 不用改。Docker Desktop 访问宿主机磁�
 - 未启用 ArkApi 的服务器使用 `tbro98/ase-server:linux`（原生 Linux 版服务端），启用 ArkApi 的使用 `tbro98/ase-server:proton`（GE-Proton 运行 Windows 版）
 - 服务器用到的镜像还没下载时，启动会自动下载；镜像不再包含 ArkApi，由管理器安装到服务端文件里
 - `tbro98/ase-server:latest` 不再更新，停留在最后一个自带 ArkApi 的版本，只供旧版管理器使用
-- ASA 服务器使用 `tbro98/asa-server:wine`（Wine 运行 Windows 版服务端），启用 AsaApi 的使用 `tbro98/asa-server:proton`（GE-Proton）
+- ASA 服务器使用 `tbro98/asa-server:proton`（GE-Proton 运行 Windows 版服务端，是否加载 AsaApi 由服务器设置决定）。以前不启用 AsaApi 的服务器用的 `tbro98/asa-server:wine` 已经去掉：这些服务器下次启动时自动换成 proton 镜像，服务端文件不用重新下载，旧镜像没有容器在用后自动删除
 - 镜像源地址: [ASE-Server-Docker](https://github.com/tbro199803/ASE-Server-Docker)、[ASA-Server-Docker](https://github.com/TBro1998/ASA-Server-Docker)
 
 ### 🔗 P2P 联机房（无公网 IP）
