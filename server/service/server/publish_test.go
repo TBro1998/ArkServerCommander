@@ -518,3 +518,41 @@ func TestBuildPublishProfileArgsOverride(t *testing.T) {
 		t.Fatalf("empty legacy_token should be omitted: %s", data)
 	}
 }
+
+// 发布和联机房只能二选一：服务器还在联机房里（从联机房切换过来、房间还没重新登记）时不发布，状态为等待；
+// 收录站返回 409 in_room 时显示原因并退避重试
+func TestPublisherWaitsForRoom(t *testing.T) {
+	setupTestDB(t)
+	bindTestAccount(t)
+	s := createTestServer(t, 7777, 27015, 32330)
+	database.DB.Model(&s).Updates(map[string]any{"publish": true, "status": "running"})
+	old := linkManager
+	linkManager = &LinkManager{room: &linkState{keys: map[string]bool{linkServerKey(s.ID): true}}}
+	t.Cleanup(func() { linkManager = old })
+
+	ready := true
+	now := time.Now()
+	f := &fakeListing{handler: okHandler}
+	p := newTestPublisher(t, f, &ready, &now)
+	p.tick()
+	expectCalls(t, f)
+	if st := p.statusFor(loadPublishServer(t, s.ID)); st.State != models.PublishWaiting {
+		t.Fatalf("state = %+v", st)
+	}
+
+	linkManager.room.keys = nil
+	f.setHandler(errorHandler(http.StatusConflict, "in_room", ""))
+	p.tick()
+	expectCalls(t, f, "/publish")
+	if st := p.statusFor(loadPublishServer(t, s.ID)); st.State != models.PublishError || st.ErrorCode != "in_room" || !strings.Contains(st.Error, "联机房") {
+		t.Fatalf("status = %+v", st)
+	}
+
+	f.setHandler(okHandler)
+	now = now.Add(publishBackoffBase)
+	p.tick()
+	expectCalls(t, f, "/publish", "/publish")
+	if st := p.statusFor(loadPublishServer(t, s.ID)); st.State != models.PublishPublished {
+		t.Fatalf("status = %+v", st)
+	}
+}

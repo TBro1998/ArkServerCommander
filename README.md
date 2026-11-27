@@ -162,6 +162,7 @@ A: Yes, without changing `docker-compose.yml`. Docker Desktop reaches the host d
 
 ### 🔗 P2P Rooms (no public IP)
 - Turn on "P2P room" in a server's settings and players join through [arkfgf.com/rooms](https://arkfgf.com/rooms) with the open-source client [ArkServerLink](https://github.com/TBro1998/ArkServerLink) (submodule `ArkServerLink/`, download at [arkfgf.com/download](https://arkfgf.com/download))
+- A server uses either "Publish to the server list" or "P2P room", not both: publish servers that have a public IP, put the others in the P2P room
 
 ## 📸 Interface Screenshots
 **Home: servers, online players, resource usage, images and disk**

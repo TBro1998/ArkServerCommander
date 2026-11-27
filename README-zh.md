@@ -162,6 +162,7 @@ A: 可以，`docker-compose.yml` 不用改。Docker Desktop 访问宿主机磁�
 
 ### 🔗 P2P 联机房（无公网 IP）
 - 在服务器设置里打开「P2P 联机房」，玩家在 [arkfgf.com/rooms](https://arkfgf.com/rooms) 用开源的联机助手 [ArkServerLink](https://github.com/TBro1998/ArkServerLink)（子模块 `ArkServerLink/`，下载：[arkfgf.com/download](https://arkfgf.com/download)）加入
+- 一台服务器只能在「发布到收录站」和「P2P 联机房」中选一个：有公网 IP 的发布到收录站，没有公网 IP 的放进联机房
 
 ## 📸 界面展示
 **首页概览：服务器、在线人数、资源占用、镜像和磁盘**

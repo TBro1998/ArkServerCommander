@@ -185,3 +185,31 @@ func TestSuggestPortsSkipsUsedPorts(t *testing.T) {
 		t.Fatalf("suggested ports should be free: %v", err)
 	}
 }
+
+// 发布到收录站和联机房只能二选一：创建、修改时两个都开返回 ErrPublishLinkExclusive，在同一个请求里关掉另一个可以切换
+func TestPublishLinkExclusive(t *testing.T) {
+	setupTestDB(t)
+	svc := &ServerService{}
+	on, off := true, false
+	if _, err := svc.CreateServer(1, models.ServerRequest{Port: 7790, QueryPort: 27090, RCONPort: 27091, AdminPassword: "pw", MaxPlayers: 10,
+		Publish: &on, Link: &on}); !errors.Is(err, ErrPublishLinkExclusive) {
+		t.Fatalf("create with both: %v", err)
+	}
+
+	s := createTestServer(t, 7777, 27015, 32330)
+	id := fmt.Sprint(s.ID)
+	if _, _, err := svc.UpdateServer(1, id, models.ServerUpdateRequest{Link: &on}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.UpdateServer(1, id, models.ServerUpdateRequest{Publish: &on}); !errors.Is(err, ErrPublishLinkExclusive) {
+		t.Fatalf("publish while linked: %v", err)
+	}
+	if _, _, err := svc.UpdateServer(1, id, models.ServerUpdateRequest{Publish: &on, Link: &off}); err != nil {
+		t.Fatalf("switch to publish: %v", err)
+	}
+	var got models.Server
+	database.DB.First(&got, s.ID)
+	if !got.Publish || got.Link {
+		t.Fatalf("publish = %v, link = %v", got.Publish, got.Link)
+	}
+}

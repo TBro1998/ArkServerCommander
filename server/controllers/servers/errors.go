@@ -49,6 +49,7 @@ func RespondServiceError(c *gin.Context, err error) {
 		errors.Is(err, server.ErrArkApiBuiltin),
 		errors.Is(err, server.ErrImageNotAllowed),
 		errors.Is(err, server.ErrInvalidListing),
+		errors.Is(err, server.ErrPublishLinkExclusive),
 		errors.Is(err, server.ErrInvalidSteamID),
 		errors.Is(err, server.ErrLinkRequestFailed),
 		errors.Is(err, server.ErrArkfgfRejected),

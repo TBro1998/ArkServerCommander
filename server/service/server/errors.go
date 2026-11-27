@@ -53,6 +53,7 @@ var (
 	ErrInvalidConfigValue          = errors.New("配置项无效：文件只能是 GameUserSettings.ini 或 Game.ini，section 和键名不能为空，且都不能包含换行")
 	ErrInvalidServerConfig         = errors.New("服务器配置无效")
 	ErrInvalidListing              = errors.New("收录资料无效")
+	ErrPublishLinkExclusive        = errors.New("发布到收录站和 P2P 联机房只能选一个：有公网 IP 的服务器发布到收录站，没有公网 IP 的放进联机房")
 	ErrNotPublished                = errors.New("服务器还没有发布到收录站")
 	ErrPublishUnavailable          = errors.New("暂时无法连接收录站")
 	ErrLinkNotRegistered           = errors.New("联机房还没有在 arkfgf.com 登记，请先开启 P2P 联机房并等待登记完成")
@@ -124,6 +125,7 @@ var errorCodes = []struct {
 	{ErrInvalidConfigValue, "invalid_config_value"},
 	{ErrInvalidServerConfig, "invalid_server_config"},
 	{ErrInvalidListing, "invalid_listing"},
+	{ErrPublishLinkExclusive, "publish_link_exclusive"},
 	{ErrNotPublished, "not_published"},
 	{ErrPublishUnavailable, "publish_unavailable"},
 	{ErrLinkNotRegistered, "link_not_registered"},

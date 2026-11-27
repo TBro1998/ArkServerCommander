@@ -7,6 +7,7 @@ import { Link2 } from 'lucide-react';
 import { Link } from '@/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useApiError } from '@/lib/api-error';
 import { toast } from '@/lib/toast';
 import { serversActions, type ArkfgfAccountStatus, type Server } from '@/stores/servers';
@@ -79,11 +80,15 @@ function LinkState({ server }: { server: Server }) {
 
 // 详情页概览的 arkfgf.com 卡片：发布到收录站、P2P 联机房的开关和状态。
 // 它们是网站提供的服务，不属于游戏设置，所以不在"编辑设置"里；开关立即生效，不用重启。
-// 都需要先在设置页绑定 arkfgf.com 账号：未绑定时不能打开开关（已打开的可以关闭）
+// 都需要先在设置页绑定 arkfgf.com 账号：未绑定时不能打开开关（已打开的可以关闭）。
+// 两者只能开一个（有公网 IP 的发布到收录站，没有的放进联机房）：另一个开着时打开这一个，确认后在同一个请求里切换
+type ArkfgfKey = 'publish' | 'link';
+
 export function ArkfgfCard({ server }: { server: Server }) {
   const t = useTranslations('detail');
   const apiError = useApiError();
-  const [saving, setSaving] = useState<'publish' | 'link' | null>(null);
+  const [saving, setSaving] = useState<ArkfgfKey | null>(null);
+  const [switching, setSwitching] = useState<ArkfgfKey | null>(null);
   const [account, setAccount] = useState<ArkfgfAccountStatus | null>(null);
 
   useEffect(() => {
@@ -103,16 +108,28 @@ export function ArkfgfCard({ server }: { server: Server }) {
   // ARKFGF_API 为空时整体关闭，开关照旧（状态显示 disabled）
   const needLogin = account !== null && account.enabled && !account.bound;
 
-  const toggle = async (key: 'publish' | 'link', enabled: boolean) => {
+  const save = async (key: ArkfgfKey, enabled: boolean) => {
     setSaving(key);
     try {
-      await serversActions.updateServer(server.id, key === 'publish' ? { publish: enabled } : { link: enabled });
+      // 打开一个时同时关掉另一个（后端不接受两个都开）
+      const other = key === 'publish' ? 'link' : 'publish';
+      await serversActions.updateServer(server.id, enabled ? { [key]: true, [other]: false } : { [key]: false });
       toast.success(t(`${key}${enabled ? 'On' : 'Off'}Toast`));
     } catch (err) {
       toast.error(apiError(err, t('toggleFailed')));
+      throw err;
     } finally {
       setSaving(null);
     }
+  };
+
+  const toggle = (key: ArkfgfKey, enabled: boolean) => {
+    const otherOn = key === 'publish' ? server.link : server.publish;
+    if (enabled && otherOn) {
+      setSwitching(key);
+      return;
+    }
+    save(key, enabled).catch(() => {});
   };
 
   const items = [
@@ -125,6 +142,7 @@ export function ArkfgfCard({ server }: { server: Server }) {
       <CardHeader className="pb-2">
         <CardTitle className="font-display text-base">{t('external')}</CardTitle>
         <p className="text-xs text-muted-foreground">{t('externalDesc')}</p>
+        <p className="text-xs text-muted-foreground">{t('externalExclusive')}</p>
       </CardHeader>
       <CardContent className="divide-y">
         {needLogin && (
@@ -159,6 +177,15 @@ export function ArkfgfCard({ server }: { server: Server }) {
           );
         })}
       </CardContent>
+
+      <ConfirmDialog
+        open={switching !== null}
+        onOpenChange={(open) => !open && setSwitching(null)}
+        title={switching ? t(`${switching}SwitchTitle`) : ''}
+        description={switching ? t(`${switching}SwitchDesc`) : undefined}
+        confirmText={switching ? t(`${switching}SwitchConfirm`) : undefined}
+        onConfirm={() => switching && save(switching, true)}
+      />
     </Card>
   );
 }

@@ -215,6 +215,10 @@ func (p *Publisher) process(server models.Server, token string) bool {
 	st.notReadySince = time.Time{}
 	due := !st.published && !now.Before(st.nextAt)
 	p.mu.Unlock()
+	// 发布到收录站和联机房只能二选一：从联机房切换过来的服务器等联机房重新登记、把它移出房间后再发布（状态为 waiting）
+	if due && linkManager.inRoom(server.ID) {
+		return true
+	}
 	if due {
 		return p.publish(server, token)
 	}
@@ -480,6 +484,8 @@ func publishErrorMessage(code string, server models.Server) string {
 		return "这个 arkfgf.com 账号发布的服务器已达上限"
 	case "owned":
 		return "这个 IP 和端口上的服务器已由另一个 arkfgf.com 账号发布"
+	case "in_room":
+		return "这台服务器还在 P2P 联机房里（同一台服务器只能发布到收录站或放进联机房），移出房间后会自动重试"
 	case "login_required":
 		return "收录站要求先绑定 arkfgf.com 账号"
 	case "invalid_input":

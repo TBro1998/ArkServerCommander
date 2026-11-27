@@ -51,5 +51,26 @@ func InitDB() {
 		utils.Info("已有服务器保持启用 ArkApi（Proton 镜像）", zap.Int64("servers", res.RowsAffected))
 	}
 
+	fixPublishAndLink()
+
 	utils.Info("数据库初始化成功", zap.String("db_path", config.DBPath))
+}
+
+// fixPublishAndLink 发布到收录站和 P2P 联机房只能二选一，以前的版本允许同时开启。两个都开着的服务器：
+// 已经发布成功过（published，说明能从公网访问）的保留发布、关闭联机房，其他的保留联机房、关闭发布
+func fixPublishAndLink() {
+	res := DB.Exec("UPDATE servers SET link = ? WHERE publish = ? AND link = ? AND published = ?", false, true, true, true)
+	if res.Error != nil {
+		utils.Fatal("数据库迁移失败", zap.Error(res.Error))
+	}
+	if res.RowsAffected > 0 {
+		utils.Info("发布到收录站和联机房只能选一个：已发布的服务器关闭了联机房", zap.Int64("servers", res.RowsAffected))
+	}
+	res = DB.Exec("UPDATE servers SET publish = ? WHERE publish = ? AND link = ?", false, true, true)
+	if res.Error != nil {
+		utils.Fatal("数据库迁移失败", zap.Error(res.Error))
+	}
+	if res.RowsAffected > 0 {
+		utils.Info("发布到收录站和联机房只能选一个：没有发布成功过的服务器关闭了发布", zap.Int64("servers", res.RowsAffected))
+	}
 }

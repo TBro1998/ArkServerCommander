@@ -159,9 +159,10 @@ type linkServerState struct {
 type linkState struct {
 	linkBackoff
 
-	profileHash string   // 最近一次登记成功时的资料摘要，变化时重新登记
-	url         string   // 网站上的房间页面
-	peers       []string // 公共节点地址，由网站返回
+	profileHash string          // 最近一次登记成功时的资料摘要，变化时重新登记
+	keys        map[string]bool // 最近一次登记成功时房间里的服务器（key），发布到收录站前要等服务器移出房间（inRoom）
+	url         string          // 网站上的房间页面
+	peers       []string        // 公共节点地址，由网站返回
 
 	// 心跳
 	lastBeat    time.Time // 最近一次心跳成功的时间
@@ -269,8 +270,10 @@ func (m *LinkManager) tick() {
 		m.cleanupLegacy()
 		token := accountManager.token()
 
+		// 发布到收录站和联机房只能二选一：从发布切换过来的服务器要等收录站取消发布（published 变成 false）后才放进房间，
+		// 否则网站拒绝登记（409 published）
 		var servers []models.Server
-		if err := database.DB.Select(linkServerColumns).Where("link = ?", true).Order("id").Find(&servers).Error; err != nil {
+		if err := database.DB.Select(linkServerColumns).Where("link = ? AND published = ?", true, false).Order("id").Find(&servers).Error; err != nil {
 			utils.Warn("联机房：读取服务器列表失败", zap.Error(err))
 			return
 		}
@@ -505,6 +508,10 @@ func (m *LinkManager) register(room *models.LinkRoom, profile linkRoomProfile, h
 		st.revoke, st.acks, st.pending = nil, nil, nil
 	}
 	st.profileHash = hash
+	st.keys = map[string]bool{}
+	for _, server := range profile.Servers {
+		st.keys[server.Key] = true
+	}
 	st.url = resp.URL
 	if len(resp.Peers) > 0 {
 		st.peers = resp.Peers
@@ -904,6 +911,8 @@ func linkErrorMessage(code string) string {
 		return "这个公网 IP 登记的联机房已达上限"
 	case "room_not_found":
 		return "网站上的房间已不存在，正在重新登记"
+	case "published":
+		return "房间里有服务器还发布在收录站上（同一台服务器只能发布到收录站或放进联机房），取消发布后会自动重试"
 	case "login_required":
 		return "arkfgf.com 要求先绑定账号"
 	case "invalid_input":
@@ -930,6 +939,14 @@ func (m *LinkManager) roomStatusLocked() *models.LinkStatus {
 	return status
 }
 
+// inRoom 服务器是否还在网站上的房间里（按最近一次登记成功的资料）。从联机房切换到发布的服务器，
+// 要等重新登记（或下架）把它移出房间后才发布，否则收录站拒绝发布（409 in_room）
+func (m *LinkManager) inRoom(id uint) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.room.keys[linkServerKey(id)]
+}
+
 // statusFor 返回服务器的联机房状态，未开启时为 nil。房间出错时所有服务器都显示错误；
 // 否则这台服务器在最近一次心跳里报告为可以连接时为 online，没在运行时为 offline，其他情况为 waiting
 func (m *LinkManager) statusFor(server models.Server) *models.LinkStatus {
@@ -941,6 +958,10 @@ func (m *LinkManager) statusFor(server models.Server) *models.LinkStatus {
 	}
 	if !accountManager.bound() {
 		return linkLoginRequired()
+	}
+	// 从发布切换过来、收录站还没取消发布：还没放进房间
+	if server.Published {
+		return &models.LinkStatus{State: models.LinkWaiting}
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()

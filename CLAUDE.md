@@ -233,13 +233,24 @@ Agent（MCP 客户端）→ Next.js /mcp → Go 后端 /api/mcp
 
 服务器的 `publish` 开关（详情页概览的 arkfgf.com 卡片 `ArkfgfCard`，默认关闭，立即生效，不用重启），需要先绑定 arkfgf.com 账号。`service/server/publish.go` 的 `Publisher` 每 15 秒检查一次（绑定账号后马上一次）：服务器每次变成 running 且 `runtime.phase` 为 `ready` 时用账号令牌 `POST {ARKFGF_SERVERS_API}/publish` 发布一次（名称、端口、地图、Mod、ArkApi、集群，倍率和 PvE 先取启动参数 `?Key=` 再取配置文件，加上 `key` = 服务器 ID；还有旧版发布令牌时带 `legacy_token` 让收录站清理旧的匿名记录），成功后 `servers.published = true`、清空 `servers.publish_token`；之后没有心跳，停服也不通知，收录站自己判断是否在线。在线人数：已发布、可以连接的服务器每 30 分钟用 RCON `ListPlayers` 列一次实际连接的玩家，一次请求 `POST {ARKFGF_SERVERS_API}/publish/players`（`{"servers": [{"key", "players": [{"id", "name"}]}]}`，`id` 是 ListPlayers 里的 ID，Steam 玩家为 SteamID64）全部上报（`reportPlayers`，列不出来的跳过，失败只记日志，下一轮再报）；收录站据此显示真实人数，玩家列表不公开。运行中短暂不是 ready（监控的一次 A2S 超时）2 分钟内不算断开，不会重新发布。关闭发布或删除服务器（软删除，记录还在）后，`published` 的服务器用账号令牌和 `{"key"}` 调用 `/publish/unpublish`（收录站上没有记录也返回成功），成功后 `published = false`；还留着旧版发布令牌（`afp_`）的服务器不论是否绑定都用旧令牌取消发布（收录站返回 `invalid_token` 也算成功）后清空令牌。失败一直重试，管理端重启后继续。失败按 1、2、4…30 分钟退避，429 / 503 按 `Retry-After`，停服再启动不会跳过退避。状态只在内存里，随服务器响应返回 `publish_status`（`waiting` / `published` / `error` / `disabled` / `login_required`，失败时带 `error_code` 和中文 `error`），详情页概览显示。`UpdateServer` 保存时不写 `published` / `publish_token`（由 Publisher 写入）。
 
-同一 IP + 端口已被别的账号发布时收录站返回 409 `owned`，状态显示这个错误。查询端口（UDP）必须能从公网访问。服务器运行中公网 IP 变了的话，要等下次重新可以连接（重启）时才会更新。
+同一 IP + 端口已被别的账号发布时收录站返回 409 `owned`，状态显示这个错误。服务器还在联机房里时收录站返回 409 `in_room`（见下文"发布和联机房二选一"）。查询端口（UDP）必须能从公网访问。服务器运行中公网 IP 变了的话，要等下次重新可以连接（重启）时才会更新。
 
 收录资料（`service/server/listing.go`）：简介（500 字）、标签（8 个，每个 16 字）、QQ 群号、Discord 邀请链接，存在 `servers.listing_*` 列，接口里是 `listing` 对象（创建、更新、MCP 的 create/update_server 都能传，传了就整体替换），详情页"收录站"卡片里编辑。每次发布都带上这四项（空值表示清空；收录站对不带这些字段的旧版请求保持原值）。运行中修改会把发布状态重置，距上次发布至少 1 分钟后重新发布。同一张卡片显示收录站上的访问统计（`GET /api/servers/:id/publish/stats` 代理收录站的 `GET /publish/stats?key=<服务器 ID>`，用账号令牌认证，缓存 5 分钟；未绑定时 409 `account_required`，`published` 为 false 或收录站返回 404 `not_published` 时 409 `not_published`；未绑定时卡片显示需要绑定的提示）和状态徽章的引用代码（HTML / Markdown / BBCode）。
 
+### 发布和联机房二选一
+
+一台服务器的 `publish` 和 `link` 只能开一个：有公网 IP 的服务器发布到收录站，没有的放进联机房，不在两个渠道重复出现。
+
+- 保存：`CreateServer` / `UpdateServer` 两个都开时返回 `ErrPublishLinkExclusive`（400 `publish_link_exclusive`）。要切换就在同一个请求里关掉另一个（`{"publish": true, "link": false}`），`ArkfgfCard` 在另一个开着时打开这一个会先弹确认框，再这样发送
+- 切换的顺序（网站两边都会检查：发布时服务器还在这个 Commander 的房间里返回 409 `in_room`；登记房间时已发布的服务器不会放进房间，全部都已发布时返回 409 `published`）：
+  - 发布 → 联机房：`LinkManager` 只把 `link = true AND published = false` 的服务器放进房间，`Publisher` 取消发布成功（`published` 变成 false）后下一轮才放进去；这期间 `link_status` 为 `waiting`
+  - 联机房 → 发布：`LinkManager` 记下最近一次登记成功时房间里的服务器（`linkState.keys`，下架后清空），`Publisher` 在 `linkManager.inRoom(id)` 为 true 时不发布（`publish_status` 为 `waiting`），等重新登记或下架把它移出房间
+  - 两个错误码都按失败退避，状态显示原因
+- 升级：`database.fixPublishAndLink` 启动时处理以前的版本留下的两个都开的服务器：`published` 为 true（发布成功过，说明能从公网访问）的关闭 `link`，其他的关闭 `publish`
+
 ### P2P 联机房
 
-服务器的 `link` 开关（详情页概览的 arkfgf.com 卡片 `ArkfgfCard`，默认关闭，与 `publish` 独立，立即生效），需要先绑定 arkfgf.com 账号（见上文），房间的请求都用账号令牌。没有公网 IP 的服主也能让玩家连进来：网站 arkfgf.com 登记房间并运行只做打洞信令的公共 EasyTier 节点，Commander 运行一个 EasyTier 节点容器，玩家用 ARKFGF 联机助手（子模块 `ArkServerLink/`，单独发布到它自己的 GitHub Release，下载页 arkfgf.com/download）从网站领取一次性凭证加入这个 EasyTier 网络，直连到节点。只直连不中继（`--p2p-only`），打洞失败的玩家连不上。接口改动要和网站、客户端同步。
+服务器的 `link` 开关（详情页概览的 arkfgf.com 卡片 `ArkfgfCard`，默认关闭，与 `publish` 二选一，立即生效），需要先绑定 arkfgf.com 账号（见上文），房间的请求都用账号令牌。没有公网 IP 的服主也能让玩家连进来：网站 arkfgf.com 登记房间并运行只做打洞信令的公共 EasyTier 节点，Commander 运行一个 EasyTier 节点容器，玩家用 ARKFGF 联机助手（子模块 `ArkServerLink/`，单独发布到它自己的 GitHub Release，下载页 arkfgf.com/download）从网站领取一次性凭证加入这个 EasyTier 网络，直连到节点。只直连不中继（`--p2p-only`），打洞失败的玩家连不上。接口改动要和网站、客户端同步。
 
 **每个管理端一个房间**：所有开启了 `link` 的服务器是同一个房间里的多台服务器，共用一个节点容器、一个虚拟 IP `10.126.126.1` 和一个凭证池，靠端口区分。玩家加入一次就能连房间里的任意一台；踢人、封禁对整个房间生效。房间记录是 `models.LinkRoom`（表 `link_rooms`，只有 ID 为 1 的一行，`loadLinkRoom` 不存在时创建）：旧版房间令牌（只用于让网站删除或下架旧房间）、房间 ID（不为 0 且旧令牌已清空即已登记，`linkRegistered`）、网络名、网络密钥、RPC 端口，以及房间资料（名称、简介、标签、QQ 群、Discord）。名称为空时用第一台服务器（按 ID）的名称，资料四项全部为空时用第一台服务器的收录资料。协议是一次性升级的，不兼容旧版每台服务器一个房间的网站和客户端。
 

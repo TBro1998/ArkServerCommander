@@ -125,6 +125,9 @@ func (s *ServerService) CreateServer(userID uint, req models.ServerRequest) (*mo
 	if !utils.ValidGameBranch(req.Game, req.GameBranch) {
 		return nil, ErrInvalidGameBranch
 	}
+	if req.Publish != nil && *req.Publish && req.Link != nil && *req.Link {
+		return nil, ErrPublishLinkExclusive
+	}
 
 	// 开始数据库事务
 	tx := database.DB.Begin()
@@ -555,6 +558,10 @@ func (s *ServerService) UpdateServer(userID uint, serverID string, req models.Se
 	// 联机房开关同样立即生效：打开后登记房间，关闭后下架并删除节点容器
 	if req.Link != nil {
 		server.Link = *req.Link
+	}
+	// 发布到收录站和联机房只能二选一。要切换时在同一个请求里关掉另一个（{"publish": true, "link": false}）
+	if server.Publish && server.Link {
+		return nil, false, ErrPublishLinkExclusive
 	}
 	listingChanged := false
 	if req.Listing != nil {

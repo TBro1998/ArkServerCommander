@@ -1035,8 +1035,11 @@ func TestLinkInvalidAccountClearsLocal(t *testing.T) {
 	old := linkManager
 	linkManager = m
 	t.Cleanup(func() { linkManager = old })
-	database.DB.Model(&s).Updates(map[string]any{"status": "running", "published": true})
+	database.DB.Model(&s).Update("status", "running")
 	s.Status = "running"
+	// 另一台发布到收录站的服务器（发布和联机房只能二选一）：账号失效时 published 也要清除
+	pub := createTestServer(t, 7790, 27030, 32340)
+	database.DB.Model(&pub).Updates(map[string]any{"publish": true, "published": true})
 	e.rt.set(s.ID, linkRuntime{Ready: true})
 	m.tick()
 	if dock.container(utils.LinkContainerName) == nil {
@@ -1061,7 +1064,7 @@ func TestLinkInvalidAccountClearsLocal(t *testing.T) {
 	if dock.container(utils.LinkContainerName) != nil || dock.removedDirs == 0 {
 		t.Fatal("node and credentials should be removed")
 	}
-	if loadPublishServer(t, s.ID).Published {
+	if loadPublishServer(t, pub.ID).Published {
 		t.Fatal("published should be cleared")
 	}
 	if st := m.statusFor(s); st.State != models.LinkLoginRequired {
@@ -1264,5 +1267,40 @@ func TestLinkRestartWithoutRunningServer(t *testing.T) {
 	m.tick()
 	if dock.createCount() != 0 {
 		t.Fatal("node should wait until the server is ready")
+	}
+}
+
+// 发布和联机房只能二选一：从发布切换过来的服务器等收录站取消发布（published 变成 false）后才放进房间；
+// inRoom 按最近一次登记成功的房间回答，供发布等待服务器移出房间
+func TestLinkWaitsForUnpublish(t *testing.T) {
+	e := setupLinkTest(t)
+	s, site, m := e.s, e.site, e.m
+	database.DB.Model(&s).Updates(map[string]any{"status": "running", "published": true})
+	e.rt.set(s.ID, linkRuntime{Ready: true})
+
+	m.tick()
+	expectLinkCalls(t, site)
+	if st := m.statusFor(loadPublishServer(t, s.ID)); st.State != models.LinkWaiting {
+		t.Fatalf("status = %+v", st)
+	}
+	if m.inRoom(s.ID) {
+		t.Fatal("server should not be in the room yet")
+	}
+
+	database.DB.Model(&s).Update("published", false)
+	e.advance(15 * time.Second)
+	m.tick()
+	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat")
+	if !m.inRoom(s.ID) {
+		t.Fatal("server should be in the room")
+	}
+
+	// 关闭联机房（切换到发布）：下架后不在房间里
+	database.DB.Model(&s).Update("link", false)
+	e.advance(15 * time.Second)
+	m.tick()
+	expectLinkCalls(t, site, "POST /link/rooms", "POST /link/rooms/12/heartbeat", "DELETE /link/rooms/12")
+	if m.inRoom(s.ID) {
+		t.Fatal("server should have left the room")
 	}
 }
