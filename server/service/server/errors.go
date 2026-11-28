@@ -151,6 +151,9 @@ var errorCodes = []struct {
 	{ErrAnnouncementNotFound, "announcement_not_found"},
 	{ErrInvalidAnnouncement, "invalid_announcement"},
 	{ErrTooManyAnnouncements, "too_many_announcements"},
+	{ErrPageNotFound, "page_not_found"},
+	{ErrInvalidPage, "invalid_page"},
+	{ErrTooManyPages, "too_many_pages"},
 }
 
 // ErrorCode 返回错误对应的错误码，未知错误返回空字符串

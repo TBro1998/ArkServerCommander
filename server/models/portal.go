@@ -97,3 +97,19 @@ type PortalInfo struct {
 	Servers  []PortalServer `json:"servers"`
 	Image    string         `json:"image"`
 }
+
+// PortalPage 玩家站上服主写的页面（规则、新手指南等），内容是纯文本：「# 」开头的行是标题，「- 」开头的行是列表
+type PortalPage struct {
+	ID        uint      `json:"id" gorm:"primarykey"`
+	Title     string    `json:"title" gorm:"not null"`
+	Body      string    `json:"body" gorm:"type:text;default:''"`
+	Sort      int       `json:"sort" gorm:"default:0"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// PortalPageRequest 新建或修改页面
+type PortalPageRequest struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}

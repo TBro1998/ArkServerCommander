@@ -21,6 +21,7 @@ import { usePolling } from '@/hooks/use-polling';
 import { useApiError } from '@/lib/api-error';
 import { formatDateTime } from '@/lib/format';
 import { toast } from '@/lib/toast';
+import { PagesCard } from './PagesCard';
 
 interface PortalLink {
   title: string;
@@ -231,6 +232,7 @@ export default function PortalPage() {
                 </ul>
               )}
               <p className="mt-3 text-xs text-muted-foreground">{t('shopHint')}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t('pointsHint')}</p>
             </CardContent>
           </Card>
         </div>
@@ -256,6 +258,7 @@ export default function PortalPage() {
       )}
 
       <AnnouncementsCard />
+      <PagesCard />
     </div>
   );
 }

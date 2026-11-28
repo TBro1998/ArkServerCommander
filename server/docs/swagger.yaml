@@ -387,6 +387,28 @@ definitions:
       url:
         type: string
     type: object
+  models.PortalPage:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      sort:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.PortalPageRequest:
+    properties:
+      body:
+        type: string
+      title:
+        type: string
+    type: object
   models.PortalServer:
     properties:
       game:
@@ -2402,6 +2424,144 @@ paths:
       security:
       - Bearer: []
       summary: 修改公告
+      tags:
+      - 玩家站
+  /portal/pages:
+    get:
+      description: 服主写的页面（规则、新手指南等），按显示顺序
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 页面
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.PortalPage'
+              type: array
+            type: object
+      security:
+      - Bearer: []
+      summary: 玩家站页面
+      tags:
+      - 玩家站
+    post:
+      consumes:
+      - application/json
+      description: 内容是纯文本：「# 」开头的行是标题，「- 」开头的行是列表，空行分段
+      parameters:
+      - description: 页面
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PortalPageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 页面
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.PortalPage'
+            type: object
+        "400":
+          description: 页面无效
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 新建玩家站页面
+      tags:
+      - 玩家站
+  /portal/pages/{id}:
+    delete:
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已删除
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 页面不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除玩家站页面
+      tags:
+      - 玩家站
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 页面
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.PortalPageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 页面
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/models.PortalPage'
+            type: object
+        "404":
+          description: 页面不存在
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改玩家站页面
+      tags:
+      - 玩家站
+  /portal/pages/{id}/move:
+    post:
+      consumes:
+      - application/json
+      description: '{"delta": -1} 向前移动一位，{"delta": 1} 向后移动一位'
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已移动
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: 调整玩家站页面顺序
       tags:
       - 玩家站
   /profile:

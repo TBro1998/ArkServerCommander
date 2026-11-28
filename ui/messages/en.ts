@@ -47,7 +47,22 @@ const messages = {
     deleteTitle: 'Delete announcement',
     deleteDesc: 'Delete "{title}"? It disappears from the portal immediately.',
     announcementPublished: 'Announcement published',
-    announcementUpdated: 'Announcement updated'
+    announcementUpdated: 'Announcement updated',
+    pages: 'Pages',
+    pagesHint: 'Rules, beginner guides and the like, listed on the portal home page. Each server also gets an automatic Server settings page (rates, breeding, gameplay) you do not need to write.',
+    newPage: 'New page',
+    editPage: 'Edit page',
+    noPages: 'No pages yet',
+    pageTitle: 'Title',
+    pageBody: 'Content',
+    pageFormatHint: 'Plain text: lines starting with "# " are headings, lines starting with "- " are list items, blank lines separate paragraphs. No HTML or images.',
+    pageBodyPlaceholder: '# Rules\n- No cheating\n- No insults\n\nFirst offence is a warning, the second a ban.',
+    pageSaved: 'Page saved',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    deletePageTitle: 'Delete page',
+    deletePageDesc: 'Delete "{title}"? It disappears from the portal immediately.',
+    pointsHint: 'For ASE servers whose ArkShop uses its own SQLite database, players who sign in to the portal with Steam (or in ARKFGF Link) can see their points and remaining kits.'
   },
 
   // Common
@@ -657,7 +672,10 @@ const messages = {
     invalid_portal_settings: 'Invalid player portal settings',
     announcement_not_found: 'Announcement not found',
     invalid_announcement: 'Invalid announcement: title is required (up to 100 characters), content up to 10000 characters',
-    too_many_announcements: 'Up to 200 announcements; delete old ones first'
+    too_many_announcements: 'Up to 200 announcements; delete old ones first',
+    page_not_found: 'Page not found',
+    invalid_page: 'Invalid page: title is required (up to 64 characters, one line), content up to 20000 characters',
+    too_many_pages: 'Up to 50 pages; delete unused ones first'
   },
 
   // Server status

@@ -101,6 +101,7 @@ func newServer(readOnly bool) *mcp.Server {
 	registerPluginTools(r)
 	registerSystemTools(r)
 	registerPortalTools(r)
+	registerPortalPageTools(r)
 	return s
 }
 

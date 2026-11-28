@@ -136,3 +136,112 @@ func DeleteAnnouncement(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }
+
+// ListPortalPages 玩家站页面
+// @Summary 玩家站页面
+// @Description 服主写的页面（规则、新手指南等），按显示顺序
+// @Tags 玩家站
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string][]models.PortalPage "页面"
+// @Router /portal/pages [get]
+func ListPortalPages(c *gin.Context) {
+	list, err := serverService.ListPortalPages()
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": list})
+}
+
+// CreatePortalPage 新建页面
+// @Summary 新建玩家站页面
+// @Description 内容是纯文本：「# 」开头的行是标题，「- 」开头的行是列表，空行分段
+// @Tags 玩家站
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body models.PortalPageRequest true "页面"
+// @Success 200 {object} map[string]models.PortalPage "页面"
+// @Failure 400 {object} map[string]string "页面无效"
+// @Router /portal/pages [post]
+func CreatePortalPage(c *gin.Context) {
+	var req models.PortalPageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c)
+		return
+	}
+	p, err := serverService.CreatePortalPage(req)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": p})
+}
+
+// UpdatePortalPage 修改页面
+// @Summary 修改玩家站页面
+// @Tags 玩家站
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "页面 ID"
+// @Param request body models.PortalPageRequest true "页面"
+// @Success 200 {object} map[string]models.PortalPage "页面"
+// @Failure 404 {object} map[string]string "页面不存在"
+// @Router /portal/pages/{id} [put]
+func UpdatePortalPage(c *gin.Context) {
+	var req models.PortalPageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c)
+		return
+	}
+	p, err := serverService.UpdatePortalPage(c.Param("id"), req)
+	if err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": p})
+}
+
+// MovePortalPage 调整页面顺序
+// @Summary 调整玩家站页面顺序
+// @Description {"delta": -1} 向前移动一位，{"delta": 1} 向后移动一位
+// @Tags 玩家站
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "页面 ID"
+// @Success 200 {object} map[string]string "已移动"
+// @Router /portal/pages/{id}/move [post]
+func MovePortalPage(c *gin.Context) {
+	var req struct {
+		Delta int `json:"delta" binding:"min=-1,max=1"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c)
+		return
+	}
+	if err := serverService.MovePortalPage(c.Param("id"), req.Delta); err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已移动"})
+}
+
+// DeletePortalPage 删除页面
+// @Summary 删除玩家站页面
+// @Tags 玩家站
+// @Produce json
+// @Security Bearer
+// @Param id path int true "页面 ID"
+// @Success 200 {object} map[string]string "已删除"
+// @Failure 404 {object} map[string]string "页面不存在"
+// @Router /portal/pages/{id} [delete]
+func DeletePortalPage(c *gin.Context) {
+	if err := serverService.DeletePortalPage(c.Param("id")); err != nil {
+		respondServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
+}

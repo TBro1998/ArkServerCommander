@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"ark-server-commander/config"
 	"ark-server-commander/database"
 	"ark-server-commander/models"
 	"ark-server-commander/service/docker_manager"
@@ -73,6 +74,8 @@ type PortalManager struct {
 	written map[string]string
 	// 最近一次查到的游戏版本，停服后保留
 	versions map[uint]string
+	// 每台服务器 ArkShop 库的玩家点数（库文件没变化时不重新读）
+	players map[uint]playersCache
 }
 
 var portalManager = &PortalManager{
@@ -83,6 +86,7 @@ var portalManager = &PortalManager{
 	wakeCh:   make(chan struct{}, 1),
 	written:  map[string]string{},
 	versions: map[uint]string{},
+	players:  map[uint]playersCache{},
 }
 
 // StartPortalManager 启动玩家站后台协程
@@ -149,6 +153,7 @@ func (m *PortalManager) disable() {
 	m.mu.Lock()
 	m.status = models.PortalStatus{State: models.PortalDisabled}
 	m.written = map[string]string{}
+	m.players = map[uint]playersCache{}
 	m.mu.Unlock()
 }
 
@@ -182,7 +187,8 @@ func (m *PortalManager) ensureContainer(settings models.PortalSettings) {
 		m.setStatus(models.PortalStatus{State: models.PortalError, URL: url, ErrorCode: "image_error", Error: "检查玩家站镜像失败：" + err.Error()})
 		return
 	}
-	sum := sha256.Sum256([]byte(utils.PortalImage + "\x00" + imageID + "\x00" + strconv.Itoa(settings.Port)))
+	env := portalContainerEnv(settings)
+	sum := sha256.Sum256([]byte(utils.PortalImage + "\x00" + imageID + "\x00" + strconv.Itoa(settings.Port) + "\x00" + strings.Join(env, "\x00")))
 	hash := hex.EncodeToString(sum[:])
 
 	info, err := m.docker.Inspect(utils.PortalContainerName)
@@ -197,6 +203,7 @@ func (m *PortalManager) ensureContainer(settings models.PortalSettings) {
 	spec := docker_manager.PortalContainerSpec{
 		Image:    utils.PortalImage,
 		HostPort: settings.Port,
+		Env:      env,
 		Labels:   map[string]string{portalHashLabel: hash},
 	}
 	if err := m.docker.Create(spec); err != nil {
@@ -204,6 +211,16 @@ func (m *PortalManager) ensureContainer(settings models.PortalSettings) {
 		return
 	}
 	m.setStatus(models.PortalStatus{State: models.PortalRunning, URL: url})
+}
+
+// portalContainerEnv 玩家站容器的环境变量：访问地址（Steam 登录的回调地址用）、arkfgf.com 的公钥地址（联机助手登录用，
+// 关闭了 arkfgf.com 时为空，玩家站只能在浏览器里用 Steam 登录）
+func portalContainerEnv(settings models.PortalSettings) []string {
+	keys := ""
+	if config.AccountAPI != "" {
+		keys = config.AccountAPI + "/auth/portal-keys"
+	}
+	return []string{"PORTAL_PUBLIC_URL=" + settings.PublicURL, "PORTAL_ARKFGF_KEYS_URL=" + keys}
 }
 
 // portalURL 玩家访问玩家站的地址
@@ -232,6 +249,7 @@ type portalSnapshot struct {
 	Site          portalSite                 `json:"site"`
 	Announcements []portalSnapshotAnnounce   `json:"announcements"`
 	Servers       []portalSnapshotServerInfo `json:"servers"`
+	Pages         []portalPage               `json:"pages"`
 }
 
 type portalSite struct {
@@ -270,7 +288,7 @@ type portalSnapshotServerInfo struct {
 	PvP           bool        `json:"pvp"`
 	ArkApi        bool        `json:"arkapi"`
 	ClusterGroup  int         `json:"cluster_group"`
-	Mods          []string    `json:"mods"`
+	Mods          []portalMod `json:"mods"`
 	Rates         portalRates `json:"rates"`
 	Version       string      `json:"version"`
 	Address       string      `json:"address"`
@@ -278,6 +296,10 @@ type portalSnapshotServerInfo struct {
 	RoomID        uint        `json:"room_id"`
 	NextRestartAt *string     `json:"next_restart_at"`
 	Shop          bool        `json:"shop"`
+	// 这台服务器的「服务器设置」页（pages 里的 id）
+	SettingsPage string `json:"settings_page"`
+	// 登录后能看自己在这台服务器商店里的点数（ASE、ArkShop 用自己的 SQLite 库）
+	Points bool `json:"points"`
 }
 
 // portalServers 玩家站上显示的服务器（按 ID，去掉隐藏的）
@@ -332,6 +354,7 @@ func (m *PortalManager) writeSnapshot(settings models.PortalSettings) error {
 		},
 		Announcements: []portalSnapshotAnnounce{},
 		Servers:       []portalSnapshotServerInfo{},
+		Pages:         customPortalPages(),
 	}
 	for _, a := range announcements {
 		snap.Announcements = append(snap.Announcements, portalSnapshotAnnounce{
@@ -345,15 +368,23 @@ func (m *PortalManager) writeSnapshot(settings models.PortalSettings) error {
 	}
 
 	shops := map[string]*portalShop{}
+	players := map[string]*portalPlayers{}
 	groups := map[string]int{}
 	nextRestart := portalNextRestarts()
 	for _, s := range servers {
 		info := m.serverInfo(s, room, groups, nextRestart)
+		settingsPage := buildSettingsPage(info.Key, serverConfigLookup(s))
+		info.SettingsPage = settingsPage.ID
+		snap.Pages = append(snap.Pages, settingsPage)
 		if s.ArkApi {
 			if data, err := readArkShopConfig(s.ID); err == nil {
 				if shop, err := buildPortalShop(data); err == nil {
 					shops[info.Key] = shop
 					info.Shop = true
+					if p := m.shopPlayers(s, data); p != nil {
+						players[info.Key] = &portalPlayers{Players: p}
+						info.Points = true
+					}
 				}
 			}
 		}
@@ -361,8 +392,13 @@ func (m *PortalManager) writeSnapshot(settings models.PortalSettings) error {
 	}
 
 	dir := m.dir()
-	if err := os.MkdirAll(filepath.Join(dir, "shops"), 0o755); err != nil {
-		return err
+	for _, sub := range []string{"shops", "players"} {
+		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+			return err
+		}
+	}
+	if err := ensurePortalIdentity(dir); err != nil {
+		return fmt.Errorf("生成玩家站身份密钥失败: %w", err)
 	}
 	now := m.now().UTC().Format(time.RFC3339)
 	if err := m.writeIfChanged("portal.json", &snap, func() { snap.UpdatedAt = now }); err != nil {
@@ -373,19 +409,29 @@ func (m *PortalManager) writeSnapshot(settings models.PortalSettings) error {
 			return err
 		}
 	}
-	// 删除不再需要的商店文件（服务器隐藏、删除，ArkShop 停用、卸载）
-	entries, _ := os.ReadDir(filepath.Join(dir, "shops"))
+	for key, p := range players {
+		if err := m.writeIfChanged("players/"+key+".json", p, func() { p.UpdatedAt = now }); err != nil {
+			return err
+		}
+	}
+	// 删除不再需要的商店和点数文件（服务器隐藏、删除，ArkShop 停用、卸载）
+	m.removeStale(dir, "shops", func(key string) bool { _, ok := shops[key]; return ok })
+	m.removeStale(dir, "players", func(key string) bool { _, ok := players[key]; return ok })
+	return nil
+}
+
+func (m *PortalManager) removeStale(dir, sub string, keep func(key string) bool) {
+	entries, _ := os.ReadDir(filepath.Join(dir, sub))
 	for _, e := range entries {
-		key := strings.TrimSuffix(e.Name(), ".json")
-		if _, ok := shops[key]; ok && strings.HasSuffix(e.Name(), ".json") {
+		key, isJSON := strings.CutSuffix(e.Name(), ".json")
+		if isJSON && keep(key) {
 			continue
 		}
-		_ = os.Remove(filepath.Join(dir, "shops", e.Name()))
+		_ = os.Remove(filepath.Join(dir, sub, e.Name()))
 		m.mu.Lock()
-		delete(m.written, "shops/"+e.Name())
+		delete(m.written, sub+"/"+e.Name())
 		m.mu.Unlock()
 	}
-	return nil
 }
 
 // writeIfChanged 内容（不含 updated_at）和上次写入的不同、或者文件不在了时才写；stamp 在写入前填上 updated_at
@@ -437,7 +483,7 @@ func (m *PortalManager) serverInfo(s models.Server, room models.LinkRoom, groups
 		Password:   sp.Password,
 		PvP:        sp.PvP,
 		ArkApi:     s.ArkApi,
-		Mods:       sp.Mods,
+		Mods:       portalModList(game, sp.Mods),
 		Rates:      portalRates{XP: sp.RateXP, Taming: sp.RateTame, Harvest: sp.RateHarvest, Breeding: sp.RateBreeding},
 	}
 	if s.ClusterID != "" {

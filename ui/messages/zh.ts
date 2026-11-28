@@ -47,7 +47,22 @@ const messages = {
     deleteTitle: '删除公告',
     deleteDesc: '删除公告「{title}」？玩家站上会马上消失。',
     announcementPublished: '公告已发布',
-    announcementUpdated: '公告已更新'
+    announcementUpdated: '公告已更新',
+    pages: '页面',
+    pagesHint: '规则、新手指南等，显示在玩家站首页。每台服务器还会自动有一个「服务器设置」页（倍率、繁殖、游戏规则），不用自己写。',
+    newPage: '新建页面',
+    editPage: '编辑页面',
+    noPages: '还没有页面',
+    pageTitle: '标题',
+    pageBody: '内容',
+    pageFormatHint: '纯文本：以「# 」开头的行是小标题，以「- 」开头的行是列表，空行分段。不支持 HTML 和图片。',
+    pageBodyPlaceholder: '# 基本规则\n- 禁止外挂\n- 禁止辱骂\n\n违反规则第一次警告，第二次封禁。',
+    pageSaved: '页面已保存',
+    moveUp: '上移',
+    moveDown: '下移',
+    deletePageTitle: '删除页面',
+    deletePageDesc: '删除页面「{title}」？玩家站上会马上消失。',
+    pointsHint: 'ASE 服务器的 ArkShop 用自带的 SQLite 库时，玩家用 Steam 登录玩家站（或在联机助手里）后能看到自己的点数和礼包剩余次数。'
   },
 
   listing: {
@@ -657,7 +672,10 @@ const messages = {
     invalid_portal_settings: '玩家站设置无效',
     announcement_not_found: '公告不存在',
     invalid_announcement: '公告无效：标题不能为空、最多 100 字，内容最多 10000 字',
-    too_many_announcements: '公告最多 200 条，请先删除旧的公告'
+    too_many_announcements: '公告最多 200 条，请先删除旧的公告',
+    page_not_found: '页面不存在',
+    invalid_page: '页面无效：标题不能为空、最多 64 字、不能换行，内容最多 20000 字',
+    too_many_pages: '页面最多 50 个，请先删除不用的'
   },
 
   // 服务器状态

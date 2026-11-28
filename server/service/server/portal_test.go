@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"os"
@@ -176,6 +177,7 @@ func newTestPortalManager(t *testing.T) (*PortalManager, *fakePortalDocker, stri
 		wakeCh:   make(chan struct{}, 1),
 		written:  map[string]string{},
 		versions: map[uint]string{},
+		players:  map[uint]playersCache{},
 	}
 	return m, fd, dir
 }
@@ -410,4 +412,163 @@ func TestAnnouncements(t *testing.T) {
 func jsonID(id uint) string {
 	b, _ := json.Marshal(id)
 	return string(b)
+}
+
+func TestParsePageBody(t *testing.T) {
+	blocks := parsePageBody("# 服规\r\n不许偷家。\n第二行\n\n- 禁止外挂\n- 禁止辱骂\n结尾<script>")
+	raw, _ := json.Marshal(blocks)
+	want := `[{"type":"heading","text":"服规"},{"type":"paragraph","text":"不许偷家。\n第二行"},{"type":"list","items":["禁止外挂","禁止辱骂"]},{"type":"paragraph","text":"结尾\u003cscript\u003e"}]`
+	if string(raw) != want {
+		t.Fatalf("blocks:\n%s\nwant\n%s", raw, want)
+	}
+	if b := parsePageBody(""); len(b) != 0 {
+		t.Errorf("空内容应当没有块：%+v", b)
+	}
+}
+
+func TestBuildSettingsPage(t *testing.T) {
+	values := map[string]string{
+		"XPMultiplier": "3", "OverrideOfficialDifficulty": "5.0", "ServerPVE": "True", "MaxNumberOfPlayersInTribe": "6",
+		"AllowThirdPersonPlayer": "False", "DayCycleSpeedScale": "abc",
+	}
+	page := buildSettingsPage("3", func(_ cfgFile, key string) string { return values[key] })
+	if page.ID != "settings-3" || page.Kind != pageKindSettings || page.ServerKey != "3" {
+		t.Fatalf("page: %+v", page)
+	}
+	got := map[string]any{}
+	for _, b := range page.Blocks {
+		if b.Type != "kv" {
+			continue
+		}
+		for _, it := range b.Items {
+			kv := it.(portalKV)
+			got[kv.Label.(i18n).En] = kv.Value
+		}
+	}
+	for label, want := range map[string]any{
+		"XP": 3.0, "Taming speed": 1.0, "Baby mature speed": 1.0, "Max wild dino level": 150, "PvP": false,
+		"Max tribe size": int64(6), "Third person": false,
+	} {
+		if got[label] != want {
+			t.Errorf("%s = %v (%T), want %v", label, got[label], got[label], want)
+		}
+	}
+	if _, ok := got["Day cycle speed"]; ok {
+		t.Error("无效的数字不应当显示")
+	}
+	if _, ok := got["Crosshair"]; ok {
+		t.Error("没有设置的开关不应当显示")
+	}
+}
+
+// writeArkShopDB 用 ArkShop 的表结构建一个 SQLite 库
+func writeArkShopDB(t *testing.T, path string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, q := range []string{
+		"CREATE TABLE Players (Id INTEGER PRIMARY KEY AUTOINCREMENT, SteamId INTEGER DEFAULT 0, Kits TEXT DEFAULT '{}', Points INTEGER DEFAULT 0, TotalSpent INTEGER DEFAULT 0)",
+		`INSERT INTO Players (SteamId, Kits, Points, TotalSpent) VALUES (76561198000000001, '{"starter":{"Amount":2}}', 120, 30)`,
+		"INSERT INTO Players (SteamId, Kits, Points, TotalSpent) VALUES (12, '{}', 5, 0)",
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestPortalPlayersAndIdentity(t *testing.T) {
+	setupTestDB(t)
+	useTempDataDir(t)
+	srv := createTestServer(t, 7777, 27015, 32330)
+	database.DB.Model(&srv).Update("arkapi", true)
+	shopDir := filepath.Join(docker_manager.ServerPluginsDir(srv.ID), "ArkShop")
+	if err := os.MkdirAll(shopDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"Mysql":{"UseMysql":false},"General":{"DbPathOverride":""},"ShopItems":{}}`
+	if err := os.WriteFile(filepath.Join(shopDir, "config.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeArkShopDB(t, filepath.Join(shopDir, "ArkShop.db"))
+	if _, err := (&ServerService{}).CreatePortalPage(models.PortalPageRequest{Title: "服规", Body: "- 禁止外挂"}); err != nil {
+		t.Fatal(err)
+	}
+	enablePortal(t, models.PortalSettingsRequest{Port: 8090})
+
+	m, fd, dir := newTestPortalManager(t)
+	m.players = map[uint]playersCache{}
+	m.tick()
+
+	data, err := os.ReadFile(filepath.Join(dir, "players", "1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var players portalPlayers
+	if err := json.Unmarshal(data, &players); err != nil {
+		t.Fatal(err)
+	}
+	p, ok := players.Players["76561198000000001"]
+	if !ok || p.Points != 120 || p.TotalSpent != 30 || p.Kits["starter"] != 2 || len(players.Players) != 1 {
+		t.Fatalf("players: %+v", players)
+	}
+	snap := readSnapshot(t, dir)
+	if !snap.Servers[0].Points || snap.Servers[0].SettingsPage != "settings-1" {
+		t.Errorf("server: %+v", snap.Servers[0])
+	}
+	if len(snap.Pages) != 2 || snap.Pages[0].Kind != pageKindCustom || snap.Pages[1].ID != "settings-1" {
+		t.Errorf("pages: %+v", snap.Pages)
+	}
+
+	// 身份密钥生成后不再变
+	key1, err := os.ReadFile(filepath.Join(dir, identityKeyFile))
+	if err != nil || len(key1) == 0 {
+		t.Fatalf("identity key: %v", err)
+	}
+	m.tick()
+	if key2, _ := os.ReadFile(filepath.Join(dir, identityKeyFile)); string(key2) != string(key1) {
+		t.Error("身份密钥不应当变化")
+	}
+	if env := strings.Join(fd.created[0].Env, " "); !strings.Contains(env, "PORTAL_ARKFGF_KEYS_URL=") || !strings.Contains(env, "PORTAL_PUBLIC_URL=") {
+		t.Errorf("container env: %v", fd.created[0].Env)
+	}
+
+	// 改成 MySQL：不再读点数，删除点数文件
+	config = `{"Mysql":{"UseMysql":true},"ShopItems":{}}`
+	if err := os.WriteFile(filepath.Join(shopDir, "config.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m.tick()
+	if _, err := os.Stat(filepath.Join(dir, "players", "1.json")); !os.IsNotExist(err) {
+		t.Error("用 MySQL 时应当删除点数文件")
+	}
+}
+
+func TestPortalPagesCRUD(t *testing.T) {
+	setupTestDB(t)
+	s := &ServerService{}
+	if _, err := s.CreatePortalPage(models.PortalPageRequest{Title: ""}); !errors.Is(err, ErrInvalidPage) {
+		t.Errorf("空标题：%v", err)
+	}
+	a, _ := s.CreatePortalPage(models.PortalPageRequest{Title: "A"})
+	b, _ := s.CreatePortalPage(models.PortalPageRequest{Title: "B"})
+	if err := s.MovePortalPage(jsonID(b.ID), -1); err != nil {
+		t.Fatal(err)
+	}
+	list, _ := s.ListPortalPages()
+	if len(list) != 2 || list[0].Title != "B" || list[1].Title != "A" {
+		t.Fatalf("顺序：%+v", list)
+	}
+	if _, err := s.UpdatePortalPage(jsonID(a.ID), models.PortalPageRequest{Title: "A2", Body: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeletePortalPage(jsonID(a.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeletePortalPage(jsonID(a.ID)); !errors.Is(err, ErrPageNotFound) {
+		t.Errorf("重复删除：%v", err)
+	}
 }

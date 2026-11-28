@@ -46,6 +46,27 @@ func buildServerProfile(server models.Server) serverProfile {
 		}
 	}
 
+	lookup := serverConfigLookup(server)
+	profile.PvP = !parseIniBool(lookup(cfgGUS, "serverPVE"))
+	profile.Password = strings.TrimSpace(lookup(cfgGUS, "ServerPassword")) != ""
+	profile.RateXP = parseRate(lookup(cfgGUS, "XPMultiplier"))
+	profile.RateTame = parseRate(lookup(cfgGUS, "TamingSpeedMultiplier"))
+	profile.RateHarvest = parseRate(lookup(cfgGUS, "HarvestAmountMultiplier"))
+	profile.RateBreeding = parseRate(lookup(cfgGame, "BabyMatureSpeedMultiplier"))
+	return profile
+}
+
+// 配置项所在的文件：GameUserSettings.ini 的 [ServerSettings]、Game.ini 的 [/script/shootergame.shootergamemode]
+type cfgFile int
+
+const (
+	cfgGUS cfgFile = iota
+	cfgGame
+)
+
+// serverConfigLookup 读一次服务器的启动参数和两个配置文件，返回查值函数：先看启动参数里的 ?Key=Value（优先级高于配置文件），
+// 再看配置文件对应 section 里的键（同名键以最后一个为准），没有设置时返回空字符串
+func serverConfigLookup(server models.Server) func(file cfgFile, key string) string {
 	var args models.ServerArgs
 	_ = json.Unmarshal([]byte(server.ServerArgsJSON), &args)
 	var gus, game string
@@ -53,28 +74,24 @@ func buildServerProfile(server models.Server) serverProfile {
 		gus, _ = dm.ReadConfigFile(server.ID, "GameUserSettings.ini")
 		game, _ = dm.ReadConfigFile(server.ID, "Game.ini")
 	}
-	lookup := func(key, file, section string) string {
+	return func(file cfgFile, key string) string {
 		for k, v := range args.QueryParams {
 			if strings.EqualFold(k, key) {
 				return v
 			}
 		}
+		content, section := gus, "ServerSettings"
+		if file == cfgGame {
+			content, section = game, "/script/shootergame.shootergamemode"
+		}
 		value := ""
-		for _, e := range utils.FindIniEntries(file, key) {
+		for _, e := range utils.FindIniEntries(content, key) {
 			if strings.EqualFold(e.Section, section) {
-				value = e.Value // 同名键以最后一个为准
+				value = e.Value
 			}
 		}
 		return value
 	}
-	const gusSection, gameSection = "ServerSettings", "/script/shootergame.shootergamemode"
-	profile.PvP = !parseIniBool(lookup("serverPVE", gus, gusSection))
-	profile.Password = strings.TrimSpace(lookup("ServerPassword", gus, gusSection)) != ""
-	profile.RateXP = parseRate(lookup("XPMultiplier", gus, gusSection))
-	profile.RateTame = parseRate(lookup("TamingSpeedMultiplier", gus, gusSection))
-	profile.RateHarvest = parseRate(lookup("HarvestAmountMultiplier", gus, gusSection))
-	profile.RateBreeding = parseRate(lookup("BabyMatureSpeedMultiplier", game, gameSection))
-	return profile
 }
 
 func parseIniBool(v string) bool {

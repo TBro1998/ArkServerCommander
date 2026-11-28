@@ -79,3 +79,47 @@ func registerPortalTools(r *registry) {
 			return map[string]any{"deleted": in.ID}, nil
 		})
 }
+
+type pageInput struct {
+	Title string `json:"title" jsonschema:"Page title, up to 64 characters, no line breaks"`
+	Body  string `json:"body,omitempty" jsonschema:"Plain text, up to 20000 characters. Lines starting with '# ' are headings, lines starting with '- ' are list items, blank lines separate paragraphs. No HTML"`
+}
+
+type updatePageInput struct {
+	ID uint `json:"id" jsonschema:"Page ID from list_portal_pages"`
+	pageInput
+}
+
+type pageIDInput struct {
+	ID uint `json:"id" jsonschema:"Page ID from list_portal_pages"`
+}
+
+func registerPortalPageTools(r *registry) {
+	query(r, "list_portal_pages", "List portal pages",
+		"Pages the owner wrote for the player portal (rules, beginner guide, ...), in display order. Each server also gets an automatic Server settings page that is not listed here.",
+		func(_ context.Context, _ uint, _ noInput) (any, error) {
+			list, err := service.ListPortalPages()
+			return map[string]any{"pages": list}, err
+		})
+
+	action(r, additive, "create_portal_page", "Create portal page",
+		"Add a page to the player portal (shown after the existing pages). At most 50 pages.",
+		func(_ context.Context, _ uint, in pageInput) (any, error) {
+			return service.CreatePortalPage(models.PortalPageRequest{Title: in.Title, Body: in.Body})
+		})
+
+	action(r, idempotent, "update_portal_page", "Edit portal page",
+		"Replace a page's title and body.",
+		func(_ context.Context, _ uint, in updatePageInput) (any, error) {
+			return service.UpdatePortalPage(strconv.FormatUint(uint64(in.ID), 10), models.PortalPageRequest{Title: in.Title, Body: in.Body})
+		})
+
+	action(r, destructive, "delete_portal_page", "Delete portal page",
+		"Delete a page from the player portal.",
+		func(_ context.Context, _ uint, in pageIDInput) (any, error) {
+			if err := service.DeletePortalPage(strconv.FormatUint(uint64(in.ID), 10)); err != nil {
+				return nil, err
+			}
+			return map[string]any{"deleted": in.ID}, nil
+		})
+}

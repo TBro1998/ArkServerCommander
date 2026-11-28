@@ -89,6 +89,11 @@ func RegisterRoutes(r *gin.Engine) {
 			protected.POST("/portal/announcements", servers.CreateAnnouncement)
 			protected.PUT("/portal/announcements/:id", servers.UpdateAnnouncement)
 			protected.DELETE("/portal/announcements/:id", servers.DeleteAnnouncement)
+			protected.GET("/portal/pages", servers.ListPortalPages)
+			protected.POST("/portal/pages", servers.CreatePortalPage)
+			protected.PUT("/portal/pages/:id", servers.UpdatePortalPage)
+			protected.POST("/portal/pages/:id/move", servers.MovePortalPage)
+			protected.DELETE("/portal/pages/:id", servers.DeletePortalPage)
 
 			// 服务器管理路由
 			serverRoutes := protected.Group("/servers")

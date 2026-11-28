@@ -26,7 +26,7 @@ func setupTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}, &models.LinkRoom{}, &models.ArkfgfAccount{}, &models.PortalSettings{}, &models.PortalAnnouncement{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Server{}, &models.Schedule{}, &models.APIToken{}, &models.LinkRoom{}, &models.ArkfgfAccount{}, &models.PortalSettings{}, &models.PortalAnnouncement{}, &models.PortalPage{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Create(&models.User{Username: "admin", Password: "x"}).Error; err != nil {
@@ -130,12 +130,12 @@ func TestMCPReadOnlyTokenOnlySeesQueryTools(t *testing.T) {
 	roSession := connect(t, srv.URL, ro.Token)
 	roTools := toolNames(t, roSession)
 
-	for _, name := range []string{"list_servers", "start_server", "delete_server", "get_admin_password", "set_config_values", "rcon_command", "update_portal", "create_announcement"} {
+	for _, name := range []string{"list_servers", "start_server", "delete_server", "get_admin_password", "set_config_values", "rcon_command", "update_portal", "create_announcement", "create_portal_page"} {
 		if !slices.Contains(fullTools, name) {
 			t.Errorf("完整权限令牌缺少工具 %s", name)
 		}
 	}
-	for _, name := range []string{"list_servers", "get_server", "get_logs", "list_backups", "suggest_ports", "get_arkfgf_account", "get_portal", "list_announcements"} {
+	for _, name := range []string{"list_servers", "get_server", "get_logs", "list_backups", "suggest_ports", "get_arkfgf_account", "get_portal", "list_announcements", "list_portal_pages"} {
 		if !slices.Contains(roTools, name) {
 			t.Errorf("只读令牌缺少查询工具 %s", name)
 		}

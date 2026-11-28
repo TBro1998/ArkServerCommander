@@ -34,6 +34,7 @@ func PortalDataDir() string {
 type PortalContainerSpec struct {
 	Image    string
 	HostPort int
+	Env      []string
 	Labels   map[string]string
 }
 
@@ -51,7 +52,7 @@ func (dm *DockerManager) CreatePortalContainer(spec PortalContainerSpec) error {
 	port := nat.Port(portalContainerPort)
 	cfg := &container.Config{
 		Image:        spec.Image,
-		Env:          []string{"TZ=" + config.ContainerTZ},
+		Env:          append([]string{"TZ=" + config.ContainerTZ}, spec.Env...),
 		Labels:       spec.Labels,
 		ExposedPorts: nat.PortSet{port: struct{}{}},
 	}
